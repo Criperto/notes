@@ -15,6 +15,9 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QTimer>
+#include <QPointF>
+#include <QLocalServer>
+#include <QLocalSocket>
 #include <QtQmlIntegration/qqmlintegration.h>
 
 // ── 1. SplitParser ───────────────────────────────────────────────────────────
@@ -185,9 +188,14 @@ class Sys : public QObject {
     Q_PROPERTY(QString homeDir READ homeDir CONSTANT)
     Q_PROPERTY(QString dataShareDir READ dataShareDir CONSTANT)
     Q_PROPERTY(QString appExecutable READ appExecutable CONSTANT)
+    Q_PROPERTY(QString initialAction READ initialAction CONSTANT)
+    Q_PROPERTY(QString initialTarget READ initialTarget CONSTANT)
+    Q_PROPERTY(qreal lastMouseX READ lastMouseX NOTIFY lastMousePosChanged)
+    Q_PROPERTY(qreal lastMouseY READ lastMouseY NOTIFY lastMousePosChanged)
 
 public:
     explicit Sys(QObject *parent = nullptr);
+    ~Sys() override;
 
     QString clipboardText() const;
     void setClipboardText(const QString &text);
@@ -196,6 +204,13 @@ public:
     QString homeDir() const;
     QString dataShareDir() const;
     QString appExecutable() const;
+    QString initialAction() const { return m_initialAction; }
+    QString initialTarget() const { return m_initialTarget; }
+
+    qreal lastMouseX() const { return m_lastMousePos.x(); }
+    qreal lastMouseY() const { return m_lastMousePos.y(); }
+
+    bool eventFilter(QObject *watched, QEvent *event) override;
 
     Q_INVOKABLE QString env(const QString &name, const QString &fallback = QString()) const;
     Q_INVOKABLE bool execDetached(const QStringList &args) const;
@@ -205,9 +220,20 @@ public:
 
 signals:
     void clipboardTextChanged();
+    void lastMousePosChanged();
+    void ipcCommandReceived(const QString &action, const QString &target);
+
+private slots:
+    void onNewIpcConnection();
 
 private:
+    void startIpcServer();
+
     mutable int m_hasTouchscreen = -1;
+    QPointF m_lastMousePos = QPointF(100, 100);
+    QString m_initialAction;
+    QString m_initialTarget;
+    QLocalServer *m_ipcServer = nullptr;
 };
 
 // ── 5. ConfigBackend Singleton ──────────────────────────────────────────────
@@ -227,6 +253,17 @@ class ConfigBackend : public QObject {
     Q_PROPERTY(QString spellCheckLanguage READ spellCheckLanguage WRITE setSpellCheckLanguage NOTIFY spellCheckLanguageChanged)
     Q_PROPERTY(QString themeMode READ themeMode WRITE setThemeMode NOTIFY themeModeChanged)
     Q_PROPERTY(bool hideScrollbars READ hideScrollbars WRITE setHideScrollbars NOTIFY hideScrollbarsChanged)
+
+    Q_PROPERTY(int cardsPerRow READ cardsPerRow WRITE setCardsPerRow NOTIFY cardsPerRowChanged)
+    Q_PROPERTY(QString importMode READ importMode WRITE setImportMode NOTIFY importModeChanged)
+    Q_PROPERTY(QString spellcheckMode READ spellcheckMode WRITE setSpellcheckMode NOTIFY spellcheckModeChanged)
+    Q_PROPERTY(QString disabledSpellLanguages READ disabledSpellLanguages WRITE setDisabledSpellLanguages NOTIFY disabledSpellLanguagesChanged)
+    Q_PROPERTY(QString primarySpellLanguage READ primarySpellLanguage WRITE setPrimarySpellLanguage NOTIFY primarySpellLanguageChanged)
+    Q_PROPERTY(bool ignoreUppercase READ ignoreUppercase WRITE setIgnoreUppercase NOTIFY ignoreUppercaseChanged)
+    Q_PROPERTY(bool ignoreWithDigits READ ignoreWithDigits WRITE setIgnoreWithDigits NOTIFY ignoreWithDigitsChanged)
+    Q_PROPERTY(int panelOpacity READ panelOpacity WRITE setPanelOpacity NOTIFY panelOpacityChanged)
+    Q_PROPERTY(bool animationsEnabled READ animationsEnabled WRITE setAnimationsEnabled NOTIFY animationsEnabledChanged)
+    Q_PROPERTY(double fontSizeScale READ fontSizeScale WRITE setFontSizeScale NOTIFY fontSizeScaleChanged)
 
 public:
     explicit ConfigBackend(QObject *parent = nullptr);
@@ -265,6 +302,36 @@ public:
     bool hideScrollbars() const { return m_hideScrollbars; }
     void setHideScrollbars(bool val);
 
+    int cardsPerRow() const { return m_cardsPerRow; }
+    void setCardsPerRow(int val);
+
+    QString importMode() const { return m_importMode; }
+    void setImportMode(const QString &val);
+
+    QString spellcheckMode() const { return m_spellcheckMode; }
+    void setSpellcheckMode(const QString &val);
+
+    QString disabledSpellLanguages() const { return m_disabledSpellLanguages; }
+    void setDisabledSpellLanguages(const QString &val);
+
+    QString primarySpellLanguage() const { return m_primarySpellLanguage; }
+    void setPrimarySpellLanguage(const QString &val);
+
+    bool ignoreUppercase() const { return m_ignoreUppercase; }
+    void setIgnoreUppercase(bool val);
+
+    bool ignoreWithDigits() const { return m_ignoreWithDigits; }
+    void setIgnoreWithDigits(bool val);
+
+    int panelOpacity() const { return m_panelOpacity; }
+    void setPanelOpacity(int val);
+
+    bool animationsEnabled() const { return m_animationsEnabled; }
+    void setAnimationsEnabled(bool val);
+
+    double fontSizeScale() const { return m_fontSizeScale; }
+    void setFontSizeScale(double val);
+
     Q_INVOKABLE void save();
     Q_INVOKABLE void reload();
 
@@ -280,6 +347,17 @@ signals:
     void spellCheckLanguageChanged();
     void themeModeChanged();
     void hideScrollbarsChanged();
+
+    void cardsPerRowChanged();
+    void importModeChanged();
+    void spellcheckModeChanged();
+    void disabledSpellLanguagesChanged();
+    void primarySpellLanguageChanged();
+    void ignoreUppercaseChanged();
+    void ignoreWithDigitsChanged();
+    void panelOpacityChanged();
+    void animationsEnabledChanged();
+    void fontSizeScaleChanged();
 
 private:
     void load();
@@ -299,6 +377,17 @@ private:
     QString m_themeMode = QStringLiteral("system");
     bool m_hideScrollbars = false;
 
+    int m_cardsPerRow = 3;
+    QString m_importMode = QStringLiteral("copy");
+    QString m_spellcheckMode = QStringLiteral("auto");
+    QString m_disabledSpellLanguages;
+    QString m_primarySpellLanguage;
+    bool m_ignoreUppercase = true;
+    bool m_ignoreWithDigits = true;
+    int m_panelOpacity = 94;
+    bool m_animationsEnabled = true;
+    double m_fontSizeScale = 1.0;
+
     QTimer *m_saveTimer = nullptr;
 };
 
@@ -309,15 +398,18 @@ class SpellBackend : public QObject {
     QML_SINGLETON
 
     Q_PROPERTY(QStringList availableDictionaries READ availableDictionaries NOTIFY availableDictionariesChanged)
+    Q_PROPERTY(QStringList personalWords READ personalWords NOTIFY personalWordsChanged)
 
 public:
     explicit SpellBackend(QObject *parent = nullptr);
 
     QStringList availableDictionaries() const { return m_availableDictionaries; }
+    QStringList personalWords() const { return m_personalWords; }
 
     Q_INVOKABLE QJsonObject checkWords(const QString &lang, const QStringList &words);
     Q_INVOKABLE void addPersonalWord(const QString &word);
-    Q_INVOKABLE QStringList personalWords() const { return m_personalWords; }
+    Q_INVOKABLE void removePersonalWord(const QString &word);
+    Q_INVOKABLE void clearPersonalWords();
 
 signals:
     void availableDictionariesChanged();

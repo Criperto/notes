@@ -10,6 +10,8 @@
 #include <QTextStream>
 #include <QRegularExpression>
 #include <QUrl>
+#include <QMouseEvent>
+#include <QStandardPaths>
 #include <iostream>
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -30,7 +32,6 @@ void SplitParser::setSplitMarker(const QString &marker) {
 void SplitParser::pushData(const QByteArray &data) {
     if (data.isEmpty()) return;
 
-    // D4: Si splitMarker está vacío, emitir cada chunk directamente
     if (m_splitMarker.isEmpty()) {
         emit read(QString::fromUtf8(data));
         return;
@@ -379,8 +380,72 @@ void FileView::onFileSystemChanged(const QString &path) {
 Sys::Sys(QObject *parent)
     : QObject(parent)
 {
+    m_initialAction = QString::fromLocal8Bit(qgetenv("NOTAS_INITIAL_ACTION"));
+    m_initialTarget = QString::fromLocal8Bit(qgetenv("NOTAS_INITIAL_TARGET"));
+
     if (QGuiApplication::clipboard()) {
         connect(QGuiApplication::clipboard(), &QClipboard::dataChanged, this, &Sys::clipboardTextChanged);
+    }
+
+    if (auto *app = QGuiApplication::instance()) {
+        app->installEventFilter(this);
+    }
+
+    startIpcServer();
+}
+
+Sys::~Sys() {
+    if (m_ipcServer) {
+        m_ipcServer->close();
+        delete m_ipcServer;
+        m_ipcServer = nullptr;
+    }
+}
+
+bool Sys::eventFilter(QObject *watched, QEvent *event) {
+    if (event->type() == QEvent::MouseButtonPress || event->type() == QEvent::MouseMove) {
+        auto *me = static_cast<QMouseEvent*>(event);
+        QPointF p = me->scenePosition();
+        if (p != m_lastMousePos) {
+            m_lastMousePos = p;
+            emit lastMousePosChanged();
+        }
+    }
+    return QObject::eventFilter(watched, event);
+}
+
+void Sys::startIpcServer() {
+    QString runtimeDir = QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation);
+    if (runtimeDir.isEmpty()) runtimeDir = QDir::tempPath();
+    QString sockPath = runtimeDir + QStringLiteral("/notas.sock");
+
+    QFile::remove(sockPath);
+
+    m_ipcServer = new QLocalServer(this);
+    connect(m_ipcServer, &QLocalServer::newConnection, this, &Sys::onNewIpcConnection);
+
+    if (!m_ipcServer->listen(sockPath)) {
+        // Fallback al nombre abstracto o por defecto
+        m_ipcServer->listen(QStringLiteral("notas"));
+    }
+}
+
+void Sys::onNewIpcConnection() {
+    while (m_ipcServer && m_ipcServer->hasPendingConnections()) {
+        QLocalSocket *client = m_ipcServer->nextPendingConnection();
+        connect(client, &QLocalSocket::readyRead, this, [this, client]() {
+            QByteArray raw = client->readAll().trimmed();
+            if (!raw.isEmpty()) {
+                QJsonDocument doc = QJsonDocument::fromJson(raw);
+                if (doc.isObject()) {
+                    QJsonObject obj = doc.object();
+                    QString action = obj[QStringLiteral("action")].toString();
+                    QString target = obj[QStringLiteral("target")].toString();
+                    emit ipcCommandReceived(action, target);
+                }
+            }
+            client->deleteLater();
+        });
     }
 }
 
@@ -422,6 +487,10 @@ QString Sys::dataShareDir() const {
     QString devDir = QDir::currentPath();
     if (QFile::exists(devDir + QStringLiteral("/qml/Main.qml"))) {
         return devDir;
+    }
+    QString userShare = QDir::homePath() + QStringLiteral("/.local/share/notas");
+    if (QFile::exists(userShare)) {
+        return userShare;
     }
     return QStringLiteral("/usr/share/notas");
 }
@@ -520,7 +589,6 @@ QJsonObject Sys::indexNotes(const QString &notesDirStr) const {
         QString path = fi.absoluteFilePath();
         QString relPath = dir.relativeFilePath(path);
 
-        // Omitir ocultos (.git, .trash, etc.)
         if (relPath.startsWith(QStringLiteral(".")) || relPath.contains(QStringLiteral("/."))) {
             continue;
         }
@@ -545,7 +613,6 @@ QJsonObject Sys::indexNotes(const QString &notesDirStr) const {
             meta[QStringLiteral("isFolderNote")] = isFolder;
             meta[QStringLiteral("baseFolder")] = fi.absolutePath();
 
-            // Parsear frontmatter rápido
             QFile nf(path);
             QString title = fi.baseName();
             QString subtitle;
@@ -577,7 +644,6 @@ QJsonObject Sys::indexNotes(const QString &notesDirStr) const {
                         }
                     }
                 }
-                // Si título sigue siendo default, buscar primer # Heading
                 if (title == fi.baseName()) {
                     while (!nIn.atEnd()) {
                         line = nIn.readLine().trimmed();
@@ -731,6 +797,79 @@ void ConfigBackend::setHideScrollbars(bool val) {
     scheduleSave();
 }
 
+void ConfigBackend::setCardsPerRow(int val) {
+    int clamped = qBound(2, val, 5);
+    if (m_cardsPerRow == clamped) return;
+    m_cardsPerRow = clamped;
+    emit cardsPerRowChanged();
+    scheduleSave();
+}
+
+void ConfigBackend::setImportMode(const QString &val) {
+    if (m_importMode == val) return;
+    m_importMode = val;
+    emit importModeChanged();
+    scheduleSave();
+}
+
+void ConfigBackend::setSpellcheckMode(const QString &val) {
+    if (m_spellcheckMode == val) return;
+    m_spellcheckMode = val;
+    emit spellcheckModeChanged();
+    scheduleSave();
+}
+
+void ConfigBackend::setDisabledSpellLanguages(const QString &val) {
+    if (m_disabledSpellLanguages == val) return;
+    m_disabledSpellLanguages = val;
+    emit disabledSpellLanguagesChanged();
+    scheduleSave();
+}
+
+void ConfigBackend::setPrimarySpellLanguage(const QString &val) {
+    if (m_primarySpellLanguage == val) return;
+    m_primarySpellLanguage = val;
+    emit primarySpellLanguageChanged();
+    scheduleSave();
+}
+
+void ConfigBackend::setIgnoreUppercase(bool val) {
+    if (m_ignoreUppercase == val) return;
+    m_ignoreUppercase = val;
+    emit ignoreUppercaseChanged();
+    scheduleSave();
+}
+
+void ConfigBackend::setIgnoreWithDigits(bool val) {
+    if (m_ignoreWithDigits == val) return;
+    m_ignoreWithDigits = val;
+    emit ignoreWithDigitsChanged();
+    scheduleSave();
+}
+
+void ConfigBackend::setPanelOpacity(int val) {
+    int clamped = qBound(50, val, 100);
+    if (m_panelOpacity == clamped) return;
+    m_panelOpacity = clamped;
+    emit panelOpacityChanged();
+    scheduleSave();
+}
+
+void ConfigBackend::setAnimationsEnabled(bool val) {
+    if (m_animationsEnabled == val) return;
+    m_animationsEnabled = val;
+    emit animationsEnabledChanged();
+    scheduleSave();
+}
+
+void ConfigBackend::setFontSizeScale(double val) {
+    double clamped = qBound(0.85, val, 1.35);
+    if (qFuzzyCompare(m_fontSizeScale, clamped)) return;
+    m_fontSizeScale = clamped;
+    emit fontSizeScaleChanged();
+    scheduleSave();
+}
+
 void ConfigBackend::load() {
     QString path = configFilePath();
     if (QFile::exists(path)) {
@@ -750,6 +889,17 @@ void ConfigBackend::load() {
                 if (obj.contains("spellCheckLanguage")) m_spellCheckLanguage = obj["spellCheckLanguage"].toString("auto");
                 if (obj.contains("themeMode")) m_themeMode = obj["themeMode"].toString("system");
                 if (obj.contains("hideScrollbars")) m_hideScrollbars = obj["hideScrollbars"].toBool(false);
+
+                if (obj.contains("cardsPerRow")) m_cardsPerRow = obj["cardsPerRow"].toInt(3);
+                if (obj.contains("importMode")) m_importMode = obj["importMode"].toString("copy");
+                if (obj.contains("spellcheckMode")) m_spellcheckMode = obj["spellcheckMode"].toString("auto");
+                if (obj.contains("disabledSpellLanguages")) m_disabledSpellLanguages = obj["disabledSpellLanguages"].toString();
+                if (obj.contains("primarySpellLanguage")) m_primarySpellLanguage = obj["primarySpellLanguage"].toString();
+                if (obj.contains("ignoreUppercase")) m_ignoreUppercase = obj["ignoreUppercase"].toBool(true);
+                if (obj.contains("ignoreWithDigits")) m_ignoreWithDigits = obj["ignoreWithDigits"].toBool(true);
+                if (obj.contains("panelOpacity")) m_panelOpacity = obj["panelOpacity"].toInt(94);
+                if (obj.contains("animationsEnabled")) m_animationsEnabled = obj["animationsEnabled"].toBool(true);
+                if (obj.contains("fontSizeScale")) m_fontSizeScale = obj["fontSizeScale"].toDouble(1.0);
             }
             file.close();
             return;
@@ -783,7 +933,7 @@ void ConfigBackend::load() {
                 }
             }
             lf.close();
-            save(); // Persistir inmediatamente en el nuevo formato JSON
+            save();
         }
     }
 }
@@ -801,6 +951,17 @@ void ConfigBackend::save() {
     obj[QStringLiteral("spellCheckLanguage")] = m_spellCheckLanguage;
     obj[QStringLiteral("themeMode")] = m_themeMode;
     obj[QStringLiteral("hideScrollbars")] = m_hideScrollbars;
+
+    obj[QStringLiteral("cardsPerRow")] = m_cardsPerRow;
+    obj[QStringLiteral("importMode")] = m_importMode;
+    obj[QStringLiteral("spellcheckMode")] = m_spellcheckMode;
+    obj[QStringLiteral("disabledSpellLanguages")] = m_disabledSpellLanguages;
+    obj[QStringLiteral("primarySpellLanguage")] = m_primarySpellLanguage;
+    obj[QStringLiteral("ignoreUppercase")] = m_ignoreUppercase;
+    obj[QStringLiteral("ignoreWithDigits")] = m_ignoreWithDigits;
+    obj[QStringLiteral("panelOpacity")] = m_panelOpacity;
+    obj[QStringLiteral("animationsEnabled")] = m_animationsEnabled;
+    obj[QStringLiteral("fontSizeScale")] = m_fontSizeScale;
 
     QString path = configFilePath();
     QFileInfo fi(path);
@@ -826,6 +987,17 @@ void ConfigBackend::reload() {
     emit spellCheckLanguageChanged();
     emit themeModeChanged();
     emit hideScrollbarsChanged();
+
+    emit cardsPerRowChanged();
+    emit importModeChanged();
+    emit spellcheckModeChanged();
+    emit disabledSpellLanguagesChanged();
+    emit primarySpellLanguageChanged();
+    emit ignoreUppercaseChanged();
+    emit ignoreWithDigitsChanged();
+    emit panelOpacityChanged();
+    emit animationsEnabledChanged();
+    emit fontSizeScaleChanged();
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -846,8 +1018,11 @@ QString SpellBackend::personalDicPath() const {
 void SpellBackend::discoverDictionaries() {
     m_availableDictionaries.clear();
     const QStringList paths = {
+        QDir::homePath() + QStringLiteral("/.local/share/notas/dictionaries"),
         QStringLiteral("/usr/share/hunspell"),
-        QStringLiteral("/usr/share/myspell")
+        QStringLiteral("/usr/share/myspell"),
+        QDir::homePath() + QStringLiteral("/.local/share/hunspell"),
+        QDir::homePath() + QStringLiteral("/.config/quickshell/languages/spellcheck/dicts")
     };
 
     for (const auto &p : paths) {
@@ -904,6 +1079,22 @@ void SpellBackend::addPersonalWord(const QString &word) {
     emit personalWordsChanged();
 }
 
+void SpellBackend::removePersonalWord(const QString &word) {
+    QString clean = word.trimmed();
+    if (m_personalWords.removeAll(clean) > 0) {
+        savePersonalWords();
+        emit personalWordsChanged();
+    }
+}
+
+void SpellBackend::clearPersonalWords() {
+    if (!m_personalWords.isEmpty()) {
+        m_personalWords.clear();
+        savePersonalWords();
+        emit personalWordsChanged();
+    }
+}
+
 QJsonObject SpellBackend::checkWords(const QString &lang, const QStringList &words) {
     QJsonObject result;
     if (words.isEmpty()) return result;
@@ -914,7 +1105,7 @@ QJsonObject SpellBackend::checkWords(const QString &lang, const QStringList &wor
     }
 
     QProcess proc;
-    proc.start("hunspell", {"-a", "-d", dict});
+    proc.start("hunspell", {"-a", "-d", dict, "-p", personalDicPath()});
     if (!proc.waitForStarted(1000)) {
         return result;
     }
@@ -936,10 +1127,6 @@ QJsonObject SpellBackend::checkWords(const QString &lang, const QStringList &wor
     QByteArray rawOut = proc.readAllStandardOutput();
     QTextStream in(rawOut);
 
-    // Parsear salida hunspell -a:
-    // '*' o '+' -> correcto
-    // '& <word> <count> <offset>: <sugg1>, <sugg2>' -> error con sugerencias
-    // '# <word> <offset>' -> error sin sugerencias
     while (!in.atEnd()) {
         QString line = in.readLine().trimmed();
         if (line.startsWith('&')) {

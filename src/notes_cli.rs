@@ -265,6 +265,41 @@ fn parse_note_meta(notes_dir: &Path, file_path: &Path, rel_path: &str) -> Option
         }
     }
 
+    if subtitle.is_empty() {
+        let mut in_fm = false;
+        let mut passed_fm = false;
+        let mut found_h1 = false;
+        for line in sample.lines() {
+            let t = line.trim();
+            if !passed_fm {
+                if t == "---" {
+                    if in_fm {
+                        passed_fm = true;
+                        continue;
+                    } else {
+                        in_fm = true;
+                        continue;
+                    }
+                }
+                if in_fm {
+                    continue;
+                }
+            }
+            if !found_h1 {
+                if t.starts_with("# ") {
+                    found_h1 = true;
+                }
+            } else if !t.is_empty() && !t.starts_with("```") {
+                if let Some(h2) = t.strip_prefix("## ") {
+                    subtitle = h2.trim().to_string();
+                } else if !t.starts_with('#') && !t.starts_with("![") {
+                    subtitle = t.to_string();
+                }
+                break;
+            }
+        }
+    }
+
     let mut search_pos = 0;
     while let Some(idx) = sample[search_pos..].find("![") {
         let abs_idx = search_pos + idx;

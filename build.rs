@@ -49,6 +49,7 @@ fn main() {
         "qml/CustomTextCursor.qml",
         "qml/CustomScrollBar.qml",
         "qml/ClippingRectangle.qml",
+        "qml/SettingsTextField.qml",
         "qml/BlockEditor.qml",
         "qml/BlockParagraph.qml",
         "qml/BlockHeading.qml",
@@ -77,6 +78,7 @@ fn main() {
         .qt_module("Qml")
         .qt_module("Quick")
         .qt_module("QuickControls2")
+        .qt_module("Network")
         .qrc_resources(resources)
         .cpp_file(CppFile::from("src/native/native_bridge.h").moc(true))
         .cpp_file("src/native/native_bridge.cpp")
