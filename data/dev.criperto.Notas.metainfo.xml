@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>dev.criperto.Notas</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <name>Notas</name>
+  <summary>Aplicación de notas en Markdown con tarjetas interactivas y diagramas Mermaid</summary>
+  <description>
+    <p>
+      Notas es una aplicación de notas y apuntes en Markdown de alto rendimiento para Linux y Wayland.
+      Incluye un editor por bloques, previsualización en vivo, soporte completo de diagramas Mermaid,
+      organización de notas en carpetas y verificación ortográfica multilingüe.
+    </p>
+  </description>
+  <launchable type="desktop-id">dev.criperto.Notas.desktop</launchable>
+  <provides>
+    <binary>notas</binary>
+    <dbus type="user">dev.criperto.Notas</dbus>
+  </provides>
+  <releases>
+    <release version="0.1.0" date="2026-11-01">
+      <description>
+        <p>Lanzamiento inicial de la versión autónoma de Notas.</p>
+      </description>
+    </release>
+  </releases>
+  <developer_name>Tomas (Criperto)</developer_name>
+</component>

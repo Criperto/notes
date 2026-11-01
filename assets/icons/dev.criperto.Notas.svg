@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1f232a"/>
+      <stop offset="100%" stop-color="#13161a"/>
+    </linearGradient>
+    <linearGradient id="accentGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ff7b54"/>
+      <stop offset="100%" stop-color="#ffb26b"/>
+    </linearGradient>
+    <linearGradient id="foldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2a303c"/>
+      <stop offset="100%" stop-color="#1e222b"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="#000000" flood-opacity="0.4"/>
+    </filter>
+  </defs>
+
+  <!-- Base Squircle -->
+  <rect x="8" y="8" width="112" height="112" rx="28" fill="url(#bgGrad)" stroke="#313844" stroke-width="2" filter="url(#shadow)"/>
+
+  <!-- Page Sheet -->
+  <path d="M 36 28 L 74 28 L 92 46 L 92 100 L 36 100 Z" fill="#252b36" stroke="#3d4554" stroke-width="2" stroke-linejoin="round"/>
+
+  <!-- Fold Corner -->
+  <path d="M 74 28 L 74 46 L 92 46 Z" fill="url(#foldGrad)" stroke="#3d4554" stroke-width="2" stroke-linejoin="round"/>
+
+  <!-- Accent Heading Line -->
+  <rect x="46" y="44" width="22" height="5" rx="2.5" fill="url(#accentGrad)"/>
+
+  <!-- Markdown Document Content Lines -->
+  <rect x="46" y="58" width="36" height="4" rx="2" fill="#586579"/>
+  <rect x="46" y="68" width="32" height="4" rx="2" fill="#586579"/>
+  <rect x="46" y="78" width="26" height="4" rx="2" fill="#586579"/>
+
+  <!-- Floating Stylus / Pencil Accent -->
+  <g transform="translate(82, 84) rotate(-35)">
+    <rect x="-4" y="-18" width="8" height="28" rx="2" fill="url(#accentGrad)"/>
+    <polygon points="-4,10 4,10 0,18" fill="#e25f38"/>
+    <circle cx="0" cy="18" r="1" fill="#13161a"/>
+  </g>
+</svg>

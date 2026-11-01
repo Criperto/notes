@@ -1,0 +1,27 @@
+[package]
+name = "notas"
+version = "0.1.0"
+edition = "2021"
+authors = ["Tomas <dev@criperto.com>"]
+license = "GPL-3.0-or-later"
+description = "Aplicación nativa de notas en Markdown con editor de bloques y diagramas Mermaid"
+
+[dependencies]
+cxx = "1.0"
+cxx-qt = "0.10"
+cxx-qt-lib = { version = "0.10", features = ["qt_full"] }
+clap = { version = "4", features = ["derive"] }
+zbus = "5.13"
+dirs = "6"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.8"
+notify = "8"
+trash = "5"
+walkdir = "2.5"
+arboard = { version = "3.7", features = ["wayland-data-control"] }
+ashpd = "0.13"
+
+[build-dependencies]
+cxx-qt-build = { version = "0.10", features = ["link_qt_object_files"] }
+cc = "1.2"

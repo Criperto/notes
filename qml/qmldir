@@ -1,8 +1,16 @@
-# notes/qmldir — módulo de notas Markdown para Quickshell
+module Notas
 
-singleton NotesService 1.0 NotesService.qml
-singleton EditorMetrics 1.0 EditorMetrics.qml
+# Singletons de la aplicación
+singleton Theme           1.0 Theme.qml
+singleton I18n            1.0 I18n.qml
+singleton NotesConfig     1.0 NotesConfig.qml
+singleton NotesService    1.0 NotesService.qml
+singleton SpellService    1.0 SpellService.qml
+singleton EditorMetrics   1.0 EditorMetrics.qml
+singleton GamemodeService 1.0 GamemodeService.qml
+singleton HyprlandConfig  1.0 HyprlandConfig.qml
 
+# Vistas y componentes de UI
 NotesContent       1.0 NotesContent.qml
 NoteCard           1.0 NoteCard.qml
 MorphingFab        1.0 MorphingFab.qml
@@ -11,7 +19,11 @@ NoteEditorModal    1.0 NoteEditorModal.qml
 EditorToolTip      1.0 EditorToolTip.qml
 ToolbarButton      1.0 ToolbarButton.qml
 EditorTooltipLayer 1.0 EditorTooltipLayer.qml
+CustomTextCursor   1.0 CustomTextCursor.qml
+CustomScrollBar    1.0 CustomScrollBar.qml
+ClippingRectangle  1.0 ClippingRectangle.qml
 
+# Bloques del editor
 BlockEditor        1.0 BlockEditor.qml
 BlockParagraph     1.0 BlockParagraph.qml
 BlockHeading       1.0 BlockHeading.qml
