@@ -13,7 +13,7 @@ Item {
     id: root
 
     signal closeRequested
-    signal openSettingsRequested
+    signal openSettingsRequested(var originRect)
 
     property bool _morphTransitioning: false
     property string activeMorphSlug: ""
@@ -602,7 +602,10 @@ Item {
                             anchors.fill: parent
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: root.openSettingsRequested()
+                            onClicked: {
+                                var origin = settingsBtn.mapToItem(clippingRoot, 0, 0);
+                                root.openSettingsRequested(Qt.rect(origin.x, origin.y, settingsBtn.width, settingsBtn.height));
+                            }
                         }
                     }
 
@@ -2508,28 +2511,8 @@ Item {
             }
             return;
         }
-        if (act === "open") {
-            return;
-        }
-        if (act === "openNote") {
-            var n = NotesService.getNote(tgt);
-            if (n) {
-                if (morphContainer.isExpanded) {
-                    NotesService.openNote(n);
-                } else {
-                    root.openNoteImmediate(n);
-                }
-            } else {
-                NotesService.openNoteBySlug(tgt);
-                var n2 = NotesService.activeNote;
-                if (n2 && !morphContainer.isExpanded) {
-                    root.openNoteImmediate(n2);
-                }
-            }
-            root.isReadyToShow = true;
-            return;
-        }
-        if (act === "openPath") {
+        if (act === "open" || act === "openPath") {
+            if (!tgt || tgt === "") return;
             NotesService.openPath(tgt, false, function(note) {
                 if (note) {
                     if (note.isExternal) root.launchedForExternal = true;
@@ -2543,7 +2526,8 @@ Item {
             });
             return;
         }
-        if (act === "previewFile") {
+        if (act === "preview" || act === "previewFile") {
+            if (!tgt || tgt === "") return;
             NotesService.openPath(tgt, true, function(pNote) {
                 if (pNote) {
                     if (pNote.isExternal) root.launchedForExternal = true;
@@ -2557,7 +2541,7 @@ Item {
             });
             return;
         }
-        if (act === "createNote") {
+        if (act === "new" || act === "createNote") {
             if (morphContainer.isExpanded) {
                 root.closeNoteWithMorph();
             }

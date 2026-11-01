@@ -241,7 +241,7 @@ Item {
                 // ── 1. RENDERIZADO DE FLOWCHART Y STATE DIAGRAM ─────────────────
                 Item {
                     id: flowchartGroup
-                    visible: root.layoutResult && (root.layoutResult.type === "flowchart" || root.layoutResult.type === "stateDiagram")
+                    visible: !!(root.layoutResult && (root.layoutResult.type === "flowchart" || root.layoutResult.type === "stateDiagram"))
                     anchors.fill: parent
 
                     // A. Subgrafos (Clusters de fondo)
@@ -438,7 +438,7 @@ Item {
                 // ── 2. RENDERIZADO DE SEQUENCE DIAGRAM ───────────────────────────
                 Item {
                     id: sequenceGroup
-                    visible: root.layoutResult && root.layoutResult.type === "sequenceDiagram"
+                    visible: !!(root.layoutResult && root.layoutResult.type === "sequenceDiagram")
                     anchors.fill: parent
 
                     // Líneas de vida verticales
@@ -618,7 +618,7 @@ Item {
                 // ── 3. RENDERIZADO DE PIE CHART ──────────────────────────────────
                 Item {
                     id: pieGroup
-                    visible: root.layoutResult && root.layoutResult.type === "pie"
+                    visible: !!(root.layoutResult && root.layoutResult.type === "pie")
                     anchors.fill: parent
 
                     Repeater {
@@ -688,7 +688,7 @@ Item {
                 // ── 4. RENDERIZADO DE CLASS DIAGRAM Y ER DIAGRAM (UML) ───────────
                 Item {
                     id: classDiagramGroup
-                    visible: root.layoutResult && (root.layoutResult.type === "classDiagram" || root.layoutResult.type === "erDiagram")
+                    visible: !!(root.layoutResult && (root.layoutResult.type === "classDiagram" || root.layoutResult.type === "erDiagram"))
                     anchors.fill: parent
 
                     // A. Aristas (Líneas y Curvas Bézier detrás de las clases)
@@ -1044,7 +1044,7 @@ Item {
                 // ── 5. RENDERIZADO DE GANTT CHART ────────────────────────────────
                 Item {
                     id: ganttGroup
-                    visible: root.layoutResult && root.layoutResult.type === "gantt"
+                    visible: !!(root.layoutResult && root.layoutResult.type === "gantt")
                     anchors.fill: parent
 
                     // Líneas de cuadrícula temporal
@@ -1157,7 +1157,7 @@ Item {
                 // ── 6. RENDERIZADO DE TIMELINE ───────────────────────────────────
                 Item {
                     id: timelineGroup
-                    visible: root.layoutResult && root.layoutResult.type === "timeline"
+                    visible: !!(root.layoutResult && root.layoutResult.type === "timeline")
                     anchors.fill: parent
 
                     // Banners de sección cronológica (ej: 2024, 2025)
@@ -1186,7 +1186,7 @@ Item {
 
                     // Eje horizontal central
                     Rectangle {
-                        visible: timelineGroup.visible && root.layoutResult
+                        visible: !!(timelineGroup.visible && root.layoutResult)
                         x: root.layoutResult.axisStartX || 20
                         y: (root.layoutResult.axisY || 130) - 1.5
                         width: (root.layoutResult.axisEndX || 600) - x
@@ -1274,7 +1274,7 @@ Item {
                 // ── 7. RENDERIZADO DE MINDMAP ────────────────────────────────────
                 Item {
                     id: mindmapGroup
-                    visible: root.layoutResult && root.layoutResult.type === "mindmap"
+                    visible: !!(root.layoutResult && root.layoutResult.type === "mindmap")
                     anchors.fill: parent
 
                     // Ramas Bézier orgánicas
@@ -1346,7 +1346,7 @@ Item {
                 // ── 8. RENDERIZADO DE GIT GRAPH (FASE 3) ─────────────────────────
                 Item {
                     id: gitGraphGroup
-                    visible: root.layoutResult && root.layoutResult.type === "gitGraph"
+                    visible: !!(root.layoutResult && root.layoutResult.type === "gitGraph")
                     anchors.fill: parent
 
                     // Carriles de ramas
@@ -1481,7 +1481,7 @@ Item {
                 // ── 9. RENDERIZADO DE QUADRANT CHART (FASE 3) ────────────────────
                 Item {
                     id: quadrantGroup
-                    visible: root.layoutResult && root.layoutResult.type === "quadrantChart"
+                    visible: !!(root.layoutResult && root.layoutResult.type === "quadrantChart")
                     anchors.fill: parent
 
                     // Marco y 4 cuadrantes
@@ -1600,7 +1600,7 @@ Item {
                 // ── 10. RENDERIZADO DE USER JOURNEY (FASE 3) ─────────────────────
                 Item {
                     id: journeyGroup
-                    visible: root.layoutResult && root.layoutResult.type === "journey"
+                    visible: !!(root.layoutResult && root.layoutResult.type === "journey")
                     anchors.fill: parent
 
                     // Líneas guía sutiles de benchmark
@@ -1766,7 +1766,7 @@ Item {
                 // ── 11. RENDERIZADO DE XY CHART (FASE 3) ─────────────────────────
                 Item {
                     id: xychartGroup
-                    visible: root.layoutResult && root.layoutResult.type === "xychart"
+                    visible: !!(root.layoutResult && root.layoutResult.type === "xychart")
                     anchors.fill: parent
 
                     // Líneas de rejilla y valores del eje Y

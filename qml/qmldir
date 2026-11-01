@@ -26,6 +26,7 @@ EditorTooltipLayer 1.0 EditorTooltipLayer.qml
 CustomTextCursor   1.0 CustomTextCursor.qml
 CustomScrollBar    1.0 CustomScrollBar.qml
 ClippingRectangle  1.0 ClippingRectangle.qml
+SettingsTextField  1.0 SettingsTextField.qml
 
 # Bloques del editor
 BlockEditor        1.0 BlockEditor.qml

@@ -11,13 +11,13 @@ ApplicationWindow {
     height: 760
     minimumWidth: 680
     minimumHeight: 500
-    color: Theme.surface
+    color: Qt.rgba(Theme.background.r, Theme.background.g, Theme.background.b, Theme.panelOpacity)
 
     NotesContent {
         id: content
         anchors.fill: parent
         onCloseRequested: root.close()
-        onOpenSettingsRequested: settingsModal.open()
+        onOpenSettingsRequested: (originRect) => settingsModal.open(originRect)
     }
 
     NotesSettingsModal {
@@ -35,6 +35,39 @@ ApplicationWindow {
         onActivated: {
             NotesService.prepareToQuit();
             root.close();
+        }
+    }
+
+    Connections {
+        target: (typeof Sys !== "undefined") ? Sys : null
+        function onIpcCommandReceived(action, target) {
+            root.show();
+            root.raise();
+            root.requestActivate();
+            if (action === "close") {
+                NotesService.prepareToQuit();
+                root.close();
+            } else if (action === "toggle") {
+                if (root.active) {
+                    root.hide();
+                } else {
+                    root.show();
+                    root.raise();
+                    root.requestActivate();
+                }
+            } else if (action === "open" || action === "preview") {
+                content.handleIpcAction(action, target);
+            } else if (action === "new") {
+                content.handleIpcAction("new", target);
+            }
+        }
+    }
+
+    Component.onCompleted: {
+        if (typeof Sys !== "undefined" && Sys.initialAction !== "") {
+            Qt.callLater(() => {
+                content.handleIpcAction(Sys.initialAction, Sys.initialTarget);
+            });
         }
     }
 }

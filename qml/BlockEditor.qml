@@ -1029,13 +1029,7 @@ Flickable {
     ListModel {
         id: blocksModel
         onCountChanged: {
-            if (count > 35) {
-                if (!chunkWindowTimer.running) chunkWindowTimer.start();
-            } else {
-                if (root.visibleChunkStart !== 0) root.visibleChunkStart = 0;
-                var last = Math.max(0, count - 1);
-                if (root.visibleChunkEnd !== last) root.visibleChunkEnd = last;
-            }
+            chunkWindowTimer.restart();
         }
     }
 

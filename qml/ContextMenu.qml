@@ -21,15 +21,53 @@ Popup {
         border.width: 1
     }
 
+    enter: Transition {
+        NumberAnimation {
+            property: "opacity"
+            from: 0.0
+            to: 1.0
+            duration: Theme.animationsEnabled ? 120 : 0
+            easing.type: Easing.OutQuad
+        }
+    }
+
+    exit: Transition {
+        NumberAnimation {
+            property: "opacity"
+            from: 1.0
+            to: 0.0
+            duration: Theme.animationsEnabled ? 90 : 0
+            easing.type: Easing.InQuad
+        }
+    }
+
     function openAt(targetInput, xPos, yPos, customItems) {
         target = targetInput;
         extraItems = (customItems && Array.isArray(customItems)) ? customItems : [];
-        if (target && target.Window && target.Window.contentItem) {
-            parent = target.Window.contentItem;
-            var pt = target.mapToItem(parent, xPos || 0, yPos || 0);
-            x = Math.max(8, Math.min(pt.x, parent.width - width - 8));
-            y = Math.max(8, Math.min(pt.y, parent.height - height - 8));
+
+        var win = target ? (target.Window ? target.Window.contentItem : null) : null;
+        if (!win && typeof Overlay !== "undefined" && Overlay.overlay) {
+            win = Overlay.overlay;
         }
+
+        var posX = 0;
+        var posY = 0;
+
+        if (target && win && typeof xPos === "number" && typeof yPos === "number") {
+            var pt = target.mapToItem(win, xPos, yPos);
+            posX = pt.x;
+            posY = pt.y;
+        } else if (typeof Sys !== "undefined" && Sys.lastMouseX > 0) {
+            posX = Sys.lastMouseX;
+            posY = Sys.lastMouseY;
+        }
+
+        if (win) {
+            parent = win;
+            x = Math.max(8, Math.min(posX, win.width - 230));
+            y = Math.max(8, Math.min(posY, win.height - 300));
+        }
+
         open();
     }
 
@@ -54,48 +92,100 @@ Popup {
 
     contentItem: ColumnLayout {
         spacing: 2
-        width: 180
+        width: 220
 
-        // Extra items (ej. sugerencias ortográficas o acciones de bloque)
+        // Extra items (sugerencias ortográficas, acciones de bloque, etc.)
         Repeater {
             model: root.extraItems
-            delegate: Rectangle {
+            delegate: Item {
                 required property var modelData
                 Layout.fillWidth: true
-                Layout.preferredHeight: 30
-                radius: 6
-                color: itemMa.containsMouse ? Theme.surfaceHover : "transparent"
-
-                RowLayout {
-                    anchors.fill: parent
-                    anchors.leftMargin: 8
-                    anchors.rightMargin: 8
-                    spacing: 8
-
-                    Text {
-                        Layout.fillWidth: true
-                        text: modelData.label || modelData.text || ""
-                        color: Theme.primary
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontSizeSmall
-                        font.bold: true
-                        elide: Text.ElideRight
-                    }
+                Layout.preferredHeight: {
+                    if (modelData.kind === "separator") return 7;
+                    if (modelData.kind === "header") return 22;
+                    return 30;
                 }
 
-                MouseArea {
-                    id: itemMa
+                // Separador
+                Rectangle {
+                    visible: modelData.kind === "separator"
+                    anchors.centerIn: parent
+                    width: parent.width - 8
+                    height: 1
+                    color: Theme.border
+                }
+
+                // Encabezado de sección
+                Text {
+                    visible: modelData.kind === "header"
+                    anchors.left: parent.left
+                    anchors.leftMargin: 8
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: (modelData.text || modelData.label || "").toUpperCase()
+                    color: Theme.muted
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontSizeCaption - 1
+                    font.bold: true
+                    elide: Text.ElideRight
+                }
+
+                // Elemento interactivo (sugerencia o acción)
+                Rectangle {
+                    visible: modelData.kind !== "separator" && modelData.kind !== "header"
                     anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: {
-                        root.close();
-                        if (typeof modelData.triggered === "function") {
-                            modelData.triggered();
-                        } else if (typeof modelData.onTriggered === "function") {
-                            modelData.onTriggered();
+                    radius: 6
+                    color: itemMa.containsMouse ? Theme.surfaceHover : "transparent"
+
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.leftMargin: 8
+                        anchors.rightMargin: 8
+                        spacing: 8
+
+                        Text {
+                            Layout.fillWidth: true
+                            text: modelData.label || modelData.text || ""
+                            color: (modelData.kind === "suggestion" || modelData.isSuggestion) ? Theme.accent : Theme.text
+                            font.family: Theme.fontFamily
+                            font.pixelSize: Theme.fontSizeSmall
+                            font.bold: !!(modelData.kind === "suggestion" || modelData.isSuggestion)
+                            elide: Text.ElideRight
                         }
-                        root.extraItemTriggered(modelData);
+
+                        // Badge de idioma para sugerencias (ej: "es_AR")
+                        Rectangle {
+                            visible: !!modelData.lang
+                            Layout.preferredHeight: 18
+                            Layout.preferredWidth: langBadgeText.implicitWidth + 8
+                            radius: 4
+                            color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.15)
+
+                            Text {
+                                id: langBadgeText
+                                anchors.centerIn: parent
+                                text: modelData.lang || ""
+                                color: Theme.accent
+                                font.family: Theme.fontFamilyMonospace
+                                font.pixelSize: 10
+                                font.bold: true
+                            }
+                        }
+                    }
+
+                    MouseArea {
+                        id: itemMa
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            root.close();
+                            if (typeof modelData.triggered === "function") {
+                                modelData.triggered();
+                            } else if (typeof modelData.onTriggered === "function") {
+                                modelData.onTriggered();
+                            }
+                            root.extraItemTriggered(modelData);
+                        }
                     }
                 }
             }
