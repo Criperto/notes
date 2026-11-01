@@ -304,7 +304,6 @@ bool FileView::readFile() {
     m_text = content;
     m_loaded = true;
 
-    emit textChanged();
     emit loadedChanged();
     emit loaded();
     return true;
@@ -349,7 +348,6 @@ bool FileView::writeFile(const QString &content) {
         m_loaded = true;
         m_lastModified = QFileInfo(m_path).lastModified();
         updateWatcher();
-        emit textChanged();
         emit loadedChanged();
         emit saved();
     } else {

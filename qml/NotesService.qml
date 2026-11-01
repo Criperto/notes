@@ -78,7 +78,8 @@ Item {
         watchChanges: false
         onLoaded: {
             try {
-                var s = JSON.parse(text());
+                var raw = (typeof text === "function") ? text() : text;
+                var s = JSON.parse(raw);
                 if (typeof s.sortBy === "string") root.sortBy = s.sortBy;
                 if (s.lastOpenedMap && typeof s.lastOpenedMap === "object") {
                     root.lastOpenedMap = s.lastOpenedMap;
@@ -576,7 +577,7 @@ Item {
                         if (root.debug) console.log("[StateDebug:Echo] onLoaded ignorado por escritura interna activa para:", lkey);
                         return;
                     }
-                    var content = text();
+                    var content = (typeof text === "function") ? text() : text;
                     if (root.debug) console.log("[StateDebug:FileView] onLoaded procesando contenido para:", lkey, "bytes:", content ? content.length : 0);
                     root._onNoteContentLoaded(noteDelegate.fileName, noteDelegate.filePath, false, noteDelegate.fileModified, content);
                 }
@@ -1118,7 +1119,8 @@ Item {
 
         // Si noteWriter ya tiene exactamente este archivo y contenido idéntico,
         // FileView no emitirá onSaved. Completamos inmediatamente para no bloquear la cola.
-        if (noteWriter.path === targetPath && typeof noteWriter.text === "function" && noteWriter.text() === serialized) {
+        var curText = (typeof noteWriter.text === "function") ? noteWriter.text() : noteWriter.text;
+        if (noteWriter.path === targetPath && curText === serialized) {
             if (root.debug) console.log("[StateDebug:Save] Contenido idéntico ya presente en FileView para:", targetPath, "- completando inmediato");
             Qt.callLater(() => {
                 root._onWriterSaved(writeToken);

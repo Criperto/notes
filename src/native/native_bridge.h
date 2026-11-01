@@ -113,7 +113,6 @@ class FileView : public QObject {
     Q_PROPERTY(bool atomicWrites READ atomicWrites WRITE setAtomicWrites NOTIFY atomicWritesChanged)
     Q_PROPERTY(bool printErrors READ printErrors WRITE setPrintErrors NOTIFY printErrorsChanged)
     Q_PROPERTY(bool loaded READ isLoaded NOTIFY loadedChanged)
-    Q_PROPERTY(QString text READ text WRITE setText NOTIFY textChanged)
 
 public:
     explicit FileView(QObject *parent = nullptr);
@@ -136,10 +135,10 @@ public:
 
     bool isLoaded() const { return m_loaded; }
 
-    QString text() const { return m_text; }
+    Q_INVOKABLE QString text() const { return m_text; }
     Q_INVOKABLE void setText(const QString &content);
-
     Q_INVOKABLE void reload();
+    Q_INVOKABLE void waitForJob() {}
 
 signals:
     void pathChanged();
@@ -148,7 +147,6 @@ signals:
     void atomicWritesChanged();
     void printErrorsChanged();
     void loadedChanged();
-    void textChanged();
 
     void loaded();
     void fileChanged();
