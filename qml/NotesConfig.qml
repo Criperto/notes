@@ -1,10 +1,8 @@
 pragma Singleton
 import QtQuick
-import Quickshell
-import Quickshell.Io
-import quickshell 1.0
+import Notas
 
-Singleton {
+QtObject {
     id: root
 
     readonly property var schema: [
@@ -76,13 +74,34 @@ Singleton {
         }
     ]
 
-    property string notesDir: "$XDG_DOCUMENTS_DIR/notes"
-    property bool   showImagePreviews: true
-    property bool   cyclePreviewImages: true
-    property int    cardsPerRow: 3
+    property string notesDir: ConfigBackend.notasDir
+    onNotesDirChanged: {
+        if (ConfigBackend.notasDir !== notesDir) ConfigBackend.notasDir = notesDir;
+    }
+
+    property bool showImagePreviews: ConfigBackend.showImagePreviews
+    onShowImagePreviewsChanged: {
+        if (ConfigBackend.showImagePreviews !== showImagePreviews) ConfigBackend.showImagePreviews = showImagePreviews;
+    }
+
+    property bool cyclePreviewImages: ConfigBackend.cyclePreviewImages
+    onCyclePreviewImagesChanged: {
+        if (ConfigBackend.cyclePreviewImages !== cyclePreviewImages) ConfigBackend.cyclePreviewImages = cyclePreviewImages;
+    }
+
+    property int cardsPerRow: 3
     property string importMode: "copy"
-    property int    editorZoom: 100
-    property string spellcheckMode: "auto"
+
+    property int editorZoom: (ConfigBackend && ConfigBackend.editorZoom >= 50) ? ConfigBackend.editorZoom : 100 // editorZoom: 100
+    onEditorZoomChanged: {
+        if (ConfigBackend.editorZoom !== editorZoom) ConfigBackend.editorZoom = editorZoom;
+    }
+
+    property string spellcheckMode: ConfigBackend.spellCheckEnabled ? "auto" : "off"
+    onSpellcheckModeChanged: {
+        var enabled = (spellcheckMode !== "off");
+        if (ConfigBackend.spellCheckEnabled !== enabled) ConfigBackend.spellCheckEnabled = enabled;
+    }
 
     function postApply(raw) {
         if (!raw) return;
@@ -94,62 +113,35 @@ Singleton {
         }
     }
 
-    // Modo efectivo: solo "move" mueve; cualquier otro valor (conf corrupto) copia
     function effectiveImportMode() {
         return root.importMode === "move" ? "move" : "copy";
     }
 
-    // ── Lector reactivo de ~/.config/user-dirs.dirs ─────────────────────
-    FileView {
-        id: userDirsFile
-        path: (Quickshell.env("HOME") || "") + "/.config/user-dirs.dirs"
-        preload: true
-        watchChanges: true
-        printErrors: false
-    }
-
-    // ── Resuelve rutas de notas expandiendo variables XDG y HOME ─────────
     function resolveNotesDir(customPath) {
         var p = (customPath && typeof customPath === "string") ? customPath.trim() : root.notesDir.trim();
-        var home = Quickshell.env("HOME") || "";
+        var home = Sys.homeDir;
 
         if (!p || p === "") {
             p = "$XDG_DOCUMENTS_DIR/notes";
         }
 
-        // 1. Resolver ~
         if (p === "~") return home;
         if (p.startsWith("~/")) {
             p = home + p.substring(1);
         }
         p = p.replace(/\$HOME/g, home).replace(/\$\{HOME\}/g, home);
 
-        // 2. Resolver $XDG_DOCUMENTS_DIR
-        var docsDir = "";
-        var envDocs = Quickshell.env("XDG_DOCUMENTS_DIR");
-        if (envDocs && envDocs !== "") {
-            docsDir = envDocs;
-        } else if (userDirsFile.loaded) {
-            var raw = userDirsFile.text();
-            var m = raw.match(/^\s*XDG_DOCUMENTS_DIR="?([^"\n]+)"?/m);
-            if (m && m[1]) {
-                docsDir = m[1].replace("$HOME", home);
-            }
-        }
-
+        var docsDir = Sys.env("XDG_DOCUMENTS_DIR", home + "/Documentos");
         if (!docsDir || docsDir === "") {
             docsDir = home + "/Documentos";
         }
 
         p = p.replace(/\$XDG_DOCUMENTS_DIR/g, docsDir).replace(/\$\{XDG_DOCUMENTS_DIR\}/g, docsDir);
 
-        // Limpiar barras finales si las tuviese
         if (p.length > 1 && p.endsWith("/")) {
             p = p.substring(0, p.length - 1);
         }
 
         return p;
     }
-
-    ConfigBinder { target: root; configName: "notes" }
 }

@@ -4,7 +4,7 @@
 // Sin animaciones (o gamemode), el texto cambia directo. Clics rápidos: la
 // animación en curso se termina al instante y arranca la nueva.
 import QtQuick
-import quickshell 1.0
+import Notas
 
 Item {
     id: root

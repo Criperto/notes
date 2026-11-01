@@ -1,7 +1,6 @@
 // NoteCard.qml — Tarjeta de nota con altura dinámica y preview de bloques/imágenes (Fase 9)
 import "."
-import quickshell 1.0
-import Quickshell.Widgets
+import Notas
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Effects

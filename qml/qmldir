@@ -4,8 +4,10 @@ module Notas
 singleton Theme           1.0 Theme.qml
 singleton I18n            1.0 I18n.qml
 singleton NotesConfig     1.0 NotesConfig.qml
+singleton Quickshell      1.0 Quickshell.qml
 singleton NotesService    1.0 NotesService.qml
 singleton SpellService    1.0 SpellService.qml
+singleton SpellConfig     1.0 SpellConfig.qml
 singleton EditorMetrics   1.0 EditorMetrics.qml
 singleton GamemodeService 1.0 GamemodeService.qml
 singleton HyprlandConfig  1.0 HyprlandConfig.qml
@@ -16,6 +18,8 @@ NoteCard           1.0 NoteCard.qml
 MorphingFab        1.0 MorphingFab.qml
 SlidingLabel       1.0 SlidingLabel.qml
 NoteEditorModal    1.0 NoteEditorModal.qml
+ContextMenu        1.0 ContextMenu.qml
+NotesSettingsModal 1.0 NotesSettingsModal.qml
 EditorToolTip      1.0 EditorToolTip.qml
 ToolbarButton      1.0 ToolbarButton.qml
 EditorTooltipLayer 1.0 EditorTooltipLayer.qml

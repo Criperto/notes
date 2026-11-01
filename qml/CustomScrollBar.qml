@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Controls
-import quickshell 1.0
+import Notas
 
 ScrollBar {
     id: root

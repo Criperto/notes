@@ -7,7 +7,7 @@ Item {
     property alias color: bgRect.color
     property alias radius: bgRect.radius
     property alias border: bgRect.border
-    default property alias data: contentItem.data
+    default property alias contentData: contentItem.data
 
     Rectangle {
         id: bgRect

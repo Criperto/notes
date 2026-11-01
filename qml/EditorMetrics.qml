@@ -1,11 +1,11 @@
 pragma Singleton
 import QtQuick
-import Quickshell
-import quickshell 1.0
+import Notas
 import "Inline.js" as Inline
 
-Singleton {
+Item {
     id: root
+    visible: false
 
     property real zoom: (typeof NotesConfig !== "undefined" && NotesConfig.editorZoom) ? (NotesConfig.editorZoom / 100) : 1.0
     readonly property real minZoom: 0.5

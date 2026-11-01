@@ -2,11 +2,8 @@
 // Lanzar:  qs --no-duplicate -p ~/.config/quickshell/notes/shell.qml
 
 import "."
-import quickshell 1.0
+import Notas
 import QtQuick
-import Quickshell
-import Quickshell.Io
-import Quickshell.Hyprland
 
 ShellRoot {
     id: shellRoot

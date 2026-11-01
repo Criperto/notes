@@ -1,5 +1,5 @@
 import QtQuick
-import quickshell 1.0
+import Notas
 import "."
 import "SpellLogic.js" as SpellLogic
 

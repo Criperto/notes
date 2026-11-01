@@ -3,7 +3,7 @@ import QtQuick.Layouts
 import QtQuick.Effects
 import QtQuick.Shapes
 import QtQuick.Controls
-import quickshell 1.0
+import Notas
 import "."
 import "MermaidParser.js" as MermaidParser
 import "MermaidShapes.js" as MermaidShapes

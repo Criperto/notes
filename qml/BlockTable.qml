@@ -2,7 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Effects
 import QtQuick.Controls
-import quickshell 1.0
+import Notas
 import "."
 import "TableParser.js" as TP
 import "Inline.js" as Inline

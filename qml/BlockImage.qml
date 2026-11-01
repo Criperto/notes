@@ -1,8 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Effects
-import quickshell 1.0
-import Quickshell
+import Notas
 import "."
 
 Item {

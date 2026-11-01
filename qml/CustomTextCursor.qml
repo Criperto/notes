@@ -1,5 +1,5 @@
 import QtQuick
-import quickshell 1.0
+import Notas
 
 Rectangle {
     id: root
@@ -363,26 +363,14 @@ Rectangle {
         id: touchHandlesLoader
         active: root.showTouchHandles
         sourceComponent: Component {
-            PopupWindow {
+            Item {
                 id: handlePopup
-                anchor.item: root.targetInput
-                anchor.rect.x: -root.extraMargin
-                anchor.rect.y: 0
-                anchor.rect.width: Math.max(1, (root.targetInput ? root.targetInput.width : 1) + (root.extraMargin * 2))
-                anchor.rect.height: Math.max(1, (root.targetInput ? root.targetInput.height : 1) + root.extraBottom)
-                anchor.edges: Edges.Top | Edges.Left
-                anchor.gravity: Edges.Bottom | Edges.Right
-                implicitWidth: anchor.rect.width
-                implicitHeight: anchor.rect.height
-                color: "transparent"
+                parent: root.targetInput
+                x: -root.extraMargin
+                y: 0
+                width: Math.max(1, (root.targetInput ? root.targetInput.width : 1) + (root.extraMargin * 2))
+                height: Math.max(1, (root.targetInput ? root.targetInput.height : 1) + root.extraBottom)
                 visible: true
-
-                // Máscara de click-through: solo las hitboxes de las 2 gotas reciben eventos,
-                // todo el resto del espacio transparente permite hacer click al contenido subyacente.
-                mask: Region {
-                    Region { item: startHitbox.visible ? startHitbox : null }
-                    Region { item: endHitbox.visible ? endHitbox : null }
-                }
 
                 // ── Gota táctil Android inicial (debajo de selectionStart) ───────────
                 Item {

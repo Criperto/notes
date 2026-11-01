@@ -2,7 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Effects
 import QtQuick.Window
-import quickshell 1.0
+import Notas
 import "."
 import "ListParser.js" as LP
 import "ListHeading.js" as LH

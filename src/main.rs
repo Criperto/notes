@@ -1,3 +1,5 @@
+mod notes_cli;
+
 use clap::Parser;
 use cxx_qt_lib::{QGuiApplication, QQmlApplicationEngine, QUrl};
 
@@ -37,6 +39,12 @@ struct Cli {
 }
 
 fn main() {
+    let raw_args: Vec<String> = std::env::args().collect();
+    if raw_args.len() > 1 && raw_args[1] == "notes" {
+        notes_cli::run(&raw_args[2..]);
+        return;
+    }
+
     let cli = Cli::parse();
 
     unsafe {

@@ -1,9 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
-import quickshell 1.0
-import Quickshell
-import Quickshell.Io
+import Notas
 import "."
 import "MarkdownParser.js" as MD
 import "BlockModel.js" as BlockModel

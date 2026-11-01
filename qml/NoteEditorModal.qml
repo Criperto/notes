@@ -1,8 +1,6 @@
 // NoteEditorModal.qml — Vista y editor de notas basado en bloques
 import "."
-import quickshell 1.0
-import Quickshell
-import Quickshell.Io
+import Notas
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Effects

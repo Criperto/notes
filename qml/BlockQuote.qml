@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Effects
-import quickshell 1.0
+import Notas
 import "."
 import "Inline.js" as Inline
 import "QuoteParser.js" as QP

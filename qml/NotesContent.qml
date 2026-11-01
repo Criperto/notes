@@ -1,13 +1,10 @@
 // NotesContent.qml — Vista principal de la aplicación de notas
 import "."
-import quickshell 1.0
-import Quickshell
-import Quickshell.Io
+import Notas
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Effects
 import QtQuick.Controls
-import Quickshell.Widgets
 import "PreviewLogic.js" as PreviewLogic
 import "ImportLogic.js" as ImportLogic
 import "SortLogic.js" as SortLogic
@@ -16,6 +13,7 @@ Item {
     id: root
 
     signal closeRequested
+    signal openSettingsRequested
 
     property bool _morphTransitioning: false
     property string activeMorphSlug: ""
@@ -573,6 +571,38 @@ Item {
                             onClicked: {
                                 NotesService.sortBy = SortLogic.nextSort(NotesService.sortBy);
                             }
+                        }
+                    }
+
+                    // Botón de Configuración
+                    Rectangle {
+                        id: settingsBtn
+                        Layout.preferredHeight: 38
+                        Layout.preferredWidth: 38
+                        radius: 10
+                        color: settingsMa.containsMouse ? Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.1) : Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.05)
+                        border.color: Qt.hsva(Theme.text.hsvHue, Theme.text.hsvSaturation, Theme.text.hsvValue, 0.12)
+                        border.width: 1
+
+                        Image {
+                            anchors.centerIn: parent
+                            width: 16
+                            height: 16
+                            source: Theme.iconsPath + "settings.svg"
+                            sourceSize: Qt.size(16, 16)
+                            layer.enabled: true
+                            layer.effect: MultiEffect {
+                                colorization: 1.0
+                                colorizationColor: settingsMa.containsMouse ? Theme.text : Theme.muted
+                            }
+                        }
+
+                        MouseArea {
+                            id: settingsMa
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: root.openSettingsRequested()
                         }
                     }
 

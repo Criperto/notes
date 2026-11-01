@@ -1,9 +1,7 @@
 pragma Singleton
 import QtQuick
-import Quickshell
-import Quickshell.Io
+import Notas
 import Qt.labs.folderlistmodel 2.16
-import quickshell 1.0
 import "."
 import "MarkdownParser.js" as MD
 import "ImportLogic.js" as ImportLogic
@@ -11,8 +9,9 @@ import "ImageProbe.js" as ImageProbe
 import "FolderNotes.js" as FolderNotes
 import "SortLogic.js" as SortLogic
 
-Singleton {
+Item {
     id: root
+    visible: false
 
     // ── Estado reactivo público ───────────────────────────────────────────
     property var  notes: []

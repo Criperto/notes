@@ -1,6 +1,6 @@
 // EditorToolTip.qml — Tooltip flotante para botones de la barra de herramientas
 import QtQuick
-import quickshell 1.0
+import Notas
 import "."
 
 Item {

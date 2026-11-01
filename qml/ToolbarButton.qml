@@ -1,7 +1,7 @@
 // ToolbarButton.qml — Botón reusable para la barra de herramientas del editor Markdown
 import QtQuick
 import QtQuick.Effects
-import quickshell 1.0
+import Notas
 import "."
 import "EditorActions.js" as EA
 

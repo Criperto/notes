@@ -1,7 +1,6 @@
 // MorphingFab.qml — Botón "+" expandible con opciones "Importar notas" y "Nueva nota"
 import "."
-import quickshell 1.0
-import Quickshell.Widgets
+import Notas
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Effects

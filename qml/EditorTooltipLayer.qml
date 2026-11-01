@@ -1,7 +1,7 @@
 // EditorTooltipLayer.qml — Capa única flotante de tooltips para el editor en la raíz del contenedor
 import QtQuick
 import QtQuick.Effects
-import quickshell 1.0
+import Notas
 
 Item {
     id: root

@@ -7,44 +7,34 @@ ApplicationWindow {
     id: root
     visible: true
     title: "Notas"
-    width: 1040
-    height: 740
+    width: 1080
+    height: 760
     minimumWidth: 680
     minimumHeight: 500
     color: Theme.surface
 
-    ColumnLayout {
-        anchors.centerIn: parent
-        spacing: 16
+    NotesContent {
+        id: content
+        anchors.fill: parent
+        onCloseRequested: root.close()
+        onOpenSettingsRequested: settingsModal.open()
+    }
 
-        Text {
-            Layout.alignment: Qt.AlignHCenter
-            text: I18n.t("notes.header.title", "Notas")
-            color: Theme.text
-            font.pixelSize: Theme.fontSizeDisplay
-            font.bold: true
-        }
+    NotesSettingsModal {
+        id: settingsModal
+        anchors.fill: parent
+    }
 
-        Text {
-            Layout.alignment: Qt.AlignHCenter
-            text: "v0.1.0 • Motor QML + Rust cxx-qt 0.10"
-            color: Theme.muted
-            font.pixelSize: Theme.fontSizeBody
-        }
+    Shortcut {
+        sequence: "Ctrl+,"
+        onActivated: settingsModal.open()
+    }
 
-        Rectangle {
-            Layout.alignment: Qt.AlignHCenter
-            width: 240
-            height: 48
-            radius: 12
-            color: Theme.primary
-
-            Text {
-                anchors.centerIn: parent
-                text: "dev.criperto.Notas"
-                color: Theme.textOn(Theme.primary)
-                font.bold: true
-            }
+    Shortcut {
+        sequence: "Ctrl+Q"
+        onActivated: {
+            NotesService.prepareToQuit();
+            root.close();
         }
     }
 }

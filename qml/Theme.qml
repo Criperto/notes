@@ -50,8 +50,11 @@ QtObject {
     readonly property color warning: color3
     readonly property color danger:  color1
     readonly property color muted:   Qt.rgba(text.r, text.g, text.b, 0.6)
-    readonly property color text:    color15
-    readonly property color surface: color0
+    readonly property color text:          color15
+    readonly property color surface:       color0
+    readonly property color border:        Qt.rgba(text.r, text.g, text.b, 0.12)
+    readonly property color surfaceHover:  Qt.rgba(text.r, text.g, text.b, 0.08)
+    readonly property color surfaceActive: Qt.rgba(primary.r, primary.g, primary.b, 0.16)
 
     // ── Tipografía y Tokens de tamaño ────────────────────────────────────
     readonly property string fontFamily:          "Google Sans, sans-serif"
