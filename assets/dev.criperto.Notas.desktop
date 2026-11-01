@@ -1,0 +1,15 @@
+[Desktop Entry]
+Name=Notas
+Name[es]=Notas
+GenericName=Markdown Note Editor
+GenericName[es]=Editor de Notas en Markdown
+Comment=Modern native markdown note-taking app with Mermaid diagrams
+Comment[es]=Editor moderno e independiente de notas en Markdown con soporte de diagramas Mermaid
+Exec=notas %F
+Icon=dev.criperto.Notas
+Terminal=false
+Type=Application
+Categories=Office;Utility;TextEditor;
+MimeType=text/markdown;text/plain;
+StartupWMClass=dev.criperto.Notas
+Keywords=notes;markdown;mermaid;editor;text;notas;
