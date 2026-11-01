@@ -1,0 +1,27 @@
+# notes/qmldir — módulo de notas Markdown para Quickshell
+
+singleton NotesService 1.0 NotesService.qml
+singleton EditorMetrics 1.0 EditorMetrics.qml
+
+NotesContent       1.0 NotesContent.qml
+NoteCard           1.0 NoteCard.qml
+MorphingFab        1.0 MorphingFab.qml
+SlidingLabel       1.0 SlidingLabel.qml
+NoteEditorModal    1.0 NoteEditorModal.qml
+EditorToolTip      1.0 EditorToolTip.qml
+ToolbarButton      1.0 ToolbarButton.qml
+EditorTooltipLayer 1.0 EditorTooltipLayer.qml
+
+BlockEditor        1.0 BlockEditor.qml
+BlockParagraph     1.0 BlockParagraph.qml
+BlockHeading       1.0 BlockHeading.qml
+BlockQuote         1.0 BlockQuote.qml
+BlockHr            1.0 BlockHr.qml
+BlockCode          1.0 BlockCode.qml
+BlockList          1.0 BlockList.qml
+BlockTable         1.0 BlockTable.qml
+BlockImage         1.0 BlockImage.qml
+BlockMermaid       1.0 BlockMermaid.qml
+MermaidView        1.0 MermaidView.qml
+BlockRaw           1.0 BlockRaw.qml
+SpellOverlay       1.0 SpellOverlay.qml
