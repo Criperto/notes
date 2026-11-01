@@ -23,6 +23,7 @@ ApplicationWindow {
     NotesSettingsModal {
         id: settingsModal
         anchors.fill: parent
+        z: 9999
     }
 
     Shortcut {

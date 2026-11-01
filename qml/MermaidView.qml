@@ -762,8 +762,8 @@ Item {
                             // Multiplicidad de origen
                             Text {
                                 visible: !!(modelData.fromCard && modelData.fromCard.trim() !== "")
-                                x: modelData.fromCardX
-                                y: modelData.fromCardY
+                                x: (typeof modelData.fromCardX === "number") ? modelData.fromCardX : 0
+                                y: (typeof modelData.fromCardY === "number") ? modelData.fromCardY : 0
                                 text: modelData.fromCard || ""
                                 color: Theme.muted
                                 font.family: Theme.fontFamily
@@ -774,8 +774,8 @@ Item {
                             // Multiplicidad de destino
                             Text {
                                 visible: !!(modelData.toCard && modelData.toCard.trim() !== "")
-                                x: modelData.toCardX
-                                y: modelData.toCardY
+                                x: (typeof modelData.toCardX === "number") ? modelData.toCardX : 0
+                                y: (typeof modelData.toCardY === "number") ? modelData.toCardY : 0
                                 text: modelData.toCard || ""
                                 color: Theme.muted
                                 font.family: Theme.fontFamily
@@ -786,8 +786,8 @@ Item {
                             // Etiqueta central de relación
                             Rectangle {
                                 visible: !!(modelData.label && modelData.label.trim() !== "")
-                                x: modelData.labelX - width / 2
-                                y: modelData.labelY - height / 2
+                                x: (typeof modelData.labelX === "number") ? (modelData.labelX - width / 2) : 0
+                                y: (typeof modelData.labelY === "number") ? (modelData.labelY - height / 2) : 0
                                 width: relLabelText.implicitWidth + 8
                                 height: relLabelText.implicitHeight + 4
                                 radius: 4
@@ -1187,9 +1187,9 @@ Item {
                     // Eje horizontal central
                     Rectangle {
                         visible: !!(timelineGroup.visible && root.layoutResult)
-                        x: root.layoutResult.axisStartX || 20
-                        y: (root.layoutResult.axisY || 130) - 1.5
-                        width: (root.layoutResult.axisEndX || 600) - x
+                        x: (root.layoutResult && typeof root.layoutResult.axisStartX === "number") ? root.layoutResult.axisStartX : 20
+                        y: (root.layoutResult && typeof root.layoutResult.axisY === "number") ? (root.layoutResult.axisY - 1.5) : 128.5
+                        width: (root.layoutResult && typeof root.layoutResult.axisEndX === "number") ? (root.layoutResult.axisEndX - x) : 580
                         height: 3
                         radius: 1.5
                         color: Theme.accent
@@ -1486,10 +1486,10 @@ Item {
 
                     // Marco y 4 cuadrantes
                     Item {
-                        x: root.layoutResult ? root.layoutResult.left : 0
-                        y: root.layoutResult ? root.layoutResult.top : 0
-                        width: root.layoutResult ? root.layoutResult.chartSize : 0
-                        height: root.layoutResult ? root.layoutResult.chartSize : 0
+                        x: (root.layoutResult && typeof root.layoutResult.left === "number") ? root.layoutResult.left : 0
+                        y: (root.layoutResult && typeof root.layoutResult.top === "number") ? root.layoutResult.top : 0
+                        width: (root.layoutResult && typeof root.layoutResult.chartSize === "number") ? root.layoutResult.chartSize : 0
+                        height: (root.layoutResult && typeof root.layoutResult.chartSize === "number") ? root.layoutResult.chartSize : 0
 
                         Rectangle {
                             anchors.fill: parent
@@ -1775,16 +1775,16 @@ Item {
                         delegate: Item {
                             anchors.fill: parent
                             Rectangle {
-                                x: root.layoutResult.plotLeft
-                                y: modelData.y
-                                width: root.layoutResult.plotW
+                                x: (root.layoutResult && typeof root.layoutResult.plotLeft === "number") ? root.layoutResult.plotLeft : 0
+                                y: (typeof modelData.y === "number") ? modelData.y : 0
+                                width: (root.layoutResult && typeof root.layoutResult.plotW === "number") ? root.layoutResult.plotW : 0
                                 height: 1
                                 color: Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.15)
                             }
                             Text {
-                                x: root.layoutResult.plotLeft - implicitWidth - 8
-                                y: modelData.y - implicitHeight / 2
-                                text: modelData.value
+                                x: (root.layoutResult && typeof root.layoutResult.plotLeft === "number") ? (root.layoutResult.plotLeft - implicitWidth - 8) : 0
+                                y: (typeof modelData.y === "number") ? (modelData.y - implicitHeight / 2) : 0
+                                text: (modelData.value !== undefined) ? modelData.value : ""
                                 color: Theme.muted
                                 font.family: Theme.fontFamilyMonospace || "monospace"
                                 font.pixelSize: 10
@@ -1794,29 +1794,29 @@ Item {
 
                     // Eje vertical Y
                     Rectangle {
-                        visible: !!root.layoutResult
-                        x: root.layoutResult ? root.layoutResult.plotLeft : 0
-                        y: root.layoutResult ? (root.layoutResult.plotTop - 4) : 0
+                        visible: !!(xychartGroup.visible && root.layoutResult)
+                        x: (root.layoutResult && typeof root.layoutResult.plotLeft === "number") ? root.layoutResult.plotLeft : 0
+                        y: (root.layoutResult && typeof root.layoutResult.plotTop === "number") ? (root.layoutResult.plotTop - 4) : 0
                         width: 1
-                        height: root.layoutResult ? (root.layoutResult.plotH + 4) : 0
+                        height: (root.layoutResult && typeof root.layoutResult.plotH === "number") ? (root.layoutResult.plotH + 4) : 0
                         color: Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.45)
                     }
 
                     // Eje horizontal base X
                     Rectangle {
-                        visible: !!root.layoutResult
-                        x: root.layoutResult ? root.layoutResult.plotLeft : 0
-                        y: root.layoutResult ? (root.layoutResult.plotTop + root.layoutResult.plotH) : 0
-                        width: root.layoutResult ? root.layoutResult.plotW : 0
+                        visible: !!(xychartGroup.visible && root.layoutResult)
+                        x: (root.layoutResult && typeof root.layoutResult.plotLeft === "number") ? root.layoutResult.plotLeft : 0
+                        y: (root.layoutResult && typeof root.layoutResult.plotTop === "number" && typeof root.layoutResult.plotH === "number") ? (root.layoutResult.plotTop + root.layoutResult.plotH) : 0
+                        width: (root.layoutResult && typeof root.layoutResult.plotW === "number") ? root.layoutResult.plotW : 0
                         height: 1
                         color: Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.45)
                     }
 
                     // Título del eje Y
                     Text {
-                        visible: !!(root.layoutResult && root.layoutResult.yAxisTitle)
-                        x: root.layoutResult ? (root.layoutResult.plotLeft - 10) : 0
-                        y: root.layoutResult ? (root.layoutResult.yAxisTitleY !== undefined ? root.layoutResult.yAxisTitleY : (root.layoutResult.plotTop - 26)) : 0
+                        visible: !!(xychartGroup.visible && root.layoutResult && root.layoutResult.yAxisTitle)
+                        x: (root.layoutResult && typeof root.layoutResult.plotLeft === "number") ? (root.layoutResult.plotLeft - 10) : 0
+                        y: (root.layoutResult && typeof root.layoutResult.plotTop === "number") ? (root.layoutResult.yAxisTitleY !== undefined ? root.layoutResult.yAxisTitleY : (root.layoutResult.plotTop - 26)) : 0
                         text: (root.layoutResult && root.layoutResult.yAxisTitle) ? root.layoutResult.yAxisTitle : ""
                         color: Theme.muted
                         font.family: Theme.fontFamily

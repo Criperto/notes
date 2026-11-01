@@ -5,15 +5,16 @@ import Notas
 
 Item {
     id: root
-    visible: opacity > 0
-    opacity: 0
+    visible: isOpen || opacity > 0
+    opacity: isOpen ? 1.0 : 0.0
 
     anchors.fill: parent
+    z: 9999
 
     signal closed()
 
     property bool isOpen: false
-    property rect originRect: Qt.rect(width / 2, height / 2, 0, 0)
+    property rect originRect: Qt.rect(width / 2, height / 2, 40, 40)
     property int tabIndex: 0
     property string catalogFilter: ""
     property string activeDownloadingLang: ""
@@ -32,13 +33,12 @@ Item {
         } else {
             originRect = Qt.rect(width / 2, height / 2, 40, 40);
         }
+        tabIndex = 0;
         isOpen = true;
-        opacity = 1.0;
     }
 
     function close() {
         isOpen = false;
-        opacity = 0.0;
         closed();
     }
 
@@ -266,10 +266,10 @@ Item {
 
     Rectangle {
         id: card
-        x: root.isOpen ? Math.round((root.width - targetWidth) / 2) : root.originRect.x
-        y: root.isOpen ? Math.round((root.height - targetHeight) / 2) : root.originRect.y
-        width: root.isOpen ? targetWidth : root.originRect.width
-        height: root.isOpen ? targetHeight : root.originRect.height
+        x: root.isOpen ? Math.round((root.width - targetWidth) / 2) : (root.originRect.x || Math.round((root.width - targetWidth) / 2))
+        y: root.isOpen ? Math.round((root.height - targetHeight) / 2) : (root.originRect.y || Math.round((root.height - targetHeight) / 2))
+        width: root.isOpen ? targetWidth : (root.originRect.width > 0 ? root.originRect.width : 40)
+        height: root.isOpen ? targetHeight : (root.originRect.height > 0 ? root.originRect.height : 40)
         radius: root.isOpen ? 16 : 8
 
         color: Theme.surface
@@ -277,11 +277,11 @@ Item {
         border.width: 1
         clip: true
 
-        Behavior on x { SpringAnimation { spring: 8.2; damping: 0.88; mass: 0.45 } }
-        Behavior on y { SpringAnimation { spring: 8.2; damping: 0.88; mass: 0.45 } }
-        Behavior on width { SpringAnimation { spring: 8.2; damping: 0.88; mass: 0.45 } }
-        Behavior on height { SpringAnimation { spring: 8.2; damping: 0.88; mass: 0.45 } }
-        Behavior on radius { SpringAnimation { spring: 8.2; damping: 0.88; mass: 0.45 } }
+        Behavior on x { enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive; SpringAnimation { spring: 8.2; damping: 0.88; mass: 0.45 } }
+        Behavior on y { enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive; SpringAnimation { spring: 8.2; damping: 0.88; mass: 0.45 } }
+        Behavior on width { enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive; SpringAnimation { spring: 8.2; damping: 0.88; mass: 0.45 } }
+        Behavior on height { enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive; SpringAnimation { spring: 8.2; damping: 0.88; mass: 0.45 } }
+        Behavior on radius { enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive; SpringAnimation { spring: 8.2; damping: 0.88; mass: 0.45 } }
 
         MouseArea {
             anchors.fill: parent
