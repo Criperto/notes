@@ -4,7 +4,8 @@ const vm = require('vm');
 const assert = require('assert');
 
 function loadModule(relPath) {
-    const fullPath = path.resolve(__dirname, '..', relPath);
+    let fullPath = path.resolve(__dirname, '../qml', relPath);
+    if (!fs.existsSync(fullPath)) fullPath = path.resolve(__dirname, '..', relPath);
     let code = fs.readFileSync(fullPath, 'utf8');
     code = code.replace(/^\.pragma\s+library\s*;?/m, '');
     const context = {
@@ -1118,7 +1119,7 @@ runTest('F29: PreviewLogic.getPreviewImages devuelve todas las imágenes en orde
 });
 
 runTest('F29: NotesConfig schema tiene showImagePreviews y cyclePreviewImages y no tiene defaultNoteType', () => {
-    const qml = fs.readFileSync(path.resolve(__dirname, '../../Singletons/NotesConfig.qml'), 'utf8');
+    const qml = fs.readFileSync(path.resolve(__dirname, '../qml/NotesConfig.qml'), 'utf8');
     assert.ok(qml.indexOf('key: "showImagePreviews"') !== -1, "showImagePreviews debe estar en el schema");
     assert.ok(qml.indexOf('key: "cyclePreviewImages"') !== -1, "cyclePreviewImages debe estar en el schema");
     assert.ok(qml.indexOf('key: "defaultNoteType"') === -1, "defaultNoteType debe haber sido eliminado del schema");
@@ -1138,7 +1139,7 @@ runTest('F30: ListParser sangría de sub-listas y serialización round-trip', ()
 });
 
 runTest('F31: NotesConfig schema tiene editorZoom configurado como int (50-300)', () => {
-    const qml = fs.readFileSync(path.resolve(__dirname, '../../Singletons/NotesConfig.qml'), 'utf8');
+    const qml = fs.readFileSync(path.resolve(__dirname, '../qml/NotesConfig.qml'), 'utf8');
     assert.ok(qml.indexOf('key: "editorZoom"') !== -1, "editorZoom debe estar en el schema");
     assert.ok(qml.indexOf('editorZoom: 100') !== -1, "editorZoom debe tener default 100");
 });
@@ -1165,7 +1166,7 @@ runTest('F32: SpellLogic tokeniza Unicode, filtra URLs/emails/dígitos y resuelv
 });
 
 runTest('F33: NotesService cola serial de eliminación a papelera y prevención de borrado destructivo', () => {
-    const qml = fs.readFileSync(path.resolve(__dirname, '../NotesService.qml'), 'utf8');
+    const qml = fs.readFileSync(path.resolve(__dirname, '../qml/NotesService.qml'), 'utf8');
 
     // 1. Verificación de propiedades de cola serial
     assert.ok(qml.indexOf('property var _trashQueue: []') !== -1, "_trashQueue debe estar declarado como array");
@@ -1580,7 +1581,7 @@ runTest("F36: MermaidLayout dimensiones especializadas para cilindro", () => {
 });
 
 runTest("F37: NotesService lote de múltiples notas borradas y deshacer acumulativo", () => {
-    const qml = fs.readFileSync(path.resolve(__dirname, '../NotesService.qml'), 'utf8');
+    const qml = fs.readFileSync(path.resolve(__dirname, '../qml/NotesService.qml'), 'utf8');
 
     // 1. Declaración de propiedades reactivas del lote en NotesService
     assert.ok(qml.indexOf("property var _pendingDeletions: ({})") !== -1, "_pendingDeletions debe existir");
@@ -2821,7 +2822,7 @@ runTest("F57: Mermaid dynamic title clearance and headroom contracts", () => {
 runTest("F58: BlockTable wheel handlers separation and vertical bubbling contract", () => {
     const fs = require("fs");
     const path = require("path");
-    const tableQml = fs.readFileSync(path.join(__dirname, "../BlockTable.qml"), "utf-8");
+    const tableQml = fs.readFileSync(path.join(__dirname, "../qml/BlockTable.qml"), "utf-8");
 
     // 1. Debe existir shiftWheelHandler restringido exclusivamente a ShiftModifier
     assert.ok(tableQml.includes("id: shiftWheelHandler"), "Debe existir shiftWheelHandler con id explícito");

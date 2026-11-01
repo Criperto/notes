@@ -1,0 +1,58 @@
+{
+  "languages": [
+    {
+      "code": "es_es",
+      "name": "Español (España)",
+      "nameEn": "Spanish (Spain)",
+      "author": "Tomas"
+    },
+    {
+      "code": "es_ar",
+      "name": "Español (Argentina)",
+      "nameEn": "Spanish (Argentina)",
+      "author": "Criperto"
+    },
+    {
+      "code": "en",
+      "name": "English",
+      "nameEn": "English",
+      "author": "Criperto"
+    },
+    {
+      "code": "pt",
+      "name": "Português",
+      "nameEn": "Portuguese",
+      "author": "Criperto"
+    },
+    {
+      "code": "ja",
+      "name": "日本語",
+      "nameEn": "Japanese",
+      "author": "Antigravity"
+    },
+    {
+      "code": "zh",
+      "name": "简体中文",
+      "nameEn": "Chinese",
+      "author": "Antigravity"
+    },
+    {
+      "code": "de",
+      "name": "Deutsch",
+      "nameEn": "German",
+      "author": "Antigravity"
+    },
+    {
+      "code": "fr",
+      "name": "Français",
+      "nameEn": "French",
+      "author": "Antigravity"
+    },
+    {
+      "code": "ru",
+      "name": "Русский",
+      "nameEn": "Russian",
+      "author": "opencode"
+    }
+  ]
+}

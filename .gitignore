@@ -1,0 +1,9 @@
+/target/
+**/*.qmlc
+**/*.jsc
+*.bak
+*~
+.DS_Store
+.idea/
+.vscode/
+compile_commands.json
