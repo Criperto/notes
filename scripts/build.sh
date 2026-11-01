@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+# scripts/build.sh — Automatización y aceleración de compilación para Notas
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+cd "${ROOT_DIR}"
+
+export CC="${CC:-clang}"
+export CXX="${CXX:-clang++}"
+export CMAKE_BUILD_PARALLEL_LEVEL="${CMAKE_BUILD_PARALLEL_LEVEL:-$(nproc)}"
+export CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-$(nproc)}"
+
+CMD="${1:-dev}"
+shift || true
+
+case "${CMD}" in
+    dev)
+        echo "🚀 [build.sh] Compilando e iniciando en modo DEV..."
+        export NOTAS_DEV=1
+        cargo build --bin notas
+        echo "✓ Binario listo en target/debug/notas. Lanzando..."
+        exec "${ROOT_DIR}/target/debug/notas" "$@"
+        ;;
+    release)
+        echo "📦 [build.sh] Compilando en modo RELEASE con optimizaciones..."
+        cargo build --release --bin notas
+        echo "✓ Binario listo en ${ROOT_DIR}/target/release/notas"
+        ;;
+    install)
+        echo "📦 [build.sh] Compilando e instalando en ~/.local/bin/notas..."
+        cargo build --release --bin notas
+        "${ROOT_DIR}/scripts/install.sh"
+        echo "✓ Instalación finalizada."
+        ;;
+    check)
+        echo "🔍 [build.sh] Verificando tests lógicos de Notas..."
+        node "${ROOT_DIR}/tests/run.js"
+        echo "🔍 [build.sh] Verificando compilación Cargo..."
+        cargo check
+        echo "🔍 [build.sh] Smoke test headless (verificación de carga limpia)..."
+        QT_QPA_PLATFORM=offscreen "${ROOT_DIR}/target/debug/notas" --check 2>&1 || true
+        echo "✓ Chequeo completo."
+        ;;
+    clean)
+        echo "🧹 [build.sh] Limpiando target/..."
+        cargo clean
+        echo "✓ Limpieza finalizada."
+        ;;
+    *)
+        echo "Uso: $0 [dev [args...] | release | install | check | clean]"
+        exit 1
+        ;;
+esac

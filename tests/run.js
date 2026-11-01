@@ -3268,9 +3268,19 @@ runTest("F64: Contratos de integridad de backend, purga de colas en delete y lon
 
 runTest("F65: Rust qs-helper notes index y contratos de metadatos instantáneos", () => {
     const { execSync } = require("child_process");
-    const helperBin = path.join(__dirname, "../../bin/qs-helper");
-    if (!fs.existsSync(helperBin)) {
-        console.warn("  [SKIP] qs-helper no encontrado en bin/qs-helper");
+    let helperBin = process.env.QS_HELPER_BIN;
+    if (!helperBin || !fs.existsSync(helperBin)) {
+        const candidates = [
+            path.join(__dirname, "../target/release/notas"),
+            path.join(__dirname, "../target/debug/notas"),
+            path.join(process.env.HOME || "", ".local/bin/notas"),
+            path.join(__dirname, "../bin/qs-helper"),
+            path.join(__dirname, "../../bin/qs-helper")
+        ];
+        helperBin = candidates.find(c => fs.existsSync(c));
+    }
+    if (!helperBin) {
+        console.warn("  [SKIP] qs-helper/notas no encontrado para F65");
         return;
     }
 

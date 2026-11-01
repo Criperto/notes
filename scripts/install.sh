@@ -9,6 +9,15 @@ echo "==> Instalando Notas (dev.criperto.Notas)..."
 mkdir -p "$HOME/.local/bin"
 mkdir -p "$HOME/.local/share/applications"
 mkdir -p "$HOME/.local/share/icons/hicolor/scalable/apps"
+mkdir -p "$HOME/.local/share/notas/scripts"
+mkdir -p "$HOME/.local/share/notas/dictionaries"
+
+# Recursos compartidos (scripts de conversión y catálogo de diccionarios)
+ln -sf "$SCRIPT_DIR/scripts/doc-to-md.py" "$HOME/.local/share/notas/scripts/doc-to-md.py"
+ln -sf "$SCRIPT_DIR/scripts/docx-to-md.py" "$HOME/.local/share/notas/scripts/docx-to-md.py"
+if [[ -f "$SCRIPT_DIR/assets/spellcheck/catalog.json" ]]; then
+    ln -sf "$SCRIPT_DIR/assets/spellcheck/catalog.json" "$HOME/.local/share/notas/catalog.json"
+fi
 
 # 2. Binario
 BIN_SRC=""
