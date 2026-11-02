@@ -173,6 +173,11 @@ Item {
         }
 
         onFinished: {
+            card.x = originRect.x;
+            card.y = originRect.y;
+            card.width = (originRect.width > 0 ? originRect.width : 38);
+            card.height = (originRect.height > 0 ? originRect.height : 38);
+            card.radius = 10;
             root.isOpen = false;
             root.isClosing = false;
             root.closed();
@@ -974,7 +979,7 @@ Item {
         color: "transparent"
         clip: true
 
-        layer.enabled: !GamemodeService.gamemodeActive
+        layer.enabled: (modalBgGroup.opacity > 0.005) && !GamemodeService.gamemodeActive
         layer.effect: MultiEffect {
             shadowEnabled: true
             shadowColor: Qt.rgba(0, 0, 0, 0.45 * modalBgGroup.opacity)
@@ -1062,8 +1067,8 @@ Item {
             anchors.right: parent.right
             anchors.top: parent.top
             transformOrigin: Item.TopRight
-            width: (root.originRect.width > 0) ? root.originRect.width : 38
-            height: (root.originRect.height > 0) ? root.originRect.height : 38
+            width: Math.min(parent.width, (root.originRect.width > 0) ? root.originRect.width : 38)
+            height: Math.min(parent.height, (root.originRect.height > 0) ? root.originRect.height : 38)
             visible: root.isFromButton && opacity > 0
             opacity: 0.0
             z: 10

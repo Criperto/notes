@@ -586,9 +586,9 @@ Item {
                         border.color: Qt.hsva(Theme.text.hsvHue, Theme.text.hsvSaturation, Theme.text.hsvValue, 0.12)
                         border.width: 1
 
-                        Behavior on opacity {
+                        Behavior on color {
                             enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
-                            NumberAnimation { duration: 120; easing.type: Easing.OutCubic }
+                            ColorAnimation { duration: 120; easing.type: Easing.OutCubic }
                         }
 
                         Image {
@@ -601,6 +601,11 @@ Item {
                             layer.effect: MultiEffect {
                                 colorization: 1.0
                                 colorizationColor: settingsMa.containsMouse ? Theme.text : Theme.muted
+
+                                Behavior on colorizationColor {
+                                    enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                                    ColorAnimation { duration: 120; easing.type: Easing.OutCubic }
+                                }
                             }
                         }
 
