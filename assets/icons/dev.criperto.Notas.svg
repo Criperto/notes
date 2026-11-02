@@ -1,43 +1,23 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" fill="none" viewBox="0 0 512 512">
+  <path fill="url(#a)" d="M354 60H158c-54.124 0-98 43.876-98 98v196c0 54.124 43.876 98 98 98h196c54.124 0 98-43.876 98-98V158c0-54.124-43.876-98-98-98"/>
+  <path fill="#E2E2E2" stroke="#AFAFAF" stroke-linejoin="round" stroke-width="2" d="M148 117h146.571L364 186.5V395H148z"/>
+  <path fill="url(#b)" stroke="#AFAFAF" stroke-linejoin="round" stroke-width="2" d="M295 117v70h69z"/>
+  <path fill="#AFAFAF" d="M316.375 268h-120.75c-4.763 0-8.625 3.582-8.625 8s3.862 8 8.625 8h120.75c4.763 0 8.625-3.582 8.625-8s-3.862-8-8.625-8m-42.606 33h-79.538c-3.994 0-7.231 3.582-7.231 8s3.237 8 7.231 8h79.538c3.994 0 7.231-3.582 7.231-8s-3.237-8-7.231-8m2.009-132h-83.556c-2.884 0-5.222 3.582-5.222 8s2.338 8 5.222 8h83.556c2.884 0 5.222-3.582 5.222-8s-2.338-8-5.222-8m40.597 33h-120.75c-4.763 0-8.625 3.582-8.625 8s3.862 8 8.625 8h120.75c4.763 0 8.625-3.582 8.625-8s-3.862-8-8.625-8m-1.99 33h-116.77c-5.862 0-10.615 3.582-10.615 8s4.753 8 10.615 8h116.77c5.862 0 10.615-3.582 10.615-8s-4.753-8-10.615-8"/>
+  <path fill="url(#c)" d="m373.717 411.814 10.894-10.895a7.703 7.703 0 0 0 0-10.895l-70.756-71.16-21.87 21.736 70.837 71.214a7.705 7.705 0 0 0 10.895 0"/>
+  <path fill="url(#d)" d="M313.854 318.864 291.985 340.6l-10.914-32.681z"/>
   <defs>
-    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#1f232a"/>
-      <stop offset="100%" stop-color="#13161a"/>
+    <linearGradient id="a" x1="256" x2="256" y1="452" y2="60" gradientUnits="userSpaceOnUse">
+      <stop offset="1" stop-color="#F70"/>
     </linearGradient>
-    <linearGradient id="accentGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#ff7b54"/>
-      <stop offset="100%" stop-color="#ffb26b"/>
+    <linearGradient id="b" x1="295" x2="364.993" y1="117" y2="185.993" gradientUnits="userSpaceOnUse">
+      <stop offset="1" stop-color="#E2E2E2"/>
     </linearGradient>
-    <linearGradient id="foldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#2a303c"/>
-      <stop offset="100%" stop-color="#1e222b"/>
+    <linearGradient id="c" x1="303.131" x2="295.352" y1="329.799" y2="396.874" gradientUnits="userSpaceOnUse">
+      <stop offset="1" stop-color="#FFB26B"/>
     </linearGradient>
-    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
-      <feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="#000000" flood-opacity="0.4"/>
-    </filter>
+    <linearGradient id="d" x1="302.953" x2="281.089" y1="329.766" y2="307.901" gradientUnits="userSpaceOnUse">
+      <stop offset=".822" stop-color="#E25F38"/>
+      <stop offset=".875" stop-color="#7C341F"/>
+    </linearGradient>
   </defs>
-
-  <!-- Base Squircle -->
-  <rect x="8" y="8" width="112" height="112" rx="28" fill="url(#bgGrad)" stroke="#313844" stroke-width="2" filter="url(#shadow)"/>
-
-  <!-- Page Sheet -->
-  <path d="M 36 28 L 74 28 L 92 46 L 92 100 L 36 100 Z" fill="#252b36" stroke="#3d4554" stroke-width="2" stroke-linejoin="round"/>
-
-  <!-- Fold Corner -->
-  <path d="M 74 28 L 74 46 L 92 46 Z" fill="url(#foldGrad)" stroke="#3d4554" stroke-width="2" stroke-linejoin="round"/>
-
-  <!-- Accent Heading Line -->
-  <rect x="46" y="44" width="22" height="5" rx="2.5" fill="url(#accentGrad)"/>
-
-  <!-- Markdown Document Content Lines -->
-  <rect x="46" y="58" width="36" height="4" rx="2" fill="#586579"/>
-  <rect x="46" y="68" width="32" height="4" rx="2" fill="#586579"/>
-  <rect x="46" y="78" width="26" height="4" rx="2" fill="#586579"/>
-
-  <!-- Floating Stylus / Pencil Accent -->
-  <g transform="translate(82, 84) rotate(-35)">
-    <rect x="-4" y="-18" width="8" height="28" rx="2" fill="url(#accentGrad)"/>
-    <polygon points="-4,10 4,10 0,18" fill="#e25f38"/>
-    <circle cx="0" cy="18" r="1" fill="#13161a"/>
-  </g>
 </svg>
