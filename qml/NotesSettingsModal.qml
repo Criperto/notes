@@ -141,35 +141,35 @@ Item {
     ParallelAnimation {
         id: openCardAnim
 
-        SpringAnimation { target: card; property: "x"; to: Math.round((root.width - targetWidth) / 2); spring: 6.8; damping: 0.84; mass: 0.52; epsilon: 0.5 }
-        SpringAnimation { target: card; property: "y"; to: Math.round((root.height - targetHeight) / 2); spring: 6.8; damping: 0.84; mass: 0.52; epsilon: 0.5 }
-        SpringAnimation { target: card; property: "width"; to: targetWidth; spring: 6.8; damping: 0.84; mass: 0.52; epsilon: 0.5 }
-        SpringAnimation { target: card; property: "height"; to: targetHeight; spring: 6.8; damping: 0.84; mass: 0.52; epsilon: 0.5 }
-        NumberAnimation { target: card; property: "radius"; to: 16; duration: 180; easing.type: Easing.OutCubic }
-        NumberAnimation { target: cardBtnContent; property: "opacity"; to: 0.0; duration: 90; easing.type: Easing.OutCubic }
-        NumberAnimation { target: modalBgGroup; property: "opacity"; to: 1.0; duration: 180; easing.type: Easing.OutCubic }
+        SpringAnimation { target: card; property: "x"; to: Math.round((root.width - targetWidth) / 2); spring: 3.5; damping: 0.38; mass: 0.85; epsilon: 0.25 }
+        SpringAnimation { target: card; property: "y"; to: Math.round((root.height - targetHeight) / 2); spring: 3.5; damping: 0.38; mass: 0.85; epsilon: 0.25 }
+        SpringAnimation { target: card; property: "width"; to: targetWidth; spring: 3.5; damping: 0.38; mass: 0.85; epsilon: 0.25 }
+        SpringAnimation { target: card; property: "height"; to: targetHeight; spring: 3.5; damping: 0.38; mass: 0.85; epsilon: 0.25 }
+        NumberAnimation { target: card; property: "radius"; to: 16; duration: 200; easing.type: Easing.OutCubic }
+        NumberAnimation { target: cardBtnContent; property: "opacity"; to: 0.0; duration: 100; easing.type: Easing.OutCubic }
+        NumberAnimation { target: modalBgGroup; property: "opacity"; to: 1.0; duration: 200; easing.type: Easing.OutCubic }
 
         SequentialAnimation {
-            PauseAnimation { duration: 50 }
-            NumberAnimation { target: modalContentLayout; property: "opacity"; to: 1.0; duration: 140; easing.type: Easing.OutCubic }
+            PauseAnimation { duration: 60 }
+            NumberAnimation { target: modalContentLayout; property: "opacity"; to: 1.0; duration: 160; easing.type: Easing.OutCubic }
         }
     }
 
     ParallelAnimation {
         id: closeCardAnim
 
-        NumberAnimation { target: modalContentLayout; property: "opacity"; to: 0.0; duration: 70; easing.type: Easing.OutCubic }
-        NumberAnimation { target: modalBgGroup; property: "opacity"; to: 0.0; duration: 180; easing.type: Easing.OutCubic }
+        NumberAnimation { target: modalContentLayout; property: "opacity"; to: 0.0; duration: 80; easing.type: Easing.OutCubic }
+        NumberAnimation { target: modalBgGroup; property: "opacity"; to: 0.0; duration: 200; easing.type: Easing.OutCubic }
 
-        SpringAnimation { target: card; property: "x"; to: originRect.x; spring: 7.2; damping: 0.85; mass: 0.48; epsilon: 0.5 }
-        SpringAnimation { target: card; property: "y"; to: originRect.y; spring: 7.2; damping: 0.85; mass: 0.48; epsilon: 0.5 }
-        SpringAnimation { target: card; property: "width"; to: (originRect.width > 0 ? originRect.width : 38); spring: 7.2; damping: 0.85; mass: 0.48; epsilon: 0.5 }
-        SpringAnimation { target: card; property: "height"; to: (originRect.height > 0 ? originRect.height : 38); spring: 7.2; damping: 0.85; mass: 0.48; epsilon: 0.5 }
-        NumberAnimation { target: card; property: "radius"; to: 10; duration: 160; easing.type: Easing.OutCubic }
+        SpringAnimation { target: card; property: "x"; to: originRect.x; spring: 3.5; damping: 0.38; mass: 0.85; epsilon: 0.25 }
+        SpringAnimation { target: card; property: "y"; to: originRect.y; spring: 3.5; damping: 0.38; mass: 0.85; epsilon: 0.25 }
+        SpringAnimation { target: card; property: "width"; to: (originRect.width > 0 ? originRect.width : 38); spring: 3.5; damping: 0.38; mass: 0.85; epsilon: 0.25 }
+        SpringAnimation { target: card; property: "height"; to: (originRect.height > 0 ? originRect.height : 38); spring: 3.5; damping: 0.38; mass: 0.85; epsilon: 0.25 }
+        NumberAnimation { target: card; property: "radius"; to: 10; duration: 180; easing.type: Easing.OutCubic }
 
         SequentialAnimation {
-            PauseAnimation { duration: 50 }
-            NumberAnimation { target: cardBtnContent; property: "opacity"; to: 1.0; duration: 110; easing.type: Easing.OutCubic }
+            PauseAnimation { duration: 60 }
+            NumberAnimation { target: cardBtnContent; property: "opacity"; to: 1.0; duration: 130; easing.type: Easing.OutCubic }
         }
 
         onFinished: {
@@ -1059,8 +1059,9 @@ Item {
 
         Item {
             id: cardBtnContent
-            anchors.left: parent.left
+            anchors.right: parent.right
             anchors.top: parent.top
+            transformOrigin: Item.TopRight
             width: (root.originRect.width > 0) ? root.originRect.width : 38
             height: (root.originRect.height > 0) ? root.originRect.height : 38
             visible: root.isFromButton && opacity > 0
