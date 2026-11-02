@@ -21,6 +21,15 @@ Item {
     property rect originRect: Qt.rect(Math.round((width - 40) / 2), Math.round((height - 40) / 2), 40, 40)
     property int tabIndex: 0
 
+    WheelHandler {
+        target: null
+        acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+        enabled: root.isOpen || root.isClosing
+        onWheel: (event) => {
+            event.accepted = true;
+        }
+    }
+
     readonly property string notasBin: (typeof Sys !== "undefined" && Sys.appExecutable) ? Sys.appExecutable : "notas"
 
     // Estado del gestor de diccionarios (portado de LanguageManager.qml)
@@ -854,20 +863,18 @@ Item {
         }
     }
 
-    // ── Fondo atenuado (Backdrop) ────────────────────────────────────────────
+    // ── Fondo transparente con captura de clicks para cerrar ────────────────
     Rectangle {
+        id: backdrop
         anchors.fill: parent
-        color: Qt.rgba(0, 0, 0, 0.55)
-        opacity: root.isOpen ? 1.0 : 0.0
-
-        Behavior on opacity {
-            enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
-            NumberAnimation { duration: 180; easing.type: Easing.OutQuad }
-        }
+        color: "transparent"
+        visible: root.isOpen || root.isClosing
 
         MouseArea {
             anchors.fill: parent
+            enabled: root.isOpen
             onClicked: root.close()
+            onWheel: (wheel) => { wheel.accepted = true; }
         }
     }
 
@@ -930,6 +937,7 @@ Item {
 
         MouseArea {
             anchors.fill: parent
+            onWheel: (wheel) => { wheel.accepted = true; }
         }
 
         Item {
@@ -1044,6 +1052,19 @@ Item {
                 contentHeight: activeTabCol.implicitHeight + 20
 
                 ScrollBar.vertical: CustomScrollBar { id: vbar }
+
+                WheelHandler {
+                    target: null
+                    acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+                    onWheel: (event) => {
+                        var delta = event.angleDelta ? event.angleDelta.y : 0;
+                        if (delta !== 0) {
+                            var maxContentY = Math.max(0, modalFlickable.contentHeight - modalFlickable.height);
+                            modalFlickable.contentY = Math.max(0, Math.min(maxContentY, modalFlickable.contentY - delta));
+                        }
+                        event.accepted = true;
+                    }
+                }
 
                 Item {
                     id: stackContent
@@ -2619,7 +2640,7 @@ Item {
                                 Text {
                                     Layout.alignment: Qt.AlignHCenter
                                     Layout.preferredWidth: Math.min(parent.width - 32, 600)
-                                    text: "Aplicación nativa de notas en Markdown con editor tipográfico de bloques, previsualización en vivo estilo Typora, diagramas Mermaid interactivos, corrección ortográfica multilingüe Hunspell y persistencia atómica en disco."
+                                    text: "Aplicación nativa de notas en Markdown con editor tipográfico de bloques, previsualización interactiva en vivo, diagramas Mermaid interactivos, corrección ortográfica multilingüe Hunspell y persistencia atómica en disco."
                                     font.family: Theme.fontFamily
                                     font.pixelSize: Theme.fontSizeBody
                                     color: Theme.text

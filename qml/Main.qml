@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
+import QtQuick.Effects
 import Notas
 
 ApplicationWindow {
@@ -19,6 +20,20 @@ ApplicationWindow {
         isSettingsOpen: settingsModal.isOpen || settingsModal.isClosing
         onCloseRequested: root.close()
         onOpenSettingsRequested: (originRect) => settingsModal.open(originRect)
+
+        property real blurProgress: settingsModal.isOpen ? 0.8 : 0.0
+        Behavior on blurProgress {
+            enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+            NumberAnimation { duration: 220; easing.type: Easing.OutCubic }
+        }
+
+        layer.enabled: (settingsModal.isOpen || settingsModal.isClosing || blurProgress > 0) && HyprlandConfig.blurEnabled && !GamemodeService.gamemodeActive
+        layer.effect: MultiEffect {
+            blurEnabled: HyprlandConfig.blurEnabled && !GamemodeService.gamemodeActive
+            blur: content.blurProgress
+            blurMax: HyprlandConfig.quickshellBlurMax
+            saturation: 0.85
+        }
     }
 
     NotesSettingsModal {

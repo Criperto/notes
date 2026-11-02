@@ -807,6 +807,7 @@ Item {
                     contentWidth: tagsRow.implicitWidth
                     flickableDirection: Flickable.HorizontalFlick
                     boundsBehavior: Flickable.StopAtBounds
+                    interactive: !root.isSettingsOpen
 
                     RowLayout {
                         id: tagsRow
@@ -1028,7 +1029,8 @@ Item {
                         contentWidth: width
                         contentHeight: scrollMainCol.implicitHeight + 96
                         boundsBehavior: Flickable.StopAtBounds
-                        enabled: !morphContainer.isVisible && !morphContainer.isExpanded
+                        enabled: !morphContainer.isVisible && !morphContainer.isExpanded && !root.isSettingsOpen
+                        interactive: !root.isSettingsOpen && !morphContainer.isVisible && !morphContainer.isExpanded
 
                         // Barra de scroll vertical con el estilo global
                         ScrollBar.vertical: CustomScrollBar {}
@@ -1315,6 +1317,7 @@ Item {
                 anchors.fill: parent
                 isExpanded: morphContainer.isExpanded
                 noteData: NotesService.activeNote
+                isSettingsOpen: root.isSettingsOpen
                 opacity: morphContainer.isExpanded ? 1.0 : 0.0
                 visible: opacity > 0.0
 

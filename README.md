@@ -10,7 +10,7 @@
 
 ## 🌟 Características Principales
 
-- **Edición Híbrida Live-Preview (estilo Typora):** Edición fluida por bloques de párrafos, listas con checkboxes interactivos, citas multinivel, tablas dinámicas y código resaltado con selector de lenguajes.
+- **Edición Híbrida Live-Preview:** Edición fluida por bloques de párrafos, listas con checkboxes interactivos, citas multinivel, tablas dinámicas y código resaltado con selector de lenguajes.
 - **Motor Mermaid Nativo:** Soporte integrado completo para:
   - Fase 1: `flowchart` (TD/LR), `sequenceDiagram`, `pie`.
   - Fase 2: `classDiagram`, `erDiagram`, `gantt`, `timeline`, `mindmap`.

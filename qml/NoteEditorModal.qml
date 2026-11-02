@@ -32,6 +32,7 @@ Item {
     // (los ~65 delegates no pagan instanciación durante la animación).
     property bool morphReady: true
     property string _pendingBody: ""
+    property bool isSettingsOpen: false
 
     // Carga diferida pendiente (llamado por toggle/foco/guardado/búsqueda).
     function _flushPendingBody() {
@@ -2854,6 +2855,7 @@ Item {
                 visible: root.isSourceMode
                 clip: true
                 boundsBehavior: Flickable.StopAtBounds
+                interactive: !root.isSettingsOpen
                 contentWidth: width
                 contentHeight: Math.max(height, sourceCodeEditor.implicitHeight + 48)
 
@@ -3041,6 +3043,7 @@ Item {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 readOnly: root.isPreviewMode
+                interactive: !root.isSettingsOpen
                 visible: !root.isSourceMode
                 freezeLayout: !root.isExpanded || !root.morphReady
                 searchQuery: root.isFindActive ? root.findQuery : ""
