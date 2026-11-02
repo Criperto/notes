@@ -85,6 +85,7 @@ Item {
             card.height = targetHeight;
             card.radius = 16;
             cardBtnContent.opacity = 0.0;
+            modalBgGroup.opacity = 1.0;
             modalContentLayout.opacity = 1.0;
             return;
         }
@@ -96,6 +97,7 @@ Item {
             card.height = originRect.height > 0 ? originRect.height : 38;
             card.radius = 10;
             cardBtnContent.opacity = 1.0;
+            modalBgGroup.opacity = 0.0;
             modalContentLayout.opacity = 0.0;
             openCardAnim.restart();
         } else {
@@ -105,6 +107,7 @@ Item {
             card.height = targetHeight;
             card.radius = 16;
             cardBtnContent.opacity = 0.0;
+            modalBgGroup.opacity = 0.0;
             modalContentLayout.opacity = 0.0;
             fadeOpenAnim.restart();
         }
@@ -138,33 +141,35 @@ Item {
     ParallelAnimation {
         id: openCardAnim
 
-        SpringAnimation { target: card; property: "x"; to: Math.round((root.width - targetWidth) / 2); spring: 5.2; damping: 0.78; mass: 0.70; epsilon: 0.5 }
-        SpringAnimation { target: card; property: "y"; to: Math.round((root.height - targetHeight) / 2); spring: 5.2; damping: 0.78; mass: 0.70; epsilon: 0.5 }
-        SpringAnimation { target: card; property: "width"; to: targetWidth; spring: 5.2; damping: 0.78; mass: 0.70; epsilon: 0.5 }
-        SpringAnimation { target: card; property: "height"; to: targetHeight; spring: 5.2; damping: 0.78; mass: 0.70; epsilon: 0.5 }
-        NumberAnimation { target: card; property: "radius"; to: 16; duration: 200; easing.type: Easing.OutCubic }
-        NumberAnimation { target: cardBtnContent; property: "opacity"; to: 0.0; duration: 100; easing.type: Easing.OutCubic }
+        SpringAnimation { target: card; property: "x"; to: Math.round((root.width - targetWidth) / 2); spring: 6.8; damping: 0.84; mass: 0.52; epsilon: 0.5 }
+        SpringAnimation { target: card; property: "y"; to: Math.round((root.height - targetHeight) / 2); spring: 6.8; damping: 0.84; mass: 0.52; epsilon: 0.5 }
+        SpringAnimation { target: card; property: "width"; to: targetWidth; spring: 6.8; damping: 0.84; mass: 0.52; epsilon: 0.5 }
+        SpringAnimation { target: card; property: "height"; to: targetHeight; spring: 6.8; damping: 0.84; mass: 0.52; epsilon: 0.5 }
+        NumberAnimation { target: card; property: "radius"; to: 16; duration: 180; easing.type: Easing.OutCubic }
+        NumberAnimation { target: cardBtnContent; property: "opacity"; to: 0.0; duration: 90; easing.type: Easing.OutCubic }
+        NumberAnimation { target: modalBgGroup; property: "opacity"; to: 1.0; duration: 180; easing.type: Easing.OutCubic }
 
         SequentialAnimation {
-            PauseAnimation { duration: 60 }
-            NumberAnimation { target: modalContentLayout; property: "opacity"; to: 1.0; duration: 160; easing.type: Easing.OutCubic }
+            PauseAnimation { duration: 50 }
+            NumberAnimation { target: modalContentLayout; property: "opacity"; to: 1.0; duration: 140; easing.type: Easing.OutCubic }
         }
     }
 
     ParallelAnimation {
         id: closeCardAnim
 
-        NumberAnimation { target: modalContentLayout; property: "opacity"; to: 0.0; duration: 80; easing.type: Easing.OutCubic }
+        NumberAnimation { target: modalContentLayout; property: "opacity"; to: 0.0; duration: 70; easing.type: Easing.OutCubic }
+        NumberAnimation { target: modalBgGroup; property: "opacity"; to: 0.0; duration: 180; easing.type: Easing.OutCubic }
 
-        SpringAnimation { target: card; property: "x"; to: originRect.x; spring: 5.6; damping: 0.82; mass: 0.65; epsilon: 0.5 }
-        SpringAnimation { target: card; property: "y"; to: originRect.y; spring: 5.6; damping: 0.82; mass: 0.65; epsilon: 0.5 }
-        SpringAnimation { target: card; property: "width"; to: (originRect.width > 0 ? originRect.width : 38); spring: 5.6; damping: 0.82; mass: 0.65; epsilon: 0.5 }
-        SpringAnimation { target: card; property: "height"; to: (originRect.height > 0 ? originRect.height : 38); spring: 5.6; damping: 0.82; mass: 0.65; epsilon: 0.5 }
-        NumberAnimation { target: card; property: "radius"; to: 10; duration: 180; easing.type: Easing.OutCubic }
+        SpringAnimation { target: card; property: "x"; to: originRect.x; spring: 7.2; damping: 0.85; mass: 0.48; epsilon: 0.5 }
+        SpringAnimation { target: card; property: "y"; to: originRect.y; spring: 7.2; damping: 0.85; mass: 0.48; epsilon: 0.5 }
+        SpringAnimation { target: card; property: "width"; to: (originRect.width > 0 ? originRect.width : 38); spring: 7.2; damping: 0.85; mass: 0.48; epsilon: 0.5 }
+        SpringAnimation { target: card; property: "height"; to: (originRect.height > 0 ? originRect.height : 38); spring: 7.2; damping: 0.85; mass: 0.48; epsilon: 0.5 }
+        NumberAnimation { target: card; property: "radius"; to: 10; duration: 160; easing.type: Easing.OutCubic }
 
         SequentialAnimation {
-            PauseAnimation { duration: 60 }
-            NumberAnimation { target: cardBtnContent; property: "opacity"; to: 1.0; duration: 120; easing.type: Easing.OutCubic }
+            PauseAnimation { duration: 50 }
+            NumberAnimation { target: cardBtnContent; property: "opacity"; to: 1.0; duration: 110; easing.type: Easing.OutCubic }
         }
 
         onFinished: {
@@ -174,22 +179,16 @@ Item {
         }
     }
 
-    NumberAnimation {
+    ParallelAnimation {
         id: fadeOpenAnim
-        target: modalContentLayout
-        property: "opacity"
-        to: 1.0
-        duration: 160
-        easing.type: Easing.OutCubic
+        NumberAnimation { target: modalBgGroup; property: "opacity"; to: 1.0; duration: 150; easing.type: Easing.OutCubic }
+        NumberAnimation { target: modalContentLayout; property: "opacity"; to: 1.0; duration: 150; easing.type: Easing.OutCubic }
     }
 
-    NumberAnimation {
+    ParallelAnimation {
         id: fadeCloseAnim
-        target: modalContentLayout
-        property: "opacity"
-        to: 0.0
-        duration: 120
-        easing.type: Easing.OutCubic
+        NumberAnimation { target: modalBgGroup; property: "opacity"; to: 0.0; duration: 120; easing.type: Easing.OutCubic }
+        NumberAnimation { target: modalContentLayout; property: "opacity"; to: 0.0; duration: 120; easing.type: Easing.OutCubic }
         onFinished: {
             root.isOpen = false;
             root.isClosing = false;
@@ -973,61 +972,73 @@ Item {
         height: targetHeight
         radius: 16
         color: "transparent"
-        border.color: Theme.border
-        border.width: 1
         clip: true
 
         layer.enabled: !GamemodeService.gamemodeActive
         layer.effect: MultiEffect {
             shadowEnabled: true
-            shadowColor: Qt.rgba(0, 0, 0, 0.45)
+            shadowColor: Qt.rgba(0, 0, 0, 0.45 * modalBgGroup.opacity)
             shadowBlur: 0.6
             shadowVerticalOffset: 6
             shadowHorizontalOffset: 0
         }
 
-        // ── Desenfoque recortado exclusivamente a la tarjeta (Frosted Glass) ──
-        Item {
-            id: cardBlurContainer
-            anchors.fill: parent
-            clip: true
-            visible: (root.isOpen || root.isClosing) && HyprlandConfig.blurEnabled && !GamemodeService.gamemodeActive && root.backgroundSourceItem !== null
-
-            ShaderEffectSource {
-                id: cardBlurSrc
-                anchors.fill: parent
-                sourceItem: root.backgroundSourceItem
-                sourceRect: Qt.rect(Math.round(Math.max(0, card.x)), Math.round(Math.max(0, card.y)), Math.round(Math.max(1, card.width)), Math.round(Math.max(1, card.height)))
-                live: (root.isOpen || root.isClosing) && Theme.animationsEnabled && !GamemodeService.gamemodeActive
-                hideSource: false
-                layer.enabled: parent.visible
-                layer.smooth: true
-                layer.effect: MultiEffect {
-                    blurEnabled: HyprlandConfig.blurEnabled && !GamemodeService.gamemodeActive
-                    blur: 0.85
-                    blurMax: HyprlandConfig.quickshellBlurMax
-                    saturation: 0.15
-                }
-            }
-        }
-
-        // ── Superficie de fondo tintada sobre el blur ───────────────────────
+        // ── Apariencia del botón cuando está colapsado (fondo y borde de botón) ──
         Rectangle {
-            id: cardBgTint
+            id: cardBtnBg
             anchors.fill: parent
             radius: card.radius
-            color: (!root.isFromButton || root.isOpen)
-                ? Qt.hsva(Theme.surface.hsvHue,
-                          Math.min(1, Theme.surface.hsvSaturation),
-                          Math.min(1, Theme.surface.hsvValue + 0.03),
-                          (HyprlandConfig.blurEnabled && !GamemodeService.gamemodeActive)
-                              ? Math.min(0.85, Theme.panelOpacity)
-                              : (GamemodeService.gamemodeActive ? 1.0 : Theme.panelOpacity))
-                : Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.05)
+            color: Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.05)
+            border.color: Qt.hsva(Theme.text.hsvHue, Theme.text.hsvSaturation, Theme.text.hsvValue, 0.12)
+            border.width: 1
+            visible: root.isFromButton && opacity > 0
+            opacity: 1.0 - modalBgGroup.opacity
+        }
 
-            Behavior on color {
-                enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
-                ColorAnimation { duration: 200; easing.type: Easing.OutCubic }
+        // ── Apariencia del modal (Frosted Glass y superficie) con fade ────────
+        Item {
+            id: modalBgGroup
+            anchors.fill: parent
+            opacity: 0.0
+
+            // Desenfoque recortado exclusivamente a la tarjeta (Frosted Glass)
+            Item {
+                id: cardBlurContainer
+                anchors.fill: parent
+                clip: true
+                visible: (root.isOpen || root.isClosing) && HyprlandConfig.blurEnabled && !GamemodeService.gamemodeActive && root.backgroundSourceItem !== null
+
+                ShaderEffectSource {
+                    id: cardBlurSrc
+                    anchors.fill: parent
+                    sourceItem: root.backgroundSourceItem
+                    sourceRect: Qt.rect(Math.round(Math.max(0, card.x)), Math.round(Math.max(0, card.y)), Math.round(Math.max(1, card.width)), Math.round(Math.max(1, card.height)))
+                    live: (root.isOpen || root.isClosing) && Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                    hideSource: false
+                    layer.enabled: parent.visible
+                    layer.smooth: true
+                    layer.effect: MultiEffect {
+                        blurEnabled: HyprlandConfig.blurEnabled && !GamemodeService.gamemodeActive
+                        blur: 1.0
+                        blurMax: 48
+                        saturation: 0.20
+                    }
+                }
+            }
+
+            // Superficie de fondo tintada sobre el blur (transparencia justa para apreciar el blur)
+            Rectangle {
+                id: cardBgTint
+                anchors.fill: parent
+                radius: card.radius
+                color: Qt.hsva(Theme.surface.hsvHue,
+                               Math.min(1, Theme.surface.hsvSaturation),
+                               Math.min(1, Theme.surface.hsvValue + 0.02),
+                               (HyprlandConfig.blurEnabled && !GamemodeService.gamemodeActive)
+                                   ? 0.65
+                                   : (GamemodeService.gamemodeActive ? 1.0 : Theme.panelOpacity))
+                border.color: Theme.border
+                border.width: 1
             }
         }
 
@@ -1038,7 +1049,7 @@ Item {
             width: (root.originRect.width > 0) ? root.originRect.width : 38
             height: (root.originRect.height > 0) ? root.originRect.height : 38
             visible: root.isFromButton && opacity > 0
-            opacity: root.isOpen ? 0.0 : 1.0
+            opacity: 0.0
             z: 10
             clip: true
 
