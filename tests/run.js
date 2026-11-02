@@ -3309,6 +3309,62 @@ runTest("F65: Rust qs-helper notes index y contratos de metadatos instantáneos"
     }
 });
 
+runTest('F66: SpellService ciclo de vida, cancelOwner y SpellLogic filtrado de tags HTML', () => {
+    // 1. Filtrado de tags HTML en SpellLogic.tokenize
+    const textWithTags = "Fila superior<br>segunda celda con <span style=\"color:red\">color</span> y otra palabra";
+    const tokens = SpellLogic.tokenize(textWithTags);
+    const words = tokens.map(t => t.word);
+    assert.ok(words.includes("Fila"));
+    assert.ok(words.includes("superior"));
+    assert.ok(words.includes("segunda"));
+    assert.ok(words.includes("celda"));
+    assert.ok(words.includes("palabra"));
+    assert.ok(!words.includes("br"), "Tag <br> no debe tokenizarse como palabra");
+    assert.ok(!words.includes("span"), "Tag <span> no debe tokenizarse como palabra");
+    assert.ok(!words.includes("color:red"), "Atributos HTML no deben tokenizarse");
+
+    // 2. Verificación estática de SpellService.qml
+    const spellServiceQml = fs.readFileSync(path.resolve(__dirname, '../qml/SpellService.qml'), 'utf8');
+    assert.ok(spellServiceQml.indexOf('function cancelOwner(owner)') !== -1, "SpellService debe declarar cancelOwner(owner)");
+    assert.ok(spellServiceQml.indexOf('function _isOwnerValid(owner)') !== -1, "SpellService debe declarar _isOwnerValid(owner)");
+    assert.ok(spellServiceQml.indexOf('function checkWordsBatch(words, callback, owner)') !== -1, "checkWordsBatch debe soportar owner");
+    assert.ok(spellServiceQml.indexOf('property var _activeBatches: []') !== -1, "SpellService debe mantener _activeBatches");
+    assert.ok(spellServiceQml.indexOf('if (q && !q.cancelled && typeof q.callback === "function")') !== -1, "Worker debe chequear q.cancelled");
+
+    // 3. Verificación de blindaje en bloques de texto
+    const blocksToCheck = ['BlockParagraph.qml', 'BlockHeading.qml', 'BlockQuote.qml', 'BlockList.qml'];
+    for (const b of blocksToCheck) {
+        const content = fs.readFileSync(path.resolve(__dirname, '../qml', b), 'utf8');
+        assert.ok(content.indexOf('property bool _isDestroyed: false') !== -1, `${b} debe tener property bool _isDestroyed`);
+        assert.ok(content.indexOf('SpellService.cancelOwner(root)') !== -1, `${b} debe invocar cancelOwner(root) en onDestruction`);
+    }
+});
+
+runTest('F67: BlockTable soporte de SpellOverlay, timers y menús contextuales en celdas', () => {
+    const tableQml = fs.readFileSync(path.resolve(__dirname, '../qml/BlockTable.qml'), 'utf8');
+
+    // 1. Integración en el bloque raíz
+    assert.ok(tableQml.indexOf('readonly property bool spellActive:') !== -1, "BlockTable debe declarar spellActive");
+    assert.ok(tableQml.indexOf('property bool _isDestroyed: false') !== -1, "BlockTable debe declarar _isDestroyed");
+    assert.ok(tableQml.indexOf('SpellService.cancelOwner(root)') !== -1, "BlockTable debe cancelar registros en onDestruction");
+    assert.ok(tableQml.indexOf('target: (typeof SpellService !== "undefined") ? SpellService : null') !== -1, "BlockTable debe conectarse a SpellService");
+
+    // 2. Verificación de celdas de encabezado
+    assert.ok(tableQml.indexOf('id: hSpellTimer') !== -1, "headerCell debe tener hSpellTimer");
+    assert.ok(tableQml.indexOf('id: hSpellOverlay') !== -1, "headerCell debe tener hSpellOverlay");
+    assert.ok(tableQml.indexOf('headerCell._openContextMenuAt') !== -1, "headerCell debe implementar _openContextMenuAt");
+    assert.ok(tableQml.indexOf('headerCell._replaceWordAtRange') !== -1, "headerCell debe implementar _replaceWordAtRange");
+
+    // 3. Verificación de celdas de datos
+    assert.ok(tableQml.indexOf('id: cellSpellTimer') !== -1, "dataCell debe tener cellSpellTimer");
+    assert.ok(tableQml.indexOf('id: cellSpellOverlay') !== -1, "dataCell debe tener cellSpellOverlay");
+    assert.ok(tableQml.indexOf('dataCell._openContextMenuAt') !== -1, "dataCell debe implementar _openContextMenuAt");
+    assert.ok(tableQml.indexOf('dataCell._replaceWordAtRange') !== -1, "dataCell debe implementar _replaceWordAtRange");
+
+    // 4. Clic derecho en modo lectura activa y abre menú contextual
+    assert.ok(tableQml.indexOf('acceptedButtons: Qt.LeftButton | Qt.RightButton') !== -1, "Vistas de celda deben aceptar clic derecho");
+});
+
 console.log(`\n========================================`);
 console.log(`Resultados: ${passed} OK, ${failed} FAIL`);
 console.log(`========================================`);

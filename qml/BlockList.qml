@@ -20,6 +20,14 @@ Item {
     property bool inViewportChunk: true
     readonly property bool spellActive: (root.editor && root.editor.spellActive !== undefined) ? root.editor.spellActive : false
     readonly property alias itemsRepeaterRef: itemsRepeater
+    property bool _isDestroyed: false
+
+    Component.onDestruction: {
+        _isDestroyed = true;
+        if (typeof SpellService !== "undefined") {
+            SpellService.cancelOwner(root);
+        }
+    }
 
     // Tamaños de encabezado (mismos que BlockHeading) para ítems tipo "* ## título"
     readonly property var headingSizes: ({
@@ -936,6 +944,7 @@ Item {
                     }
                     var words = tokens.map(function(t) { return t.word; });
                     SpellService.checkWordsBatch(words, function(results) {
+                        if (root._isDestroyed || !itemRow) return;
                         var badRanges = [];
                         for (var i = 0; i < tokens.length; i++) {
                             var t = tokens[i];
@@ -951,7 +960,7 @@ Item {
                         }
                         itemRow.spellRanges = badRanges;
                         if (spellOverlay) spellOverlay.requestUpdate();
-                    });
+                    }, root);
                 }
 
                 function _openContextMenuAt(targetItem, clickPos, fromKeyboard) {

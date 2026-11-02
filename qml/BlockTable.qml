@@ -6,6 +6,7 @@ import Notas
 import "."
 import "TableParser.js" as TP
 import "Inline.js" as Inline
+import "SpellLogic.js" as SpellLogic
 
 Item {
     id: root
@@ -21,6 +22,50 @@ Item {
         (NotesService.activeNote && NotesService.activeNote.readOnly) ||
         (root.editor && root.editor.editorModal && root.editor.editorModal.isPreviewMode)
     )
+
+    readonly property bool spellActive: (typeof SpellConfig !== "undefined" && SpellConfig.enabled) && (typeof SpellService !== "undefined" && SpellService.available)
+    property bool _isDestroyed: false
+
+    Component.onDestruction: {
+        _isDestroyed = true;
+        if (typeof SpellService !== "undefined") {
+            SpellService.cancelOwner(root);
+        }
+    }
+
+    Connections {
+        target: (typeof SpellService !== "undefined") ? SpellService : null
+        function onCacheRevisionChanged() {
+            if (root.spellActive && root.isEditing) {
+                root.triggerActiveCellSpellCheck();
+            }
+        }
+        function onAvailableChanged() {
+            if (root.spellActive && SpellService.available && root.isEditing) {
+                root.triggerActiveCellSpellCheck();
+            }
+        }
+    }
+
+    function triggerActiveCellSpellCheck() {
+        if (!root.isEditing || root._isDestroyed) return;
+        var r = root.focusedRow;
+        var c = root.focusedCol;
+        if (r === -1) {
+            if (headerRepeater) {
+                var hDel = headerRepeater.itemAt(c);
+                if (hDel && typeof hDel.runSpellCheck === "function") hDel.runSpellCheck();
+            }
+        } else if (r >= 0) {
+            if (rowsRepeater) {
+                var rDel = rowsRepeater.itemAt(r);
+                if (rDel && typeof rDel.getCellDelegate === "function") {
+                    var cDel = rDel.getCellDelegate(c);
+                    if (cDel && typeof cDel.runSpellCheck === "function") cDel.runSpellCheck();
+                }
+            }
+        }
+    }
 
     function selectRange(start, end) {}
     function selectAllText() {}
@@ -729,6 +774,7 @@ Item {
                                     property int colIndex: index
                                     property alias textInput: hInput
                                     readonly property bool isCurrentCell: root.isEditing && root.focusedRow === -1 && root.focusedCol === colIndex
+                                    property var spellRanges: []
                                     width: root.colWidth
                                     height: headerContainer.height
                                     color: "transparent"
@@ -738,6 +784,134 @@ Item {
                                     readonly property real cellHeight: Math.max(headerContainer.minHeaderHeight, (isCurrentCell ? hInput.paintedHeight : hViewText.paintedHeight) + 14)
                                     onCellHeightChanged: headerContainer.updateHeaderHeight()
                                     Component.onCompleted: headerContainer.updateHeaderHeight()
+
+                                    Timer {
+                                        id: hSpellTimer
+                                        interval: 300
+                                        repeat: false
+                                        onTriggered: headerCell.runSpellCheck()
+                                    }
+
+                                    onIsCurrentCellChanged: {
+                                        if (isCurrentCell && root.spellActive) {
+                                            hSpellTimer.restart();
+                                        } else {
+                                            headerCell.spellRanges = [];
+                                        }
+                                    }
+
+                                    function runSpellCheck() {
+                                        if (!root.spellActive || root._isDestroyed || typeof SpellService === "undefined" || !SpellService.available) {
+                                            headerCell.spellRanges = [];
+                                            return;
+                                        }
+                                        var plain = hInput ? hInput.text : "";
+                                        if (!plain || plain.trim() === "") {
+                                            headerCell.spellRanges = [];
+                                            return;
+                                        }
+                                        var tokens = SpellLogic.tokenize(plain, {
+                                            ignoreUppercase: (typeof SpellConfig !== "undefined") ? SpellConfig.ignoreUppercase : true,
+                                            ignoreWithDigits: (typeof SpellConfig !== "undefined") ? SpellConfig.ignoreWithDigits : true,
+                                            ignoreCamelCase: (typeof SpellConfig !== "undefined") ? SpellConfig.ignoreCamelCase : true,
+                                            ignoreSnakeCase: (typeof SpellConfig !== "undefined") ? SpellConfig.ignoreSnakeCase : true
+                                        });
+                                        if (tokens.length === 0) {
+                                            headerCell.spellRanges = [];
+                                            return;
+                                        }
+                                        var words = tokens.map(function(t) { return t.word; });
+                                        SpellService.checkWordsBatch(words, function(results) {
+                                            if (root._isDestroyed || !headerCell) return;
+                                            var badRanges = [];
+                                            for (var i = 0; i < tokens.length; i++) {
+                                                var t = tokens[i];
+                                                var res = results[t.word];
+                                                if (res && res.ok === false) {
+                                                    badRanges.push({
+                                                        start: t.start,
+                                                        end: t.end,
+                                                        word: t.word,
+                                                        suggestions: res.suggestions || []
+                                                    });
+                                                }
+                                            }
+                                            headerCell.spellRanges = badRanges;
+                                            if (hSpellOverlay) hSpellOverlay.requestUpdate();
+                                        }, root);
+                                    }
+
+                                    function _openContextMenuAt(targetItem, clickPos, fromKeyboard) {
+                                        if (!root.editor || !root.editor.contextMenu) return;
+                                        var pos = (clickPos !== undefined && clickPos >= 0) ? clickPos : (hInput ? hInput.cursorPosition : -1);
+                                        var err = (root.spellActive && (!root.editor || !root.editor.readOnly)) ? SpellLogic.findRangeAt(headerCell.spellRanges, pos) : null;
+                                        var extras = [];
+                                        if (err) {
+                                            extras.push({
+                                                kind: "header",
+                                                text: (typeof I18n !== "undefined" ? I18n.t("notes.spell.suggestions", "Sugerencias") : "Sugerencias") + " (" + err.word + "):"
+                                            });
+                                            var sugs = err.suggestions || [];
+                                            if (sugs.length === 0) {
+                                                extras.push({
+                                                    text: typeof I18n !== "undefined" ? I18n.t("notes.spell.no_suggestions", "Sin sugerencias") : "Sin sugerencias",
+                                                    enabled: false
+                                                });
+                                            } else {
+                                                var maxSugs = Math.min(5, sugs.length);
+                                                for (var i = 0; i < maxSugs; i++) {
+                                                    (function(sugItem) {
+                                                        var rawWord = (typeof sugItem === "object" && sugItem && sugItem.word) ? sugItem.word : String(sugItem || "");
+                                                        var langBadge = (typeof sugItem === "object" && sugItem && sugItem.lang) ? sugItem.lang.substring(0, 2).toUpperCase() : "";
+                                                        var formattedSug = SpellLogic.matchCapitalization(err.word, rawWord);
+                                                        extras.push({
+                                                            text: formattedSug,
+                                                            shortcut: langBadge,
+                                                            bold: true,
+                                                            onTriggered: function() {
+                                                                headerCell._replaceWordAtRange(targetItem, err, formattedSug);
+                                                            }
+                                                        });
+                                                    })(sugs[i]);
+                                                }
+                                            }
+                                            extras.push({ kind: "separator" });
+                                            extras.push({
+                                                text: typeof I18n !== "undefined" ? I18n.t("notes.spell.ignore", "Ignorar palabra") : "Ignorar palabra",
+                                                onTriggered: function() {
+                                                    if (typeof SpellService !== "undefined") SpellService.ignoreWord(err.word);
+                                                }
+                                            });
+                                            extras.push({
+                                                text: typeof I18n !== "undefined" ? I18n.t("notes.spell.add_to_dict", "Agregar al diccionario") : "Agregar al diccionario",
+                                                onTriggered: function() {
+                                                    if (typeof SpellService !== "undefined") SpellService.addToDictionary(err.word);
+                                                }
+                                            });
+                                        }
+                                        if (fromKeyboard && typeof root.editor.contextMenu.toggleAtTextCursor === "function") {
+                                            root.editor.contextMenu.toggleAtTextCursor(targetItem, extras);
+                                        } else if (fromKeyboard && typeof root.editor.contextMenu.openAtTextCursor === "function") {
+                                            root.editor.contextMenu.openAtTextCursor(targetItem, extras);
+                                        } else {
+                                            root.editor.contextMenu.open(targetItem, extras);
+                                        }
+                                    }
+
+                                    function _replaceWordAtRange(targetItem, range, replacement) {
+                                        if (!range || !replacement || !hInput) return;
+                                        var maxLen = hInput.length;
+                                        var s = Math.max(0, Math.min(range.start, maxLen));
+                                        var e = Math.max(s, Math.min(range.end, maxLen));
+                                        hInput.forceActiveFocus();
+                                        hInput.select(s, e);
+                                        hInput.remove(s, e);
+                                        hInput.insert(s, replacement);
+                                        root._notifyCellChange(-1, colIndex, hInput.text);
+                                        var endPos = s + replacement.length;
+                                        hInput.cursorPosition = Math.min(hInput.length, endPos);
+                                        headerCell.runSpellCheck();
+                                    }
 
                                     // Modo lectura: Text con RichText y clic en enlaces
                                     Text {
@@ -775,8 +949,23 @@ Item {
 
                                         MouseArea {
                                             anchors.fill: parent
+                                            acceptedButtons: Qt.LeftButton | Qt.RightButton
                                             cursorShape: hViewText.hoveredLink !== "" ? Qt.PointingHandCursor : Qt.IBeamCursor
                                             onClicked: (mouse) => {
+                                                if (mouse.button === Qt.RightButton) {
+                                                    if (root.editor) {
+                                                        root.editor.requestEditBlock(root.blockData.bid);
+                                                        root.focusCell(-1, colIndex);
+                                                        Qt.callLater(() => {
+                                                            var input = root._getCellInput(-1, colIndex);
+                                                            if (input) {
+                                                                var p = input.positionAt ? input.positionAt(mouse.x, mouse.y) : -1;
+                                                                headerCell._openContextMenuAt(input, p, false);
+                                                            }
+                                                        });
+                                                    }
+                                                    return;
+                                                }
                                                 var link = hViewText.linkAt(mouse.x, mouse.y);
                                                 if (link && link !== "") {
                                                     if (root.editor && typeof root.editor.handleLink === "function") {
@@ -818,15 +1007,39 @@ Item {
                                             activeFocusOnTab: false
                                             CustomTextCursor {}
 
+                                            SpellOverlay {
+                                                id: hSpellOverlay
+                                                visible: headerCell.isCurrentCell && root.spellActive && headerCell.spellRanges && headerCell.spellRanges.length > 0
+                                                textItem: hInput
+                                                ranges: headerCell.spellRanges
+                                                active: root.spellActive
+                                                waveColor: Theme.color3
+                                            }
+
+                                            MouseArea {
+                                                anchors.fill: parent
+                                                acceptedButtons: Qt.RightButton
+                                                propagateComposedEvents: true
+                                                onClicked: (mouse) => {
+                                                    if (mouse.button === Qt.RightButton && root.editor && root.editor.contextMenu) {
+                                                        hInput.forceActiveFocus();
+                                                        var pos = hInput.positionAt(mouse.x, mouse.y);
+                                                        headerCell._openContextMenuAt(hInput, pos, false);
+                                                    }
+                                                }
+                                            }
+
                                             onActiveFocusChanged: {
                                                 if (activeFocus) {
                                                     root.focusedRow = -1;
                                                     root.focusedCol = colIndex;
+                                                    if (root.spellActive) hSpellTimer.restart();
                                                 }
                                             }
 
                                             onTextEdited: {
                                                 root._notifyCellChange(-1, colIndex, hInput.text);
+                                                hSpellTimer.restart();
                                             }
 
                                             Keys.onTabPressed: (event) => root._handleCellTab(-1, colIndex, event)
@@ -866,7 +1079,14 @@ Item {
                                             Keys.onLeftPressed: (event) => root._handleCellLeft(-1, colIndex, hInput, event)
                                             Keys.onRightPressed: (event) => root._handleCellRight(-1, colIndex, hInput, event)
                                             Keys.onEscapePressed: (event) => root._handleCellEscape(event)
-                                            Keys.onPressed: (event) => root._handleCellSpecialKeys(event)
+                                            Keys.onPressed: (event) => {
+                                                if (event.key === Qt.Key_Menu || ((event.modifiers & Qt.ShiftModifier) && event.key === Qt.Key_F10)) {
+                                                    headerCell._openContextMenuAt(hInput, hInput.cursorPosition, true);
+                                                    event.accepted = true;
+                                                    return;
+                                                }
+                                                root._handleCellSpecialKeys(event);
+                                            }
                                         }
 
                                 Rectangle {
@@ -961,6 +1181,7 @@ Item {
                                 property int colIndex: index
                                 property alias textInput: cellInput
                                 readonly property bool isCurrentCell: root.isEditing && root.focusedRow === rowRect.rowIndex && root.focusedCol === colIndex
+                                property var spellRanges: []
                                 width: root.colWidth
                                 height: rowRect.height
                                 color: "transparent"
@@ -970,6 +1191,134 @@ Item {
                                 readonly property real cellHeight: Math.max(rowRect.minRowHeight, (isCurrentCell ? cellInput.paintedHeight : cellViewText.paintedHeight) + 14)
                                 onCellHeightChanged: rowRect.updateRowHeight()
                                 Component.onCompleted: rowRect.updateRowHeight()
+
+                                Timer {
+                                    id: cellSpellTimer
+                                    interval: 300
+                                    repeat: false
+                                    onTriggered: dataCell.runSpellCheck()
+                                }
+
+                                onIsCurrentCellChanged: {
+                                    if (isCurrentCell && root.spellActive) {
+                                        cellSpellTimer.restart();
+                                    } else {
+                                        dataCell.spellRanges = [];
+                                    }
+                                }
+
+                                function runSpellCheck() {
+                                    if (!root.spellActive || root._isDestroyed || typeof SpellService === "undefined" || !SpellService.available) {
+                                        dataCell.spellRanges = [];
+                                        return;
+                                    }
+                                    var plain = cellInput ? cellInput.text : "";
+                                    if (!plain || plain.trim() === "") {
+                                        dataCell.spellRanges = [];
+                                        return;
+                                    }
+                                    var tokens = SpellLogic.tokenize(plain, {
+                                        ignoreUppercase: (typeof SpellConfig !== "undefined") ? SpellConfig.ignoreUppercase : true,
+                                        ignoreWithDigits: (typeof SpellConfig !== "undefined") ? SpellConfig.ignoreWithDigits : true,
+                                        ignoreCamelCase: (typeof SpellConfig !== "undefined") ? SpellConfig.ignoreCamelCase : true,
+                                        ignoreSnakeCase: (typeof SpellConfig !== "undefined") ? SpellConfig.ignoreSnakeCase : true
+                                    });
+                                    if (tokens.length === 0) {
+                                        dataCell.spellRanges = [];
+                                        return;
+                                    }
+                                    var words = tokens.map(function(t) { return t.word; });
+                                    SpellService.checkWordsBatch(words, function(results) {
+                                        if (root._isDestroyed || !dataCell) return;
+                                        var badRanges = [];
+                                        for (var i = 0; i < tokens.length; i++) {
+                                            var t = tokens[i];
+                                            var res = results[t.word];
+                                            if (res && res.ok === false) {
+                                                badRanges.push({
+                                                    start: t.start,
+                                                    end: t.end,
+                                                    word: t.word,
+                                                    suggestions: res.suggestions || []
+                                                });
+                                            }
+                                        }
+                                        dataCell.spellRanges = badRanges;
+                                        if (cellSpellOverlay) cellSpellOverlay.requestUpdate();
+                                    }, root);
+                                }
+
+                                function _openContextMenuAt(targetItem, clickPos, fromKeyboard) {
+                                    if (!root.editor || !root.editor.contextMenu) return;
+                                    var pos = (clickPos !== undefined && clickPos >= 0) ? clickPos : (cellInput ? cellInput.cursorPosition : -1);
+                                    var err = (root.spellActive && (!root.editor || !root.editor.readOnly)) ? SpellLogic.findRangeAt(dataCell.spellRanges, pos) : null;
+                                    var extras = [];
+                                    if (err) {
+                                        extras.push({
+                                            kind: "header",
+                                            text: (typeof I18n !== "undefined" ? I18n.t("notes.spell.suggestions", "Sugerencias") : "Sugerencias") + " (" + err.word + "):"
+                                        });
+                                        var sugs = err.suggestions || [];
+                                        if (sugs.length === 0) {
+                                            extras.push({
+                                                text: typeof I18n !== "undefined" ? I18n.t("notes.spell.no_suggestions", "Sin sugerencias") : "Sin sugerencias",
+                                                enabled: false
+                                            });
+                                        } else {
+                                            var maxSugs = Math.min(5, sugs.length);
+                                            for (var i = 0; i < maxSugs; i++) {
+                                                (function(sugItem) {
+                                                    var rawWord = (typeof sugItem === "object" && sugItem && sugItem.word) ? sugItem.word : String(sugItem || "");
+                                                    var langBadge = (typeof sugItem === "object" && sugItem && sugItem.lang) ? sugItem.lang.substring(0, 2).toUpperCase() : "";
+                                                    var formattedSug = SpellLogic.matchCapitalization(err.word, rawWord);
+                                                    extras.push({
+                                                        text: formattedSug,
+                                                        shortcut: langBadge,
+                                                        bold: true,
+                                                        onTriggered: function() {
+                                                            dataCell._replaceWordAtRange(targetItem, err, formattedSug);
+                                                        }
+                                                    });
+                                                })(sugs[i]);
+                                            }
+                                        }
+                                        extras.push({ kind: "separator" });
+                                        extras.push({
+                                            text: typeof I18n !== "undefined" ? I18n.t("notes.spell.ignore", "Ignorar palabra") : "Ignorar palabra",
+                                            onTriggered: function() {
+                                                if (typeof SpellService !== "undefined") SpellService.ignoreWord(err.word);
+                                            }
+                                        });
+                                        extras.push({
+                                            text: typeof I18n !== "undefined" ? I18n.t("notes.spell.add_to_dict", "Agregar al diccionario") : "Agregar al diccionario",
+                                            onTriggered: function() {
+                                                if (typeof SpellService !== "undefined") SpellService.addToDictionary(err.word);
+                                            }
+                                        });
+                                    }
+                                    if (fromKeyboard && typeof root.editor.contextMenu.toggleAtTextCursor === "function") {
+                                        root.editor.contextMenu.toggleAtTextCursor(targetItem, extras);
+                                    } else if (fromKeyboard && typeof root.editor.contextMenu.openAtTextCursor === "function") {
+                                        root.editor.contextMenu.openAtTextCursor(targetItem, extras);
+                                    } else {
+                                        root.editor.contextMenu.open(targetItem, extras);
+                                    }
+                                }
+
+                                function _replaceWordAtRange(targetItem, range, replacement) {
+                                    if (!range || !replacement || !cellInput) return;
+                                    var maxLen = cellInput.length;
+                                    var s = Math.max(0, Math.min(range.start, maxLen));
+                                    var e = Math.max(s, Math.min(range.end, maxLen));
+                                    cellInput.forceActiveFocus();
+                                    cellInput.select(s, e);
+                                    cellInput.remove(s, e);
+                                    cellInput.insert(s, replacement);
+                                    root._notifyCellChange(rowRect.rowIndex, colIndex, cellInput.text);
+                                    var endPos = s + replacement.length;
+                                    cellInput.cursorPosition = Math.min(cellInput.length, endPos);
+                                    dataCell.runSpellCheck();
+                                }
 
                                 // Modo lectura: RichText con detección de enlaces y wrap multilínea
                                 Text {
@@ -1006,8 +1355,23 @@ Item {
 
                                     MouseArea {
                                         anchors.fill: parent
+                                        acceptedButtons: Qt.LeftButton | Qt.RightButton
                                         cursorShape: cellViewText.hoveredLink !== "" ? Qt.PointingHandCursor : Qt.IBeamCursor
                                         onClicked: (mouse) => {
+                                            if (mouse.button === Qt.RightButton) {
+                                                if (root.editor) {
+                                                    root.editor.requestEditBlock(root.blockData.bid);
+                                                    root.focusCell(rowRect.rowIndex, colIndex);
+                                                    Qt.callLater(() => {
+                                                        var input = root._getCellInput(rowRect.rowIndex, colIndex);
+                                                        if (input) {
+                                                            var p = input.positionAt ? input.positionAt(mouse.x, mouse.y) : -1;
+                                                            dataCell._openContextMenuAt(input, p, false);
+                                                        }
+                                                    });
+                                                }
+                                                return;
+                                            }
                                             var link = cellViewText.linkAt(mouse.x, mouse.y);
                                             if (link && link !== "") {
                                                 if (root.editor && typeof root.editor.handleLink === "function") {
@@ -1045,15 +1409,39 @@ Item {
                                     activeFocusOnTab: false
                                     CustomTextCursor {}
 
+                                    SpellOverlay {
+                                        id: cellSpellOverlay
+                                        visible: dataCell.isCurrentCell && root.spellActive && dataCell.spellRanges && dataCell.spellRanges.length > 0
+                                        textItem: cellInput
+                                        ranges: dataCell.spellRanges
+                                        active: root.spellActive
+                                        waveColor: Theme.color3
+                                    }
+
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        acceptedButtons: Qt.RightButton
+                                        propagateComposedEvents: true
+                                        onClicked: (mouse) => {
+                                            if (mouse.button === Qt.RightButton && root.editor && root.editor.contextMenu) {
+                                                cellInput.forceActiveFocus();
+                                                var pos = cellInput.positionAt(mouse.x, mouse.y);
+                                                dataCell._openContextMenuAt(cellInput, pos, false);
+                                            }
+                                        }
+                                    }
+
                                     onActiveFocusChanged: {
                                         if (activeFocus) {
                                             root.focusedRow = rowRect.rowIndex;
                                             root.focusedCol = colIndex;
+                                            if (root.spellActive) cellSpellTimer.restart();
                                         }
                                     }
 
                                     onTextEdited: {
                                         root._notifyCellChange(rowRect.rowIndex, colIndex, cellInput.text);
+                                        cellSpellTimer.restart();
                                     }
 
                                     Keys.onTabPressed: (event) => root._handleCellTab(rowRect.rowIndex, colIndex, event)
@@ -1093,7 +1481,14 @@ Item {
                                     Keys.onLeftPressed: (event) => root._handleCellLeft(rowRect.rowIndex, colIndex, cellInput, event)
                                     Keys.onRightPressed: (event) => root._handleCellRight(rowRect.rowIndex, colIndex, cellInput, event)
                                     Keys.onEscapePressed: (event) => root._handleCellEscape(event)
-                                    Keys.onPressed: (event) => root._handleCellSpecialKeys(event)
+                                    Keys.onPressed: (event) => {
+                                        if (event.key === Qt.Key_Menu || ((event.modifiers & Qt.ShiftModifier) && event.key === Qt.Key_F10)) {
+                                            dataCell._openContextMenuAt(cellInput, cellInput.cursorPosition, true);
+                                            event.accepted = true;
+                                            return;
+                                        }
+                                        root._handleCellSpecialKeys(event);
+                                    }
                                 }
                             }
                         }

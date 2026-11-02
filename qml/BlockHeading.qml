@@ -45,6 +45,15 @@ Item {
 
     property bool _syncingModel: false
     property string _lastAppliedHtml: ""
+    property bool _isDestroyed: false
+
+    Component.onDestruction: {
+        _isDestroyed = true;
+        spellCheckTimer.stop();
+        if (typeof SpellService !== "undefined") {
+            SpellService.cancelOwner(root);
+        }
+    }
 
     Timer {
         id: spellCheckTimer
@@ -113,6 +122,7 @@ Item {
         }
         var words = tokens.map(function(t) { return t.word; });
         SpellService.checkWordsBatch(words, function(results) {
+            if (root._isDestroyed) return;
             var badRanges = [];
             for (var i = 0; i < tokens.length; i++) {
                 var t = tokens[i];
@@ -133,7 +143,7 @@ Item {
                 }
             }
             if (spellOverlay) spellOverlay.requestUpdate();
-        });
+        }, root);
     }
 
     function _openContextMenuAt(targetItem, clickPos, fromKeyboard) {

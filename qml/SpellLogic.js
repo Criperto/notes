@@ -149,6 +149,12 @@ function tokenize(text, options) {
         ignoredRanges.push({ start: pStart, end: pStart + pathStr.length });
     }
 
+    // 5. Etiquetas HTML (ej. <br>, <br/>, <span>, </b>, etc., común en celdas de tabla)
+    var htmlTagRegex = /<[^>]+>/g;
+    while ((match = htmlTagRegex.exec(text)) !== null) {
+        ignoredRanges.push({ start: match.index, end: match.index + match[0].length });
+    }
+
     // Regex para palabras con apóstrofes internos compatible con Qt Quick QJSEngine/V4 y Node.js
     var wordRegex = /[a-zA-Z\u00C0-\u024F\u0400-\u04FF]+(?:['’][a-zA-Z\u00C0-\u024F\u0400-\u04FF]+)*/g;
     var tokens = [];

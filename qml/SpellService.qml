@@ -37,6 +37,35 @@ QtObject {
     property var _wordCache: ({})
     property var _sessionIgnored: ({})
     property bool _pendingRefresh: false
+    property var _activeBatches: []
+    property int _batchSeq: 0
+
+    function cancelOwner(owner) {
+        if (!owner) return;
+        var remaining = [];
+        for (var i = 0; i < root._activeBatches.length; i++) {
+            var b = root._activeBatches[i];
+            if (b && b.owner === owner) {
+                b.cancelled = true;
+                b.callback = null;
+            } else if (b) {
+                remaining.push(b);
+            }
+        }
+        root._activeBatches = remaining;
+    }
+
+    function _isOwnerValid(owner) {
+        if (!owner) return false;
+        try {
+            if (owner._isDestroyed === true) return false;
+            var s = "" + owner;
+            if (s === "null" || s === "undefined") return false;
+            return true;
+        } catch (e) {
+            return false;
+        }
+    }
 
     // ── Detección de diccionarios instalados ──────────────────────────────
     property var _listDictsProc: Process {
@@ -238,11 +267,14 @@ QtObject {
                         var q = workerItem.currentQuery;
                         workerItem.currentQuery = null;
                         workerWatchdog.stop();
-                        if (typeof q.callback === "function") {
+                        if (q && !q.cancelled && typeof q.callback === "function") {
                             try {
                                 q.callback(res);
                             } catch (e) {
-                                console.warn("[SpellService] Error en callback de worker:", e);
+                                var msg = (e && e.message) ? String(e.message) : String(e);
+                                if (msg.indexOf("null") === -1 && msg.indexOf("context") === -1) {
+                                    console.warn("[SpellService] Error en callback de worker:", e);
+                                }
                             }
                         }
                         workerItem.pump();
@@ -265,7 +297,7 @@ QtObject {
                         console.warn("[SpellService] Watchdog timeout en worker", workerItem.langCode, workerItem.currentQuery.word);
                         var q = workerItem.currentQuery;
                         workerItem.currentQuery = null;
-                        if (typeof q.callback === "function") {
+                        if (q && !q.cancelled && typeof q.callback === "function") {
                             try { q.callback({ ok: true, suggestions: [] }); } catch (e) {}
                         }
                     }
@@ -387,16 +419,13 @@ QtObject {
         }
     }
 
-    function checkWordsBatch(words, callback) {
+    function checkWordsBatch(words, callback, owner) {
         if (!Array.isArray(words) || words.length === 0) {
             if (typeof callback === "function") callback({});
             return;
         }
 
         var uniqueWords = [];
-        var results = {};
-        var pendingCount = 0;
-
         for (var i = 0; i < words.length; i++) {
             var w = words[i];
             if (w && uniqueWords.indexOf(w) === -1) {
@@ -409,33 +438,61 @@ QtObject {
             return;
         }
 
+        var batch = {
+            id: ++root._batchSeq,
+            owner: owner || null,
+            callback: callback,
+            cancelled: false,
+            results: {},
+            pendingCount: 0
+        };
+        root._activeBatches.push(batch);
+
         var checkFinished = function() {
-            if (pendingCount <= 0 && typeof callback === "function") {
-                callback(results);
+            if (batch.cancelled || !batch.callback) return;
+            if (batch.pendingCount <= 0) {
+                var cb = batch.callback;
+                batch.callback = null;
+                var bIdx = root._activeBatches.indexOf(batch);
+                if (bIdx !== -1) root._activeBatches.splice(bIdx, 1);
+
+                if (batch.owner && !root._isOwnerValid(batch.owner)) {
+                    return;
+                }
+                if (typeof cb === "function") {
+                    try {
+                        cb(batch.results);
+                    } catch (err) {
+                        var msg = (err && err.message) ? String(err.message) : String(err);
+                        if (msg.indexOf("null") === -1 && msg.indexOf("context") === -1) {
+                            console.warn("[SpellService] Error en callback de batch:", err);
+                        }
+                    }
+                }
             }
         };
 
         for (var j = 0; j < uniqueWords.length; j++) {
             (function(word) {
                 if (root._sessionIgnored[word] === true) {
-                    results[word] = { ok: true, suggestions: [] };
+                    batch.results[word] = { ok: true, suggestions: [] };
                     return;
                 }
                 if (root._wordCache[word] !== undefined) {
-                    results[word] = root._wordCache[word];
+                    batch.results[word] = root._wordCache[word];
                     return;
                 }
 
-                pendingCount++;
+                batch.pendingCount++;
                 root.checkWord(word, function(res) {
-                    results[word] = res;
-                    pendingCount--;
+                    batch.results[word] = res;
+                    batch.pendingCount--;
                     checkFinished();
                 });
             })(uniqueWords[j]);
         }
 
-        if (pendingCount === 0) {
+        if (batch.pendingCount === 0) {
             checkFinished();
         }
     }
