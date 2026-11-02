@@ -1001,11 +1001,24 @@ Item {
             anchors.fill: parent
             opacity: 0.0
 
+            // Máscara redondeada para recortar perfectamente el desenfoque en las esquinas
+            Item {
+                id: blurMaskItem
+                anchors.fill: parent
+                layer.enabled: card.radius > 0
+                visible: false
+
+                Rectangle {
+                    anchors.fill: parent
+                    radius: card.radius
+                    color: "black"
+                }
+            }
+
             // Desenfoque recortado exclusivamente a la tarjeta (Frosted Glass)
             Item {
                 id: cardBlurContainer
                 anchors.fill: parent
-                clip: true
                 visible: (root.isOpen || root.isClosing) && HyprlandConfig.blurEnabled && !GamemodeService.gamemodeActive && root.backgroundSourceItem !== null
 
                 ShaderEffectSource {
@@ -1022,6 +1035,8 @@ Item {
                         blur: 1.0
                         blurMax: 48
                         saturation: 0.20
+                        maskEnabled: card.radius > 0
+                        maskSource: blurMaskItem
                     }
                 }
             }
