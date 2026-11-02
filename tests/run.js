@@ -3441,6 +3441,91 @@ runTest('F68: Cálculo de posición en grid y resorte de cierre al abrir notas d
     assert.strictEqual(estY, 194, "Y estimado debe ser 194");
 });
 
+runTest('F69: Sincronización automática de scrollbars, blur y animaciones con Quickshell y toggle por CLI', () => {
+    const settingsModalQml = fs.readFileSync(path.resolve(__dirname, '../qml/NotesSettingsModal.qml'), 'utf8');
+    const mainQml = fs.readFileSync(path.resolve(__dirname, '../qml/Main.qml'), 'utf8');
+    const nativeBridgeH = fs.readFileSync(path.resolve(__dirname, '../src/native/native_bridge.h'), 'utf8');
+    const nativeBridgeCpp = fs.readFileSync(path.resolve(__dirname, '../src/native/native_bridge.cpp'), 'utf8');
+    const mainRs = fs.readFileSync(path.resolve(__dirname, '../src/main.rs'), 'utf8');
+    const syncCliRs = fs.readFileSync(path.resolve(__dirname, '../src/sync_cli.rs'), 'utf8');
+
+    // 1. Verificación en NotesSettingsModal.qml: ocultamiento de pestaña Apariencia
+    assert.ok(settingsModalQml.indexOf('readonly property bool showAppearanceTab:') !== -1, "Debe declarar showAppearanceTab");
+    assert.ok(settingsModalQml.indexOf('!Sys.hasQuickshellConfig') !== -1, "showAppearanceTab debe basarse en !Sys.hasQuickshellConfig");
+    assert.ok(settingsModalQml.indexOf('t.value !== "appearance"') !== -1, "tabs debe filtrar la pestaña appearance si showAppearanceTab es false");
+    assert.ok(settingsModalQml.indexOf('visible: root.currentTabValue === "appearance"') !== -1, "tabAppearance debe usar currentTabValue");
+
+    // 2. Verificación en Main.qml e IPC
+    assert.ok(mainQml.indexOf('action === "sync"') !== -1, "Main.qml debe manejar la acción IPC 'sync'");
+
+    // 3. Verificación en native_bridge: syncWithQuickshell y carga de blur/animaciones/fuentes
+    assert.ok(nativeBridgeH.indexOf('syncWithQuickshell') !== -1, "ConfigBackend debe declarar syncWithQuickshell");
+    assert.ok(nativeBridgeH.indexOf('quickshellConfigChanged') !== -1, "Sys debe declarar señal quickshellConfigChanged");
+    assert.ok(nativeBridgeCpp.indexOf('NOTAS_NO_SYNC') !== -1, "hasQuickshellConfig debe honrar NOTAS_NO_SYNC");
+    assert.ok(nativeBridgeCpp.indexOf('extractLuaTableBool') !== -1, "native_bridge.cpp debe definir extractLuaTableBool");
+    assert.ok(nativeBridgeCpp.indexOf('font.conf') !== -1, "setupQuickshellWatcher debe vigilar font.conf");
+    assert.ok(nativeBridgeCpp.indexOf('user_settings.lua') !== -1, "setupQuickshellWatcher debe vigilar user_settings.lua");
+    assert.ok(nativeBridgeCpp.indexOf('theme.lua') !== -1, "setupQuickshellWatcher debe vigilar theme.lua");
+
+    // 4. Verificación en CLI de Rust
+    assert.ok(mainRs.indexOf('mod sync_cli;') !== -1, "main.rs debe declarar mod sync_cli");
+    assert.ok(mainRs.indexOf('"sync" =>') !== -1, "main.rs debe rutear el comando 'sync'");
+    assert.ok(mainRs.indexOf('no-sync') !== -1, "main.rs debe aceptar flag no-sync");
+    assert.ok(syncCliRs.indexOf('pub fn run(') !== -1, "sync_cli.rs debe implementar run()");
+
+    // 5. Test unitario de extracción de tablas Lua con llaves anidadas
+    function parseLuaTableBool(content, tableName, keyName, defaultVal) {
+        const re = new RegExp('\\b' + tableName + '\\s*=\\s*\\{');
+        const match = re.exec(content);
+        if (!match) return defaultVal;
+        const openBrace = match.index + match[0].length - 1;
+        let depth = 0;
+        let closeBrace = -1;
+        for (let i = openBrace; i < content.length; i++) {
+            if (content[i] === '{') depth++;
+            else if (content[i] === '}') {
+                depth--;
+                if (depth === 0) { closeBrace = i; break; }
+            }
+        }
+        if (closeBrace === -1) closeBrace = content.length;
+        const block = content.substring(openBrace + 1, closeBrace);
+        const keyMatch = new RegExp('\\b' + keyName + '\\s*=\\s*(true|false)', 'i').exec(block);
+        return keyMatch ? (keyMatch[1].toLowerCase() === 'true') : defaultVal;
+    }
+
+    const testLuaNested = `
+    hl.config({
+        decoration = {
+            blur = {
+                fluid_jar = {
+                    color = "rgba(ff3333cc)",
+                },
+                variant = "kawase",
+                enabled = true,
+                size = 3,
+            },
+            animations = {
+                enabled = false,
+            }
+        }
+    })
+    `;
+    assert.strictEqual(parseLuaTableBool(testLuaNested, "blur", "enabled", false), true, "Debe extraer blur.enabled = true con bloque anidado");
+    assert.strictEqual(parseLuaTableBool(testLuaNested, "animations", "enabled", true), false, "Debe extraer animations.enabled = false");
+
+    // 6. Test unitario del filtrado de tabs
+    const allTabs = [
+        { value: "editor" },
+        { value: "appearance" },
+        { value: "language" },
+        { value: "about" }
+    ];
+    const filteredWhenSynced = allTabs.filter(t => t.value !== "appearance");
+    assert.strictEqual(filteredWhenSynced.length, 3, "Con Quickshell sincronizado debe tener 3 pestañas");
+    assert.strictEqual(filteredWhenSynced.find(t => t.value === "appearance"), undefined, "No debe incluir 'appearance'");
+});
+
 console.log(`\n========================================`);
 console.log(`Resultados: ${passed} OK, ${failed} FAIL`);
 console.log(`========================================`);

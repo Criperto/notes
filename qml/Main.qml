@@ -77,6 +77,10 @@ ApplicationWindow {
                 content.handleIpcAction(action, target);
             } else if (action === "new") {
                 content.handleIpcAction("new", target);
+            } else if (action === "sync") {
+                if (typeof ConfigBackend !== "undefined") {
+                    ConfigBackend.syncWithQuickshell = (target === "true" || target === "1");
+                }
             }
         }
     }

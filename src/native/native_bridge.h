@@ -219,7 +219,7 @@ class Sys : public QObject {
     Q_PROPERTY(qreal lastMouseX READ lastMouseX NOTIFY lastMousePosChanged)
     Q_PROPERTY(qreal lastMouseY READ lastMouseY NOTIFY lastMousePosChanged)
     Q_PROPERTY(QJsonObject qtColors READ qtColors NOTIFY qtColorsChanged)
-    Q_PROPERTY(bool hasQuickshellConfig READ hasQuickshellConfig CONSTANT)
+    Q_PROPERTY(bool hasQuickshellConfig READ hasQuickshellConfig NOTIFY quickshellConfigChanged)
     Q_PROPERTY(QString systemFontFamily READ systemFontFamily NOTIFY systemFontChanged)
     Q_PROPERTY(QString systemFontFamilyDisplay READ systemFontFamilyDisplay NOTIFY systemFontChanged)
     Q_PROPERTY(QString systemFontFamilyRounded READ systemFontFamilyRounded NOTIFY systemFontChanged)
@@ -264,6 +264,7 @@ signals:
     void lastMousePosChanged();
     void qtColorsChanged();
     void systemFontChanged();
+    void quickshellConfigChanged();
     void ipcCommandReceived(const QString &action, const QString &target);
 
 private slots:
@@ -313,13 +314,16 @@ class ConfigBackend : public QObject {
     Q_PROPERTY(double fontSizeScale READ fontSizeScale WRITE setFontSizeScale NOTIFY fontSizeScaleChanged)
     Q_PROPERTY(QString customThemeName READ customThemeName WRITE setCustomThemeName NOTIFY customThemeNameChanged)
     Q_PROPERTY(bool lightMode READ lightMode WRITE setLightMode NOTIFY lightModeChanged)
-    Q_PROPERTY(bool hasQuickshellConfig READ hasQuickshellConfig CONSTANT)
+    Q_PROPERTY(bool hasQuickshellConfig READ hasQuickshellConfig NOTIFY hasQuickshellConfigChanged)
+    Q_PROPERTY(bool syncWithQuickshell READ syncWithQuickshell WRITE setSyncWithQuickshell NOTIFY syncWithQuickshellChanged)
 
 public:
     explicit ConfigBackend(QObject *parent = nullptr);
     ~ConfigBackend() override;
 
     bool hasQuickshellConfig() const;
+    bool syncWithQuickshell() const { return m_syncWithQuickshell; }
+    void setSyncWithQuickshell(bool val);
 
     QString notasDir() const { return m_notasDir; }
     void setNotasDir(const QString &val);
@@ -418,6 +422,8 @@ signals:
     void fontSizeScaleChanged();
     void customThemeNameChanged();
     void lightModeChanged();
+    void hasQuickshellConfigChanged();
+    void syncWithQuickshellChanged();
 
 private:
     void load();
@@ -438,6 +444,7 @@ private:
     QString m_spellCheckLanguage = QStringLiteral("auto");
     QString m_themeMode = QStringLiteral("pywal");
     bool m_hideScrollbars = false;
+    bool m_syncWithQuickshell = true;
 
     int m_cardsPerRow = 3;
     QString m_importMode = QStringLiteral("copy");

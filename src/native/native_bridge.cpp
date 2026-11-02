@@ -773,6 +773,9 @@ void Sys::onNewIpcConnection() {
                     QJsonObject obj = doc.object();
                     QString action = obj[QStringLiteral("action")].toString();
                     QString target = obj[QStringLiteral("target")].toString();
+                    if (action == QStringLiteral("sync")) {
+                        emit quickshellConfigChanged();
+                    }
                     emit ipcCommandReceived(action, target);
                 }
             }
@@ -832,7 +835,20 @@ QString Sys::appExecutable() const {
 }
 
 bool Sys::hasQuickshellConfig() const {
+    if (qEnvironmentVariableIsSet("NOTAS_NO_SYNC") || qEnvironmentVariableIsSet("NOTAS_STANDALONE")) {
+        return false;
+    }
     const QString home = QDir::homePath();
+    QFile cfgFile(home + QStringLiteral("/.config/notas/config.json"));
+    if (cfgFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        QJsonDocument doc = QJsonDocument::fromJson(cfgFile.readAll());
+        if (doc.isObject()) {
+            QJsonObject obj = doc.object();
+            if (obj.contains(QStringLiteral("syncWithQuickshell")) && !obj[QStringLiteral("syncWithQuickshell")].toBool(true)) {
+                return false;
+            }
+        }
+    }
     return QFile::exists(home + QStringLiteral("/.config/quickshell/config/general.conf"))
         || QFile::exists(home + QStringLiteral("/.config/quickshell/config/theme.conf"));
 }
@@ -1180,10 +1196,71 @@ ConfigBackend::~ConfigBackend() {
     }
 }
 
+static bool extractLuaTableBool(const QString &filePath, const QString &tableName, const QString &keyName, bool defaultVal) {
+    QFile file(filePath);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) return defaultVal;
+    QTextStream in(&file);
+    QString content = in.readAll();
+    file.close();
+
+    int idx = content.indexOf(QRegularExpression(QStringLiteral("\\b") + tableName + QStringLiteral("\\s*=\\s*\\{")));
+    if (idx == -1) return defaultVal;
+
+    int openBrace = content.indexOf('{', idx);
+    if (openBrace == -1) return defaultVal;
+
+    int depth = 0;
+    int closeBrace = -1;
+    for (int i = openBrace; i < content.length(); ++i) {
+        if (content[i] == '{') {
+            depth++;
+        } else if (content[i] == '}') {
+            depth--;
+            if (depth == 0) {
+                closeBrace = i;
+                break;
+            }
+        }
+    }
+    if (closeBrace == -1) closeBrace = content.length();
+
+    QString block = content.mid(openBrace + 1, closeBrace - openBrace - 1);
+    QRegularExpression keyRegex(QStringLiteral("\\b") + keyName + QStringLiteral("\\s*=\\s*(true|false)"), QRegularExpression::CaseInsensitiveOption);
+    auto keyMatch = keyRegex.match(block);
+    if (keyMatch.hasMatch()) {
+        return keyMatch.captured(1).compare(QStringLiteral("true"), Qt::CaseInsensitive) == 0;
+    }
+    return defaultVal;
+}
+
 bool ConfigBackend::hasQuickshellConfig() const {
+    if (qEnvironmentVariableIsSet("NOTAS_NO_SYNC") || qEnvironmentVariableIsSet("NOTAS_STANDALONE")) {
+        return false;
+    }
+    if (!m_syncWithQuickshell) {
+        return false;
+    }
     const QString home = QDir::homePath();
     return QFile::exists(home + QStringLiteral("/.config/quickshell/config/general.conf"))
         || QFile::exists(home + QStringLiteral("/.config/quickshell/config/theme.conf"));
+}
+
+void ConfigBackend::setSyncWithQuickshell(bool val) {
+    if (m_syncWithQuickshell == val) return;
+    m_syncWithQuickshell = val;
+    emit syncWithQuickshellChanged();
+    emit hasQuickshellConfigChanged();
+    if (hasQuickshellConfig()) {
+        loadQuickshellConfig();
+        setupQuickshellWatcher();
+    } else {
+        if (m_qsWatcher) {
+            delete m_qsWatcher;
+            m_qsWatcher = nullptr;
+        }
+        load();
+    }
+    scheduleSave();
 }
 
 void ConfigBackend::loadQuickshellConfig() {
@@ -1200,6 +1277,9 @@ void ConfigBackend::loadQuickshellConfig() {
     bool changedImportMode = false;
     bool changedZoom = false;
     bool changedSpellMode = false;
+    bool changedBlur = false;
+    bool changedAnimations = false;
+    bool changedFontScale = false;
 
     // 1. General config
     QFile genFile(home + QStringLiteral("/.config/quickshell/config/general.conf"));
@@ -1223,6 +1303,18 @@ void ConfigBackend::loadQuickshellConfig() {
                 if (m_hideScrollbars != hs) {
                     m_hideScrollbars = hs;
                     changedScrollbars = true;
+                }
+            } else if (k == QStringLiteral("animationsEnabled") || k == QStringLiteral("animations")) {
+                bool ae = (v.compare(QStringLiteral("true"), Qt::CaseInsensitive) == 0);
+                if (m_animationsEnabled != ae) {
+                    m_animationsEnabled = ae;
+                    changedAnimations = true;
+                }
+            } else if (k == QStringLiteral("blurEnabled") || k == QStringLiteral("blur")) {
+                bool be = (v.compare(QStringLiteral("true"), Qt::CaseInsensitive) == 0);
+                if (m_blurEnabled != be) {
+                    m_blurEnabled = be;
+                    changedBlur = true;
                 }
             }
         }
@@ -1330,8 +1422,65 @@ void ConfigBackend::loadQuickshellConfig() {
         notesFile.close();
     }
 
+    // 4. Hyprland Lua settings (blur & animations)
+    const QString userSettingsLua = home + QStringLiteral("/.config/hypr/user_settings.lua");
+    const QString themeLua = home + QStringLiteral("/.config/hypr/theme.lua");
+
+    if (QFile::exists(userSettingsLua) || QFile::exists(themeLua)) {
+        bool hyprBlur = true;
+        if (QFile::exists(userSettingsLua)) {
+            hyprBlur = extractLuaTableBool(userSettingsLua, QStringLiteral("blur"), QStringLiteral("enabled"), true);
+        } else if (QFile::exists(themeLua)) {
+            hyprBlur = extractLuaTableBool(themeLua, QStringLiteral("blur"), QStringLiteral("enabled"), true);
+        }
+        if (m_blurEnabled != hyprBlur) {
+            m_blurEnabled = hyprBlur;
+            changedBlur = true;
+        }
+
+        bool hyprAnim = true;
+        if (QFile::exists(userSettingsLua)) {
+            hyprAnim = extractLuaTableBool(userSettingsLua, QStringLiteral("animations"), QStringLiteral("enabled"), true);
+        } else if (QFile::exists(themeLua)) {
+            hyprAnim = extractLuaTableBool(themeLua, QStringLiteral("animations"), QStringLiteral("enabled"), true);
+        }
+        if (m_animationsEnabled != hyprAnim) {
+            m_animationsEnabled = hyprAnim;
+            changedAnimations = true;
+        }
+    }
+
+    // 5. Quickshell font config (fontSizeScale)
+    QFile fontFile(home + QStringLiteral("/.config/quickshell/config/font.conf"));
+    if (fontFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        QTextStream in(&fontFile);
+        while (!in.atEnd()) {
+            QString line = in.readLine().trimmed();
+            if (line.isEmpty() || line.startsWith('#') || line.startsWith(';')) continue;
+            int eq = line.indexOf('=');
+            if (eq == -1) continue;
+            QString k = line.left(eq).trimmed();
+            QString v = line.mid(eq + 1).trimmed();
+            if (k == QStringLiteral("fontSizeScale")) {
+                bool ok = false;
+                double sc = v.toDouble(&ok);
+                if (ok && sc >= 0.5 && sc <= 2.5) {
+                    double clamped = qBound(0.85, sc, 1.35);
+                    if (!qFuzzyCompare(m_fontSizeScale, clamped)) {
+                        m_fontSizeScale = clamped;
+                        changedFontScale = true;
+                    }
+                }
+            }
+        }
+        fontFile.close();
+    }
+
     if (changedOpacity) emit panelOpacityChanged();
     if (changedScrollbars) emit hideScrollbarsChanged();
+    if (changedBlur) emit blurEnabledChanged();
+    if (changedAnimations) emit animationsEnabledChanged();
+    if (changedFontScale) emit fontSizeScaleChanged();
     if (changedThemeMode) emit themeModeChanged();
     if (changedCustomTheme) emit customThemeNameChanged();
     if (changedLightMode) emit lightModeChanged();
@@ -1359,7 +1508,10 @@ void ConfigBackend::setupQuickshellWatcher() {
     const QStringList qsFiles = {
         home + QStringLiteral("/.config/quickshell/config/general.conf"),
         home + QStringLiteral("/.config/quickshell/config/theme.conf"),
-        home + QStringLiteral("/.config/quickshell/config/notes.conf")
+        home + QStringLiteral("/.config/quickshell/config/notes.conf"),
+        home + QStringLiteral("/.config/quickshell/config/font.conf"),
+        home + QStringLiteral("/.config/hypr/user_settings.lua"),
+        home + QStringLiteral("/.config/hypr/theme.lua")
     };
     for (const auto &f : qsFiles) {
         if (QFile::exists(f) && !m_qsWatcher->files().contains(f)) {
@@ -1579,6 +1731,7 @@ void ConfigBackend::load() {
                 if (obj.contains("fontSizeScale")) m_fontSizeScale = obj["fontSizeScale"].toDouble(1.0);
                 if (obj.contains("customThemeName")) m_customThemeName = obj["customThemeName"].toString("amarillo");
                 if (obj.contains("lightMode")) m_lightMode = obj["lightMode"].toBool(false);
+                if (obj.contains("syncWithQuickshell")) m_syncWithQuickshell = obj["syncWithQuickshell"].toBool(true);
 
                 // Migrar modos antiguos inexistentes ("dark", "light", "system")
                 bool migrated = false;
@@ -1661,6 +1814,7 @@ void ConfigBackend::save() {
     obj[QStringLiteral("fontSizeScale")] = m_fontSizeScale;
     obj[QStringLiteral("customThemeName")] = m_customThemeName;
     obj[QStringLiteral("lightMode")] = m_lightMode;
+    obj[QStringLiteral("syncWithQuickshell")] = m_syncWithQuickshell;
 
     QString path = configFilePath();
     QFileInfo fi(path);

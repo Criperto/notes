@@ -1,6 +1,7 @@
 mod notes_cli;
 mod spell_cli;
 mod file_picker_cli;
+mod sync_cli;
 
 use clap::Parser;
 use cxx_qt_lib::{QGuiApplication, QQmlApplicationEngine, QUrl};
@@ -37,6 +38,10 @@ struct Cli {
     /// Abrir en modo previsualización únicamente
     #[arg(short = 'p', long = "preview")]
     preview: bool,
+
+    /// Desactivar sincronización con Quickshell (modo standalone para testing)
+    #[arg(long = "no-sync", alias = "standalone")]
+    no_sync: bool,
 
     /// Verificar carga y salir (para tests y headless CI)
     #[arg(long = "check")]
@@ -132,6 +137,10 @@ fn main() {
                 file_picker_cli::run(&raw_args[2..]);
                 return;
             }
+            "sync" => {
+                sync_cli::run(&raw_args[2..]);
+                return;
+            }
             _ => {}
         }
     }
@@ -158,6 +167,10 @@ fn main() {
 
     if cli.close {
         return;
+    }
+
+    if cli.no_sync {
+        std::env::set_var("NOTAS_NO_SYNC", "1");
     }
 
     std::env::set_var("NOTAS_INITIAL_ACTION", &action);

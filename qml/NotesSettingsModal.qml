@@ -40,12 +40,28 @@ Item {
     property string statusMessage: ""
     property bool statusIsError: false
 
-    readonly property var tabs: [
+    readonly property bool showAppearanceTab: (typeof Sys === "undefined" || !Sys.hasQuickshellConfig)
+    readonly property var allTabs: [
         { value: "editor",     label: I18n.t("config.tabs.editor", "Editor"),                         icon: "edit.svg" },
         { value: "appearance", label: I18n.t("config.tabs.appearance", "Apariencia"),                 icon: "settings.svg" },
         { value: "language",   label: I18n.t("config.tabs.language", "Idioma y Corrección"),          icon: "spellcheck.svg" },
         { value: "about",      label: I18n.t("config.tabs.about", "Acerca de"),                       icon: "info.svg" }
     ]
+    readonly property var tabs: showAppearanceTab ? allTabs : allTabs.filter(function(t) { return t.value !== "appearance"; })
+
+    onTabsChanged: {
+        var found = false;
+        for (var i = 0; i < tabs.length; i++) {
+            if (tabs[i].value === currentTabValue) {
+                found = true;
+                if (root.tabIndex !== i) root.tabIndex = i;
+                break;
+            }
+        }
+        if (!found) {
+            root.tabIndex = 0;
+        }
+    }
 
     readonly property string currentTabValue: (tabIndex >= 0 && tabIndex < tabs.length) ? tabs[tabIndex].value : "editor"
 
@@ -1233,7 +1249,7 @@ Item {
                     // ══════════════════════════════════════════════════════
                     ColumnLayout {
                         id: tabEditor
-                        visible: root.tabIndex === 0
+                        visible: root.currentTabValue === "editor"
                         width: parent.width
                         spacing: 14
 
@@ -1484,7 +1500,7 @@ Item {
                     // ══════════════════════════════════════════════════════
                     ColumnLayout {
                         id: tabAppearance
-                        visible: root.tabIndex === 1
+                        visible: root.currentTabValue === "appearance"
                         width: parent.width
                         spacing: 14
 
@@ -1759,7 +1775,7 @@ Item {
                     // ══════════════════════════════════════════════════════
                     ColumnLayout {
                         id: tabLanguage
-                        visible: root.tabIndex === 2
+                        visible: root.currentTabValue === "language"
                         width: parent.width
                         spacing: 14
 
@@ -2709,7 +2725,7 @@ Item {
                     // ══════════════════════════════════════════════════════
                     ColumnLayout {
                         id: tabAbout
-                        visible: root.tabIndex === 3
+                        visible: root.currentTabValue === "about"
                         width: parent.width
                         spacing: 14
 
@@ -2918,9 +2934,9 @@ Item {
                     Item {
                         id: activeTabCol
                         implicitHeight: {
-                            if (root.tabIndex === 0) return tabEditor.implicitHeight;
-                            if (root.tabIndex === 1) return tabAppearance.implicitHeight;
-                            if (root.tabIndex === 2) return tabLanguage.implicitHeight;
+                            if (root.currentTabValue === "editor") return tabEditor.implicitHeight;
+                            if (root.currentTabValue === "appearance") return tabAppearance.implicitHeight;
+                            if (root.currentTabValue === "language") return tabLanguage.implicitHeight;
                             return tabAbout.implicitHeight;
                         }
                     }
