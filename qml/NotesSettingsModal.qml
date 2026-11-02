@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
+import QtQuick.Effects
 import Notas
 
 Item {
@@ -17,24 +18,47 @@ Item {
     property bool springEnabled: false
     property rect originRect: Qt.rect(Math.round((width - 40) / 2), Math.round((height - 40) / 2), 40, 40)
     property int tabIndex: 0
-    property string catalogFilter: ""
-    property string activeDownloadingLang: ""
-    property real downloadProgress: 0.0
+
+    readonly property string notasBin: (typeof Sys !== "undefined" && Sys.appExecutable) ? Sys.appExecutable : "notas"
+
+    // Estado del gestor de diccionarios (portado de LanguageManager.qml)
+    property string spellInstallingCode: ""
+    property int spellInstallProgress: 0
+    property string spellInstallStage: ""
+    property string spellDictSearchText: ""
+    property string statusMessage: ""
+    property bool statusIsError: false
 
     readonly property var tabs: [
-        { id: "editor", title: I18n.t("config.tabs.editor", "Editor"), icon: "edit.svg" },
-        { id: "appearance", title: I18n.t("config.tabs.appearance", "Apariencia"), icon: "settings.svg" },
-        { id: "language", title: I18n.t("config.tabs.language", "Idioma y Corrección"), icon: "spellcheck.svg" },
-        { id: "about", title: I18n.t("config.tabs.about", "Acerca de"), icon: "info.svg" }
+        { value: "editor",     label: I18n.t("config.tabs.editor", "Editor"),                         icon: "edit.svg" },
+        { value: "appearance", label: I18n.t("config.tabs.appearance", "Apariencia"),                 icon: "settings.svg" },
+        { value: "language",   label: I18n.t("config.tabs.language", "Idioma y Corrección"),          icon: "spellcheck.svg" },
+        { value: "about",      label: I18n.t("config.tabs.about", "Acerca de"),                       icon: "info.svg" }
     ]
 
+    readonly property string currentTabValue: (tabIndex >= 0 && tabIndex < tabs.length) ? tabs[tabIndex].value : "editor"
+
+    function _safeHue(c) {
+        return (c && c.hsvHue >= 0) ? c.hsvHue : 0.0;
+    }
+
+    function _hsva(c, vAdd, alpha) {
+        if (!c) return Qt.rgba(0, 0, 0, alpha);
+        var h = (c.hsvHue >= 0) ? c.hsvHue : 0.0;
+        var s = Math.max(0.0, Math.min(1.0, c.hsvSaturation));
+        var v = Math.max(0.0, Math.min(1.0, c.hsvValue + (vAdd || 0.0)));
+        return Qt.hsva(h, s, v, alpha);
+    }
+
     function open(rect) {
-        tabIndex = 0;
         springEnabled = false;
         if (rect && typeof rect.x === "number") {
             originRect = rect;
         } else {
             originRect = Qt.rect(Math.round((root.width - 40) / 2), Math.round((root.height - 40) / 2), 40, 40);
+        }
+        if (typeof SpellService !== "undefined") {
+            SpellService.refreshDicts();
         }
         isOpen = false;
         if (!Theme.animationsEnabled || GamemodeService.gamemodeActive) {
@@ -48,6 +72,9 @@ Item {
     }
 
     function close() {
+        if (sharedContextMenu.visible) {
+            sharedContextMenu.closeMenu();
+        }
         isOpen = false;
         closed();
     }
@@ -59,16 +86,29 @@ Item {
     }
 
     Behavior on opacity {
+        enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
         NumberAnimation {
-            duration: Theme.animationsEnabled ? 150 : 0
+            duration: 150
             easing.type: Easing.OutQuad
         }
     }
 
-    // ── Proceso auxiliar para abrir selector de carpetas vía CLI ─────────
+    Shortcut {
+        enabled: root.isOpen
+        sequence: "Escape"
+        onActivated: {
+            if (sharedContextMenu.visible) {
+                sharedContextMenu.closeMenu();
+            } else {
+                root.close();
+            }
+        }
+    }
+
+    // ── Procesos auxiliares (selector de carpeta + diccionarios Hunspell) ────
     Process {
         id: dirPickerProc
-        command: ["notas", "file-picker", "--directory", "--title", I18n.t("config.notes.select_dir", "Seleccionar carpeta de notas")]
+        command: [root.notasBin, "file-picker", "--directory", "--title", I18n.t("config.notes.select_dir", "Seleccionar carpeta de notas")]
         running: false
         stdout: SplitParser {
             splitMarker: "\n"
@@ -76,88 +116,720 @@ Item {
                 var p = data.trim();
                 if (p !== "") {
                     ConfigBackend.notasDir = p;
+                    dirInput.text = p;
                     NotesService.refresh();
                 }
             }
         }
+        Component.onDestruction: { running = false; }
     }
 
-    // ── Proceso auxiliar para descargar / instalar diccionarios Hunspell ─
     Process {
         id: spellInstallProc
         running: false
         stdout: SplitParser {
             splitMarker: "\n"
-            onRead: (data) => {
-                var line = data.trim();
-                if (line.startsWith("{") && line.endsWith("}")) {
-                    try {
-                        var obj = JSON.parse(line);
-                        if (typeof obj.percent === "number") {
-                            root.downloadProgress = obj.percent / 100.0;
+            onRead: (line) => {
+                var cleaned = line.trim();
+                if (!cleaned) return;
+                try {
+                    var data = JSON.parse(cleaned);
+                    if (data.status === "progress" && data.progress !== undefined) {
+                        root.spellInstallProgress = data.progress;
+                        root.spellInstallStage = data.stage || "";
+                    } else if (data.status === "installed") {
+                        root.spellInstallProgress = 100;
+                    } else if (data.status === "error") {
+                        root.statusMessage = data.message || "Error al instalar diccionario";
+                        root.statusIsError = true;
+                    }
+                } catch (e) {}
+            }
+        }
+        stderr: SplitParser {
+            splitMarker: "\n"
+            onRead: (line) => {
+                console.warn("[SpellInstall stderr]", line);
+            }
+        }
+        onExited: (code) => {
+            var target = root.spellInstallingCode;
+            root.spellInstallingCode = "";
+            root.spellInstallProgress = 0;
+            root.spellInstallStage = "";
+            if (code === 0) {
+                if (typeof SpellService !== "undefined") {
+                    SpellService.refreshDicts();
+                }
+                root.statusMessage = I18n.t("config.language.spell_installed", "Diccionario instalado");
+                root.statusIsError = false;
+            } else if (!root.statusIsError) {
+                root.statusMessage = "Fallo al instalar diccionario (" + target + ")";
+                root.statusIsError = true;
+            }
+        }
+        Component.onDestruction: { running = false; }
+    }
+
+    Process {
+        id: spellRemoveProc
+        running: false
+        stdout: StdioCollector {
+            id: removeCollector
+            onStreamFinished: {
+                try {
+                    var data = JSON.parse(removeCollector.text);
+                    if (data.reason === "system_dict") {
+                        root.statusMessage = data.message || "Diccionario del sistema (no removible)";
+                        root.statusIsError = true;
+                    } else if (data.status === "error") {
+                        root.statusMessage = data.message || "No se pudo quitar el diccionario";
+                        root.statusIsError = true;
+                    }
+                } catch (e) {}
+            }
+        }
+        onExited: (code) => {
+            if (code === 0 && !root.statusIsError) {
+                if (typeof SpellService !== "undefined") {
+                    SpellService.refreshDicts();
+                }
+                root.statusMessage = I18n.t("config.language.spell_removed", "Diccionario quitado");
+                root.statusIsError = false;
+            }
+        }
+        Component.onDestruction: { running = false; }
+    }
+
+    Process {
+        id: spellImportProc
+        running: false
+        stdout: StdioCollector {
+            id: importCollector
+            onStreamFinished: {
+                try {
+                    var data = JSON.parse(importCollector.text);
+                    if (data.status === "imported") {
+                        if (typeof SpellService !== "undefined") {
+                            SpellService.refreshDicts();
                         }
-                        if (obj.status === "done") {
-                            root.activeDownloadingLang = "";
-                            root.downloadProgress = 0.0;
-                            SpellService.refreshDictionaries();
+                        root.statusMessage = "Diccionario importado: " + (data.codes ? data.codes.join(", ") : "");
+                        root.statusIsError = false;
+                    } else if (data.status === "error") {
+                        root.statusMessage = data.message || "Error al importar diccionario";
+                        root.statusIsError = true;
+                    }
+                } catch (e) {
+                    console.warn("[SpellImport] Parse error:", e);
+                }
+            }
+        }
+        onExited: (code) => {
+            if (code !== 0 && !root.statusIsError) {
+                root.statusMessage = "Error al procesar archivo de diccionario";
+                root.statusIsError = true;
+            }
+        }
+        Component.onDestruction: { running = false; }
+    }
+
+    Process {
+        id: dictPickerProc
+        command: [
+            root.notasBin, "file-picker",
+            "--title", "Importar diccionario (.dic, .aff, .oxt, .zip)",
+            "--filter", "Diccionarios Hunspell (*.dic, *.aff, *.oxt, *.zip):*.dic:*.aff:*.oxt:*.zip"
+        ]
+        running: false
+        stdout: SplitParser {
+            splitMarker: "\n"
+            onRead: (line) => {
+                var p = line.trim();
+                if (p) {
+                    root.statusIsError = false;
+                    spellImportProc.command = [root.notasBin, "spell", "import", p];
+                    spellImportProc.running = true;
+                }
+            }
+        }
+        Component.onDestruction: { running = false; }
+    }
+
+    onStatusMessageChanged: {
+        if (statusMessage !== "") {
+            statusTimer.restart();
+        } else {
+            statusTimer.stop();
+        }
+    }
+
+    Timer {
+        id: statusTimer
+        interval: 3200
+        repeat: false
+        onTriggered: {
+            root.statusMessage = "";
+            root.statusIsError = false;
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // COMPONENTES REUTILIZABLES (PORTADOS 1:1 DE SchemaForm.qml / ThemeManager.qml)
+    // ══════════════════════════════════════════════════════════════════════════
+
+    component SectionHeader: RowLayout {
+        property string title: ""
+        property string iconName: ""
+        Layout.fillWidth: true
+        spacing: 8
+
+        Image {
+            visible: parent.iconName !== ""
+            width: 14
+            height: 14
+            source: parent.iconName !== "" ? (Theme.iconsPath + parent.iconName) : ""
+            sourceSize: Qt.size(14, 14)
+            layer.enabled: visible && !GamemodeService.gamemodeActive
+            layer.effect: MultiEffect {
+                colorization: 1.0
+                colorizationColor: Theme.muted
+            }
+        }
+
+        Text {
+            text: parent.title.toUpperCase()
+            color: Theme.muted
+            font {
+                pixelSize: Theme.fontSizeSmall
+                bold: true
+                letterSpacing: 1.2
+                family: Theme.fontFamily
+            }
+        }
+    }
+
+    component BentoCard: Rectangle {
+        Layout.fillWidth: true
+        radius: 12
+        color: root._hsva(Theme.surface, 0.03, 0.55)
+        border.color: root._hsva(Theme.text, 0, 0.08)
+        border.width: 1
+    }
+
+    // ── SegmentedPicker (copiado de ThemeManager.qml / SchemaForm.qml) ────────
+    component SegmentedPicker: Rectangle {
+        id: picker
+
+        property var options: []
+        property string currentValue: ""
+        property bool active: true
+        property var supportedList: []
+        property var segmentRefs: []
+        property real barHeight: 32
+
+        readonly property int activeIndex: {
+            for (var i = 0; i < options.length; i++) {
+                if (options[i].value === currentValue)
+                    return i;
+            }
+            return -1;
+        }
+        property bool isLoaded: false
+        readonly property bool animReady: picker.isLoaded && root.isOpen && Math.abs(card.width - root.targetWidth) < 4
+
+        signal selected(string value, int idx)
+
+        Layout.fillWidth: true
+        implicitHeight: barHeight
+        radius: 10
+        color: root._hsva(Theme.surface, 0.04, 0.35)
+        border.color: root._hsva(Theme.text, 0, 0.08)
+        border.width: 1
+        clip: true
+
+        Component.onCompleted: {
+            Qt.callLater(function() {
+                picker.isLoaded = true;
+            });
+        }
+
+        // Cápsula activa flotante con SpringAnimation elástica y squash en bordes
+        Rectangle {
+            id: activeIndicator
+
+            readonly property var activeRef: (picker.activeIndex >= 0 && picker.activeIndex < picker.segmentRefs.length)
+                ? picker.segmentRefs[picker.activeIndex]
+                : null
+            property real idealX: activeRef ? (activeRef.x + enumRow.x) : 2
+            property real idealWidth: activeRef ? activeRef.width : 0
+            readonly property real leftBound: 2
+            readonly property real rightBound: Math.max(leftBound, parent ? parent.width - 2 : 2)
+            readonly property real visualLeft: Math.max(leftBound, idealX)
+            readonly property real visualRight: Math.min(rightBound, idealX + idealWidth)
+
+            z: 1
+            visible: picker.activeIndex >= 0 && width > 0
+            height: parent.height - 4
+            radius: 8
+            anchors.verticalCenter: parent.verticalCenter
+            color: picker.active
+                ? root._hsva(Theme.accent, 0, 0.14)
+                : root._hsva(Theme.muted, 0, 0.08)
+            border.color: picker.active
+                ? root._hsva(Theme.accent, 0, 0.25)
+                : root._hsva(Theme.text, 0, 0.10)
+            border.width: 1
+            x: visualLeft
+            width: Math.max(0, visualRight - visualLeft)
+
+            Behavior on idealX {
+                enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive && picker.animReady
+                SpringAnimation {
+                    spring: 4.5
+                    damping: 0.35
+                    mass: 0.65
+                    epsilon: 0.25
+                }
+            }
+
+            Behavior on idealWidth {
+                enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive && picker.animReady
+                SpringAnimation {
+                    spring: 4.5
+                    damping: 0.35
+                    mass: 0.65
+                    epsilon: 0.25
+                }
+            }
+        }
+
+        RowLayout {
+            id: enumRow
+            z: 2
+            anchors.fill: parent
+            anchors.margins: 2
+            spacing: 4
+
+            Repeater {
+                model: picker.options
+
+                delegate: Rectangle {
+                    id: segmentBtn
+
+                    required property var modelData
+                    required property int index
+                    readonly property bool isSelected: modelData.value === picker.currentValue
+                    readonly property bool isSupported: picker.supportedList.length === 0 || picker.supportedList.indexOf(modelData.value) !== -1
+                    readonly property bool hasIcon: Boolean(modelData.icon && modelData.icon !== "")
+
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    color: "transparent"
+                    border.color: !isSupported ? root._hsva(Theme.danger, 0, 0.25) : "transparent"
+                    border.width: !isSupported ? 1 : 0
+                    radius: 6
+                    opacity: !isSupported ? 0.35 : 1.0
+
+                    Component.onCompleted: {
+                        var refs = picker.segmentRefs.slice();
+                        refs[index] = segmentBtn;
+                        picker.segmentRefs = refs;
+                    }
+                    Component.onDestruction: {
+                        var refs = picker.segmentRefs.slice();
+                        if (refs[index] === segmentBtn)
+                            refs[index] = null;
+                        picker.segmentRefs = refs;
+                    }
+
+                    // Variante con icono + etiqueta (barra superior de pestañas)
+                    RowLayout {
+                        visible: segmentBtn.hasIcon
+                        anchors.centerIn: parent
+                        spacing: 7
+
+                        Image {
+                            width: 15
+                            height: 15
+                            source: segmentBtn.hasIcon ? (Theme.iconsPath + segmentBtn.modelData.icon) : ""
+                            sourceSize: Qt.size(15, 15)
+                            layer.enabled: parent.visible && !GamemodeService.gamemodeActive
+                            layer.effect: MultiEffect {
+                                colorization: 1.0
+                                colorizationColor: segmentBtn.isSelected ? Theme.accent : Theme.muted
+                                Behavior on colorizationColor {
+                                    enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                                    ColorAnimation { duration: 120 }
+                                }
+                            }
                         }
-                    } catch (e) {}
+
+                        Text {
+                            text: segmentBtn.modelData.label || ""
+                            color: segmentBtn.isSelected ? Theme.accent : Theme.muted
+                            font {
+                                pixelSize: Theme.fontSizeBody
+                                bold: segmentBtn.isSelected
+                                family: Theme.fontFamily
+                            }
+                            Behavior on color {
+                                enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                                ColorAnimation { duration: 120 }
+                            }
+                        }
+                    }
+
+                    // Variante solo texto con marquee (idéntica a SchemaForm.qml / ThemeManager.qml)
+                    Item {
+                        id: segmentTextClip
+                        visible: !segmentBtn.hasIcon
+
+                        readonly property bool overflows: segmentLbl.implicitWidth > width && width > 0
+                        readonly property real gap: 24
+                        readonly property real stride: segmentLbl.implicitWidth + gap
+                        property real offset: 0
+
+                        height: parent.height
+                        clip: true
+
+                        anchors {
+                            left: parent.left
+                            right: parent.right
+                            verticalCenter: parent.verticalCenter
+                            leftMargin: 6
+                            rightMargin: 6
+                        }
+
+                        Text {
+                            id: segmentLbl
+                            x: segmentTextClip.overflows ? segmentTextClip.offset : (parent.width - implicitWidth) / 2
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: segmentBtn.modelData.label || ""
+                            color: segmentBtn.isSelected ? Theme.accent : Theme.muted
+                            onTextChanged: segmentTextClip.offset = 0
+
+                            font {
+                                pixelSize: Theme.fontSizeBodySecondary
+                                bold: segmentBtn.isSelected
+                                family: Theme.fontFamily
+                            }
+
+                            Behavior on color {
+                                enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                                ColorAnimation { duration: 120 }
+                            }
+                        }
+
+                        Text {
+                            x: segmentTextClip.offset + segmentTextClip.stride
+                            anchors.verticalCenter: parent.verticalCenter
+                            visible: segmentTextClip.overflows
+                            text: segmentLbl.text
+                            color: segmentLbl.color
+                            font: segmentLbl.font
+                        }
+
+                        SequentialAnimation on offset {
+                            running: segmentTextClip.visible && segmentTextClip.overflows && Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                            loops: GamemodeService.gamemodeActive ? 0 : Animation.Infinite
+
+                            PauseAnimation { duration: 1500 }
+
+                            NumberAnimation {
+                                from: 0
+                                to: -segmentTextClip.stride
+                                duration: Math.max(200, segmentTextClip.stride * 16)
+                                easing.type: Easing.Linear
+                            }
+                        }
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: (picker.active && segmentBtn.isSupported) ? Qt.PointingHandCursor : Qt.ArrowCursor
+                        enabled: picker.active && segmentBtn.isSupported
+                        onClicked: {
+                            picker.selected(segmentBtn.modelData.value, segmentBtn.index);
+                        }
+                    }
                 }
             }
         }
     }
 
-    // ── Lector del catálogo de diccionarios ──────────────────────────────
-    property var catalogList: [
-        { code: "es_AR", name: "Español (Argentina)" },
-        { code: "es_ES", name: "Español (España)" },
-        { code: "es_MX", name: "Español (México)" },
-        { code: "es_CL", name: "Español (Chile)" },
-        { code: "es_CO", name: "Español (Colombia)" },
-        { code: "en_US", name: "English (United States)" },
-        { code: "en_GB", name: "English (United Kingdom)" },
-        { code: "en_CA", name: "English (Canada)" },
-        { code: "en_AU", name: "English (Australia)" },
-        { code: "pt_BR", name: "Português (Brasil)" },
-        { code: "pt_PT", name: "Português (Portugal)" },
-        { code: "fr_FR", name: "Français (France)" },
-        { code: "de_DE", name: "Deutsch (Deutschland)" },
-        { code: "it_IT", name: "Italiano (Italia)" },
-        { code: "ca_ES", name: "Català" },
-        { code: "gl_ES", name: "Galego" },
-        { code: "eu_ES", name: "Euskara" },
-        { code: "nl_NL", name: "Nederlands" },
-        { code: "pl_PL", name: "Polski" },
-        { code: "ru_RU", name: "Русский" },
-        { code: "uk_UA", name: "Українська" },
-        { code: "sv_SE", name: "Svenska" },
-        { code: "da_DK", name: "Dansk" },
-        { code: "nb_NO", name: "Norsk Bokmål" },
-        { code: "cs_CZ", name: "Čeština" },
-        { code: "ro_RO", name: "Română" },
-        { code: "tr_TR", name: "Türkçe" },
-        { code: "el_GR", name: "Ελληνικά" },
-        { code: "eo",    name: "Esperanto" },
-        { code: "la",    name: "Latina" }
-    ]
+    // ── Switch líquido y elástico (copiado de boolField en SchemaForm.qml) ───
+    component SchemaSwitchRow: Rectangle {
+        id: bf
 
-    FileView {
-        id: catalogFile
-        path: (typeof Sys !== "undefined" && Sys.homePath ? Sys.homePath : "") + "/.local/share/notas/catalog.json"
-        printErrors: false
-        onLoadedChanged: {
-            if (loaded && text) {
-                try {
-                    var parsed = JSON.parse(text);
-                    if (parsed && Array.isArray(parsed.languages)) {
-                        root.catalogList = parsed.languages;
+        property string label: ""
+        property string comment: ""
+        property bool checked: false
+        property bool isDisabled: false
+        signal toggled(bool newValue)
+
+        opacity: isDisabled ? 0.45 : 1.0
+        Behavior on opacity {
+            enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+            NumberAnimation { duration: 150 }
+        }
+
+        Layout.fillWidth: true
+        implicitHeight: 48
+        radius: 8
+        color: "transparent"
+        border.color: root._hsva(Theme.text, 0, 0.06)
+        border.width: 1
+
+        MouseArea {
+            id: rowMouse
+            anchors.fill: parent
+            cursorShape: bf.isDisabled ? Qt.ArrowCursor : Qt.PointingHandCursor
+            onClicked: {
+                if (!bf.isDisabled) {
+                    bf.toggled(!bf.checked);
+                }
+            }
+        }
+
+        RowLayout {
+            anchors.fill: parent
+            anchors.leftMargin: 12
+            anchors.rightMargin: 12
+            spacing: 10
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 2
+
+                Text {
+                    text: bf.label
+                    color: Theme.text
+                    font {
+                        pixelSize: Theme.fontSizeSubheading
+                        family: Theme.fontFamily
                     }
-                } catch (e) {}
+                }
+
+                Text {
+                    visible: text !== ""
+                    text: bf.comment
+                    color: Theme.muted
+                    elide: Text.ElideRight
+                    Layout.fillWidth: true
+                    font {
+                        pixelSize: Theme.fontSizeBodySecondary
+                        family: Theme.fontFamily
+                    }
+                }
+            }
+
+            Rectangle {
+                id: swRect
+
+                width: 40
+                height: 22
+                radius: 11
+                Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
+                color: bf.checked
+                    ? root._hsva(Theme.success, 0, 0.70)
+                    : root._hsva(Theme.muted, 0, 0.35)
+
+                Rectangle {
+                    id: swThumb
+
+                    width: (rowMouse.pressed || swMouse.pressed) ? 19 : 14
+                    height: 14
+                    radius: 7
+                    color: Theme.text
+                    anchors.verticalCenter: parent.verticalCenter
+                    x: bf.checked ? parent.width - width - 4 : 4
+
+                    Behavior on x {
+                        enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                        NumberAnimation {
+                            duration: 250
+                            easing.type: Easing.OutBack
+                        }
+                    }
+
+                    Behavior on width {
+                        enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                        NumberAnimation {
+                            duration: 150
+                            easing.type: Easing.OutCubic
+                        }
+                    }
+                }
+
+                MouseArea {
+                    id: swMouse
+                    anchors.fill: parent
+                    cursorShape: bf.isDisabled ? Qt.ArrowCursor : Qt.PointingHandCursor
+                    onClicked: {
+                        if (!bf.isDisabled) {
+                            bf.toggled(!bf.checked);
+                        }
+                    }
+                }
+
+                Behavior on color {
+                    enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                    ColorAnimation { duration: 220 }
+                }
             }
         }
     }
 
-    // ── Fondo atenuado (Backdrop) ─────────────────────────────────────────
+    // ── Deslizador numérico (copiado de numField en SchemaForm.qml) ──────────
+    component SchemaSliderRow: ColumnLayout {
+        id: nf
+
+        property string label: ""
+        property string comment: ""
+        property real val: 0
+        property real minV: 0
+        property real maxV: 100
+        property real stepSize: 1
+        property bool isInt: true
+        property string suffix: ""
+        signal moved(real newVal)
+
+        function _snap(raw) {
+            var clamped = Math.max(nf.minV, Math.min(nf.maxV, raw));
+            if (nf.stepSize > 0) {
+                clamped = Math.round(clamped / nf.stepSize) * nf.stepSize;
+            }
+            if (nf.isInt) {
+                clamped = Math.round(clamped);
+            }
+            return Math.max(nf.minV, Math.min(nf.maxV, clamped));
+        }
+
+        Layout.fillWidth: true
+        spacing: 6
+
+        RowLayout {
+            Layout.fillWidth: true
+
+            Text {
+                Layout.fillWidth: true
+                text: nf.label
+                color: Theme.text
+                font {
+                    pixelSize: Theme.fontSizeSubheading
+                    family: Theme.fontFamily
+                }
+            }
+
+            Text {
+                text: (nf.isInt ? Math.round(nf.val).toString() : nf.val.toFixed(2)) + nf.suffix
+                color: Theme.accent
+                font {
+                    pixelSize: Theme.fontSizeBody
+                    bold: true
+                    family: Theme.fontFamily
+                }
+            }
+        }
+
+        Item {
+            id: track
+
+            readonly property real frac: Math.max(0.0, Math.min(1.0, (nf.val - nf.minV) / Math.max(0.0001, (nf.maxV - nf.minV))))
+
+            Layout.fillWidth: true
+            Layout.preferredHeight: 6
+            Layout.topMargin: 4
+            Layout.leftMargin: 3
+            Layout.rightMargin: 3
+
+            Rectangle {
+                anchors.fill: parent
+                radius: 3
+                color: root._hsva(Theme.muted, 0, 0.16)
+            }
+
+            Rectangle {
+                width: Math.max(height, track.frac * track.width)
+                height: parent.height
+                radius: 3
+                color: Theme.accent
+            }
+
+            Rectangle {
+                id: knob
+
+                z: 1
+                width: 8
+                height: 18
+                radius: 4
+                anchors.verticalCenter: parent.verticalCenter
+                x: track.frac * track.width - 4
+                color: Theme.color2
+                scale: kDrag.active ? 1.3 : (hKnob.hovered ? 1.15 : 1.0)
+
+                HoverHandler { id: hKnob }
+
+                DragHandler {
+                    id: kDrag
+                    target: null
+                    xAxis.enabled: true
+                    yAxis.enabled: false
+                    onCentroidChanged: {
+                        if (active && track.width > 0) {
+                            var localX = track.mapFromItem(null, centroid.scenePosition.x, centroid.scenePosition.y).x;
+                            var f = Math.max(0.0, Math.min(1.0, localX / track.width));
+                            var nextV = nf._snap(nf.minV + f * (nf.maxV - nf.minV));
+                            if (nextV !== nf.val) {
+                                nf.moved(nextV);
+                            }
+                        }
+                    }
+                }
+
+                MouseArea {
+                    anchors.fill: parent
+                    acceptedButtons: Qt.NoButton
+                    cursorShape: Qt.SizeHorCursor
+                }
+
+                Behavior on scale {
+                    enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                    NumberAnimation {
+                        duration: 120
+                        easing.type: Easing.OutBack
+                    }
+                }
+            }
+
+            MouseArea {
+                anchors.fill: parent
+                cursorShape: Qt.PointingHandCursor
+                onClicked: (mouse) => {
+                    if (track.width <= 0) return;
+                    var f = Math.max(0.0, Math.min(1.0, mouse.x / track.width));
+                    var nextV = nf._snap(nf.minV + f * (nf.maxV - nf.minV));
+                    if (nextV !== nf.val) {
+                        nf.moved(nextV);
+                    }
+                }
+            }
+        }
+
+        Text {
+            visible: text !== ""
+            text: nf.comment
+            color: Theme.muted
+            Layout.fillWidth: true
+            wrapMode: Text.WordWrap
+            font {
+                pixelSize: Theme.fontSizeBodySecondary
+                family: Theme.fontFamily
+            }
+        }
+    }
+
+    // ── Fondo atenuado (Backdrop) ────────────────────────────────────────────
     Rectangle {
         anchors.fill: parent
         color: Qt.rgba(0, 0, 0, 0.55)
@@ -168,117 +840,9 @@ Item {
         }
     }
 
-    // ── Componentes auxiliares Bento ──────────────────────────────────────
-    component BentoCard : Rectangle {
-        Layout.fillWidth: true
-        radius: 12
-        color: Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, 0.7)
-        border.color: Theme.border
-        border.width: 1
-    }
-
-    component SettingsCheckbox : Rectangle {
-        id: chk
-        property bool checked: false
-        signal toggled(bool newState)
-
-        width: 20
-        height: 20
-        radius: 5
-        color: checked ? Theme.primary : "transparent"
-        border.color: checked ? Theme.primary : Theme.border
-        border.width: 1.5
-
-        Behavior on color { ColorAnimation { duration: 120 } }
-        Behavior on border.color { ColorAnimation { duration: 120 } }
-
-        Image {
-            anchors.centerIn: parent
-            width: 14
-            height: 14
-            source: Theme.iconsPath + "check.svg"
-            sourceSize: Qt.size(14, 14)
-            visible: chk.checked
-        }
-
-        MouseArea {
-            anchors.fill: parent
-            cursorShape: Qt.PointingHandCursor
-            onClicked: {
-                chk.checked = !chk.checked;
-                chk.toggled(chk.checked);
-            }
-        }
-    }
-
-    component SettingsSlider : Item {
-        id: sld
-        property real from: 0
-        property real to: 100
-        property real stepSize: 1
-        property real value: 50
-        signal moved(real val)
-
-        implicitWidth: 160
-        implicitHeight: 24
-
-        Rectangle {
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-            height: 6
-            radius: 3
-            color: Theme.border
-
-            Rectangle {
-                anchors.left: parent.left
-                anchors.top: parent.top
-                anchors.bottom: parent.bottom
-                width: handle.x + handle.width / 2
-                radius: 3
-                color: Theme.primary
-            }
-        }
-
-        Rectangle {
-            id: handle
-            x: Math.max(0, Math.min(sld.width - width, (sld.to > sld.from) ? ((sld.value - sld.from) / (sld.to - sld.from) * (sld.width - width)) : 0))
-            anchors.verticalCenter: parent.verticalCenter
-            width: 16
-            height: 16
-            radius: 8
-            color: Theme.primary
-            border.color: Theme.surface
-            border.width: 2
-
-            MouseArea {
-                id: sldMa
-                anchors.fill: parent
-                anchors.margins: -6
-                drag.target: parent
-                drag.axis: Drag.XAxis
-                drag.minimumX: 0
-                drag.maximumX: Math.max(0, sld.width - handle.width)
-                cursorShape: Qt.PointingHandCursor
-
-                onPositionChanged: {
-                    if (drag.active && sld.width > handle.width) {
-                        var frac = handle.x / (sld.width - handle.width);
-                        var rawVal = sld.from + frac * (sld.to - sld.from);
-                        var stepped = Math.round(rawVal / sld.stepSize) * sld.stepSize;
-                        if (stepped !== sld.value) {
-                            sld.value = stepped;
-                            sld.moved(stepped);
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // ── Tarjeta Bento Principal con Morph Animation ──────────────────────
-    readonly property real targetWidth: Math.min(root.width - 48, 820)
-    readonly property real targetHeight: Math.min(root.height - 48, 620)
+    // ── Tarjeta Bento Principal con Morph Animation (igual a morphCard) ──────
+    readonly property real targetWidth: Math.min(root.width - 48, 840)
+    readonly property real targetHeight: Math.min(root.height - 48, 650)
 
     Rectangle {
         id: card
@@ -316,7 +880,6 @@ Item {
 
         MouseArea {
             anchors.fill: parent
-            // Consumir eventos para no cerrar al interactuar dentro del modal
         }
 
         ColumnLayout {
@@ -351,6 +914,11 @@ Item {
                         height: 16
                         source: Theme.iconsPath + "close.svg"
                         sourceSize: Qt.size(16, 16)
+                        layer.enabled: !GamemodeService.gamemodeActive
+                        layer.effect: MultiEffect {
+                            colorization: 1.0
+                            colorizationColor: closeArea.containsMouse ? Theme.text : Theme.muted
+                        }
                     }
 
                     MouseArea {
@@ -363,75 +931,17 @@ Item {
                 }
             }
 
-            // ── Barra de Pestañas con Indicador de Cápsula Deslizante ─────
-            Rectangle {
-                id: tabsContainer
-                Layout.fillWidth: true
-                height: 42
-                radius: 10
-                color: Qt.rgba(Theme.background.r, Theme.background.g, Theme.background.b, 0.5)
-                border.color: Theme.border
-                border.width: 1
-
-                RowLayout {
-                    id: tabsRow
-                    anchors.fill: parent
-                    anchors.margins: 3
-                    spacing: 4
-
-                    Repeater {
-                        id: tabsRepeater
-                        model: root.tabs
-                        delegate: Item {
-                            id: tabItem
-                            Layout.fillWidth: true
-                            Layout.fillHeight: true
-
-                            RowLayout {
-                                anchors.centerIn: parent
-                                spacing: 8
-
-                                Image {
-                                    width: 16
-                                    height: 16
-                                    source: Theme.iconsPath + modelData.icon
-                                    sourceSize: Qt.size(16, 16)
-                                }
-
-                                Text {
-                                    text: modelData.title
-                                    font.family: Theme.fontFamily
-                                    font.pixelSize: Theme.fontSizeBody
-                                    font.bold: root.tabIndex === index
-                                    color: root.tabIndex === index ? Theme.primary : Theme.text
-                                }
-                            }
-
-                            MouseArea {
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: root.tabIndex = index
-                            }
-                        }
+            // ── Barra Superior Animada (SegmentedPicker de Settings) ─────
+            SegmentedPicker {
+                id: topTabsPicker
+                barHeight: 38
+                options: root.tabs
+                currentValue: root.currentTabValue
+                onSelected: (val, idx) => {
+                    if (root.tabIndex !== idx) {
+                        root.tabIndex = idx;
+                        modalFlickable.contentY = 0;
                     }
-                }
-
-                // Cápsula activa deslizante detrás del texto
-                Rectangle {
-                    id: activeTabPill
-                    y: 3
-                    height: tabsContainer.height - 6
-                    radius: 8
-                    color: Theme.surfaceActive
-                    border.color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.3)
-                    border.width: 1
-                    z: -1
-
-                    width: (tabsRepeater.itemAt(root.tabIndex) ? tabsRepeater.itemAt(root.tabIndex).width : 100)
-                    x: (tabsRepeater.itemAt(root.tabIndex) ? (tabsRepeater.itemAt(root.tabIndex).x + 3) : 3)
-
-                    Behavior on x { SpringAnimation { spring: 8.5; damping: 0.88; mass: 0.45 } }
-                    Behavior on width { SpringAnimation { spring: 8.5; damping: 0.88; mass: 0.45 } }
                 }
             }
 
@@ -441,8 +951,9 @@ Item {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 clip: true
-                contentWidth: width - 12
-                contentHeight: stackContent.implicitHeight + 20
+                boundsBehavior: Flickable.StopAtBounds
+                contentWidth: Math.max(100, width - vbar.reservedSpace)
+                contentHeight: activeTabCol.implicitHeight + 20
 
                 ScrollBar.vertical: CustomScrollBar { id: vbar }
 
@@ -451,676 +962,1329 @@ Item {
                     width: modalFlickable.contentWidth
                     implicitHeight: activeTabCol.implicitHeight
 
-                    // ── PESTAÑA 0: EDITOR ────────────────────────────────
+                    // ══════════════════════════════════════════════════════
+                    // PESTAÑA 0: EDITOR
+                    // ══════════════════════════════════════════════════════
                     ColumnLayout {
                         id: tabEditor
                         visible: root.tabIndex === 0
                         width: parent.width
-                        spacing: 12
+                        spacing: 14
+
+                        SectionHeader {
+                            iconName: "folder.svg"
+                            title: I18n.t("config.notes.storage_section", "Almacenamiento e Importación")
+                        }
 
                         BentoCard {
-                            implicitHeight: colDir.implicitHeight + 24
+                            implicitHeight: colDir.implicitHeight + 28
                             ColumnLayout {
                                 id: colDir
                                 anchors.fill: parent
                                 anchors.margins: 14
-                                spacing: 10
-
-                                Text {
-                                    text: I18n.t("config.notes.dir", "Carpeta de notas")
-                                    font.family: Theme.fontFamily
-                                    font.pixelSize: Theme.fontSizeSmall
-                                    font.bold: true
-                                    color: Theme.text
-                                }
-
-                                RowLayout {
-                                    Layout.fillWidth: true
-                                    spacing: 8
-
-                                    SettingsTextField {
-                                        id: notesDirInput
-                                        Layout.fillWidth: true
-                                        text: ConfigBackend.notasDir
-                                        placeholder: "/ruta/a/tus/notas"
-                                        onAccepted: (newVal) => {
-                                            ConfigBackend.notasDir = newVal;
-                                            NotesService.refresh();
-                                        }
-                                    }
-
-                                    Rectangle {
-                                        Layout.preferredHeight: 38
-                                        Layout.preferredWidth: 110
-                                        radius: 8
-                                        color: btnBrowseMa.containsMouse ? Theme.surfaceHover : Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.12)
-                                        border.color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.3)
-                                        border.width: 1
-
-                                        RowLayout {
-                                            anchors.centerIn: parent
-                                            spacing: 6
-                                            Image {
-                                                width: 16; height: 16
-                                                source: Theme.iconsPath + "folder.svg"
-                                                sourceSize: Qt.size(16, 16)
-                                            }
-                                            Text {
-                                                text: "Examinar..."
-                                                color: Theme.primary
-                                                font.bold: true
-                                                font.pixelSize: Theme.fontSizeSmall
-                                            }
-                                        }
-
-                                        MouseArea {
-                                            id: btnBrowseMa
-                                            anchors.fill: parent
-                                            hoverEnabled: true
-                                            cursorShape: Qt.PointingHandCursor
-                                            onClicked: dirPickerProc.running = true
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        BentoCard {
-                            implicitHeight: colPreview.implicitHeight + 24
-                            ColumnLayout {
-                                id: colPreview
-                                anchors.fill: parent
-                                anchors.margins: 14
                                 spacing: 12
 
-                                Text {
-                                    text: "Tarjetas y Vista Previa"
-                                    font.family: Theme.fontFamily
-                                    font.pixelSize: Theme.fontSizeSmall
-                                    font.bold: true
-                                    color: Theme.text
-                                }
-
-                                RowLayout {
+                                ColumnLayout {
                                     Layout.fillWidth: true
+                                    spacing: 6
+
                                     Text {
-                                        Layout.fillWidth: true
-                                        text: I18n.t("config.notes.show_image_previews", "Previsualizar imágenes en tarjetas")
-                                        font.family: Theme.fontFamily
-                                        font.pixelSize: Theme.fontSizeBody
+                                        text: I18n.t("config.notes.dir", "Carpeta de notas")
                                         color: Theme.text
-                                    }
-                                    SettingsCheckbox {
-                                        checked: ConfigBackend.showImagePreviews
-                                        onToggled: (st) => ConfigBackend.showImagePreviews = st
-                                    }
-                                }
-
-                                RowLayout {
-                                    Layout.fillWidth: true
-                                    Text {
-                                        Layout.fillWidth: true
-                                        text: I18n.t("config.notes.cycle_preview_images", "Alternar imágenes de vista previa")
-                                        font.family: Theme.fontFamily
-                                        font.pixelSize: Theme.fontSizeBody
-                                        color: Theme.text
-                                    }
-                                    SettingsCheckbox {
-                                        checked: ConfigBackend.cyclePreviewImages
-                                        onToggled: (st) => ConfigBackend.cyclePreviewImages = st
-                                    }
-                                }
-                            }
-                        }
-
-                        BentoCard {
-                            implicitHeight: colMetrics.implicitHeight + 24
-                            ColumnLayout {
-                                id: colMetrics
-                                anchors.fill: parent
-                                anchors.margins: 14
-                                spacing: 14
-
-                                Text {
-                                    text: "Visualización y Editor"
-                                    font.family: Theme.fontFamily
-                                    font.pixelSize: Theme.fontSizeSmall
-                                    font.bold: true
-                                    color: Theme.text
-                                }
-
-                                RowLayout {
-                                    Layout.fillWidth: true
-                                    Text {
-                                        Layout.fillWidth: true
-                                        text: I18n.t("config.notes.editor_zoom", "Zoom del editor") + ": " + ConfigBackend.editorZoom + "%"
-                                        font.family: Theme.fontFamily
-                                        font.pixelSize: Theme.fontSizeBody
-                                        color: Theme.text
-                                    }
-                                    SettingsSlider {
-                                        from: 50
-                                        to: 200
-                                        stepSize: 10
-                                        value: ConfigBackend.editorZoom
-                                        onMoved: (v) => ConfigBackend.editorZoom = Math.round(v)
-                                    }
-                                }
-
-                                RowLayout {
-                                    Layout.fillWidth: true
-                                    Text {
-                                        Layout.fillWidth: true
-                                        text: "Tarjetas por fila en cuadrícula: " + ConfigBackend.cardsPerRow
-                                        font.family: Theme.fontFamily
-                                        font.pixelSize: Theme.fontSizeBody
-                                        color: Theme.text
-                                    }
-                                    SettingsSlider {
-                                        from: 2
-                                        to: 5
-                                        stepSize: 1
-                                        value: ConfigBackend.cardsPerRow
-                                        onMoved: (v) => ConfigBackend.cardsPerRow = Math.round(v)
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    // ── PESTAÑA 1: APARIENCIA ────────────────────────────
-                    ColumnLayout {
-                        id: tabAppearance
-                        visible: root.tabIndex === 1
-                        width: parent.width
-                        spacing: 12
-
-                        BentoCard {
-                            implicitHeight: colThemes.implicitHeight + 24
-                            ColumnLayout {
-                                id: colThemes
-                                anchors.fill: parent
-                                anchors.margins: 14
-                                spacing: 12
-
-                                Text {
-                                    text: I18n.t("config.appearance.theme", "Modo de tema y color")
-                                    font.family: Theme.fontFamily
-                                    font.pixelSize: Theme.fontSizeSmall
-                                    font.bold: true
-                                    color: Theme.text
-                                }
-
-                                RowLayout {
-                                    Layout.fillWidth: true
-                                    spacing: 10
-                                    Repeater {
-                                        model: [
-                                            { id: "system", label: "Sistema", desc: "Paleta Qt del sistema" },
-                                            { id: "dark", label: "Oscuro", desc: "Catppuccin Mocha" },
-                                            { id: "light", label: "Claro", desc: "Catppuccin Latte" },
-                                            { id: "pywal", label: "Pywal", desc: "Colores dinámicos" }
-                                        ]
-                                        delegate: Rectangle {
-                                            required property var modelData
-                                            Layout.fillWidth: true
-                                            height: 54
-                                            radius: 10
-                                            color: ConfigBackend.themeMode === modelData.id ? Theme.surfaceActive : Theme.surfaceHover
-                                            border.color: ConfigBackend.themeMode === modelData.id ? Theme.primary : Theme.border
-                                            border.width: 1.5
-
-                                            ColumnLayout {
-                                                anchors.centerIn: parent
-                                                spacing: 2
-                                                Text {
-                                                    Layout.alignment: Qt.AlignHCenter
-                                                    text: modelData.label
-                                                    color: ConfigBackend.themeMode === modelData.id ? Theme.primary : Theme.text
-                                                    font.bold: true
-                                                    font.pixelSize: Theme.fontSizeBody
-                                                }
-                                                Text {
-                                                    Layout.alignment: Qt.AlignHCenter
-                                                    text: modelData.desc
-                                                    color: Theme.muted
-                                                    font.pixelSize: Theme.fontSizeCaption
-                                                }
-                                            }
-
-                                            MouseArea {
-                                                anchors.fill: parent
-                                                cursorShape: Qt.PointingHandCursor
-                                                onClicked: ConfigBackend.themeMode = modelData.id
-                                            }
+                                        font {
+                                            pixelSize: Theme.fontSizeSubheading
+                                            family: Theme.fontFamily
                                         }
-                                    }
-                                }
-                            }
-                        }
-
-                        BentoCard {
-                            implicitHeight: colEffects.implicitHeight + 24
-                            ColumnLayout {
-                                id: colEffects
-                                anchors.fill: parent
-                                anchors.margins: 14
-                                spacing: 12
-
-                                Text {
-                                    text: "Efectos Visuales e Interfaz"
-                                    font.family: Theme.fontFamily
-                                    font.pixelSize: Theme.fontSizeSmall
-                                    font.bold: true
-                                    color: Theme.text
-                                }
-
-                                RowLayout {
-                                    Layout.fillWidth: true
-                                    Text {
-                                        Layout.fillWidth: true
-                                        text: "Opacidad de la ventana: " + Math.round(ConfigBackend.panelOpacity * 100) + "%"
-                                        font.family: Theme.fontFamily
-                                        font.pixelSize: Theme.fontSizeBody
-                                        color: Theme.text
-                                    }
-                                    SettingsSlider {
-                                        from: 40
-                                        to: 100
-                                        stepSize: 5
-                                        value: Math.round(ConfigBackend.panelOpacity * 100)
-                                        onMoved: (v) => ConfigBackend.panelOpacity = v / 100.0
-                                    }
-                                }
-
-                                RowLayout {
-                                    Layout.fillWidth: true
-                                    Text {
-                                        Layout.fillWidth: true
-                                        text: I18n.t("config.appearance.blur", "Efecto de desenfoque (Blur)")
-                                        font.family: Theme.fontFamily
-                                        font.pixelSize: Theme.fontSizeBody
-                                        color: Theme.text
-                                    }
-                                    SettingsCheckbox {
-                                        checked: ConfigBackend.blurEnabled
-                                        onToggled: (st) => ConfigBackend.blurEnabled = st
-                                    }
-                                }
-
-                                RowLayout {
-                                    Layout.fillWidth: true
-                                    Text {
-                                        Layout.fillWidth: true
-                                        text: "Animaciones fluidas"
-                                        font.family: Theme.fontFamily
-                                        font.pixelSize: Theme.fontSizeBody
-                                        color: Theme.text
-                                    }
-                                    SettingsCheckbox {
-                                        checked: ConfigBackend.animationsEnabled
-                                        onToggled: (st) => ConfigBackend.animationsEnabled = st
-                                    }
-                                }
-
-                                RowLayout {
-                                    Layout.fillWidth: true
-                                    Text {
-                                        Layout.fillWidth: true
-                                        text: I18n.t("config.appearance.hide_scrollbars", "Ocultar barras de desplazamiento")
-                                        font.family: Theme.fontFamily
-                                        font.pixelSize: Theme.fontSizeBody
-                                        color: Theme.text
-                                    }
-                                    SettingsCheckbox {
-                                        checked: ConfigBackend.hideScrollbars
-                                        onToggled: (st) => ConfigBackend.hideScrollbars = st
-                                    }
-                                }
-
-                                RowLayout {
-                                    Layout.fillWidth: true
-                                    Text {
-                                        Layout.fillWidth: true
-                                        text: "Escala global de tipografía: " + Math.round(ConfigBackend.fontSizeScale * 100) + "%"
-                                        font.family: Theme.fontFamily
-                                        font.pixelSize: Theme.fontSizeBody
-                                        color: Theme.text
-                                    }
-                                    SettingsSlider {
-                                        from: 80
-                                        to: 140
-                                        stepSize: 5
-                                        value: Math.round(ConfigBackend.fontSizeScale * 100)
-                                        onMoved: (v) => ConfigBackend.fontSizeScale = v / 100.0
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    // ── PESTAÑA 2: IDIOMA Y CORRECCIÓN ───────────────────
-                    ColumnLayout {
-                        id: tabLanguage
-                        visible: root.tabIndex === 2
-                        width: parent.width
-                        spacing: 12
-
-                        BentoCard {
-                            implicitHeight: colLangUi.implicitHeight + 24
-                            ColumnLayout {
-                                id: colLangUi
-                                anchors.fill: parent
-                                anchors.margins: 14
-                                spacing: 10
-
-                                Text {
-                                    text: I18n.t("config.language.interface", "Idioma de la interfaz")
-                                    font.family: Theme.fontFamily
-                                    font.pixelSize: Theme.fontSizeSmall
-                                    font.bold: true
-                                    color: Theme.text
-                                }
-
-                                Flow {
-                                    Layout.fillWidth: true
-                                    spacing: 8
-                                    Repeater {
-                                        model: [
-                                            { code: "es_ar", name: "Español (AR)" },
-                                            { code: "es_es", name: "Español (ES)" },
-                                            { code: "en", name: "English" },
-                                            { code: "de", name: "Deutsch" },
-                                            { code: "fr", name: "Français" },
-                                            { code: "ja", name: "日本語" }
-                                        ]
-                                        delegate: Rectangle {
-                                            required property var modelData
-                                            width: 110
-                                            height: 34
-                                            radius: 8
-                                            color: I18n.currentLanguage === modelData.code ? Theme.surfaceActive : Theme.surfaceHover
-                                            border.color: I18n.currentLanguage === modelData.code ? Theme.primary : Theme.border
-                                            border.width: 1
-
-                                            Text {
-                                                anchors.centerIn: parent
-                                                text: modelData.name
-                                                font.pixelSize: Theme.fontSizeSmall
-                                                font.bold: I18n.currentLanguage === modelData.code
-                                                color: I18n.currentLanguage === modelData.code ? Theme.primary : Theme.text
-                                            }
-
-                                            MouseArea {
-                                                anchors.fill: parent
-                                                cursorShape: Qt.PointingHandCursor
-                                                onClicked: {
-                                                    I18n.setLanguage(modelData.code);
-                                                    ConfigBackend.language = modelData.code;
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        BentoCard {
-                            implicitHeight: colSpellCfg.implicitHeight + 24
-                            ColumnLayout {
-                                id: colSpellCfg
-                                anchors.fill: parent
-                                anchors.margins: 14
-                                spacing: 12
-
-                                Text {
-                                    text: "Corrector Ortográfico Hunspell"
-                                    font.family: Theme.fontFamily
-                                    font.pixelSize: Theme.fontSizeSmall
-                                    font.bold: true
-                                    color: Theme.text
-                                }
-
-                                RowLayout {
-                                    Layout.fillWidth: true
-                                    Text {
-                                        Layout.fillWidth: true
-                                        text: "Modo de revisión"
-                                        font.family: Theme.fontFamily
-                                        font.pixelSize: Theme.fontSizeBody
-                                        color: Theme.text
                                     }
 
                                     RowLayout {
-                                        spacing: 6
-                                        Repeater {
-                                            model: [
-                                                { id: "auto", label: "Automático" },
-                                                { id: "manual", label: "Manual" },
-                                                { id: "off", label: "Desactivado" }
-                                            ]
-                                            delegate: Rectangle {
-                                                required property var modelData
-                                                width: 86
-                                                height: 30
-                                                radius: 6
-                                                color: ConfigBackend.spellcheckMode === modelData.id ? Theme.surfaceActive : Theme.surfaceHover
-                                                border.color: ConfigBackend.spellcheckMode === modelData.id ? Theme.primary : Theme.border
-                                                border.width: 1
+                                        Layout.fillWidth: true
+                                        spacing: 8
 
-                                                Text {
-                                                    anchors.centerIn: parent
-                                                    text: modelData.label
-                                                    font.pixelSize: Theme.fontSizeSmall
-                                                    font.bold: ConfigBackend.spellcheckMode === modelData.id
-                                                    color: ConfigBackend.spellcheckMode === modelData.id ? Theme.primary : Theme.text
+                                        Rectangle {
+                                            Layout.fillWidth: true
+                                            Layout.preferredHeight: 36
+                                            radius: 8
+                                            color: root._hsva(Theme.surface, 0.04, 0.35)
+                                            border.color: dirInput.activeFocus
+                                                ? root._hsva(Theme.accent, 0, 0.65)
+                                                : root._hsva(Theme.text, 0, 0.12)
+                                            border.width: 1
+
+                                            TextInput {
+                                                id: dirInput
+                                                anchors.fill: parent
+                                                anchors.leftMargin: 12
+                                                anchors.rightMargin: 12
+                                                verticalAlignment: TextInput.AlignVCenter
+                                                text: ConfigBackend.notasDir
+                                                color: Theme.text
+                                                font.family: Theme.fontFamilyMonospace
+                                                font.pixelSize: Theme.fontSizeBody
+                                                selectByMouse: true
+                                                clip: true
+                                                CustomTextCursor {}
+
+                                                onEditingFinished: {
+                                                    var trimmed = text.trim();
+                                                    if (trimmed !== "" && ConfigBackend.notasDir !== trimmed) {
+                                                        ConfigBackend.notasDir = trimmed;
+                                                        NotesService.refresh();
+                                                    }
                                                 }
 
                                                 MouseArea {
                                                     anchors.fill: parent
-                                                    cursorShape: Qt.PointingHandCursor
-                                                    onClicked: ConfigBackend.spellcheckMode = modelData.id
+                                                    acceptedButtons: Qt.RightButton
+                                                    onClicked: (mouse) => {
+                                                        if (mouse.button === Qt.RightButton) {
+                                                            dirInput.forceActiveFocus();
+                                                            sharedContextMenu.open(dirInput);
+                                                        }
+                                                    }
+                                                }
+                                            }
+
+                                            Connections {
+                                                target: ConfigBackend
+                                                function onNotasDirChanged() {
+                                                    if (!dirInput.activeFocus && dirInput.text !== ConfigBackend.notasDir) {
+                                                        dirInput.text = ConfigBackend.notasDir;
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        Rectangle {
+                                            implicitWidth: btnBrowseRow.implicitWidth + 24
+                                            implicitHeight: 36
+                                            radius: 8
+                                            color: browseMa.pressed
+                                                ? root._hsva(Theme.accent, 0.18, 0.65)
+                                                : (browseHov.hovered
+                                                    ? root._hsva(Theme.accent, 0, 0.42)
+                                                    : root._hsva(Theme.accent, 0, 0.28))
+                                            scale: browseMa.pressed ? 0.96 : 1.0
+
+                                            Behavior on color {
+                                                enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                                                ColorAnimation { duration: 80 }
+                                            }
+                                            Behavior on scale {
+                                                enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                                                NumberAnimation { duration: 80; easing.type: Easing.OutCubic }
+                                            }
+
+                                            HoverHandler { id: browseHov }
+
+                                            RowLayout {
+                                                id: btnBrowseRow
+                                                anchors.centerIn: parent
+                                                spacing: 6
+
+                                                Image {
+                                                    width: 14
+                                                    height: 14
+                                                    source: Theme.iconsPath + "folder.svg"
+                                                    sourceSize: Qt.size(14, 14)
+                                                    layer.enabled: !GamemodeService.gamemodeActive
+                                                    layer.effect: MultiEffect {
+                                                        colorization: 1.0
+                                                        colorizationColor: Theme.accent
+                                                    }
+                                                }
+
+                                                Text {
+                                                    text: I18n.t("config.notes.browse", "Examinar")
+                                                    color: Theme.accent
+                                                    font {
+                                                        pixelSize: Theme.fontSizeBody
+                                                        bold: true
+                                                        family: Theme.fontFamily
+                                                    }
+                                                }
+                                            }
+
+                                            MouseArea {
+                                                id: browseMa
+                                                anchors.fill: parent
+                                                cursorShape: Qt.PointingHandCursor
+                                                onClicked: {
+                                                    if (!dirPickerProc.running) {
+                                                        dirPickerProc.running = true;
+                                                    }
                                                 }
                                             }
                                         }
                                     }
-                                }
 
-                                RowLayout {
-                                    Layout.fillWidth: true
                                     Text {
+                                        text: I18n.t("config.notes.dir_comment", "Directorio donde se almacenarán las notas en formato Markdown (.md). Soporta $XDG_DOCUMENTS_DIR y $HOME.")
+                                        color: Theme.muted
                                         Layout.fillWidth: true
-                                        text: "Ignorar palabras en MAYÚSCULAS"
-                                        font.family: Theme.fontFamily
-                                        font.pixelSize: Theme.fontSizeBody
-                                        color: Theme.text
-                                    }
-                                    SettingsCheckbox {
-                                        checked: ConfigBackend.ignoreUppercase
-                                        onToggled: (st) => ConfigBackend.ignoreUppercase = st
-                                    }
-                                }
-
-                                RowLayout {
-                                    Layout.fillWidth: true
-                                    Text {
-                                        Layout.fillWidth: true
-                                        text: "Ignorar palabras que contienen números"
-                                        font.family: Theme.fontFamily
-                                        font.pixelSize: Theme.fontSizeBody
-                                        color: Theme.text
-                                    }
-                                    SettingsCheckbox {
-                                        checked: ConfigBackend.ignoreWithDigits
-                                        onToggled: (st) => ConfigBackend.ignoreWithDigits = st
-                                    }
-                                }
-                            }
-                        }
-
-                        // Catálogo de diccionarios Hunspell
-                        BentoCard {
-                            implicitHeight: colCatalog.implicitHeight + 24
-                            ColumnLayout {
-                                id: colCatalog
-                                anchors.fill: parent
-                                anchors.margins: 14
-                                spacing: 10
-
-                                RowLayout {
-                                    Layout.fillWidth: true
-                                    Text {
-                                        Layout.fillWidth: true
-                                        text: "Diccionarios instalados y catálogo descargable"
-                                        font.family: Theme.fontFamily
-                                        font.pixelSize: Theme.fontSizeSmall
-                                        font.bold: true
-                                        color: Theme.text
-                                    }
-
-                                    Rectangle {
-                                        width: 28; height: 28
-                                        radius: 6
-                                        color: refreshMa.containsMouse ? Theme.surfaceHover : "transparent"
-                                        Image {
-                                            anchors.centerIn: parent
-                                            width: 16; height: 16
-                                            source: Theme.iconsPath + "refresh.svg"
-                                            sourceSize: Qt.size(16, 16)
+                                        wrapMode: Text.WordWrap
+                                        font {
+                                            pixelSize: Theme.fontSizeBodySecondary
+                                            family: Theme.fontFamily
                                         }
-                                        MouseArea {
-                                            id: refreshMa
-                                            anchors.fill: parent
-                                            hoverEnabled: true
-                                            cursorShape: Qt.PointingHandCursor
-                                            onClicked: SpellService.refreshDictionaries()
-                                        }
-                                    }
-                                }
-
-                                SettingsTextField {
-                                    Layout.fillWidth: true
-                                    placeholder: "Buscar idioma o código (ej: Español, en_US)..."
-                                    onTextChanged: root.catalogFilter = text.toLowerCase().trim()
-                                }
-
-                                // Barra de progreso de descarga si está activo
-                                Rectangle {
-                                    visible: root.activeDownloadingLang !== ""
-                                    Layout.fillWidth: true
-                                    height: 24
-                                    radius: 6
-                                    color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.12)
-                                    clip: true
-
-                                    Rectangle {
-                                        anchors.left: parent.left
-                                        anchors.top: parent.top
-                                        anchors.bottom: parent.bottom
-                                        width: parent.width * Math.max(0.05, root.downloadProgress)
-                                        color: Theme.accent
-                                        radius: 6
-                                    }
-
-                                    Text {
-                                        anchors.centerIn: parent
-                                        text: "Descargando " + root.activeDownloadingLang + "... " + Math.round(root.downloadProgress * 100) + "%"
-                                        color: Theme.text
-                                        font.family: Theme.fontFamily
-                                        font.pixelSize: Theme.fontSizeCaption
-                                        font.bold: true
                                     }
                                 }
 
                                 ColumnLayout {
                                     Layout.fillWidth: true
-                                    spacing: 4
+                                    spacing: 6
+
+                                    Text {
+                                        text: I18n.t("config.notes.import_mode", "Al arrastrar un archivo")
+                                        color: Theme.text
+                                        font {
+                                            pixelSize: Theme.fontSizeSubheading
+                                            family: Theme.fontFamily
+                                        }
+                                    }
+
+                                    SegmentedPicker {
+                                        options: [
+                                            { value: "copy", label: I18n.t("config.notes.import_mode_copy", "Copiar a carpeta de notas") },
+                                            { value: "move", label: I18n.t("config.notes.import_mode_move", "Mover archivo original") }
+                                        ]
+                                        currentValue: ConfigBackend.importMode
+                                        onSelected: (val) => {
+                                            if (ConfigBackend.importMode !== val) ConfigBackend.importMode = val;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        SectionHeader {
+                            iconName: "grid.svg"
+                            title: I18n.t("config.notes.view_section", "Vista y Editor")
+                        }
+
+                        BentoCard {
+                            implicitHeight: colEditorOpts.implicitHeight + 28
+                            ColumnLayout {
+                                id: colEditorOpts
+                                anchors.fill: parent
+                                anchors.margins: 14
+                                spacing: 12
+
+                                SchemaSwitchRow {
+                                    label: I18n.t("config.notes.show_image_previews", "Previsualizar imágenes en tarjetas")
+                                    comment: I18n.t("config.notes.show_image_previews_comment", "Muestra miniaturas de imágenes en las tarjetas de notas.")
+                                    checked: ConfigBackend.showImagePreviews
+                                    onToggled: (v) => { ConfigBackend.showImagePreviews = v; }
+                                }
+
+                                SchemaSwitchRow {
+                                    label: I18n.t("config.notes.cycle_preview_images", "Alternar imágenes de vista previa")
+                                    comment: I18n.t("config.notes.cycle_preview_images_comment", "Cambia suavemente cada 3 segundos entre las imágenes de la nota.")
+                                    checked: ConfigBackend.cyclePreviewImages
+                                    isDisabled: !ConfigBackend.showImagePreviews
+                                    onToggled: (v) => { ConfigBackend.cyclePreviewImages = v; }
+                                }
+
+                                SchemaSliderRow {
+                                    label: I18n.t("config.notes.cards_per_row", "Tarjetas por fila")
+                                    comment: I18n.t("config.notes.cards_per_row_comment", "Número preferido de columnas en la cuadrícula de notas.")
+                                    val: ConfigBackend.cardsPerRow
+                                    minV: 2
+                                    maxV: 5
+                                    stepSize: 1
+                                    isInt: true
+                                    onMoved: (v) => { ConfigBackend.cardsPerRow = Math.round(v); }
+                                }
+
+                                SchemaSliderRow {
+                                    label: I18n.t("config.notes.editor_zoom", "Zoom del editor")
+                                    comment: I18n.t("config.notes.editor_zoom_comment", "Nivel de zoom predeterminado para el editor de notas.")
+                                    val: ConfigBackend.editorZoom
+                                    minV: 50
+                                    maxV: 300
+                                    stepSize: 5
+                                    isInt: true
+                                    suffix: " %"
+                                    onMoved: (v) => { ConfigBackend.editorZoom = Math.round(v); }
+                                }
+                            }
+                        }
+                    }
+
+                    // ══════════════════════════════════════════════════════
+                    // PESTAÑA 1: APARIENCIA (PORTADO DE ThemeManager.qml)
+                    // ══════════════════════════════════════════════════════
+                    ColumnLayout {
+                        id: tabAppearance
+                        visible: root.tabIndex === 1
+                        width: parent.width
+                        spacing: 14
+
+                        SectionHeader {
+                            iconName: "settings.svg"
+                            title: I18n.t("config.theme.source_section", "Origen de Colores y Tema")
+                        }
+
+                        BentoCard {
+                            implicitHeight: colThemeSource.implicitHeight + 28
+                            ColumnLayout {
+                                id: colThemeSource
+                                anchors.fill: parent
+                                anchors.margins: 14
+                                spacing: 14
+
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 6
+
+                                    Text {
+                                        text: I18n.t("config.theme.color_source", "Esquema de color activo")
+                                        color: Theme.text
+                                        font {
+                                            pixelSize: Theme.fontSizeSubheading
+                                            family: Theme.fontFamily
+                                        }
+                                    }
+
+                                    SegmentedPicker {
+                                        options: [
+                                            { value: "pywal",  label: I18n.t("config.theme.pywal", "Pywal (Fondo)") },
+                                            { value: "qt",     label: I18n.t("config.theme.qt", "Qt (Sistema)") },
+                                            { value: "custom", label: I18n.t("config.theme.custom", "Personalizado") }
+                                        ]
+                                        currentValue: (ConfigBackend.themeMode === "system") ? "qt" : ConfigBackend.themeMode
+                                        onSelected: (val) => {
+                                            if (ConfigBackend.themeMode !== val) {
+                                                ConfigBackend.themeMode = val;
+                                            }
+                                            if (val === "qt" && typeof Sys !== "undefined") {
+                                                Sys.refreshQtColors();
+                                            }
+                                        }
+                                    }
+
+                                    Text {
+                                        text: {
+                                            if (ConfigBackend.themeMode === "pywal") {
+                                                return Theme.pywalAvailable
+                                                    ? I18n.t("config.theme.pywal_active_hint", "Sincronizando paleta dinámicamente desde ~/.cache/wal/colors.json")
+                                                    : I18n.t("config.theme.pywal_missing_hint", "No se detectó ~/.cache/wal/colors.json; usando colores de respaldo de Qt.");
+                                            }
+                                            if (ConfigBackend.themeMode === "qt" || ConfigBackend.themeMode === "system") {
+                                                return I18n.t("config.theme.qt_active_hint", "Extrayendo paleta activa de Kvantum / qt6ct / Qt SystemPalette.");
+                                            }
+                                            return I18n.t("config.theme.custom_active_hint", "Usando paleta predefinida personalizada de Quickshell.");
+                                        }
+                                        color: Theme.muted
+                                        Layout.fillWidth: true
+                                        wrapMode: Text.WordWrap
+                                        font {
+                                            pixelSize: Theme.fontSizeBodySecondary
+                                            family: Theme.fontFamily
+                                        }
+                                    }
+                                }
+
+                                SchemaSwitchRow {
+                                    label: I18n.t("config.theme.light_mode", "Modo claro")
+                                    comment: I18n.t("config.theme.light_mode_comment", "Alterna entre variante oscura y clara para los temas predefinidos.")
+                                    checked: ConfigBackend.lightMode
+                                    isDisabled: ConfigBackend.themeMode !== "custom"
+                                    onToggled: (v) => {
+                                        if (ConfigBackend.themeMode !== "custom") ConfigBackend.themeMode = "custom";
+                                        ConfigBackend.lightMode = v;
+                                    }
+                                }
+
+                                // Cuadrícula de los 14 temas predefinidos de ThemeManager.qml
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 8
+
+                                    Text {
+                                        text: I18n.t("config.theme.predefined_title", "Temas predefinidos")
+                                        color: Theme.text
+                                        font {
+                                            pixelSize: Theme.fontSizeSubheading
+                                            family: Theme.fontFamily
+                                        }
+                                    }
+
+                                    Flow {
+                                        id: themesFlow
+                                        Layout.fillWidth: true
+                                        Layout.leftMargin: 4
+                                        Layout.rightMargin: 4
+                                        spacing: 12
+
+                                        Repeater {
+                                            model: Theme.predefinedThemes
+
+                                            delegate: Rectangle {
+                                                id: themeCircle
+                                                required property var modelData
+                                                readonly property bool isCustomActive: ConfigBackend.themeMode === "custom"
+                                                readonly property bool isSelected: isCustomActive && ConfigBackend.customThemeName === modelData.id
+
+                                                width: 44
+                                                height: 44
+                                                radius: 8
+                                                color: isSelected
+                                                    ? Theme.accent
+                                                    : (hovCard.hovered ? root._hsva(Theme.text, 0, 0.20) : root._hsva(Theme.text, 0, 0.08))
+                                                border.color: isSelected
+                                                    ? Theme.accent
+                                                    : (hovCard.hovered ? root._hsva(Theme.text, 0, 0.40) : root._hsva(Theme.text, 0, 0.15))
+                                                border.width: isSelected ? 3 : 1
+                                                scale: isSelected ? 1.08 : (maCard.pressed ? 0.92 : 1.0)
+                                                opacity: isCustomActive ? 1.0 : 0.65
+
+                                                HoverHandler { id: hovCard }
+
+                                                Rectangle {
+                                                    anchors.fill: parent
+                                                    anchors.margins: themeCircle.isSelected ? 4 : 2
+                                                    radius: themeCircle.isSelected ? 5 : 6
+                                                    color: {
+                                                        var data = Theme.getPredefinedThemeColors(themeCircle.modelData.id, ConfigBackend.lightMode);
+                                                        return data.colors.color1;
+                                                    }
+                                                }
+
+                                                MouseArea {
+                                                    id: maCard
+                                                    anchors.fill: parent
+                                                    cursorShape: Qt.PointingHandCursor
+                                                    onClicked: {
+                                                        if (ConfigBackend.themeMode !== "custom") {
+                                                            ConfigBackend.themeMode = "custom";
+                                                        }
+                                                        if (ConfigBackend.customThemeName !== themeCircle.modelData.id) {
+                                                            ConfigBackend.customThemeName = themeCircle.modelData.id;
+                                                        }
+                                                    }
+                                                }
+
+                                                Behavior on color {
+                                                    enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                                                    ColorAnimation { duration: 120 }
+                                                }
+                                                Behavior on border.color {
+                                                    enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                                                    ColorAnimation { duration: 120 }
+                                                }
+                                                Behavior on scale {
+                                                    enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                                                    NumberAnimation { duration: 100; easing.type: Easing.OutCubic }
+                                                }
+                                                Behavior on opacity {
+                                                    enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                                                    NumberAnimation { duration: 150 }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        SectionHeader {
+                            iconName: "activity.svg"
+                            title: I18n.t("config.theme.interface_section", "Interfaz, Escala y Efectos")
+                        }
+
+                        BentoCard {
+                            implicitHeight: colAppearanceOpts.implicitHeight + 28
+                            ColumnLayout {
+                                id: colAppearanceOpts
+                                anchors.fill: parent
+                                anchors.margins: 14
+                                spacing: 12
+
+                                SchemaSliderRow {
+                                    label: I18n.t("config.general.panel_opacity", "Opacidad del fondo")
+                                    comment: I18n.t("config.general.panel_opacity_comment", "Nivel de opacidad de la ventana principal de Notas.")
+                                    val: ConfigBackend.panelOpacity
+                                    minV: 50
+                                    maxV: 100
+                                    stepSize: 1
+                                    isInt: true
+                                    suffix: " %"
+                                    onMoved: (v) => { ConfigBackend.panelOpacity = Math.round(v); }
+                                }
+
+                                SchemaSliderRow {
+                                    label: I18n.t("config.font.scale", "Escala tipográfica de interfaz")
+                                    comment: I18n.t("config.font.scale_comment", "Ajusta el tamaño global de textos y controles.")
+                                    val: Math.round(ConfigBackend.fontSizeScale * 100)
+                                    minV: 85
+                                    maxV: 135
+                                    stepSize: 5
+                                    isInt: true
+                                    suffix: " %"
+                                    onMoved: (v) => { ConfigBackend.fontSizeScale = Math.round(v) / 100.0; }
+                                }
+
+                                SchemaSwitchRow {
+                                    label: I18n.t("config.hyprland.animations", "Animaciones fluidas")
+                                    comment: I18n.t("config.hyprland.animations_comment", "Habilita transiciones elásticas y animaciones de interfaz.")
+                                    checked: ConfigBackend.animationsEnabled
+                                    onToggled: (v) => { ConfigBackend.animationsEnabled = v; }
+                                }
+
+                                SchemaSwitchRow {
+                                    label: I18n.t("config.hyprland.blur", "Efectos de desenfoque")
+                                    comment: I18n.t("config.hyprland.blur_comment", "Habilita desenfoque y sombras suaves cuando el sistema lo soporta.")
+                                    checked: ConfigBackend.blurEnabled
+                                    onToggled: (v) => { ConfigBackend.blurEnabled = v; }
+                                }
+
+                                SchemaSwitchRow {
+                                    label: I18n.t("config.general.hide_scrollbars", "Ocultar barras de desplazamiento")
+                                    comment: I18n.t("config.general.hide_scrollbars_comment", "Mantiene el desplazamiento con rueda o gestos ocultando las barras visuales.")
+                                    checked: ConfigBackend.hideScrollbars
+                                    onToggled: (v) => { ConfigBackend.hideScrollbars = v; }
+                                }
+                            }
+                        }
+                    }
+
+                    // ══════════════════════════════════════════════════════
+                    // PESTAÑA 2: IDIOMA Y CORRECCIÓN (PORTADO DE LanguageManager.qml)
+                    // ══════════════════════════════════════════════════════
+                    ColumnLayout {
+                        id: tabLanguage
+                        visible: root.tabIndex === 2
+                        width: parent.width
+                        spacing: 14
+
+                        SectionHeader {
+                            iconName: "language.svg"
+                            title: I18n.t("config.language.ui_title", "Idioma de la Interfaz")
+                        }
+
+                        BentoCard {
+                            implicitHeight: colUiLang.implicitHeight + 28
+                            ColumnLayout {
+                                id: colUiLang
+                                anchors.fill: parent
+                                anchors.margins: 14
+                                spacing: 10
+
+                                Text {
+                                    text: I18n.t("config.language.ui_subtitle", "Selecciona el idioma de menús, etiquetas y controles de Notas.")
+                                    color: Theme.muted
+                                    Layout.fillWidth: true
+                                    wrapMode: Text.WordWrap
+                                    font {
+                                        pixelSize: Theme.fontSizeBodySecondary
+                                        family: Theme.fontFamily
+                                    }
+                                }
+
+                                Flow {
+                                    Layout.fillWidth: true
+                                    spacing: 8
+
+                                    // Opción Automático
+                                    Rectangle {
+                                        readonly property bool isSel: !ConfigBackend.language || ConfigBackend.language === "auto"
+                                        implicitWidth: autoLangLbl.implicitWidth + 24
+                                        implicitHeight: 32
+                                        radius: 8
+                                        color: isSel
+                                            ? root._hsva(Theme.accent, 0, 0.22)
+                                            : (autoLangHov.hovered ? root._hsva(Theme.text, 0, 0.10) : root._hsva(Theme.text, 0, 0.04))
+                                        border.color: isSel
+                                            ? root._hsva(Theme.accent, 0, 0.45)
+                                            : root._hsva(Theme.text, 0, 0.10)
+                                        border.width: 1
+
+                                        HoverHandler { id: autoLangHov }
+
+                                        Text {
+                                            id: autoLangLbl
+                                            anchors.centerIn: parent
+                                            text: I18n.t("config.language.auto_system", "Automático (Sistema)")
+                                            color: parent.isSel ? Theme.accent : Theme.text
+                                            font {
+                                                pixelSize: Theme.fontSizeBody
+                                                bold: parent.isSel
+                                                family: Theme.fontFamily
+                                            }
+                                        }
+
+                                        MouseArea {
+                                            anchors.fill: parent
+                                            cursorShape: Qt.PointingHandCursor
+                                            onClicked: I18n.setLanguage("auto")
+                                        }
+                                    }
 
                                     Repeater {
-                                        model: {
-                                            var list = root.catalogList || [];
-                                            var filt = root.catalogFilter;
-                                            if (!filt) return list.slice(0, 8); // Top 8 si no hay filtro
-                                            return list.filter(function(item) {
-                                                return item.name.toLowerCase().indexOf(filt) !== -1 ||
-                                                       item.code.toLowerCase().indexOf(filt) !== -1;
-                                            });
-                                        }
+                                        model: I18n.availableLanguages
                                         delegate: Rectangle {
                                             required property var modelData
-                                            Layout.fillWidth: true
-                                            height: 38
+                                            readonly property bool isSel: ConfigBackend.language === modelData.code
+                                            implicitWidth: uiLangPillTxt.implicitWidth + 24
+                                            implicitHeight: 32
                                             radius: 8
-                                            color: Theme.surfaceHover
+                                            color: isSel
+                                                ? root._hsva(Theme.accent, 0, 0.22)
+                                                : (uiLangPillHov.hovered ? root._hsva(Theme.text, 0, 0.10) : root._hsva(Theme.text, 0, 0.04))
+                                            border.color: isSel
+                                                ? root._hsva(Theme.accent, 0, 0.45)
+                                                : root._hsva(Theme.text, 0, 0.10)
+                                            border.width: 1
 
-                                            readonly property bool isInstalled: {
-                                                var avail = SpellBackend.availableDictionaries || [];
-                                                return avail.indexOf(modelData.code) !== -1;
+                                            HoverHandler { id: uiLangPillHov }
+
+                                            Text {
+                                                id: uiLangPillTxt
+                                                anchors.centerIn: parent
+                                                text: modelData.name || modelData.code
+                                                color: parent.isSel ? Theme.accent : Theme.text
+                                                font {
+                                                    pixelSize: Theme.fontSizeBody
+                                                    bold: parent.isSel
+                                                    family: Theme.fontFamily
+                                                }
                                             }
+
+                                            MouseArea {
+                                                anchors.fill: parent
+                                                cursorShape: Qt.PointingHandCursor
+                                                onClicked: I18n.setLanguage(modelData.code)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        SectionHeader {
+                            iconName: "spellcheck.svg"
+                            title: I18n.t("config.language.spell_title", "Corrector Ortográfico")
+                        }
+
+                        BentoCard {
+                            implicitHeight: colSpell.implicitHeight + 28
+                            ColumnLayout {
+                                id: colSpell
+                                anchors.fill: parent
+                                anchors.margins: 14
+                                spacing: 12
+
+                                SchemaSwitchRow {
+                                    label: I18n.t("config.language.spell_enabled", "Activar corrector ortográfico")
+                                    comment: I18n.t("config.language.spell_enabled_desc", "Habilita la revisión ortográfica con subrayado ondulado y sugerencias al hacer clic derecho.")
+                                    checked: SpellConfig.enabled
+                                    onToggled: (v) => { SpellConfig.enabled = v; }
+                                }
+
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 6
+                                    opacity: SpellConfig.enabled ? 1.0 : 0.45
+
+                                    Text {
+                                        text: I18n.t("config.notes.spellcheck_mode", "Modo de verificación en el editor")
+                                        color: Theme.text
+                                        font {
+                                            pixelSize: Theme.fontSizeSubheading
+                                            family: Theme.fontFamily
+                                        }
+                                    }
+
+                                    SegmentedPicker {
+                                        active: SpellConfig.enabled
+                                        options: [
+                                            { value: "off",    label: I18n.t("config.notes.spellcheck_off", "Desactivado") },
+                                            { value: "manual", label: I18n.t("config.notes.spellcheck_manual", "Manual (F7 / Botón)") },
+                                            { value: "auto",   label: I18n.t("config.notes.spellcheck_auto", "Automático en tiempo real") }
+                                        ]
+                                        currentValue: NotesConfig.spellcheckMode
+                                        onSelected: (val) => { NotesConfig.spellcheckMode = val; }
+                                    }
+                                }
+
+                                SchemaSwitchRow {
+                                    label: I18n.t("config.spellcheck.ignore_uppercase", "Ignorar MAYÚSCULAS")
+                                    comment: I18n.t("config.spellcheck.ignore_uppercase_comment", "No marcar siglas o palabras escritas completamente en mayúsculas.")
+                                    checked: SpellConfig.ignoreUppercase
+                                    isDisabled: !SpellConfig.enabled
+                                    onToggled: (v) => { SpellConfig.ignoreUppercase = v; }
+                                }
+
+                                SchemaSwitchRow {
+                                    label: I18n.t("config.spellcheck.ignore_digits", "Ignorar palabras con números")
+                                    comment: I18n.t("config.spellcheck.ignore_digits_comment", "No marcar códigos alfanuméricos que contengan dígitos (ej. v2, h1, utf8).")
+                                    checked: SpellConfig.ignoreWithDigits
+                                    isDisabled: !SpellConfig.enabled
+                                    onToggled: (v) => { SpellConfig.ignoreWithDigits = v; }
+                                }
+
+                                // Idiomas activos simultáneamente (Multi-idioma automático — copiado de LanguageManager.qml)
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 6
+
+                                    Text {
+                                        text: I18n.t("config.language.spell_active_title", "Idiomas activos (Detección simultánea)").toUpperCase()
+                                        color: Theme.muted
+                                        font {
+                                            pixelSize: Theme.fontSizeSmall
+                                            bold: true
+                                            letterSpacing: 1.2
+                                            family: Theme.fontFamily
+                                        }
+                                    }
+
+                                    Flow {
+                                        Layout.fillWidth: true
+                                        spacing: 8
+
+                                        Repeater {
+                                            model: (typeof SpellConfig !== "undefined" && SpellConfig.effectiveLanguages) ? SpellConfig.effectiveLanguages : ["es_AR"]
+                                            delegate: Rectangle {
+                                                required property string modelData
+                                                required property int index
+                                                implicitWidth: pillActiveTxt.implicitWidth + 20
+                                                implicitHeight: 26
+                                                radius: 13
+                                                color: pillHov.hovered
+                                                    ? root._hsva(Theme.accent, 0, 0.28)
+                                                    : root._hsva(Theme.accent, 0, 0.18)
+                                                border.color: root._hsva(Theme.accent, 0, 0.40)
+                                                border.width: 1
+
+                                                HoverHandler { id: pillHov }
+
+                                                Text {
+                                                    id: pillActiveTxt
+                                                    anchors.centerIn: parent
+                                                    text: (index === 0 ? "★ " : "✓ ") + modelData + (index === 0 ? " (" + I18n.t("config.language.spell_primary", "Principal") + ")" : "")
+                                                    color: Theme.accent
+                                                    font {
+                                                        pixelSize: Theme.fontSizeBodySecondary
+                                                        bold: true
+                                                        family: Theme.fontFamily
+                                                    }
+                                                }
+
+                                                MouseArea {
+                                                    anchors.fill: parent
+                                                    cursorShape: Qt.PointingHandCursor
+                                                    onClicked: SpellConfig.setPrimaryLanguage(modelData)
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // Buscador de diccionarios + botón Importar archivo
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 10
+                                    Layout.topMargin: 4
+
+                                    Rectangle {
+                                        id: dictSearchBox
+                                        Layout.fillWidth: true
+                                        Layout.preferredHeight: 36
+                                        radius: 8
+                                        color: root._hsva(Theme.surface, 0.04, 0.35)
+                                        border.color: dictSearchInput.activeFocus
+                                            ? root._hsva(Theme.accent, 0, 0.65)
+                                            : root._hsva(Theme.text, 0, 0.12)
+                                        border.width: 1
+
+                                        Behavior on border.color {
+                                            enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                                            ColorAnimation { duration: 150 }
+                                        }
+
+                                        Image {
+                                            id: dictSearchIcon
+                                            width: 14
+                                            height: 14
+                                            anchors.left: parent.left
+                                            anchors.leftMargin: 12
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            source: Theme.iconsPath + "search.svg"
+                                            sourceSize: Qt.size(14, 14)
+                                            opacity: 0.6
+                                            layer.enabled: !GamemodeService.gamemodeActive
+                                            layer.effect: MultiEffect {
+                                                colorization: 1.0
+                                                colorizationColor: Theme.muted
+                                            }
+                                        }
+
+                                        TextInput {
+                                            id: dictSearchInput
+                                            anchors {
+                                                left: dictSearchIcon.right
+                                                leftMargin: 8
+                                                right: dictClearBtn.visible ? dictClearBtn.left : parent.right
+                                                rightMargin: dictClearBtn.visible ? 6 : 12
+                                                top: parent.top
+                                                bottom: parent.bottom
+                                            }
+                                            verticalAlignment: TextInput.AlignVCenter
+                                            color: Theme.text
+                                            font {
+                                                family: Theme.fontFamily
+                                                pixelSize: Theme.fontSizeSubheading
+                                            }
+                                            clip: true
+                                            selectByMouse: true
+                                            CustomTextCursor {}
+                                            onTextChanged: root.spellDictSearchText = text
+
+                                            MouseArea {
+                                                anchors.fill: parent
+                                                acceptedButtons: Qt.RightButton
+                                                onClicked: (mouse) => {
+                                                    if (mouse.button === Qt.RightButton) {
+                                                        dictSearchInput.forceActiveFocus();
+                                                        sharedContextMenu.open(dictSearchInput);
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        Text {
+                                            text: I18n.t("config.language.spell_search_placeholder", "Buscar diccionario o código (ej. es_AR, en_US)...")
+                                            color: Theme.muted
+                                            font {
+                                                family: Theme.fontFamily
+                                                pixelSize: Theme.fontSizeSubheading
+                                                italic: true
+                                            }
+                                            anchors.fill: dictSearchInput
+                                            verticalAlignment: Text.AlignVCenter
+                                            visible: dictSearchInput.text === "" && !dictSearchInput.activeFocus
+                                            enabled: false
+                                        }
+
+                                        Rectangle {
+                                            id: dictClearBtn
+                                            width: 20
+                                            height: 20
+                                            radius: 10
+                                            anchors.right: parent.right
+                                            anchors.rightMargin: 8
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            visible: dictSearchInput.text !== ""
+                                            color: dictClearMa.containsMouse
+                                                ? root._hsva(Theme.text, 0, 0.18)
+                                                : root._hsva(Theme.text, 0, 0.08)
+
+                                            Text {
+                                                anchors.centerIn: parent
+                                                text: "✕"
+                                                color: Theme.muted
+                                                font {
+                                                    pixelSize: Theme.fontSizeSmall
+                                                    bold: true
+                                                    family: Theme.fontFamily
+                                                }
+                                            }
+
+                                            MouseArea {
+                                                id: dictClearMa
+                                                anchors.fill: parent
+                                                hoverEnabled: true
+                                                cursorShape: Qt.PointingHandCursor
+                                                onClicked: {
+                                                    dictSearchInput.text = "";
+                                                    dictSearchInput.forceActiveFocus();
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    // Botón Importar (.dic, .aff, .oxt, .zip)
+                                    Rectangle {
+                                        id: btnImportDict
+                                        implicitWidth: btnImportRow.implicitWidth + 24
+                                        implicitHeight: 36
+                                        radius: 8
+                                        color: maImport.pressed
+                                            ? root._hsva(Theme.accent, 0.18, 0.65)
+                                            : (hImport.hovered
+                                                ? root._hsva(Theme.accent, 0, 0.42)
+                                                : root._hsva(Theme.accent, 0, 0.28))
+                                        scale: maImport.pressed ? 0.96 : 1.0
+
+                                        Behavior on color {
+                                            enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                                            ColorAnimation { duration: 80 }
+                                        }
+                                        Behavior on scale {
+                                            enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                                            NumberAnimation { duration: 80; easing.type: Easing.OutCubic }
+                                        }
+
+                                        HoverHandler { id: hImport }
+
+                                        RowLayout {
+                                            id: btnImportRow
+                                            anchors.centerIn: parent
+                                            spacing: 6
+
+                                            Image {
+                                                width: 14
+                                                height: 14
+                                                source: Theme.iconsPath + "folder.svg"
+                                                sourceSize: Qt.size(14, 14)
+                                                layer.enabled: !GamemodeService.gamemodeActive
+                                                layer.effect: MultiEffect {
+                                                    colorization: 1.0
+                                                    colorizationColor: Theme.accent
+                                                }
+                                            }
+
+                                            Text {
+                                                text: I18n.t("config.language.spell_import_btn", "Importar archivo")
+                                                color: Theme.accent
+                                                font {
+                                                    pixelSize: Theme.fontSizeBody
+                                                    bold: true
+                                                    family: Theme.fontFamily
+                                                }
+                                            }
+                                        }
+
+                                        MouseArea {
+                                            id: maImport
+                                            anchors.fill: parent
+                                            cursorShape: Qt.PointingHandCursor
+                                            onClicked: {
+                                                if (!dictPickerProc.running) {
+                                                    dictPickerProc.running = true;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // Mensaje de estado (instalado / quitado / error)
+                                Rectangle {
+                                    visible: root.statusMessage !== ""
+                                    Layout.fillWidth: true
+                                    implicitHeight: 34
+                                    radius: 8
+                                    color: root.statusIsError
+                                        ? root._hsva(Theme.danger, 0, 0.16)
+                                        : root._hsva(Theme.success, 0, 0.16)
+                                    border.color: root.statusIsError
+                                        ? root._hsva(Theme.danger, 0, 0.40)
+                                        : root._hsva(Theme.success, 0, 0.40)
+                                    border.width: 1
+
+                                    Text {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        anchors.left: parent.left
+                                        anchors.leftMargin: 12
+                                        anchors.right: parent.right
+                                        anchors.rightMargin: 12
+                                        text: root.statusMessage
+                                        color: root.statusIsError ? Theme.danger : Theme.success
+                                        elide: Text.ElideRight
+                                        font {
+                                            pixelSize: Theme.fontSizeBody
+                                            bold: true
+                                            family: Theme.fontFamily
+                                        }
+                                    }
+                                }
+
+                                Text {
+                                    text: {
+                                        var q = root.spellDictSearchText.trim();
+                                        if (q !== "") {
+                                            return I18n.t("config.language.spell_results", "Resultados de búsqueda:") + " (" + dictColumnContainer.filteredDicts.length + ")";
+                                        }
+                                        return I18n.t("config.language.spell_recommended_hint", "Idiomas instalados y recomendados (escribe en el buscador para ver más de 30 idiomas)");
+                                    }
+                                    color: Theme.muted
+                                    Layout.fillWidth: true
+                                    font {
+                                        pixelSize: Theme.fontSizeBodySecondary
+                                        family: Theme.fontFamily
+                                        italic: (root.spellDictSearchText.trim() === "")
+                                    }
+                                }
+
+                                // Lista de Diccionarios (copiada de LanguageManager.qml)
+                                ColumnLayout {
+                                    id: dictColumnContainer
+                                    Layout.fillWidth: true
+                                    spacing: 6
+
+                                    readonly property var filteredDicts: {
+                                        var list = (typeof SpellService !== "undefined" && SpellService.installedDicts) ? SpellService.installedDicts : [];
+                                        var q = root.spellDictSearchText.trim().toLowerCase();
+                                        if (q !== "") {
+                                            return list.filter(function(d) {
+                                                var n = (d.name || "").toLowerCase();
+                                                var nat = (d.native || "").toLowerCase();
+                                                var c = (d.code || "").toLowerCase();
+                                                return n.indexOf(q) !== -1 || nat.indexOf(q) !== -1 || c.indexOf(q) !== -1;
+                                            });
+                                        }
+
+                                        var sysCode = (typeof SpellConfig !== "undefined" && SpellConfig.systemLocale) ? SpellConfig.systemLocale : "es_AR";
+                                        var sysBase = sysCode.split("_")[0].toLowerCase();
+                                        var baseRec = ["es_AR", "es_ES", "en_US", "en_GB", "pt_BR", "fr_FR", "de_DE", "it_IT"];
+
+                                        var result = [];
+                                        var seen = ({});
+
+                                        for (var i = 0; i < list.length; i++) {
+                                            if (list[i].installed) {
+                                                result.push(list[i]);
+                                                seen[list[i].code] = true;
+                                            }
+                                        }
+
+                                        var added = 0;
+                                        for (var j = 0; j < list.length; j++) {
+                                            var item = list[j];
+                                            if (seen[item.code]) continue;
+                                            var code = item.code;
+                                            var isRec = baseRec.indexOf(code) !== -1 || code.toLowerCase().startsWith(sysBase);
+                                            if (isRec && added < 4) {
+                                                result.push(item);
+                                                seen[code] = true;
+                                                added++;
+                                            }
+                                        }
+
+                                        return result;
+                                    }
+
+                                    Rectangle {
+                                        Layout.fillWidth: true
+                                        implicitHeight: 96
+                                        radius: 10
+                                        visible: dictColumnContainer.filteredDicts.length === 0
+                                        color: root._hsva(Theme.surface, 0.02, 0.35)
+                                        border.color: root._hsva(Theme.text, 0, 0.08)
+                                        border.width: 1
+
+                                        ColumnLayout {
+                                            anchors.centerIn: parent
+                                            spacing: 4
+
+                                            Text {
+                                                Layout.alignment: Qt.AlignHCenter
+                                                text: I18n.t("config.language.spell_no_match", "No se encontraron diccionarios")
+                                                color: Theme.muted
+                                                font {
+                                                    pixelSize: Theme.fontSizeBody
+                                                    bold: true
+                                                    family: Theme.fontFamily
+                                                }
+                                            }
+
+                                            Text {
+                                                Layout.alignment: Qt.AlignHCenter
+                                                text: I18n.t("config.language.spell_no_match_hint", "Puedes importar manualmente archivos .dic / .aff o .oxt")
+                                                color: Theme.muted
+                                                opacity: 0.75
+                                                font {
+                                                    pixelSize: Theme.fontSizeSmall
+                                                    family: Theme.fontFamily
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    Repeater {
+                                        id: dictRepeater
+                                        model: dictColumnContainer.filteredDicts
+                                        delegate: Rectangle {
+                                            id: dictRow
+                                            required property var modelData
+                                            Layout.fillWidth: true
+                                            implicitHeight: 52
+                                            radius: 10
+                                            color: dictRowHov.hovered
+                                                ? root._hsva(Theme.text, 0, 0.06)
+                                                : root._hsva(Theme.text, 0, 0.03)
+                                            border.color: dictRowHov.hovered
+                                                ? root._hsva(Theme.accent, 0, 0.30)
+                                                : root._hsva(Theme.text, 0, 0.08)
+                                            border.width: 1
+
+                                            Behavior on color {
+                                                enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                                                ColorAnimation { duration: 80 }
+                                            }
+                                            Behavior on border.color {
+                                                enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                                                ColorAnimation { duration: 80 }
+                                            }
+
+                                            HoverHandler { id: dictRowHov }
 
                                             RowLayout {
                                                 anchors.fill: parent
-                                                anchors.leftMargin: 12
-                                                anchors.rightMargin: 12
-                                                spacing: 10
+                                                anchors.leftMargin: 16
+                                                anchors.rightMargin: 16
+                                                spacing: 12
 
-                                                Text {
-                                                    text: modelData.name
-                                                    font.family: Theme.fontFamily
-                                                    font.pixelSize: Theme.fontSizeSmall
-                                                    font.bold: true
-                                                    color: Theme.text
-                                                }
+                                                ColumnLayout {
+                                                    Layout.fillWidth: true
+                                                    Layout.alignment: Qt.AlignLeft | Qt.AlignVCenter
+                                                    spacing: 2
 
-                                                Rectangle {
-                                                    Layout.preferredHeight: 18
-                                                    Layout.preferredWidth: langPillText.implicitWidth + 8
-                                                    radius: 4
-                                                    color: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.15)
                                                     Text {
-                                                        id: langPillText
-                                                        anchors.centerIn: parent
-                                                        text: modelData.code
-                                                        color: Theme.primary
-                                                        font.family: Theme.fontFamilyMonospace
-                                                        font.pixelSize: 10
-                                                        font.bold: true
+                                                        text: dictRow.modelData.name || dictRow.modelData.code
+                                                        color: Theme.text
+                                                        elide: Text.ElideRight
+                                                        Layout.fillWidth: true
+                                                        font {
+                                                            pixelSize: Theme.fontSizeSubheading
+                                                            bold: true
+                                                            family: Theme.fontFamily
+                                                        }
+                                                    }
+
+                                                    Text {
+                                                        text: dictRow.modelData.code + (dictRow.modelData.source === "system" ? " · " + I18n.t("config.language.spell_system", "Sistema") : "")
+                                                        color: Theme.muted
+                                                        font {
+                                                            pixelSize: Theme.fontSizeBodySecondary
+                                                            family: Theme.fontFamily
+                                                        }
                                                     }
                                                 }
 
-                                                Item { Layout.fillWidth: true }
+                                                RowLayout {
+                                                    Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
+                                                    spacing: 8
 
-                                                Text {
-                                                    text: parent.parent.isInstalled ? "✓ Instalado" : "Disponible"
-                                                    color: parent.parent.isInstalled ? Theme.success : Theme.muted
-                                                    font.pixelSize: Theme.fontSizeCaption
-                                                }
+                                                    // Badge "Instalado" o "Sistema"
+                                                    Rectangle {
+                                                        visible: Boolean(dictRow.modelData.installed)
+                                                        implicitWidth: pillInstTxt.implicitWidth + 20
+                                                        implicitHeight: 32
+                                                        radius: 8
+                                                        color: root._hsva(Theme.success, 0, 0.16)
+                                                        border.color: root._hsva(Theme.success, 0, 0.40)
+                                                        border.width: 1
 
-                                                Rectangle {
-                                                    Layout.preferredHeight: 26
-                                                    Layout.preferredWidth: 72
-                                                    radius: 6
-                                                    color: parent.parent.isInstalled ? Qt.rgba(Theme.danger.r, Theme.danger.g, Theme.danger.b, 0.15) : Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.15)
-
-                                                    Text {
-                                                        anchors.centerIn: parent
-                                                        text: parent.parent.parent.isInstalled ? "Eliminar" : "Instalar"
-                                                        color: parent.parent.parent.isInstalled ? Theme.danger : Theme.primary
-                                                        font.bold: true
-                                                        font.pixelSize: Theme.fontSizeCaption
+                                                        Text {
+                                                            id: pillInstTxt
+                                                            anchors.centerIn: parent
+                                                            text: dictRow.modelData.source === "system"
+                                                                ? "✓ " + I18n.t("config.language.spell_system", "Sistema")
+                                                                : "✓ " + I18n.t("config.language.spell_installed", "Instalado")
+                                                            color: Theme.success
+                                                            font {
+                                                                pixelSize: Theme.fontSizeBodySecondary
+                                                                bold: true
+                                                                family: Theme.fontFamily
+                                                            }
+                                                        }
                                                     }
 
-                                                    MouseArea {
-                                                        anchors.fill: parent
-                                                        cursorShape: Qt.PointingHandCursor
-                                                        onClicked: {
-                                                            if (parent.parent.isInstalled) {
-                                                                spellInstallProc.command = ["notas", "spell", "remove", modelData.code];
-                                                                spellInstallProc.running = true;
-                                                            } else {
-                                                                root.activeDownloadingLang = modelData.code;
-                                                                root.downloadProgress = 0.1;
-                                                                spellInstallProc.command = ["notas", "spell", "install", modelData.code];
+                                                    // Toggle Activo / Pausado
+                                                    Rectangle {
+                                                        id: btnToggleActive
+                                                        visible: Boolean(dictRow.modelData.installed)
+                                                        readonly property bool isLangActive: SpellConfig.isLanguageEnabled(dictRow.modelData.code)
+                                                        implicitWidth: lblToggleTxt.implicitWidth + 24
+                                                        implicitHeight: 32
+                                                        radius: 8
+                                                        color: maToggle.pressed
+                                                            ? (isLangActive ? root._hsva(Theme.accent, 0.18, 0.65) : root._hsva(Theme.text, 0, 0.16))
+                                                            : (hToggle.hovered
+                                                                ? (isLangActive ? root._hsva(Theme.accent, 0, 0.42) : root._hsva(Theme.text, 0, 0.10))
+                                                                : (isLangActive ? root._hsva(Theme.accent, 0, 0.28) : root._hsva(Theme.text, 0, 0.05)))
+                                                        scale: maToggle.pressed ? 0.96 : 1.0
+
+                                                        Behavior on color {
+                                                            enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                                                            ColorAnimation { duration: 80 }
+                                                        }
+                                                        Behavior on scale {
+                                                            enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                                                            NumberAnimation { duration: 80; easing.type: Easing.OutCubic }
+                                                        }
+
+                                                        HoverHandler { id: hToggle }
+
+                                                        Text {
+                                                            id: lblToggleTxt
+                                                            anchors.centerIn: parent
+                                                            text: btnToggleActive.isLangActive
+                                                                ? I18n.t("config.language.spell_active", "Activo")
+                                                                : I18n.t("config.language.spell_paused", "Pausado")
+                                                            color: btnToggleActive.isLangActive ? Theme.accent : Theme.muted
+                                                            font {
+                                                                pixelSize: Theme.fontSizeBody
+                                                                bold: true
+                                                                family: Theme.fontFamily
+                                                            }
+                                                        }
+
+                                                        MouseArea {
+                                                            id: maToggle
+                                                            anchors.fill: parent
+                                                            cursorShape: Qt.PointingHandCursor
+                                                            onClicked: SpellConfig.toggleLanguage(dictRow.modelData.code)
+                                                        }
+                                                    }
+
+                                                    // Botón Quitar (usa spellRemoveProc separado — nunca descarga!)
+                                                    Rectangle {
+                                                        id: btnRemove
+                                                        visible: Boolean(dictRow.modelData.installed) && dictRow.modelData.source !== "system"
+                                                        implicitWidth: lblRemTxt.implicitWidth + 28
+                                                        implicitHeight: 32
+                                                        radius: 8
+                                                        color: maRem.pressed
+                                                            ? root._hsva(Theme.color3, 0.18, 0.65)
+                                                            : (hRem.hovered
+                                                                ? root._hsva(Theme.color3, 0, 0.42)
+                                                                : root._hsva(Theme.color3, 0, 0.28))
+                                                        scale: maRem.pressed ? 0.96 : 1.0
+
+                                                        Behavior on color {
+                                                            enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                                                            ColorAnimation { duration: 80 }
+                                                        }
+                                                        Behavior on scale {
+                                                            enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                                                            NumberAnimation { duration: 80; easing.type: Easing.OutCubic }
+                                                        }
+
+                                                        HoverHandler { id: hRem }
+
+                                                        Text {
+                                                            id: lblRemTxt
+                                                            anchors.centerIn: parent
+                                                            text: I18n.t("config.language.spell_remove", "Quitar")
+                                                            color: Theme.color3
+                                                            font {
+                                                                pixelSize: Theme.fontSizeBody
+                                                                bold: true
+                                                                family: Theme.fontFamily
+                                                            }
+                                                        }
+
+                                                        MouseArea {
+                                                            id: maRem
+                                                            anchors.fill: parent
+                                                            cursorShape: Qt.PointingHandCursor
+                                                            onClicked: {
+                                                                if (!spellRemoveProc.running) {
+                                                                    root.statusIsError = false;
+                                                                    spellRemoveProc.command = [root.notasBin, "spell", "remove", dictRow.modelData.code];
+                                                                    spellRemoveProc.running = true;
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+
+                                                    // Barra de progreso animada durante la instalación
+                                                    Rectangle {
+                                                        id: installProgressBar
+                                                        visible: !dictRow.modelData.installed && (root.spellInstallingCode === dictRow.modelData.code)
+                                                        width: 132
+                                                        height: 32
+                                                        radius: 8
+                                                        clip: true
+                                                        color: root._hsva(Theme.text, 0, 0.08)
+                                                        border.color: root._hsva(Theme.accent, 0, 0.40)
+                                                        border.width: 1
+
+                                                        Rectangle {
+                                                            id: progressFill
+                                                            anchors.left: parent.left
+                                                            anchors.top: parent.top
+                                                            anchors.bottom: parent.bottom
+                                                            width: Math.max(8, Math.round(parent.width * (Math.min(100, Math.max(0, root.spellInstallProgress)) / 100.0)))
+                                                            radius: 8
+
+                                                            gradient: Gradient {
+                                                                orientation: Gradient.Horizontal
+                                                                GradientStop { position: 0.0; color: Theme.accent }
+                                                                GradientStop { position: 1.0; color: Theme.success }
+                                                            }
+
+                                                            Behavior on width {
+                                                                enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                                                                NumberAnimation { duration: 160; easing.type: Easing.OutCubic }
+                                                            }
+                                                        }
+
+                                                        Text {
+                                                            anchors.centerIn: parent
+                                                            text: root.spellInstallProgress + "%" + (root.spellInstallStage === "aff" ? " (reglas)" : " (vocabulario)")
+                                                            color: Theme.text
+                                                            font {
+                                                                pixelSize: Theme.fontSizeSmall
+                                                                bold: true
+                                                                family: Theme.fontFamily
+                                                            }
+                                                        }
+                                                    }
+
+                                                    // Botón Instalar
+                                                    Rectangle {
+                                                        id: btnInstall
+                                                        visible: !dictRow.modelData.installed && (root.spellInstallingCode !== dictRow.modelData.code)
+                                                        implicitWidth: lblInstTxt.implicitWidth + 28
+                                                        implicitHeight: 32
+                                                        radius: 8
+                                                        opacity: (root.spellInstallingCode !== "") ? 0.45 : 1.0
+                                                        color: maInst.pressed
+                                                            ? root._hsva(Theme.accent, 0.18, 0.65)
+                                                            : (hInst.hovered
+                                                                ? root._hsva(Theme.accent, 0, 0.42)
+                                                                : root._hsva(Theme.accent, 0, 0.28))
+                                                        scale: maInst.pressed ? 0.96 : 1.0
+
+                                                        Behavior on color {
+                                                            enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                                                            ColorAnimation { duration: 80 }
+                                                        }
+                                                        Behavior on scale {
+                                                            enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                                                            NumberAnimation { duration: 80; easing.type: Easing.OutCubic }
+                                                        }
+
+                                                        HoverHandler { id: hInst }
+
+                                                        Text {
+                                                            id: lblInstTxt
+                                                            anchors.centerIn: parent
+                                                            text: I18n.t("config.language.spell_install", "Instalar")
+                                                            color: Theme.accent
+                                                            font {
+                                                                pixelSize: Theme.fontSizeBody
+                                                                bold: true
+                                                                family: Theme.fontFamily
+                                                            }
+                                                        }
+
+                                                        MouseArea {
+                                                            id: maInst
+                                                            anchors.fill: parent
+                                                            enabled: root.spellInstallingCode === "" && !spellInstallProc.running
+                                                            cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                                                            onClicked: {
+                                                                root.statusIsError = false;
+                                                                root.spellInstallingCode = dictRow.modelData.code;
+                                                                root.spellInstallProgress = 5;
+                                                                root.spellInstallStage = "aff";
+                                                                spellInstallProc.command = [root.notasBin, "spell", "install", dictRow.modelData.code];
                                                                 spellInstallProc.running = true;
                                                             }
                                                         }
@@ -1133,11 +2297,12 @@ Item {
                             }
                         }
 
-                        // Diccionario Personal
+                        // Diccionario personal del usuario
                         BentoCard {
-                            implicitHeight: colPersonal.implicitHeight + 24
+                            visible: SpellService.personalWords && SpellService.personalWords.length > 0
+                            implicitHeight: colPersonalWords.implicitHeight + 28
                             ColumnLayout {
-                                id: colPersonal
+                                id: colPersonalWords
                                 anchors.fill: parent
                                 anchors.margins: 14
                                 spacing: 10
@@ -1146,25 +2311,33 @@ Item {
                                     Layout.fillWidth: true
                                     Text {
                                         Layout.fillWidth: true
-                                        text: "Diccionario Personal (" + (SpellBackend.personalWords ? SpellBackend.personalWords.length : 0) + " palabras)"
-                                        font.family: Theme.fontFamily
-                                        font.pixelSize: Theme.fontSizeSmall
-                                        font.bold: true
+                                        text: I18n.t("config.spellcheck.personal_dict", "Diccionario personal") + " (" + SpellService.personalWords.length + ")"
                                         color: Theme.text
+                                        font {
+                                            pixelSize: Theme.fontSizeSubheading
+                                            bold: true
+                                            family: Theme.fontFamily
+                                        }
                                     }
 
                                     Rectangle {
-                                        visible: SpellBackend.personalWords && SpellBackend.personalWords.length > 0
-                                        Layout.preferredHeight: 24
-                                        Layout.preferredWidth: 76
-                                        radius: 6
-                                        color: Qt.rgba(Theme.danger.r, Theme.danger.g, Theme.danger.b, 0.15)
+                                        implicitWidth: clearPersonalLbl.implicitWidth + 20
+                                        implicitHeight: 28
+                                        radius: 7
+                                        color: clearPersonalHov.hovered
+                                            ? root._hsva(Theme.color3, 0, 0.35)
+                                            : root._hsva(Theme.color3, 0, 0.20)
+                                        HoverHandler { id: clearPersonalHov }
                                         Text {
+                                            id: clearPersonalLbl
                                             anchors.centerIn: parent
-                                            text: "Borrar todo"
-                                            color: Theme.danger
-                                            font.pixelSize: Theme.fontSizeCaption
-                                            font.bold: true
+                                            text: I18n.t("config.spellcheck.clear_personal", "Vaciar")
+                                            color: Theme.color3
+                                            font {
+                                                pixelSize: Theme.fontSizeBodySecondary
+                                                bold: true
+                                                family: Theme.fontFamily
+                                            }
                                         }
                                         MouseArea {
                                             anchors.fill: parent
@@ -1176,34 +2349,41 @@ Item {
 
                                 Flow {
                                     Layout.fillWidth: true
-                                    spacing: 6
+                                    spacing: 8
+
                                     Repeater {
-                                        model: SpellBackend.personalWords || []
+                                        model: SpellService.personalWords
                                         delegate: Rectangle {
                                             required property string modelData
-                                            height: 24
-                                            width: wordRow.implicitWidth + 12
-                                            radius: 6
-                                            color: Theme.surfaceHover
-                                            border.color: Theme.border
+                                            implicitWidth: chipRow.implicitWidth + 18
+                                            implicitHeight: 26
+                                            radius: 13
+                                            color: root._hsva(Theme.text, 0, 0.06)
+                                            border.color: root._hsva(Theme.text, 0, 0.12)
                                             border.width: 1
 
                                             RowLayout {
-                                                id: wordRow
+                                                id: chipRow
                                                 anchors.centerIn: parent
                                                 spacing: 6
 
                                                 Text {
                                                     text: modelData
                                                     color: Theme.text
-                                                    font.family: Theme.fontFamily
-                                                    font.pixelSize: Theme.fontSizeCaption
+                                                    font {
+                                                        pixelSize: Theme.fontSizeBodySecondary
+                                                        family: Theme.fontFamily
+                                                    }
                                                 }
 
                                                 Text {
                                                     text: "✕"
                                                     color: Theme.muted
-                                                    font.pixelSize: 10
+                                                    font {
+                                                        pixelSize: Theme.fontSizeSmall
+                                                        bold: true
+                                                        family: Theme.fontFamily
+                                                    }
                                                     MouseArea {
                                                         anchors.fill: parent
                                                         anchors.margins: -4
@@ -1219,7 +2399,9 @@ Item {
                         }
                     }
 
-                    // ── PESTAÑA 3: ACERCA DE ──────────────────────────────
+                    // ══════════════════════════════════════════════════════
+                    // PESTAÑA 3: ACERCA DE
+                    // ══════════════════════════════════════════════════════
                     ColumnLayout {
                         id: tabAbout
                         visible: root.tabIndex === 3
@@ -1227,7 +2409,7 @@ Item {
                         spacing: 12
 
                         BentoCard {
-                            implicitHeight: colAppInfo.implicitHeight + 24
+                            implicitHeight: colAppInfo.implicitHeight + 28
                             ColumnLayout {
                                 id: colAppInfo
                                 anchors.fill: parent
@@ -1237,7 +2419,8 @@ Item {
                                 RowLayout {
                                     spacing: 16
                                     Rectangle {
-                                        width: 60; height: 60
+                                        width: 60
+                                        height: 60
                                         radius: 14
                                         color: Theme.surfaceHover
                                         border.color: Theme.border
@@ -1245,7 +2428,8 @@ Item {
 
                                         Image {
                                             anchors.centerIn: parent
-                                            width: 44; height: 44
+                                            width: 44
+                                            height: 44
                                             source: "qrc:/qt/qml/Notas/assets/icons/dev.criperto.Notas.svg"
                                             sourceSize: Qt.size(44, 44)
                                         }
@@ -1271,14 +2455,14 @@ Item {
                                             font.family: Theme.fontFamily
                                             font.pixelSize: Theme.fontSizeSmall
                                             font.bold: true
-                                            color: Theme.primary
+                                            color: Theme.accent
                                         }
                                     }
                                 }
 
                                 Text {
                                     Layout.fillWidth: true
-                                    text: "Aplicación nativa de notas en Markdown con editor tipográfico de bloques, previsualización en vivo Typora-style, diagrama Mermaid interactivo, soporte ortográfico multilingüe Hunspell y persistencia segura en disco."
+                                    text: "Aplicación nativa de notas en Markdown con editor tipográfico de bloques, previsualización en vivo estilo Typora, diagramas Mermaid interactivos, corrección ortográfica multilingüe Hunspell y persistencia atómica en disco."
                                     font.family: Theme.fontFamily
                                     font.pixelSize: Theme.fontSizeBody
                                     color: Theme.text
@@ -1288,7 +2472,7 @@ Item {
                         }
 
                         BentoCard {
-                            implicitHeight: colPaths.implicitHeight + 24
+                            implicitHeight: colPaths.implicitHeight + 28
                             ColumnLayout {
                                 id: colPaths
                                 anchors.fill: parent
@@ -1298,22 +2482,22 @@ Item {
                                 Text {
                                     text: "Rutas y Archivos del Sistema"
                                     font.family: Theme.fontFamily
-                                    font.pixelSize: Theme.fontSizeSmall
+                                    font.pixelSize: Theme.fontSizeSubheading
                                     font.bold: true
                                     color: Theme.text
                                 }
 
                                 Text {
-                                    text: "• Configuración: ~/.config/notas/config.toml\n• Diccionarios: ~/.local/share/notas/dictionaries/\n• Scripts auxiliares: ~/.local/share/notas/scripts/\n• Socket IPC: $XDG_RUNTIME_DIR/notas.sock"
+                                    text: "• Configuración: ~/.config/notas/config.json\n• Diccionarios Hunspell: ~/.local/share/notas/dictionaries/\n• Diccionario personal: ~/.config/notas/personal.dic\n• Socket IPC: $XDG_RUNTIME_DIR/notas.sock"
                                     font.family: Theme.fontFamilyMonospace
-                                    font.pixelSize: Theme.fontSizeCaption
+                                    font.pixelSize: Theme.fontSizeBodySecondary
                                     color: Theme.muted
                                 }
                             }
                         }
 
                         BentoCard {
-                            implicitHeight: colShortcuts.implicitHeight + 24
+                            implicitHeight: colShortcuts.implicitHeight + 28
                             ColumnLayout {
                                 id: colShortcuts
                                 anchors.fill: parent
@@ -1323,7 +2507,7 @@ Item {
                                 Text {
                                     text: "Atajos de Teclado Principales"
                                     font.family: Theme.fontFamily
-                                    font.pixelSize: Theme.fontSizeSmall
+                                    font.pixelSize: Theme.fontSizeSubheading
                                     font.bold: true
                                     color: Theme.text
                                 }
@@ -1332,16 +2516,16 @@ Item {
                                     Layout.fillWidth: true
                                     Text {
                                         Layout.fillWidth: true
-                                        text: "Ctrl+N : Nueva nota\nCtrl+F : Buscar notas / Buscar en texto\nCtrl+, : Configuración\nCtrl+Q : Salir"
+                                        text: "Ctrl+N : Nueva nota\nCtrl+F : Buscar notas / en nota\nCtrl+, : Configuración\nCtrl+Q : Salir"
                                         font.family: Theme.fontFamilyMonospace
-                                        font.pixelSize: Theme.fontSizeCaption
+                                        font.pixelSize: Theme.fontSizeBodySecondary
                                         color: Theme.text
                                     }
                                     Text {
                                         Layout.fillWidth: true
-                                        text: "Ctrl+B : Negrita\nCtrl+I : Cursiva\nCtrl+K : Insertar enlace\nEsc : Cerrar nota / editor"
+                                        text: "Ctrl+B / Ctrl+I : Negrita / Cursiva\nCtrl+K : Insertar enlace\nF7 : Alternar corrector ortográfico\nEsc : Cerrar nota / diálogo"
                                         font.family: Theme.fontFamilyMonospace
-                                        font.pixelSize: Theme.fontSizeCaption
+                                        font.pixelSize: Theme.fontSizeBodySecondary
                                         color: Theme.text
                                     }
                                 }
@@ -1361,5 +2545,9 @@ Item {
                 }
             }
         }
+    }
+
+    ContextMenu {
+        id: sharedContextMenu
     }
 }

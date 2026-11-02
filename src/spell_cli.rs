@@ -73,7 +73,7 @@ pub fn notify_change() {
     }
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_secs())
+        .map(|d| d.as_millis())
         .unwrap_or(1);
     let _ = fs::write(stamp, now.to_string());
 }
@@ -87,7 +87,6 @@ pub fn get_system_dict_dirs() -> Vec<PathBuf> {
     let home = std::env::var("HOME").unwrap_or_default();
     if !home.is_empty() {
         dirs.push(PathBuf::from(format!("{}/.local/share/hunspell", home)));
-        dirs.push(PathBuf::from(format!("{}/.config/quickshell/languages/spellcheck/dicts", home)));
     }
     dirs
 }

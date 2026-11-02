@@ -89,18 +89,49 @@ QtObject {
         if (ConfigBackend.cyclePreviewImages !== cyclePreviewImages) ConfigBackend.cyclePreviewImages = cyclePreviewImages;
     }
 
-    property int cardsPerRow: 3
-    property string importMode: "copy"
+    property int cardsPerRow: (ConfigBackend && ConfigBackend.cardsPerRow >= 2 && ConfigBackend.cardsPerRow <= 5) ? ConfigBackend.cardsPerRow : 3
+    onCardsPerRowChanged: {
+        if (ConfigBackend.cardsPerRow !== cardsPerRow) ConfigBackend.cardsPerRow = cardsPerRow;
+    }
+
+    property string importMode: (ConfigBackend && ConfigBackend.importMode) ? ConfigBackend.importMode : "copy"
+    onImportModeChanged: {
+        if (ConfigBackend.importMode !== importMode) ConfigBackend.importMode = importMode;
+    }
 
     property int editorZoom: (ConfigBackend && ConfigBackend.editorZoom >= 50) ? ConfigBackend.editorZoom : 100 // editorZoom: 100
     onEditorZoomChanged: {
         if (ConfigBackend.editorZoom !== editorZoom) ConfigBackend.editorZoom = editorZoom;
     }
 
-    property string spellcheckMode: ConfigBackend.spellCheckEnabled ? "auto" : "off"
+    property string spellcheckMode: (ConfigBackend && ConfigBackend.spellcheckMode) ? ConfigBackend.spellcheckMode : "auto"
     onSpellcheckModeChanged: {
-        var enabled = (spellcheckMode !== "off");
-        if (ConfigBackend.spellCheckEnabled !== enabled) ConfigBackend.spellCheckEnabled = enabled;
+        if (ConfigBackend.spellcheckMode !== spellcheckMode) ConfigBackend.spellcheckMode = spellcheckMode;
+    }
+
+    property var _cfgSync: Connections {
+        target: (typeof ConfigBackend !== "undefined") ? ConfigBackend : null
+        function onNotasDirChanged() {
+            if (root.notesDir !== ConfigBackend.notasDir) root.notesDir = ConfigBackend.notasDir;
+        }
+        function onShowImagePreviewsChanged() {
+            if (root.showImagePreviews !== ConfigBackend.showImagePreviews) root.showImagePreviews = ConfigBackend.showImagePreviews;
+        }
+        function onCyclePreviewImagesChanged() {
+            if (root.cyclePreviewImages !== ConfigBackend.cyclePreviewImages) root.cyclePreviewImages = ConfigBackend.cyclePreviewImages;
+        }
+        function onCardsPerRowChanged() {
+            if (root.cardsPerRow !== ConfigBackend.cardsPerRow) root.cardsPerRow = ConfigBackend.cardsPerRow;
+        }
+        function onImportModeChanged() {
+            if (root.importMode !== ConfigBackend.importMode) root.importMode = ConfigBackend.importMode;
+        }
+        function onEditorZoomChanged() {
+            if (root.editorZoom !== ConfigBackend.editorZoom) root.editorZoom = ConfigBackend.editorZoom;
+        }
+        function onSpellcheckModeChanged() {
+            if (root.spellcheckMode !== ConfigBackend.spellcheckMode) root.spellcheckMode = ConfigBackend.spellcheckMode;
+        }
     }
 
     function postApply(raw) {

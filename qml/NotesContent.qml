@@ -2563,10 +2563,7 @@ Item {
     property var _pickedImportPaths: []
 
     function _resolvePortalPickerPath() {
-        var base = Quickshell.shellDir ? Quickshell.shellDir.toString().replace("file://", "") : "";
-        if (base.endsWith("/notes")) base = base.substring(0, base.length - 6);
-        if (base !== "") return base + "/bin/qs-helper";
-        return (Quickshell.env("HOME") || "") + "/.config/quickshell/bin/qs-helper";
+        return (typeof Sys !== "undefined" && Sys.appExecutable) ? Sys.appExecutable : "notas";
     }
 
     function openImportFilePicker() {

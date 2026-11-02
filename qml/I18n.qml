@@ -1,16 +1,45 @@
 pragma Singleton
 import QtQuick
+import Notas
 import "I18nCatalogs.js" as Catalogs
 
 QtObject {
     id: root
 
-    property string currentLanguage: "es_ar"
+    function _resolveCatalogCode(raw) {
+        if (!raw || typeof raw !== "string") return "es_ar";
+        var norm = raw.trim().split(".")[0].split("@")[0].toLowerCase().replace("-", "_");
+        if (!norm || norm === "auto") return "";
+        if (Catalogs.catalogs[norm]) return norm;
+        var base = norm.split("_")[0];
+        if (base === "es") return "es_ar";
+        if (Catalogs.catalogs[base]) return base;
+        return "es_ar";
+    }
+
+    readonly property string configuredLanguage: (typeof ConfigBackend !== "undefined" && ConfigBackend.language) ? ConfigBackend.language : "auto"
+
+    readonly property string currentLanguage: {
+        if (configuredLanguage && configuredLanguage !== "auto") {
+            var explicit = _resolveCatalogCode(configuredLanguage);
+            if (explicit) return explicit;
+        }
+        var sys = (typeof SpellConfig !== "undefined" && SpellConfig.systemLocale)
+            ? SpellConfig.systemLocale
+            : ((typeof Sys !== "undefined") ? Sys.env("LANG", "es_AR") : "es_AR");
+        var resolved = _resolveCatalogCode(sys);
+        return resolved || "es_ar";
+    }
+
     readonly property var availableLanguages: Catalogs.meta.languages || []
 
     function setLanguage(lang) {
-        if (!lang || lang === currentLanguage) return;
-        currentLanguage = lang;
+        if (typeof ConfigBackend !== "undefined") {
+            var next = lang || "auto";
+            if (ConfigBackend.language !== next) {
+                ConfigBackend.language = next;
+            }
+        }
     }
 
     function _lookup(obj, parts) {

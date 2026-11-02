@@ -18,6 +18,10 @@ ln -sf "$SCRIPT_DIR/scripts/docx-to-md.py" "$HOME/.local/share/notas/scripts/doc
 if [[ -f "$SCRIPT_DIR/assets/spellcheck/catalog.json" ]]; then
     ln -sf "$SCRIPT_DIR/assets/spellcheck/catalog.json" "$HOME/.local/share/notas/catalog.json"
 fi
+if [[ ! -f "$HOME/.local/share/notas/dictionaries/.dicts_stamp" ]] && [[ -d "$HOME/.config/quickshell/languages/spellcheck/dicts" ]]; then
+    cp -n "$HOME/.config/quickshell/languages/spellcheck/dicts/"*.{aff,dic} "$HOME/.local/share/notas/dictionaries/" 2>/dev/null || true
+    date +%s > "$HOME/.local/share/notas/dictionaries/.dicts_stamp"
+fi
 
 # 2. Binario
 BIN_SRC=""

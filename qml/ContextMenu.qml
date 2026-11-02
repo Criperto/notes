@@ -1,386 +1,1395 @@
 import QtQuick
-import QtQuick.Controls.Basic
+import QtQuick.Window
 import QtQuick.Layouts
+import QtQuick.Effects
 import Notas
 
-Popup {
-    id: root
+Item {
+    id: menuWindow
+    visible: false
+    x: 0
+    y: 0
+    width: parent ? parent.width : 1080
+    height: parent ? parent.height : 760
+    z: 100000
 
     property var target: null
     property var extraItems: []
     signal extraItemTriggered(var item)
+    property real menuX: 0
+    property real menuY: 0
+    property real anchorX: 0
+    property real anchorY: 0
+    property bool flipH: false
+    property bool flipV: false
+    property bool isExpanded: false
+    property bool isClosing: false
+    readonly property real targetMenuWidth: 272
+    readonly property real targetMenuHeight: menuLayout.implicitHeight + 12
+    readonly property int windowRadius: (typeof HyprlandConfig !== "undefined" && HyprlandConfig.rounding >= 0) ? HyprlandConfig.rounding : 12
+    readonly property real edgeMargin: Math.max(8, (typeof HyprlandConfig !== "undefined" && HyprlandConfig.gapsOut > 0) ? HyprlandConfig.gapsOut : 10)
 
-    padding: 6
-    closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutsideParent | Popup.CloseOnPressOutside
-    dim: false
+    property int highlightedNavIndex: -1
 
-    background: Rectangle {
-        radius: 10
-        color: Theme.surface
-        border.color: Theme.border
-        border.width: 1
+    function _resolveHost(targetInput) {
+        if (targetInput && targetInput.Window && targetInput.Window.contentItem) {
+            return targetInput.Window.contentItem;
+        }
+        if (menuWindow.Window && menuWindow.Window.contentItem) {
+            return menuWindow.Window.contentItem;
+        }
+        return menuWindow.parent;
     }
 
-    enter: Transition {
-        NumberAnimation {
-            property: "opacity"
-            from: 0.0
-            to: 1.0
-            duration: Theme.animationsEnabled ? 120 : 0
-            easing.type: Easing.OutQuad
+    function _ensureHosted(targetInput) {
+        var host = _resolveHost(targetInput);
+        if (host && menuWindow.parent !== host) {
+            menuWindow.parent = host;
         }
-    }
-
-    exit: Transition {
-        NumberAnimation {
-            property: "opacity"
-            from: 1.0
-            to: 0.0
-            duration: Theme.animationsEnabled ? 90 : 0
-            easing.type: Easing.InQuad
-        }
-    }
-
-    function openAt(targetInput, xPos, yPos, customItems) {
-        target = targetInput;
-        extraItems = (customItems && Array.isArray(customItems)) ? customItems : [];
-
-        var win = target ? (target.Window ? target.Window.contentItem : null) : null;
-        if (!win && typeof Overlay !== "undefined" && Overlay.overlay) {
-            win = Overlay.overlay;
-        }
-
-        var posX = 0;
-        var posY = 0;
-
-        if (target && win && typeof xPos === "number" && typeof yPos === "number") {
-            var pt = target.mapToItem(win, xPos, yPos);
-            posX = pt.x;
-            posY = pt.y;
-        } else if (typeof Sys !== "undefined" && Sys.lastMouseX > 0) {
-            posX = Sys.lastMouseX;
-            posY = Sys.lastMouseY;
-        } else if (target && win) {
-            var rx = 0;
-            var ry = 0;
-            if (target.cursorRectangle) {
-                rx = target.cursorRectangle.x;
-                ry = target.cursorRectangle.y + (target.cursorRectangle.height || 20);
-            } else {
-                ry = target.height || 24;
-            }
-            var ptCursor = target.mapToItem(win, rx, ry);
-            posX = ptCursor.x;
-            posY = ptCursor.y;
-        }
-
-        if (win) {
-            parent = win;
-            x = Math.max(8, Math.min(posX, win.width - 230));
-            y = Math.max(8, Math.min(posY, win.height - 300));
-        }
-
-        root.visible = true;
+        return host;
     }
 
     function open(targetInput, customItems) {
-        if (!targetInput && !target) return;
-        openAt(targetInput || target, undefined, undefined, customItems);
+        if (!targetInput) return;
+        closeTimer.stop();
+        isClosing = false;
+        highlightedNavIndex = -1;
+        target = targetInput;
+        extraItems = (customItems && Array.isArray(customItems)) ? customItems : [];
+        _ensureHosted(targetInput);
+
+        var gx = (typeof Sys !== "undefined") ? Sys.lastMouseX : 120;
+        var gy = (typeof Sys !== "undefined") ? Sys.lastMouseY : 120;
+        _applyCoordinates(gx, gy);
     }
 
-    function openAtTextCursor(targetInput, customItems) {
-        var tgt = targetInput || target;
-        if (!tgt) return;
-        var r = tgt.cursorRectangle || { x: 10, y: 20, height: 20 };
-        openAt(tgt, r.x, r.y + (r.height || 20) + 4, customItems);
+    function openAt(targetInput, xPos, yPos, customItems) {
+        if (!targetInput) return;
+        closeTimer.stop();
+        isClosing = false;
+        highlightedNavIndex = -1;
+        target = targetInput;
+        extraItems = (customItems && Array.isArray(customItems)) ? customItems : [];
+        var host = _ensureHosted(targetInput);
+
+        var cx = (typeof Sys !== "undefined") ? Sys.lastMouseX : 120;
+        var cy = (typeof Sys !== "undefined") ? Sys.lastMouseY : 120;
+        if (host && typeof xPos === "number" && typeof yPos === "number") {
+            var pt = targetInput.mapToItem(host, xPos, yPos);
+            cx = pt.x;
+            cy = pt.y;
+        }
+        _applyCoordinates(cx, cy);
+    }
+
+    function getActionableItems() {
+        var list = [];
+        if (extraItems && Array.isArray(extraItems)) {
+            for (var i = 0; i < extraItems.length; i++) {
+                var it = extraItems[i];
+                if (!it || it.kind === "separator" || it.kind === "header") continue;
+                if (it.enabled === false) continue;
+                (function(itemObj, itemIndex) {
+                    list.push({
+                        type: "extra",
+                        index: itemIndex,
+                        trigger: function() {
+                            if (typeof itemObj.onTriggered === "function") {
+                                itemObj.onTriggered();
+                            } else if (typeof itemObj.triggered === "function") {
+                                itemObj.triggered();
+                            }
+                            menuWindow.extraItemTriggered(itemObj);
+                            menuWindow.close();
+                        }
+                    });
+                })(it, i);
+            }
+        }
+        if (target && !target.readOnly && target.canUndo) {
+            list.push({ type: "standard", id: "undo", trigger: function() { if (target) target.undo(); menuWindow.close(); } });
+        }
+        if (target && !target.readOnly && target.canRedo) {
+            list.push({ type: "standard", id: "redo", trigger: function() { if (target) target.redo(); menuWindow.close(); } });
+        }
+        if (target && !target.readOnly && target.selectedText !== "") {
+            list.push({ type: "standard", id: "cut", trigger: function() { if (target) target.cut(); menuWindow.close(); } });
+        }
+        if (target && target.selectedText !== "") {
+            list.push({ type: "standard", id: "copy", trigger: function() { if (target) target.copy(); menuWindow.close(); } });
+        }
+        if (target && !target.readOnly && target.canPaste) {
+            list.push({ type: "standard", id: "paste", trigger: function() { if (target) target.paste(); menuWindow.close(); } });
+        }
+        if (target && !target.readOnly && target.selectedText !== "") {
+            list.push({ type: "standard", id: "delete", trigger: function() { if (target) target.remove(target.selectionStart, target.selectionEnd); menuWindow.close(); } });
+        }
+        if (target && target.text !== "") {
+            list.push({ type: "standard", id: "selectAll", trigger: function() { if (target) target.selectAll(); menuWindow.close(); } });
+        }
+        return list;
+    }
+
+    function isItemHighlighted(type, idOrIndex) {
+        if (highlightedNavIndex < 0) return false;
+        var items = getActionableItems();
+        if (highlightedNavIndex >= items.length) return false;
+        var cur = items[highlightedNavIndex];
+        if (!cur) return false;
+        if (cur.type !== type) return false;
+        if (type === "extra") return cur.index === idOrIndex;
+        return cur.id === idOrIndex;
+    }
+
+    function selectNextItem() {
+        var items = getActionableItems();
+        if (items.length === 0) {
+            highlightedNavIndex = -1;
+            return;
+        }
+        if (highlightedNavIndex < 0) {
+            highlightedNavIndex = 0;
+        } else {
+            highlightedNavIndex = (highlightedNavIndex + 1) % items.length;
+        }
+    }
+
+    function selectPreviousItem() {
+        var items = getActionableItems();
+        if (items.length === 0) {
+            highlightedNavIndex = -1;
+            return;
+        }
+        if (highlightedNavIndex <= 0) {
+            highlightedNavIndex = items.length - 1;
+        } else {
+            highlightedNavIndex = (highlightedNavIndex - 1) % items.length;
+        }
+    }
+
+    function triggerSelectedItem() {
+        var items = getActionableItems();
+        if (highlightedNavIndex >= 0 && highlightedNavIndex < items.length) {
+            items[highlightedNavIndex].trigger();
+            return true;
+        }
+        return false;
     }
 
     function toggleAtTextCursor(targetInput, customItems) {
-        if (root.visible) {
-            root.close();
+        if (visible && !isClosing) {
+            close();
         } else {
             openAtTextCursor(targetInput, customItems);
+            highlightedNavIndex = 0;
         }
     }
 
-    contentItem: ColumnLayout {
-        spacing: 2
-        width: 220
+    function openAtTextCursor(targetInput, customItems) {
+        if (!targetInput) return;
+        closeTimer.stop();
+        isClosing = false;
+        highlightedNavIndex = -1;
+        target = targetInput;
+        extraItems = (customItems && Array.isArray(customItems)) ? customItems : [];
 
-        // Extra items (sugerencias ortográficas, acciones de bloque, etc.)
-        Repeater {
-            model: root.extraItems
-            delegate: Item {
-                required property var modelData
-                Layout.fillWidth: true
-                Layout.preferredHeight: {
-                    if (modelData.kind === "separator") return 7;
-                    if (modelData.kind === "header") return 22;
-                    return 30;
+        var host = _ensureHosted(targetInput);
+        var curPos = (typeof targetInput.cursorPosition === "number") ? targetInput.cursorPosition : 0;
+        var rect = (typeof targetInput.positionToRectangle === "function") ? targetInput.positionToRectangle(curPos) : Qt.rect(0, 0, 0, 20);
+        var pt = targetInput.mapToItem(host, rect.x, rect.y + rect.height);
+        _applyCoordinates(pt.x, pt.y);
+    }
+
+    function closeMenu() {
+        close();
+    }
+
+    function close() {
+        if (!visible || isClosing) return;
+        highlightedNavIndex = -1;
+        if (!Theme.animationsEnabled || GamemodeService.gamemodeActive) {
+            forceClose();
+            return;
+        }
+        isClosing = true;
+        isExpanded = false;
+        closeTimer.restart();
+    }
+
+    function forceClose() {
+        closeTimer.stop();
+        isClosing = false;
+        isExpanded = false;
+        visible = false;
+        target = null;
+        extraItems = [];
+        highlightedNavIndex = -1;
+    }
+
+    Timer {
+        id: closeTimer
+        interval: 280
+        repeat: false
+        onTriggered: {
+            menuWindow.visible = false;
+            menuWindow.target = null;
+            menuWindow.isClosing = false;
+            menuWindow.extraItems = [];
+            menuWindow.highlightedNavIndex = -1;
+        }
+    }
+
+    Shortcut {
+        enabled: menuWindow.visible && !menuWindow.isClosing
+        sequence: "Escape"
+        onActivated: menuWindow.close()
+    }
+
+    Connections {
+        target: menuWindow.target && menuWindow.target.Window && menuWindow.target.Window.window ? menuWindow.target.Window.window : null
+        enabled: menuWindow.target !== null && menuWindow.target.Window !== undefined && menuWindow.target.Window.window !== null
+        ignoreUnknownSignals: true
+
+        function onActiveChanged() {
+            if (menuWindow.target && menuWindow.target.Window.window && !menuWindow.target.Window.window.active) {
+                menuWindow.forceClose();
+            }
+        }
+        function onVisibleChanged() {
+            if (menuWindow.target && menuWindow.target.Window.window && !menuWindow.target.Window.window.visible) {
+                menuWindow.forceClose();
+            }
+        }
+    }
+
+    Connections {
+        target: menuWindow.target
+        enabled: menuWindow.target !== null
+        ignoreUnknownSignals: true
+
+        function onVisibleChanged() {
+            if (menuWindow.target && !menuWindow.target.visible) {
+                menuWindow.forceClose();
+            }
+        }
+    }
+
+    function _applyCoordinates(cx, cy) {
+        var screenWidth = menuWindow.width > 0 ? menuWindow.width : 1080;
+        var screenHeight = menuWindow.height > 0 ? menuWindow.height : 760;
+
+        var menuWidth = menuWindow.targetMenuWidth;
+        var menuHeight = menuWindow.targetMenuHeight;
+        var margin = menuWindow.edgeMargin;
+
+        // Detección horizontal adaptativa:
+        var canRight = (cx + menuWidth + margin <= screenWidth);
+        var canLeft = (cx - menuWidth - margin >= 0);
+        var shouldFlipH = false;
+
+        if (!canRight) {
+            if (canLeft) {
+                shouldFlipH = true;
+            } else {
+                shouldFlipH = (cx > (screenWidth - cx));
+            }
+        } else {
+            shouldFlipH = false;
+        }
+
+        // Detección vertical adaptativa:
+        var canDown = (cy + menuHeight + margin <= screenHeight);
+        var canUp = (cy - menuHeight - margin >= 0);
+        var shouldFlipV = false;
+
+        if (!canDown) {
+            if (canUp) {
+                shouldFlipV = true;
+            } else {
+                shouldFlipV = (cy > (screenHeight - cy));
+            }
+        } else {
+            shouldFlipV = false;
+        }
+
+        menuWindow.flipH = shouldFlipH;
+        menuWindow.flipV = shouldFlipV;
+
+        if (!shouldFlipH) {
+            menuWindow.anchorX = Math.max(margin, Math.min(screenWidth - menuWidth - margin, cx));
+        } else {
+            menuWindow.anchorX = Math.max(margin + menuWidth, Math.min(screenWidth - margin, cx));
+        }
+
+        if (!shouldFlipV) {
+            menuWindow.anchorY = Math.max(margin, Math.min(screenHeight - menuHeight - margin, cy));
+        } else {
+            menuWindow.anchorY = Math.max(margin + menuHeight, Math.min(screenHeight - margin, cy));
+        }
+
+        menuWindow.menuX = shouldFlipH ? (menuWindow.anchorX - menuWidth) : menuWindow.anchorX;
+        menuWindow.menuY = shouldFlipV ? (menuWindow.anchorY - menuHeight) : menuWindow.anchorY;
+
+        if (!Theme.animationsEnabled || GamemodeService.gamemodeActive) {
+            menuWindow.isExpanded = true;
+            menuWindow.visible = true;
+        } else {
+            menuWindow.isExpanded = false;
+            menuWindow.visible = true;
+            Qt.callLater(function() {
+                menuWindow.isExpanded = true;
+            });
+        }
+    }
+
+    MouseArea {
+        anchors.fill: parent
+        acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
+        onClicked: menuWindow.close()
+    }
+
+    Rectangle {
+        id: menuBox
+        x: menuWindow.flipH ? (menuWindow.anchorX - width) : menuWindow.anchorX
+        y: menuWindow.flipV ? (menuWindow.anchorY - height) : menuWindow.anchorY
+        width: menuWindow.isExpanded ? menuWindow.targetMenuWidth : 1
+        height: menuWindow.isExpanded ? menuWindow.targetMenuHeight : 1
+        radius: menuWindow.windowRadius
+        opacity: menuWindow.isExpanded ? 1.0 : 0.0
+
+        Behavior on width {
+            enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+            SpringAnimation {
+                spring:  10.00
+                damping: 0.65
+                mass:    1.00
+                epsilon: 1.00
+            }
+        }
+        Behavior on height {
+            enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+            SpringAnimation {
+                spring:  10.00
+                damping: 0.65
+                mass:    1.00
+                epsilon: 1.00
+            }
+        }
+        Behavior on radius {
+            enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+            SpringAnimation {
+                spring:  10.00
+                damping: 0.65
+                mass:    1.00
+                epsilon: 1.00
+            }
+        }
+        Behavior on opacity {
+            enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+            NumberAnimation {
+                duration: menuWindow.isExpanded ? 160 : 120
+                easing.type: Easing.OutCubic
+            }
+        }
+
+        color: {
+            var opacityVal = 0.94;
+            if (GamemodeService.gamemodeActive) {
+                opacityVal = 1.0;
+            }
+            var hue = Theme.surface ? (Theme.surface.hsvHue < 0 ? 0 : Theme.surface.hsvHue) : 0;
+            var sat = Theme.surface ? Theme.surface.hsvSaturation : 0;
+            var val = Theme.surface ? Math.min(1, Theme.surface.hsvValue + 0.05) : 0.2;
+            return Qt.hsva(hue, sat, val, opacityVal);
+        }
+        border.color: Qt.hsva(Theme.text.hsvHue < 0 ? 0 : Theme.text.hsvHue, Theme.text.hsvSaturation, Theme.text.hsvValue, 0.1)
+        border.width: 1
+
+        // Consumir clics en el fondo de la caja del menú para no cerrarlo por error
+        MouseArea {
+            anchors.fill: parent
+            acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
+        }
+
+        Item {
+            id: menuContentClipper
+            anchors.fill: parent
+            clip: true
+
+            Item {
+                id: menuContentWrapper
+                x: menuWindow.flipH ? (menuBox.width - menuWindow.targetMenuWidth) : 0
+                y: menuWindow.flipV ? (menuBox.height - menuWindow.targetMenuHeight) : 0
+                width: menuWindow.targetMenuWidth
+                height: menuWindow.targetMenuHeight
+                opacity: menuWindow.isExpanded ? 1.0 : 0.0
+                Behavior on opacity {
+                    enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                    NumberAnimation { duration: 150; easing.type: Easing.OutCubic }
                 }
 
-                // Separador
-                Rectangle {
-                    visible: modelData.kind === "separator"
-                    anchors.centerIn: parent
-                    width: parent.width - 8
-                    height: 1
-                    color: Theme.border
-                }
-
-                // Encabezado de sección
-                Text {
-                    visible: modelData.kind === "header"
+                ColumnLayout {
+                    id: menuLayout
+                    anchors.top: parent.top
                     anchors.left: parent.left
-                    anchors.leftMargin: 8
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: (modelData.text || modelData.label || "").toUpperCase()
-                    color: Theme.muted
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSizeCaption - 1
-                    font.bold: true
-                    elide: Text.ElideRight
-                }
+                    anchors.right: parent.right
+                    anchors.margins: 6
+                    spacing: 0
 
-                // Elemento interactivo (sugerencia o acción)
-                Rectangle {
-                    visible: modelData.kind !== "separator" && modelData.kind !== "header"
-                    anchors.fill: parent
-                    radius: 6
-                    color: itemMa.containsMouse && (modelData.enabled !== false) ? Theme.surfaceHover : "transparent"
-                    enabled: modelData.enabled !== false
+                    // Elementos adicionales dinámicos (sin iconos, sugerencias, etc.)
+                    Repeater {
+                        model: menuWindow.extraItems
+                        delegate: Item {
+                            id: extraDelegate
+                            required property var modelData
+                            required property int index
+                            readonly property var itemData: modelData
+                            readonly property bool isSeparator: !!(itemData && itemData.kind === "separator")
+                            readonly property bool isHeader: !!(itemData && itemData.kind === "header")
+                            readonly property bool isAction: !isSeparator && !isHeader
+                            readonly property bool isEnabled: !!(itemData && itemData.enabled !== false)
+                            readonly property bool isItemActive: (extraMA.containsMouse || menuWindow.isItemHighlighted("extra", index)) && isEnabled
 
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.leftMargin: 8
-                        anchors.rightMargin: 8
-                        spacing: 8
-
-                        Text {
                             Layout.fillWidth: true
-                            text: modelData.label || modelData.text || ""
-                            color: (modelData.kind === "suggestion" || modelData.isSuggestion) ? Theme.accent : (modelData.enabled !== false ? Theme.text : Theme.muted)
-                            font.family: Theme.fontFamily
-                            font.pixelSize: Theme.fontSizeSmall
-                            font.bold: !!(modelData.kind === "suggestion" || modelData.isSuggestion)
-                            elide: Text.ElideRight
+                            Layout.preferredHeight: isSeparator ? 9 : (isHeader ? 26 : 34)
+                            visible: true
+
+                            // Separador
+                            Rectangle {
+                                anchors.fill: parent
+                                anchors.topMargin: 4
+                                anchors.bottomMargin: 4
+                                anchors.leftMargin: 12
+                                anchors.rightMargin: 12
+                                color: Qt.hsva(Theme.text.hsvHue < 0 ? 0 : Theme.text.hsvHue, Theme.text.hsvSaturation, Theme.text.hsvValue, 0.08)
+                                visible: extraDelegate.isSeparator
+                            }
+
+                            // Encabezado
+                            Text {
+                                anchors.fill: parent
+                                anchors.leftMargin: 16
+                                anchors.rightMargin: 16
+                                verticalAlignment: Text.AlignVCenter
+                                text: itemData ? (itemData.text || itemData.label || "") : ""
+                                font.family: Theme.fontFamily
+                                font.pixelSize: 11
+                                font.bold: true
+                                color: Theme.muted
+                                elide: Text.ElideRight
+                                visible: extraDelegate.isHeader
+                            }
+
+                            // Ítem de acción
+                            Rectangle {
+                                radius: 6
+                                color: extraDelegate.isItemActive ? Qt.hsva(Theme.accent.hsvHue < 0 ? 0 : Theme.accent.hsvHue, Theme.accent.hsvSaturation, Theme.accent.hsvValue, 0.12) : "transparent"
+                                border.color: extraDelegate.isItemActive ? Qt.hsva(Theme.accent.hsvHue < 0 ? 0 : Theme.accent.hsvHue, Theme.accent.hsvSaturation, Theme.accent.hsvValue, 0.4) : "transparent"
+                                border.width: 1
+                                visible: extraDelegate.isAction
+
+                                anchors {
+                                    fill: parent
+                                    leftMargin: 4
+                                    rightMargin: 4
+                                    topMargin: 2
+                                    bottomMargin: 2
+                                }
+
+                                Behavior on color {
+                                    enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                                    ColorAnimation { duration: 80 }
+                                }
+                                Behavior on border.color {
+                                    enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                                    ColorAnimation { duration: 80 }
+                                }
+                            }
+
+                            RowLayout {
+                                anchors.fill: parent
+                                anchors.leftMargin: 16
+                                anchors.rightMargin: 16
+                                spacing: 8
+                                visible: extraDelegate.isAction
+
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: (itemData && (itemData.text || itemData.label)) ? (itemData.text || itemData.label) : (typeof itemData === "string" ? itemData : "")
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: 13
+                                    font.bold: !!(itemData && (itemData.bold || itemData.kind === "suggestion" || itemData.isSuggestion))
+                                    color: extraDelegate.isItemActive ? Theme.accent : Theme.text
+                                    elide: Text.ElideRight
+                                    opacity: extraDelegate.isEnabled ? 1.0 : 0.4
+                                }
+
+                                Text {
+                                    text: (itemData && (itemData.shortcut || itemData.lang)) ? (itemData.shortcut || itemData.lang) : ""
+                                    color: extraDelegate.isItemActive ? Theme.accent : Theme.muted
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: 11
+                                    visible: text !== ""
+                                }
+                            }
+
+                            MouseArea {
+                                id: extraMA
+                                anchors.fill: parent
+                                hoverEnabled: extraDelegate.isAction && extraDelegate.isEnabled
+                                cursorShape: (extraDelegate.isAction && extraDelegate.isEnabled) ? Qt.PointingHandCursor : Qt.ArrowCursor
+                                enabled: extraDelegate.isAction && extraDelegate.isEnabled
+                                onClicked: {
+                                    if (typeof itemData.onTriggered === "function") {
+                                        itemData.onTriggered();
+                                    } else if (typeof itemData.triggered === "function") {
+                                        itemData.triggered();
+                                    }
+                                    menuWindow.extraItemTriggered(itemData);
+                                    menuWindow.close();
+                                }
+                            }
+                        }
+                    }
+
+                    // Separador divisorio entre extras y opciones estándar
+                    Rectangle {
+                        Layout.fillWidth: true
+                        height: 1
+                        color: Qt.hsva(Theme.text.hsvHue < 0 ? 0 : Theme.text.hsvHue, Theme.text.hsvSaturation, Theme.text.hsvValue, 0.08)
+                        visible: menuWindow.extraItems && menuWindow.extraItems.length > 0
+                        Layout.topMargin: 4
+                        Layout.bottomMargin: 4
+                        Layout.leftMargin: 12
+                        Layout.rightMargin: 12
+                    }
+
+                    // Deshacer
+                    Item {
+                        id: undoItem
+                        visible: target ? !target.readOnly : false
+                        enabled: target ? Boolean(target.canUndo) : false
+                        readonly property bool isItemActive: (undoMA.containsMouse || menuWindow.isItemHighlighted("standard", "undo")) && undoItem.enabled
+                        opacity: enabled ? 1.0 : 0.4
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 34
+
+                        Rectangle {
+                            radius: 6
+                            color: undoItem.isItemActive ? Qt.hsva(Theme.accent.hsvHue < 0 ? 0 : Theme.accent.hsvHue, Theme.accent.hsvSaturation, Theme.accent.hsvValue, 0.12) : "transparent"
+                            border.color: undoItem.isItemActive ? Qt.hsva(Theme.accent.hsvHue < 0 ? 0 : Theme.accent.hsvHue, Theme.accent.hsvSaturation, Theme.accent.hsvValue, 0.4) : "transparent"
+                            border.width: 1
+
+                            anchors {
+                                fill: parent
+                                leftMargin: 4
+                                rightMargin: 4
+                                topMargin: 2
+                                bottomMargin: 2
+                            }
+
+                            Behavior on color { enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive; ColorAnimation { duration: 80 } }
+                            Behavior on border.color { enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive; ColorAnimation { duration: 80 } }
                         }
 
-                        // Badge de idioma o atajo para sugerencias o acciones
-                        Rectangle {
-                            visible: !!(modelData.lang || modelData.shortcut)
-                            Layout.preferredHeight: 18
-                            Layout.preferredWidth: badgeText.implicitWidth + 8
-                            radius: 4
-                            color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.15)
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.leftMargin: 16
+                            anchors.rightMargin: 16
+                            spacing: 12
+
+                            Image {
+                                source: Theme.iconsPath + "undo.svg"
+                                sourceSize: Qt.size(16, 16)
+                                Layout.preferredWidth: 16
+                                Layout.preferredHeight: 16
+                                fillMode: Image.PreserveAspectFit
+                                layer.enabled: menuWindow.visible && !GamemodeService.gamemodeActive
+                                layer.effect: MultiEffect {
+                                    colorization: 1.0
+                                    colorizationColor: undoItem.isItemActive ? Theme.accent : Theme.text
+                                }
+                            }
+
+                            Item {
+                                id: undoTextClip
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+                                clip: true
+
+                                readonly property bool overflows: undoTextA.implicitWidth > undoTextClip.width
+                                readonly property real gap: 24
+                                readonly property real stride: undoTextA.implicitWidth + gap
+                                property real offset: 0
+
+                                SequentialAnimation on offset {
+                                    running: undoTextClip.overflows && undoItem.isItemActive && Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                                    loops: GamemodeService.gamemodeActive ? 0 : Animation.Infinite
+                                    PauseAnimation { duration: 1000 }
+                                    NumberAnimation {
+                                        from: 0; to: -undoTextClip.stride
+                                        duration: undoTextClip.stride * 18
+                                        easing.type: Easing.Linear
+                                    }
+                                }
+
+                                Connections {
+                                    target: undoMA
+                                    function onContainsMouseChanged() {
+                                        if (!undoMA.containsMouse)
+                                            undoTextClip.offset = 0;
+                                    }
+                                }
+
+                                Text {
+                                    id: undoTextA
+                                    x: undoTextClip.offset
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    text: I18n.t("common.actions.undo", "Deshacer")
+                                    color: undoItem.isItemActive ? Theme.accent : Theme.text
+                                    font { family: Theme.fontFamily; pixelSize: 13 }
+                                }
+
+                                Text {
+                                    x: undoTextClip.offset + undoTextClip.stride
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    visible: undoTextClip.overflows
+                                    text: undoTextA.text
+                                    color: undoTextA.color
+                                    font: undoTextA.font
+                                }
+                            }
 
                             Text {
-                                id: badgeText
-                                anchors.centerIn: parent
-                                text: modelData.lang || modelData.shortcut || ""
-                                color: Theme.accent
-                                font.family: Theme.fontFamilyMonospace
-                                font.pixelSize: 10
-                                font.bold: true
+                                text: "Ctrl+Z"
+                                color: undoItem.isItemActive ? Theme.accent : Theme.muted
+                                font { family: Theme.fontFamily; pixelSize: 11 }
+                            }
+                        }
+
+                        MouseArea {
+                            id: undoMA
+                            anchors.fill: parent
+                            hoverEnabled: parent.enabled
+                            cursorShape: parent.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                            onClicked: {
+                                if (target) target.undo();
+                                menuWindow.close();
                             }
                         }
                     }
 
-                    MouseArea {
-                        id: itemMa
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: (modelData.enabled !== false) ? Qt.PointingHandCursor : Qt.ArrowCursor
-                        onClicked: {
-                            if (modelData.enabled === false) return;
-                            root.close();
-                            if (typeof modelData.triggered === "function") {
-                                modelData.triggered();
-                            } else if (typeof modelData.onTriggered === "function") {
-                                modelData.onTriggered();
+                    // Rehacer
+                    Item {
+                        id: redoItem
+                        visible: target ? !target.readOnly : false
+                        enabled: target ? Boolean(target.canRedo) : false
+                        readonly property bool isItemActive: (redoMA.containsMouse || menuWindow.isItemHighlighted("standard", "redo")) && redoItem.enabled
+                        opacity: enabled ? 1.0 : 0.4
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 34
+
+                        Rectangle {
+                            radius: 6
+                            color: redoItem.isItemActive ? Qt.hsva(Theme.accent.hsvHue < 0 ? 0 : Theme.accent.hsvHue, Theme.accent.hsvSaturation, Theme.accent.hsvValue, 0.12) : "transparent"
+                            border.color: redoItem.isItemActive ? Qt.hsva(Theme.accent.hsvHue < 0 ? 0 : Theme.accent.hsvHue, Theme.accent.hsvSaturation, Theme.accent.hsvValue, 0.4) : "transparent"
+                            border.width: 1
+
+                            anchors {
+                                fill: parent
+                                leftMargin: 4
+                                rightMargin: 4
+                                topMargin: 2
+                                bottomMargin: 2
                             }
-                            root.extraItemTriggered(modelData);
+
+                            Behavior on color { enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive; ColorAnimation { duration: 80 } }
+                            Behavior on border.color { enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive; ColorAnimation { duration: 80 } }
+                        }
+
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.leftMargin: 16
+                            anchors.rightMargin: 16
+                            spacing: 12
+
+                            Image {
+                                source: Theme.iconsPath + "redo.svg"
+                                sourceSize: Qt.size(16, 16)
+                                Layout.preferredWidth: 16
+                                Layout.preferredHeight: 16
+                                fillMode: Image.PreserveAspectFit
+                                layer.enabled: menuWindow.visible && !GamemodeService.gamemodeActive
+                                layer.effect: MultiEffect {
+                                    colorization: 1.0
+                                    colorizationColor: redoItem.isItemActive ? Theme.accent : Theme.text
+                                }
+                            }
+
+                            Item {
+                                id: redoTextClip
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+                                clip: true
+
+                                readonly property bool overflows: redoTextA.implicitWidth > redoTextClip.width
+                                readonly property real gap: 24
+                                readonly property real stride: redoTextA.implicitWidth + gap
+                                property real offset: 0
+
+                                SequentialAnimation on offset {
+                                    running: redoTextClip.overflows && redoItem.isItemActive && Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                                    loops: GamemodeService.gamemodeActive ? 0 : Animation.Infinite
+                                    PauseAnimation { duration: 1000 }
+                                    NumberAnimation {
+                                        from: 0; to: -redoTextClip.stride
+                                        duration: redoTextClip.stride * 18
+                                        easing.type: Easing.Linear
+                                    }
+                                }
+
+                                Connections {
+                                    target: redoMA
+                                    function onContainsMouseChanged() {
+                                        if (!redoMA.containsMouse)
+                                            redoTextClip.offset = 0;
+                                    }
+                                }
+
+                                Text {
+                                    id: redoTextA
+                                    x: redoTextClip.offset
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    text: I18n.t("common.actions.redo", "Rehacer")
+                                    color: redoItem.isItemActive ? Theme.accent : Theme.text
+                                    font { family: Theme.fontFamily; pixelSize: 13 }
+                                }
+
+                                Text {
+                                    x: redoTextClip.offset + redoTextClip.stride
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    visible: redoTextClip.overflows
+                                    text: redoTextA.text
+                                    color: redoTextA.color
+                                    font: redoTextA.font
+                                }
+                            }
+
+                            Text {
+                                text: "Ctrl+Shift+Z"
+                                color: redoItem.isItemActive ? Theme.accent : Theme.muted
+                                font { family: Theme.fontFamily; pixelSize: 11 }
+                            }
+                        }
+
+                        MouseArea {
+                            id: redoMA
+                            anchors.fill: parent
+                            hoverEnabled: parent.enabled
+                            cursorShape: parent.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                            onClicked: {
+                                if (target) target.redo();
+                                menuWindow.close();
+                            }
                         }
                     }
-                }
-            }
-        }
 
-        Rectangle {
-            visible: root.extraItems.length > 0
-            Layout.fillWidth: true
-            Layout.preferredHeight: 1
-            color: Theme.border
-        }
-
-        // Cortar
-        Rectangle {
-            Layout.fillWidth: true
-            Layout.preferredHeight: 30
-            radius: 6
-            color: cutMa.containsMouse ? Theme.surfaceHover : "transparent"
-            enabled: !!(root.target && typeof root.target.cut === "function" && (root.target.selectedText !== ""))
-
-            RowLayout {
-                anchors.fill: parent
-                anchors.leftMargin: 8
-                anchors.rightMargin: 8
-                spacing: 8
-
-                Text {
-                    Layout.fillWidth: true
-                    text: I18n.t("common.actions.cut", "Cortar")
-                    color: parent.parent.enabled ? Theme.text : Theme.muted
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSizeSmall
-                }
-                Text {
-                    text: "Ctrl+X"
-                    color: Theme.muted
-                    font.family: Theme.fontFamilyMonospace
-                    font.pixelSize: Theme.fontSizeCaption
-                }
-            }
-
-            MouseArea {
-                id: cutMa
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: parent.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-                onClicked: {
-                    if (root.target && typeof root.target.cut === "function") {
-                        root.target.cut();
+                    // Separador 1
+                    Rectangle {
+                        Layout.fillWidth: true
+                        height: 1
+                        color: Qt.hsva(Theme.text.hsvHue < 0 ? 0 : Theme.text.hsvHue, Theme.text.hsvSaturation, Theme.text.hsvValue, 0.08)
+                        visible: undoItem.visible || redoItem.visible
+                        Layout.topMargin: 4
+                        Layout.bottomMargin: 4
+                        Layout.leftMargin: 12
+                        Layout.rightMargin: 12
                     }
-                    root.close();
-                }
-            }
-        }
 
-        // Copiar
-        Rectangle {
-            Layout.fillWidth: true
-            Layout.preferredHeight: 30
-            radius: 6
-            color: copyMa.containsMouse ? Theme.surfaceHover : "transparent"
-            enabled: !!(root.target && typeof root.target.copy === "function" && (root.target.selectedText !== ""))
+                    // Cortar
+                    Item {
+                        id: cutItem
+                        visible: target ? !target.readOnly : false
+                        enabled: target ? target.selectedText !== "" : false
+                        readonly property bool isItemActive: (cutMA.containsMouse || menuWindow.isItemHighlighted("standard", "cut")) && cutItem.enabled
+                        opacity: enabled ? 1.0 : 0.4
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 34
 
-            RowLayout {
-                anchors.fill: parent
-                anchors.leftMargin: 8
-                anchors.rightMargin: 8
-                spacing: 8
+                        Rectangle {
+                            radius: 6
+                            color: cutItem.isItemActive ? Qt.hsva(Theme.accent.hsvHue < 0 ? 0 : Theme.accent.hsvHue, Theme.accent.hsvSaturation, Theme.accent.hsvValue, 0.12) : "transparent"
+                            border.color: cutItem.isItemActive ? Qt.hsva(Theme.accent.hsvHue < 0 ? 0 : Theme.accent.hsvHue, Theme.accent.hsvSaturation, Theme.accent.hsvValue, 0.4) : "transparent"
+                            border.width: 1
 
-                Text {
-                    Layout.fillWidth: true
-                    text: I18n.t("common.actions.copy", "Copiar")
-                    color: parent.parent.enabled ? Theme.text : Theme.muted
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSizeSmall
-                }
-                Text {
-                    text: "Ctrl+C"
-                    color: Theme.muted
-                    font.family: Theme.fontFamilyMonospace
-                    font.pixelSize: Theme.fontSizeCaption
-                }
-            }
+                            anchors {
+                                fill: parent
+                                leftMargin: 4
+                                rightMargin: 4
+                                topMargin: 2
+                                bottomMargin: 2
+                            }
 
-            MouseArea {
-                id: copyMa
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: parent.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-                onClicked: {
-                    if (root.target && typeof root.target.copy === "function") {
-                        root.target.copy();
+                            Behavior on color { enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive; ColorAnimation { duration: 80 } }
+                            Behavior on border.color { enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive; ColorAnimation { duration: 80 } }
+                        }
+
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.leftMargin: 16
+                            anchors.rightMargin: 16
+                            spacing: 12
+
+                            Image {
+                                source: Theme.iconsPath + "content-cut.svg"
+                                sourceSize: Qt.size(16, 16)
+                                Layout.preferredWidth: 16
+                                Layout.preferredHeight: 16
+                                fillMode: Image.PreserveAspectFit
+                                layer.enabled: menuWindow.visible && !GamemodeService.gamemodeActive
+                                layer.effect: MultiEffect {
+                                    colorization: 1.0
+                                    colorizationColor: cutItem.isItemActive ? Theme.accent : Theme.text
+                                }
+                            }
+
+                            Item {
+                                id: cutTextClip
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+                                clip: true
+
+                                readonly property bool overflows: cutTextA.implicitWidth > cutTextClip.width
+                                readonly property real gap: 24
+                                readonly property real stride: cutTextA.implicitWidth + gap
+                                property real offset: 0
+
+                                SequentialAnimation on offset {
+                                    running: cutTextClip.overflows && cutItem.isItemActive && Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                                    loops: GamemodeService.gamemodeActive ? 0 : Animation.Infinite
+                                    PauseAnimation { duration: 1000 }
+                                    NumberAnimation {
+                                        from: 0; to: -cutTextClip.stride
+                                        duration: cutTextClip.stride * 18
+                                        easing.type: Easing.Linear
+                                    }
+                                }
+
+                                Connections {
+                                    target: cutMA
+                                    function onContainsMouseChanged() {
+                                        if (!cutMA.containsMouse)
+                                            cutTextClip.offset = 0;
+                                    }
+                                }
+
+                                Text {
+                                    id: cutTextA
+                                    x: cutTextClip.offset
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    text: I18n.t("common.actions.cut", "Cortar")
+                                    color: cutItem.isItemActive ? Theme.accent : Theme.text
+                                    font { family: Theme.fontFamily; pixelSize: 13 }
+                                }
+
+                                Text {
+                                    x: cutTextClip.offset + cutTextClip.stride
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    visible: cutTextClip.overflows
+                                    text: cutTextA.text
+                                    color: cutTextA.color
+                                    font: cutTextA.font
+                                }
+                            }
+
+                            Text {
+                                text: "Ctrl+X"
+                                color: cutItem.isItemActive ? Theme.accent : Theme.muted
+                                font { family: Theme.fontFamily; pixelSize: 11 }
+                            }
+                        }
+
+                        MouseArea {
+                            id: cutMA
+                            anchors.fill: parent
+                            hoverEnabled: parent.enabled
+                            cursorShape: parent.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                            onClicked: {
+                                if (target) target.cut();
+                                menuWindow.close();
+                            }
+                        }
                     }
-                    root.close();
-                }
-            }
-        }
 
-        // Pegar
-        Rectangle {
-            Layout.fillWidth: true
-            Layout.preferredHeight: 30
-            radius: 6
-            color: pasteMa.containsMouse ? Theme.surfaceHover : "transparent"
-            enabled: !!(root.target && typeof root.target.paste === "function")
+                    // Copiar
+                    Item {
+                        id: copyItem
+                        enabled: target ? target.selectedText !== "" : false
+                        readonly property bool isItemActive: (copyMA.containsMouse || menuWindow.isItemHighlighted("standard", "copy")) && copyItem.enabled
+                        opacity: enabled ? 1.0 : 0.4
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 34
 
-            RowLayout {
-                anchors.fill: parent
-                anchors.leftMargin: 8
-                anchors.rightMargin: 8
-                spacing: 8
+                        Rectangle {
+                            radius: 6
+                            color: copyItem.isItemActive ? Qt.hsva(Theme.accent.hsvHue < 0 ? 0 : Theme.accent.hsvHue, Theme.accent.hsvSaturation, Theme.accent.hsvValue, 0.12) : "transparent"
+                            border.color: copyItem.isItemActive ? Qt.hsva(Theme.accent.hsvHue < 0 ? 0 : Theme.accent.hsvHue, Theme.accent.hsvSaturation, Theme.accent.hsvValue, 0.4) : "transparent"
+                            border.width: 1
 
-                Text {
-                    Layout.fillWidth: true
-                    text: I18n.t("common.actions.paste", "Pegar")
-                    color: parent.parent.enabled ? Theme.text : Theme.muted
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSizeSmall
-                }
-                Text {
-                    text: "Ctrl+V"
-                    color: Theme.muted
-                    font.family: Theme.fontFamilyMonospace
-                    font.pixelSize: Theme.fontSizeCaption
-                }
-            }
+                            anchors {
+                                fill: parent
+                                leftMargin: 4
+                                rightMargin: 4
+                                topMargin: 2
+                                bottomMargin: 2
+                            }
 
-            MouseArea {
-                id: pasteMa
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: parent.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-                onClicked: {
-                    if (root.target && typeof root.target.paste === "function") {
-                        root.target.paste();
+                            Behavior on color { enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive; ColorAnimation { duration: 80 } }
+                            Behavior on border.color { enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive; ColorAnimation { duration: 80 } }
+                        }
+
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.leftMargin: 16
+                            anchors.rightMargin: 16
+                            spacing: 12
+
+                            Image {
+                                source: Theme.iconsPath + "content-copy.svg"
+                                sourceSize: Qt.size(16, 16)
+                                Layout.preferredWidth: 16
+                                Layout.preferredHeight: 16
+                                fillMode: Image.PreserveAspectFit
+                                layer.enabled: menuWindow.visible && !GamemodeService.gamemodeActive
+                                layer.effect: MultiEffect {
+                                    colorization: 1.0
+                                    colorizationColor: copyItem.isItemActive ? Theme.accent : Theme.text
+                                }
+                            }
+
+                            Item {
+                                id: copyTextClip
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+                                clip: true
+
+                                readonly property bool overflows: copyTextA.implicitWidth > copyTextClip.width
+                                readonly property real gap: 24
+                                readonly property real stride: copyTextA.implicitWidth + gap
+                                property real offset: 0
+
+                                SequentialAnimation on offset {
+                                    running: copyTextClip.overflows && copyItem.isItemActive && Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                                    loops: GamemodeService.gamemodeActive ? 0 : Animation.Infinite
+                                    PauseAnimation { duration: 1000 }
+                                    NumberAnimation {
+                                        from: 0; to: -copyTextClip.stride
+                                        duration: copyTextClip.stride * 18
+                                        easing.type: Easing.Linear
+                                    }
+                                }
+
+                                Connections {
+                                    target: copyMA
+                                    function onContainsMouseChanged() {
+                                        if (!copyMA.containsMouse)
+                                            copyTextClip.offset = 0;
+                                    }
+                                }
+
+                                Text {
+                                    id: copyTextA
+                                    x: copyTextClip.offset
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    text: I18n.t("common.actions.copy", "Copiar")
+                                    color: copyItem.isItemActive ? Theme.accent : Theme.text
+                                    font { family: Theme.fontFamily; pixelSize: 13 }
+                                }
+
+                                Text {
+                                    x: copyTextClip.offset + copyTextClip.stride
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    visible: copyTextClip.overflows
+                                    text: copyTextA.text
+                                    color: copyTextA.color
+                                    font: copyTextA.font
+                                }
+                            }
+
+                            Text {
+                                text: "Ctrl+C"
+                                color: copyItem.isItemActive ? Theme.accent : Theme.muted
+                                font { family: Theme.fontFamily; pixelSize: 11 }
+                            }
+                        }
+
+                        MouseArea {
+                            id: copyMA
+                            anchors.fill: parent
+                            hoverEnabled: parent.enabled
+                            cursorShape: parent.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                            onClicked: {
+                                if (target) target.copy();
+                                menuWindow.close();
+                            }
+                        }
                     }
-                    root.close();
-                }
-            }
-        }
 
-        // Seleccionar todo
-        Rectangle {
-            Layout.fillWidth: true
-            Layout.preferredHeight: 30
-            radius: 6
-            color: selMa.containsMouse ? Theme.surfaceHover : "transparent"
-            enabled: !!(root.target && typeof root.target.selectAll === "function")
+                    // Pegar
+                    Item {
+                        id: pasteItem
+                        visible: target ? !target.readOnly : false
+                        enabled: target ? Boolean(target.canPaste) : false
+                        readonly property bool isItemActive: (pasteMA.containsMouse || menuWindow.isItemHighlighted("standard", "paste")) && pasteItem.enabled
+                        opacity: enabled ? 1.0 : 0.4
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 34
 
-            RowLayout {
-                anchors.fill: parent
-                anchors.leftMargin: 8
-                anchors.rightMargin: 8
-                spacing: 8
+                        Rectangle {
+                            radius: 6
+                            color: pasteItem.isItemActive ? Qt.hsva(Theme.accent.hsvHue < 0 ? 0 : Theme.accent.hsvHue, Theme.accent.hsvSaturation, Theme.accent.hsvValue, 0.12) : "transparent"
+                            border.color: pasteItem.isItemActive ? Qt.hsva(Theme.accent.hsvHue < 0 ? 0 : Theme.accent.hsvHue, Theme.accent.hsvSaturation, Theme.accent.hsvValue, 0.4) : "transparent"
+                            border.width: 1
 
-                Text {
-                    Layout.fillWidth: true
-                    text: I18n.t("common.actions.select_all", "Seleccionar todo")
-                    color: parent.parent.enabled ? Theme.text : Theme.muted
-                    font.family: Theme.fontFamily
-                    font.pixelSize: Theme.fontSizeSmall
-                }
-                Text {
-                    text: "Ctrl+A"
-                    color: Theme.muted
-                    font.family: Theme.fontFamilyMonospace
-                    font.pixelSize: Theme.fontSizeCaption
-                }
-            }
+                            anchors {
+                                fill: parent
+                                leftMargin: 4
+                                rightMargin: 4
+                                topMargin: 2
+                                bottomMargin: 2
+                            }
 
-            MouseArea {
-                id: selMa
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: parent.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-                onClicked: {
-                    if (root.target && typeof root.target.selectAll === "function") {
-                        root.target.selectAll();
+                            Behavior on color { enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive; ColorAnimation { duration: 80 } }
+                            Behavior on border.color { enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive; ColorAnimation { duration: 80 } }
+                        }
+
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.leftMargin: 16
+                            anchors.rightMargin: 16
+                            spacing: 12
+
+                            Image {
+                                source: Theme.iconsPath + "content-paste.svg"
+                                sourceSize: Qt.size(16, 16)
+                                Layout.preferredWidth: 16
+                                Layout.preferredHeight: 16
+                                fillMode: Image.PreserveAspectFit
+                                layer.enabled: menuWindow.visible && !GamemodeService.gamemodeActive
+                                layer.effect: MultiEffect {
+                                    colorization: 1.0
+                                    colorizationColor: pasteItem.isItemActive ? Theme.accent : Theme.text
+                                }
+                            }
+
+                            Item {
+                                id: pasteTextClip
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+                                clip: true
+
+                                readonly property bool overflows: pasteTextA.implicitWidth > pasteTextClip.width
+                                readonly property real gap: 24
+                                readonly property real stride: pasteTextA.implicitWidth + gap
+                                property real offset: 0
+
+                                SequentialAnimation on offset {
+                                    running: pasteTextClip.overflows && pasteItem.isItemActive && Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                                    loops: GamemodeService.gamemodeActive ? 0 : Animation.Infinite
+                                    PauseAnimation { duration: 1000 }
+                                    NumberAnimation {
+                                        from: 0; to: -pasteTextClip.stride
+                                        duration: pasteTextClip.stride * 18
+                                        easing.type: Easing.Linear
+                                    }
+                                }
+
+                                Connections {
+                                    target: pasteMA
+                                    function onContainsMouseChanged() {
+                                        if (!pasteMA.containsMouse)
+                                            pasteTextClip.offset = 0;
+                                    }
+                                }
+
+                                Text {
+                                    id: pasteTextA
+                                    x: pasteTextClip.offset
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    text: I18n.t("common.actions.paste", "Pegar")
+                                    color: pasteItem.isItemActive ? Theme.accent : Theme.text
+                                    font { family: Theme.fontFamily; pixelSize: 13 }
+                                }
+
+                                Text {
+                                    x: pasteTextClip.offset + pasteTextClip.stride
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    visible: pasteTextClip.overflows
+                                    text: pasteTextA.text
+                                    color: pasteTextA.color
+                                    font: pasteTextA.font
+                                }
+                            }
+
+                            Text {
+                                text: "Ctrl+V"
+                                color: pasteItem.isItemActive ? Theme.accent : Theme.muted
+                                font { family: Theme.fontFamily; pixelSize: 11 }
+                            }
+                        }
+
+                        MouseArea {
+                            id: pasteMA
+                            anchors.fill: parent
+                            hoverEnabled: parent.enabled
+                            cursorShape: parent.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                            onClicked: {
+                                if (target) target.paste();
+                                menuWindow.close();
+                            }
+                        }
                     }
-                    root.close();
+
+                    // Borrar (Delete)
+                    Item {
+                        id: deleteItem
+                        visible: target ? !target.readOnly : false
+                        enabled: target ? target.selectedText !== "" : false
+                        readonly property bool isItemActive: (deleteMA.containsMouse || menuWindow.isItemHighlighted("standard", "delete")) && deleteItem.enabled
+                        opacity: enabled ? 1.0 : 0.4
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 34
+
+                        Rectangle {
+                            radius: 6
+                            color: deleteItem.isItemActive ? Qt.hsva(Theme.accent.hsvHue < 0 ? 0 : Theme.accent.hsvHue, Theme.accent.hsvSaturation, Theme.accent.hsvValue, 0.12) : "transparent"
+                            border.color: deleteItem.isItemActive ? Qt.hsva(Theme.accent.hsvHue < 0 ? 0 : Theme.accent.hsvHue, Theme.accent.hsvSaturation, Theme.accent.hsvValue, 0.4) : "transparent"
+                            border.width: 1
+
+                            anchors {
+                                fill: parent
+                                leftMargin: 4
+                                rightMargin: 4
+                                topMargin: 2
+                                bottomMargin: 2
+                            }
+
+                            Behavior on color { enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive; ColorAnimation { duration: 80 } }
+                            Behavior on border.color { enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive; ColorAnimation { duration: 80 } }
+                        }
+
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.leftMargin: 16
+                            anchors.rightMargin: 16
+                            spacing: 12
+
+                            Image {
+                                source: Theme.iconsPath + "delete-red.svg"
+                                sourceSize: Qt.size(16, 16)
+                                Layout.preferredWidth: 16
+                                Layout.preferredHeight: 16
+                                fillMode: Image.PreserveAspectFit
+                                layer.enabled: menuWindow.visible && !GamemodeService.gamemodeActive
+                                layer.effect: MultiEffect {
+                                    colorization: 1.0
+                                    colorizationColor: deleteItem.isItemActive ? Theme.accent : "#ff6b6b"
+                                }
+                            }
+
+                            Item {
+                                id: deleteTextClip
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+                                clip: true
+
+                                readonly property bool overflows: deleteTextA.implicitWidth > deleteTextClip.width
+                                readonly property real gap: 24
+                                readonly property real stride: deleteTextA.implicitWidth + gap
+                                property real offset: 0
+
+                                SequentialAnimation on offset {
+                                    running: deleteTextClip.overflows && deleteItem.isItemActive && Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                                    loops: GamemodeService.gamemodeActive ? 0 : Animation.Infinite
+                                    PauseAnimation { duration: 1000 }
+                                    NumberAnimation {
+                                        from: 0; to: -deleteTextClip.stride
+                                        duration: deleteTextClip.stride * 18
+                                        easing.type: Easing.Linear
+                                    }
+                                }
+
+                                Connections {
+                                    target: deleteMA
+                                    function onContainsMouseChanged() {
+                                        if (!deleteMA.containsMouse)
+                                            deleteTextClip.offset = 0;
+                                    }
+                                }
+
+                                Text {
+                                    id: deleteTextA
+                                    x: deleteTextClip.offset
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    text: I18n.t("common.actions.delete", "Borrar")
+                                    color: deleteItem.isItemActive ? Theme.accent : Theme.text
+                                    font { family: Theme.fontFamily; pixelSize: 13 }
+                                }
+
+                                Text {
+                                    x: deleteTextClip.offset + deleteTextClip.stride
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    visible: deleteTextClip.overflows
+                                    text: deleteTextA.text
+                                    color: deleteTextA.color
+                                    font: deleteTextA.font
+                                }
+                            }
+
+                            Text {
+                                text: "Supr"
+                                color: deleteItem.isItemActive ? Theme.accent : Theme.muted
+                                font { family: Theme.fontFamily; pixelSize: 11 }
+                            }
+                        }
+
+                        MouseArea {
+                            id: deleteMA
+                            anchors.fill: parent
+                            hoverEnabled: parent.enabled
+                            cursorShape: parent.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                            onClicked: {
+                                if (target) target.remove(target.selectionStart, target.selectionEnd);
+                                menuWindow.close();
+                            }
+                        }
+                    }
+
+                    // Separador 2
+                    Rectangle {
+                        Layout.fillWidth: true
+                        height: 1
+                        color: Qt.hsva(Theme.text.hsvHue < 0 ? 0 : Theme.text.hsvHue, Theme.text.hsvSaturation, Theme.text.hsvValue, 0.08)
+                        visible: selectAllItem.visible
+                        Layout.topMargin: 4
+                        Layout.bottomMargin: 4
+                        Layout.leftMargin: 12
+                        Layout.rightMargin: 12
+                    }
+
+                    // Seleccionar todo
+                    Item {
+                        id: selectAllItem
+                        enabled: target ? target.text !== "" : false
+                        readonly property bool isItemActive: (selectAllMA.containsMouse || menuWindow.isItemHighlighted("standard", "selectAll")) && selectAllItem.enabled
+                        opacity: enabled ? 1.0 : 0.4
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 34
+
+                        Rectangle {
+                            radius: 6
+                            color: selectAllItem.isItemActive ? Qt.hsva(Theme.accent.hsvHue < 0 ? 0 : Theme.accent.hsvHue, Theme.accent.hsvSaturation, Theme.accent.hsvValue, 0.12) : "transparent"
+                            border.color: selectAllItem.isItemActive ? Qt.hsva(Theme.accent.hsvHue < 0 ? 0 : Theme.accent.hsvHue, Theme.accent.hsvSaturation, Theme.accent.hsvValue, 0.4) : "transparent"
+                            border.width: 1
+
+                            anchors {
+                                fill: parent
+                                leftMargin: 4
+                                rightMargin: 4
+                                topMargin: 2
+                                bottomMargin: 2
+                            }
+
+                            Behavior on color { enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive; ColorAnimation { duration: 80 } }
+                            Behavior on border.color { enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive; ColorAnimation { duration: 80 } }
+                        }
+
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.leftMargin: 16
+                            anchors.rightMargin: 16
+                            spacing: 12
+
+                            Image {
+                                source: Theme.iconsPath + "select-all.svg"
+                                sourceSize: Qt.size(16, 16)
+                                Layout.preferredWidth: 16
+                                Layout.preferredHeight: 16
+                                fillMode: Image.PreserveAspectFit
+                                layer.enabled: menuWindow.visible && !GamemodeService.gamemodeActive
+                                layer.effect: MultiEffect {
+                                    colorization: 1.0
+                                    colorizationColor: selectAllItem.isItemActive ? Theme.accent : Theme.text
+                                }
+                            }
+
+                            Item {
+                                id: selectAllTextClip
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+                                clip: true
+
+                                readonly property bool overflows: selectAllTextA.implicitWidth > selectAllTextClip.width
+                                readonly property real gap: 24
+                                readonly property real stride: selectAllTextA.implicitWidth + gap
+                                property real offset: 0
+
+                                SequentialAnimation on offset {
+                                    running: selectAllTextClip.overflows && selectAllItem.isItemActive && Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                                    loops: GamemodeService.gamemodeActive ? 0 : Animation.Infinite
+                                    PauseAnimation { duration: 1000 }
+                                    NumberAnimation {
+                                        from: 0; to: -selectAllTextClip.stride
+                                        duration: selectAllTextClip.stride * 18
+                                        easing.type: Easing.Linear
+                                    }
+                                }
+
+                                Connections {
+                                    target: selectAllMA
+                                    function onContainsMouseChanged() {
+                                        if (!selectAllMA.containsMouse)
+                                            selectAllTextClip.offset = 0;
+                                    }
+                                }
+
+                                Text {
+                                    id: selectAllTextA
+                                    x: selectAllTextClip.offset
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    text: I18n.t("common.actions.select_all", "Seleccionar todo")
+                                    color: selectAllItem.isItemActive ? Theme.accent : Theme.text
+                                    font { family: Theme.fontFamily; pixelSize: 13 }
+                                }
+
+                                Text {
+                                    x: selectAllTextClip.offset + selectAllTextClip.stride
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    visible: selectAllTextClip.overflows
+                                    text: selectAllTextA.text
+                                    color: selectAllTextA.color
+                                    font: selectAllTextA.font
+                                }
+                            }
+
+                            Text {
+                                text: "Ctrl+A"
+                                color: selectAllItem.isItemActive ? Theme.accent : Theme.muted
+                                font { family: Theme.fontFamily; pixelSize: 11 }
+                            }
+                        }
+
+                        MouseArea {
+                            id: selectAllMA
+                            anchors.fill: parent
+                            hoverEnabled: parent.enabled
+                            cursorShape: parent.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                            onClicked: {
+                                if (target) target.selectAll();
+                                menuWindow.close();
+                            }
+                        }
+                    }
                 }
             }
         }

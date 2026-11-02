@@ -11,11 +11,14 @@
 #include <QRegularExpression>
 #include <QUrl>
 #include <QMouseEvent>
+#include <QPalette>
+#include <QColor>
 #include <QStandardPaths>
+#include <cmath>
 #include <iostream>
 
 // ═════════════════════════════════════════════════════════════════════════════
-// 1. SplitParser Implementation
+// 1. SplitParser & StdioCollector Implementation
 // ═════════════════════════════════════════════════════════════════════════════
 
 SplitParser::SplitParser(QObject *parent)
@@ -52,6 +55,35 @@ void SplitParser::flush() {
         emit read(QString::fromUtf8(m_buffer));
         m_buffer.clear();
     }
+}
+
+void SplitParser::reset() {
+    m_buffer.clear();
+}
+
+StdioCollector::StdioCollector(QObject *parent)
+    : SplitParser(parent)
+{
+}
+
+void StdioCollector::pushData(const QByteArray &data) {
+    if (!data.isEmpty()) {
+        m_collected.append(data);
+    }
+}
+
+void StdioCollector::flush() {
+    QString nextText = QString::fromUtf8(m_collected);
+    m_collected.clear();
+    if (m_text != nextText) {
+        m_text = nextText;
+        emit textChanged();
+    }
+    emit streamFinished();
+}
+
+void StdioCollector::reset() {
+    m_collected.clear();
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -127,6 +159,9 @@ void Process::exec(const QStringList &args) {
 
 void Process::startProcess() {
     stopProcess();
+
+    if (m_stdout) m_stdout->reset();
+    if (m_stderr) m_stderr->reset();
 
     if (m_command.isEmpty()) {
         m_running = false;
@@ -214,6 +249,7 @@ FileView::FileView(QObject *parent)
 {
     m_watcher = new QFileSystemWatcher(this);
     connect(m_watcher, &QFileSystemWatcher::fileChanged, this, &FileView::onFileSystemChanged);
+    connect(m_watcher, &QFileSystemWatcher::directoryChanged, this, &FileView::onFileSystemChanged);
 }
 
 FileView::~FileView() {
@@ -275,8 +311,18 @@ void FileView::updateWatcher() {
     if (!files.isEmpty()) {
         m_watcher->removePaths(files);
     }
-    if (m_watchChanges && !m_path.isEmpty() && QFile::exists(m_path)) {
-        m_watcher->addPath(m_path);
+    const QStringList dirs = m_watcher->directories();
+    if (!dirs.isEmpty()) {
+        m_watcher->removePaths(dirs);
+    }
+    if (m_watchChanges && !m_path.isEmpty()) {
+        if (QFile::exists(m_path)) {
+            m_watcher->addPath(m_path);
+        }
+        QString parentDir = QFileInfo(m_path).absolutePath();
+        if (!parentDir.isEmpty() && QDir(parentDir).exists()) {
+            m_watcher->addPath(parentDir);
+        }
     }
 }
 
@@ -362,12 +408,16 @@ bool FileView::writeFile(const QString &content) {
     return success;
 }
 
-void FileView::onFileSystemChanged(const QString &path) {
-    if (m_isInternalSave) return;
-    if (path == m_path) {
-        QFileInfo fi(m_path);
-        if (fi.exists() && fi.lastModified() > m_lastModified) {
-            readFile();
+void FileView::onFileSystemChanged(const QString &changedPath) {
+    if (m_isInternalSave || m_path.isEmpty()) return;
+    QFileInfo fi(m_path);
+    if (fi.exists()) {
+        if (m_watchChanges && m_watcher && !m_watcher->files().contains(m_path)) {
+            m_watcher->addPath(m_path);
+        }
+        QDateTime mod = fi.lastModified();
+        bool shouldReload = (changedPath == m_path) || !m_loaded || (mod != m_lastModified);
+        if (shouldReload && readFile()) {
             emit fileChanged();
         }
     }
@@ -391,6 +441,8 @@ Sys::Sys(QObject *parent)
         app->installEventFilter(this);
     }
 
+    m_qtColors = readQtColors();
+    setupQtThemeWatcher();
     startIpcServer();
 }
 
@@ -410,8 +462,283 @@ bool Sys::eventFilter(QObject *watched, QEvent *event) {
             m_lastMousePos = p;
             emit lastMousePosChanged();
         }
+    } else if (event->type() == QEvent::ApplicationPaletteChange) {
+        refreshQtColors();
     }
     return QObject::eventFilter(watched, event);
+}
+
+void Sys::setupQtThemeWatcher() {
+    if (!m_qtThemeWatcher) {
+        m_qtThemeWatcher = new QFileSystemWatcher(this);
+        connect(m_qtThemeWatcher, &QFileSystemWatcher::fileChanged, this, &Sys::onQtThemeFileChanged);
+        connect(m_qtThemeWatcher, &QFileSystemWatcher::directoryChanged, this, &Sys::onQtThemeFileChanged);
+    }
+    const QStringList existing = m_qtThemeWatcher->files() + m_qtThemeWatcher->directories();
+    if (!existing.isEmpty()) {
+        m_qtThemeWatcher->removePaths(existing);
+    }
+    const QString home = QDir::homePath();
+    const QStringList candidates = {
+        home + QStringLiteral("/.config/qt6ct/qt6ct.conf"),
+        home + QStringLiteral("/.config/qt6ct/style-colors.conf"),
+        home + QStringLiteral("/.config/Kvantum/kvantum.kvconfig"),
+        home + QStringLiteral("/.config/Kvantum/pywal/pywal.kvconfig"),
+        home + QStringLiteral("/.config/kdeglobals"),
+        home + QStringLiteral("/.config/qt6ct"),
+        home + QStringLiteral("/.config/Kvantum")
+    };
+    for (const auto &p : candidates) {
+        if (QFileInfo::exists(p)) {
+            m_qtThemeWatcher->addPath(p);
+        }
+    }
+}
+
+void Sys::onQtThemeFileChanged() {
+    QTimer::singleShot(120, this, [this]() {
+        setupQtThemeWatcher();
+        refreshQtColors();
+    });
+}
+
+void Sys::refreshQtColors() {
+    QJsonObject next = readQtColors();
+    if (next != m_qtColors) {
+        m_qtColors = next;
+        emit qtColorsChanged();
+    }
+}
+
+static QColor parseConfigColor(const QString &raw) {
+    QString s = raw.trimmed();
+    if (s.isEmpty()) return QColor();
+    if (s.startsWith('#')) {
+        if (s.length() == 9) {
+            // #AARRGGBB -> #RRGGBB
+            QColor c(QStringLiteral("#") + s.mid(3));
+            if (c.isValid()) return c;
+        }
+        QColor c(s);
+        if (c.isValid()) return c;
+    }
+    const QStringList rgb = s.split(',');
+    if (rgb.size() >= 3) {
+        bool okR = false, okG = false, okB = false;
+        int r = rgb[0].trimmed().toInt(&okR);
+        int g = rgb[1].trimmed().toInt(&okG);
+        int b = rgb[2].trimmed().toInt(&okB);
+        if (okR && okG && okB) {
+            return QColor(qBound(0, r, 255), qBound(0, g, 255), qBound(0, b, 255));
+        }
+    }
+    return QColor();
+}
+
+QJsonObject Sys::readQtColors() const {
+    QPalette pal = QGuiApplication::palette();
+    QColor bg = pal.color(QPalette::Window);
+    QColor surface = pal.color(QPalette::Base);
+    QColor altBase = pal.color(QPalette::AlternateBase);
+    QColor fg = pal.color(QPalette::WindowText);
+    QColor txt = pal.color(QPalette::Text);
+    QColor btn = pal.color(QPalette::Button);
+    QColor accent = pal.color(QPalette::Highlight);
+    QColor link = pal.color(QPalette::Link);
+    QColor mid = pal.color(QPalette::Mid);
+
+    const QString home = QDir::homePath();
+    QString qt6ctStyle;
+    QString colorSchemePath;
+    bool customPalette = false;
+
+    QFile qt6ctFile(home + QStringLiteral("/.config/qt6ct/qt6ct.conf"));
+    if (qt6ctFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        QTextStream in(&qt6ctFile);
+        while (!in.atEnd()) {
+            QString line = in.readLine().trimmed();
+            if (line.startsWith(QStringLiteral("style="))) {
+                qt6ctStyle = line.mid(6).trimmed();
+            } else if (line.startsWith(QStringLiteral("color_scheme_path="))) {
+                colorSchemePath = line.mid(18).trimmed();
+            } else if (line.startsWith(QStringLiteral("custom_palette="))) {
+                customPalette = (line.mid(15).trimmed().compare(QStringLiteral("true"), Qt::CaseInsensitive) == 0);
+            }
+        }
+        qt6ctFile.close();
+    }
+
+    if (customPalette && !colorSchemePath.isEmpty() && QFile::exists(colorSchemePath)) {
+        QFile csFile(colorSchemePath);
+        if (csFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+            QTextStream in(&csFile);
+            while (!in.atEnd()) {
+                QString line = in.readLine().trimmed();
+                if (line.startsWith(QStringLiteral("active_colors="))) {
+                    const QStringList cols = line.mid(14).split(',');
+                    auto getRole = [&](int idx) -> QColor {
+                        return (idx >= 0 && idx < cols.size()) ? parseConfigColor(cols[idx]) : QColor();
+                    };
+                    if (QColor c = getRole(0); c.isValid()) fg = c;
+                    if (QColor c = getRole(1); c.isValid()) btn = c;
+                    if (QColor c = getRole(5); c.isValid()) mid = c;
+                    if (QColor c = getRole(6); c.isValid()) txt = c;
+                    if (QColor c = getRole(9); c.isValid()) surface = c;
+                    if (QColor c = getRole(10); c.isValid()) bg = c;
+                    if (QColor c = getRole(12); c.isValid()) accent = c;
+                    if (QColor c = getRole(14); c.isValid()) link = c;
+                    if (QColor c = getRole(16); c.isValid()) altBase = c;
+                    break;
+                }
+            }
+            csFile.close();
+        }
+    }
+
+    const QString styleOverride = QString::fromLocal8Bit(qgetenv("QT_STYLE_OVERRIDE"));
+    const bool usesKvantum = qt6ctStyle.compare(QStringLiteral("kvantum"), Qt::CaseInsensitive) == 0
+                          || styleOverride.contains(QStringLiteral("kvantum"), Qt::CaseInsensitive);
+
+    if (usesKvantum) {
+        QString kvTheme = QString::fromLocal8Bit(qgetenv("KVANTUM_THEME")).trimmed();
+        QFile kvMain(home + QStringLiteral("/.config/Kvantum/kvantum.kvconfig"));
+        if (kvMain.open(QIODevice::ReadOnly | QIODevice::Text)) {
+            QTextStream in(&kvMain);
+            while (!in.atEnd()) {
+                QString line = in.readLine().trimmed();
+                if (line.startsWith(QStringLiteral("theme="))) {
+                    QString t = line.mid(6).trimmed();
+                    if (!t.isEmpty()) kvTheme = t;
+                    break;
+                }
+            }
+            kvMain.close();
+        }
+        if (!kvTheme.isEmpty()) {
+            QString baseTheme = kvTheme;
+            if (baseTheme.endsWith('#')) baseTheme.chop(1);
+            const QStringList kvPaths = {
+                home + QStringLiteral("/.config/Kvantum/") + kvTheme + QStringLiteral("/") + kvTheme + QStringLiteral(".kvconfig"),
+                home + QStringLiteral("/.config/Kvantum/") + baseTheme + QStringLiteral("/") + kvTheme + QStringLiteral(".kvconfig"),
+                QStringLiteral("/usr/share/Kvantum/") + kvTheme + QStringLiteral("/") + kvTheme + QStringLiteral(".kvconfig"),
+                QStringLiteral("/usr/share/Kvantum/") + baseTheme + QStringLiteral("/") + kvTheme + QStringLiteral(".kvconfig")
+            };
+            for (const auto &kp : kvPaths) {
+                if (!QFile::exists(kp)) continue;
+                QFile kf(kp);
+                if (kf.open(QIODevice::ReadOnly | QIODevice::Text)) {
+                    QTextStream in(&kf);
+                    QString section;
+                    while (!in.atEnd()) {
+                        QString line = in.readLine().trimmed();
+                        if (line.isEmpty() || line.startsWith('#') || line.startsWith(';')) continue;
+                        if (line.startsWith('[') && line.endsWith(']')) {
+                            section = line.mid(1, line.length() - 2);
+                            continue;
+                        }
+                        if (section != QStringLiteral("GeneralColors")) continue;
+                        int eq = line.indexOf('=');
+                        if (eq == -1) continue;
+                        QString k = line.left(eq).trimmed();
+                        QColor c = parseConfigColor(line.mid(eq + 1));
+                        if (!c.isValid()) continue;
+                        if (k == QStringLiteral("window.color")) bg = c;
+                        else if (k == QStringLiteral("base.color")) surface = c;
+                        else if (k == QStringLiteral("alt.base.color")) altBase = c;
+                        else if (k == QStringLiteral("button.color")) btn = c;
+                        else if (k == QStringLiteral("highlight.color")) accent = c;
+                        else if (k == QStringLiteral("text.color")) txt = c;
+                        else if (k == QStringLiteral("window.text.color")) fg = c;
+                        else if (k == QStringLiteral("link.color")) link = c;
+                        else if (k == QStringLiteral("disabled.text.color")) mid = c;
+                    }
+                    kf.close();
+                    break;
+                }
+            }
+        }
+    } else if (!customPalette && QFile::exists(home + QStringLiteral("/.config/kdeglobals"))) {
+        QFile kdeFile(home + QStringLiteral("/.config/kdeglobals"));
+        if (kdeFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+            QTextStream in(&kdeFile);
+            QString section;
+            while (!in.atEnd()) {
+                QString line = in.readLine().trimmed();
+                if (line.isEmpty() || line.startsWith('#')) continue;
+                if (line.startsWith('[') && line.endsWith(']')) {
+                    section = line.mid(1, line.length() - 2);
+                    continue;
+                }
+                int eq = line.indexOf('=');
+                if (eq == -1) continue;
+                QString k = line.left(eq).trimmed();
+                QColor c = parseConfigColor(line.mid(eq + 1));
+                if (!c.isValid()) continue;
+                if (section == QStringLiteral("Colors:Window")) {
+                    if (k == QStringLiteral("BackgroundNormal")) bg = c;
+                    else if (k == QStringLiteral("ForegroundNormal")) fg = c;
+                } else if (section == QStringLiteral("Colors:View")) {
+                    if (k == QStringLiteral("BackgroundNormal")) surface = c;
+                    else if (k == QStringLiteral("ForegroundNormal")) txt = c;
+                    else if (k == QStringLiteral("ForegroundLink")) link = c;
+                } else if (section == QStringLiteral("Colors:Button")) {
+                    if (k == QStringLiteral("BackgroundNormal")) btn = c;
+                } else if (section == QStringLiteral("Colors:Selection")) {
+                    if (k == QStringLiteral("BackgroundNormal")) accent = c;
+                }
+            }
+            kdeFile.close();
+        }
+    }
+
+    auto hex = [](const QColor &c) -> QString {
+        return c.isValid() ? c.name(QColor::HexRgb) : QStringLiteral("#000000");
+    };
+    auto shiftHue = [](const QColor &base, qreal dh, qreal satMul, qreal valShift) -> QColor {
+        float h = 0.0f, s = 0.0f, v = 0.0f, a = 1.0f;
+        base.getHsvF(&h, &s, &v, &a);
+        if (h < 0.0f) {
+            return QColor::fromHsvF(0.0f, 0.0f, qBound(0.0f, v + float(valShift), 1.0f));
+        }
+        float nh = std::fmod(h + float(dh) + 1.0f, 1.0f);
+        float ns = qBound(0.0f, s * float(satMul), 1.0f);
+        float nv = qBound(0.0f, v + float(valShift), 1.0f);
+        return QColor::fromHsvF(nh, ns, nv);
+    };
+
+    QColor c2 = (link.isValid() && link != accent) ? link : shiftHue(accent, 0.03, 0.9, 0.04);
+    QColor c3 = shiftHue(accent, -0.04, 0.85, 0.06);
+    QColor c4 = shiftHue(accent, 0.06, 0.75, 0.04);
+    QColor c5 = (btn.isValid() && btn != bg) ? btn : shiftHue(accent, -0.06, 0.7, 0.05);
+    QColor c6 = shiftHue(accent, 0.09, 0.65, 0.06);
+
+    QJsonObject special;
+    special[QStringLiteral("background")] = hex(bg);
+    special[QStringLiteral("foreground")] = hex(fg);
+    special[QStringLiteral("cursor")] = hex(txt);
+
+    QJsonObject colors;
+    colors[QStringLiteral("color0")] = hex(surface.isValid() ? surface : bg);
+    colors[QStringLiteral("color1")] = hex(accent);
+    colors[QStringLiteral("color2")] = hex(c2);
+    colors[QStringLiteral("color3")] = hex(c3);
+    colors[QStringLiteral("color4")] = hex(c4);
+    colors[QStringLiteral("color5")] = hex(c5);
+    colors[QStringLiteral("color6")] = hex(c6);
+    colors[QStringLiteral("color7")] = hex(fg);
+    colors[QStringLiteral("color8")] = hex(mid.isValid() ? mid : altBase);
+    colors[QStringLiteral("color9")] = hex(shiftHue(accent, 0.0, 1.05, 0.08));
+    colors[QStringLiteral("color10")] = hex(shiftHue(c2, 0.0, 1.05, 0.08));
+    colors[QStringLiteral("color11")] = hex(shiftHue(c3, 0.0, 1.05, 0.08));
+    colors[QStringLiteral("color12")] = hex(shiftHue(c4, 0.0, 1.05, 0.08));
+    colors[QStringLiteral("color13")] = hex(shiftHue(c5, 0.0, 1.05, 0.08));
+    colors[QStringLiteral("color14")] = hex(shiftHue(c6, 0.0, 1.05, 0.08));
+    colors[QStringLiteral("color15")] = hex(txt);
+
+    QJsonObject out;
+    out[QStringLiteral("special")] = special;
+    out[QStringLiteral("colors")] = colors;
+    return out;
 }
 
 void Sys::startIpcServer() {
@@ -690,6 +1017,9 @@ ConfigBackend::ConfigBackend(QObject *parent)
     : QObject(parent)
 {
     m_notasDir = QDir::homePath() + QStringLiteral("/Documentos/notes");
+    if (!QFile::exists(QDir::homePath() + QStringLiteral("/.cache/wal/colors.json"))) {
+        m_themeMode = QStringLiteral("qt");
+    }
 
     m_saveTimer = new QTimer(this);
     m_saveTimer->setSingleShot(true);
@@ -870,7 +1200,22 @@ void ConfigBackend::setFontSizeScale(double val) {
     scheduleSave();
 }
 
+void ConfigBackend::setCustomThemeName(const QString &val) {
+    if (m_customThemeName == val || val.isEmpty()) return;
+    m_customThemeName = val;
+    emit customThemeNameChanged();
+    scheduleSave();
+}
+
+void ConfigBackend::setLightMode(bool val) {
+    if (m_lightMode == val) return;
+    m_lightMode = val;
+    emit lightModeChanged();
+    scheduleSave();
+}
+
 void ConfigBackend::load() {
+    const bool hasPywal = QFile::exists(QDir::homePath() + QStringLiteral("/.cache/wal/colors.json"));
     QString path = configFilePath();
     if (QFile::exists(path)) {
         QFile file(path);
@@ -887,7 +1232,7 @@ void ConfigBackend::load() {
                 if (obj.contains("language")) m_language = obj["language"].toString("auto");
                 if (obj.contains("spellCheckEnabled")) m_spellCheckEnabled = obj["spellCheckEnabled"].toBool(true);
                 if (obj.contains("spellCheckLanguage")) m_spellCheckLanguage = obj["spellCheckLanguage"].toString("auto");
-                if (obj.contains("themeMode")) m_themeMode = obj["themeMode"].toString("system");
+                if (obj.contains("themeMode")) m_themeMode = obj["themeMode"].toString(hasPywal ? "pywal" : "qt");
                 if (obj.contains("hideScrollbars")) m_hideScrollbars = obj["hideScrollbars"].toBool(false);
 
                 if (obj.contains("cardsPerRow")) m_cardsPerRow = obj["cardsPerRow"].toInt(3);
@@ -897,9 +1242,29 @@ void ConfigBackend::load() {
                 if (obj.contains("primarySpellLanguage")) m_primarySpellLanguage = obj["primarySpellLanguage"].toString();
                 if (obj.contains("ignoreUppercase")) m_ignoreUppercase = obj["ignoreUppercase"].toBool(true);
                 if (obj.contains("ignoreWithDigits")) m_ignoreWithDigits = obj["ignoreWithDigits"].toBool(true);
-                if (obj.contains("panelOpacity")) m_panelOpacity = obj["panelOpacity"].toInt(94);
+                if (obj.contains("panelOpacity")) m_panelOpacity = qBound(50, obj["panelOpacity"].toInt(94), 100);
                 if (obj.contains("animationsEnabled")) m_animationsEnabled = obj["animationsEnabled"].toBool(true);
                 if (obj.contains("fontSizeScale")) m_fontSizeScale = obj["fontSizeScale"].toDouble(1.0);
+                if (obj.contains("customThemeName")) m_customThemeName = obj["customThemeName"].toString("amarillo");
+                if (obj.contains("lightMode")) m_lightMode = obj["lightMode"].toBool(false);
+
+                // Migrar modos antiguos inexistentes ("dark", "light", "system")
+                bool migrated = false;
+                if (m_themeMode == QStringLiteral("dark")) {
+                    m_themeMode = hasPywal ? QStringLiteral("pywal") : QStringLiteral("custom");
+                    m_lightMode = false;
+                    migrated = true;
+                } else if (m_themeMode == QStringLiteral("light")) {
+                    m_themeMode = QStringLiteral("custom");
+                    m_lightMode = true;
+                    migrated = true;
+                } else if (m_themeMode == QStringLiteral("system")) {
+                    m_themeMode = QStringLiteral("qt");
+                    migrated = true;
+                }
+                file.close();
+                if (migrated) save();
+                return;
             }
             file.close();
             return;
@@ -962,6 +1327,8 @@ void ConfigBackend::save() {
     obj[QStringLiteral("panelOpacity")] = m_panelOpacity;
     obj[QStringLiteral("animationsEnabled")] = m_animationsEnabled;
     obj[QStringLiteral("fontSizeScale")] = m_fontSizeScale;
+    obj[QStringLiteral("customThemeName")] = m_customThemeName;
+    obj[QStringLiteral("lightMode")] = m_lightMode;
 
     QString path = configFilePath();
     QFileInfo fi(path);
@@ -998,6 +1365,8 @@ void ConfigBackend::reload() {
     emit panelOpacityChanged();
     emit animationsEnabledChanged();
     emit fontSizeScaleChanged();
+    emit customThemeNameChanged();
+    emit lightModeChanged();
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -1007,6 +1376,11 @@ void ConfigBackend::reload() {
 SpellBackend::SpellBackend(QObject *parent)
     : QObject(parent)
 {
+    discoverDictionaries();
+    loadPersonalWords();
+}
+
+void SpellBackend::refreshDictionaries() {
     discoverDictionaries();
     loadPersonalWords();
 }
@@ -1021,8 +1395,7 @@ void SpellBackend::discoverDictionaries() {
         QDir::homePath() + QStringLiteral("/.local/share/notas/dictionaries"),
         QStringLiteral("/usr/share/hunspell"),
         QStringLiteral("/usr/share/myspell"),
-        QDir::homePath() + QStringLiteral("/.local/share/hunspell"),
-        QDir::homePath() + QStringLiteral("/.config/quickshell/languages/spellcheck/dicts")
+        QDir::homePath() + QStringLiteral("/.local/share/hunspell")
     };
 
     for (const auto &p : paths) {
@@ -1042,7 +1415,16 @@ void SpellBackend::discoverDictionaries() {
 
 void SpellBackend::loadPersonalWords() {
     m_personalWords.clear();
-    QFile f(personalDicPath());
+    QString p = personalDicPath();
+    QFileInfo fi(p);
+    if (!fi.exists()) {
+        fi.dir().mkpath(QStringLiteral("."));
+        QFile initFile(p);
+        if (initFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            initFile.close();
+        }
+    }
+    QFile f(p);
     if (f.open(QIODevice::ReadOnly | QIODevice::Text)) {
         QTextStream in(&f);
         while (!in.atEnd()) {
@@ -1100,12 +1482,38 @@ QJsonObject SpellBackend::checkWords(const QString &lang, const QStringList &wor
     if (words.isEmpty()) return result;
 
     QString dict = lang;
-    if (dict == "auto" || dict.isEmpty()) {
-        dict = m_availableDictionaries.contains("es_ES") ? "es_ES" : (m_availableDictionaries.value(0, "es_ES"));
+    if (dict == "auto" || dict.isEmpty() || !m_availableDictionaries.contains(dict)) {
+        dict = m_availableDictionaries.contains("es_AR")
+            ? QStringLiteral("es_AR")
+            : (m_availableDictionaries.contains("es_ES")
+                ? QStringLiteral("es_ES")
+                : m_availableDictionaries.value(0, QStringLiteral("es_AR")));
+    }
+
+    QString dictArg = dict;
+    const QStringList searchDirs = {
+        QDir::homePath() + QStringLiteral("/.local/share/notas/dictionaries"),
+        QStringLiteral("/usr/share/hunspell"),
+        QStringLiteral("/usr/share/myspell"),
+        QDir::homePath() + QStringLiteral("/.local/share/hunspell")
+    };
+    for (const auto &d : searchDirs) {
+        QString candidate = d + QStringLiteral("/") + dict;
+        if (QFile::exists(candidate + QStringLiteral(".dic")) && QFile::exists(candidate + QStringLiteral(".aff"))) {
+            dictArg = candidate;
+            break;
+        }
+    }
+
+    QFileInfo pdFi(personalDicPath());
+    pdFi.dir().mkpath(QStringLiteral("."));
+    if (!pdFi.exists()) {
+        QFile pf(personalDicPath());
+        if (pf.open(QIODevice::WriteOnly | QIODevice::Text)) pf.close();
     }
 
     QProcess proc;
-    proc.start("hunspell", {"-a", "-d", dict, "-p", personalDicPath()});
+    proc.start("hunspell", {"-a", "-d", dictArg, "-p", personalDicPath()});
     if (!proc.waitForStarted(1000)) {
         return result;
     }

@@ -418,12 +418,12 @@ Item {
 
     property var _cachedImageDimensions: ({})
 
-    // Proceso de indexación nativa ultrarrápida vía Rust qs-helper (<5ms)
+    // Proceso de indexación nativa ultrarrápida vía Rust notas (<5ms)
     Process {
         id: qsIndexProc
         property string outJson: ""
         command: [
-            Quickshell.shellDir.toString().replace("file://", "") + "/bin/qs-helper",
+            (typeof Sys !== "undefined" && Sys.appExecutable) ? Sys.appExecutable : "notas",
             "notes",
             "index",
             root.notesDir
@@ -993,7 +993,7 @@ Item {
         root.log("[NotesService - refresh] Refrescando directorio de notas:", root.notesDir);
         if (root.notesDir) {
             qsIndexProc.command = [
-                Quickshell.shellDir.toString().replace("file://", "") + "/bin/qs-helper",
+                (typeof Sys !== "undefined" && Sys.appExecutable) ? Sys.appExecutable : "notas",
                 "notes",
                 "index",
                 root.notesDir
@@ -2101,7 +2101,7 @@ Item {
         pasteImgProc.pendingBase = baseDir;
         pasteImgProc.pendingKey = key;
         pasteImgProc.savedRelTag = "";
-        var qsHelperBin = Quickshell.shellDir.toString().replace("file://", "") + "/bin/qs-helper";
+        var qsHelperBin = (typeof Sys !== "undefined" && Sys.appExecutable) ? Sys.appExecutable : "notas";
         var pasteArgs = [
             qsHelperBin,
             "notes",

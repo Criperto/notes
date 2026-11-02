@@ -3444,10 +3444,7 @@ Item {
     }
 
     function _resolvePortalPickerPath() {
-        var base = Quickshell.shellDir ? Quickshell.shellDir.toString().replace("file://", "") : "";
-        if (base.endsWith("/notes")) base = base.substring(0, base.length - 6);
-        if (base !== "") return base + "/bin/qs-helper";
-        return (Quickshell.env("HOME") || "") + "/.config/quickshell/bin/qs-helper";
+        return (typeof Sys !== "undefined" && Sys.appExecutable) ? Sys.appExecutable : "notas";
     }
 
     // Proceso para seleccionar imagen vía xdg-desktop-portal
@@ -3499,8 +3496,8 @@ Item {
         height: 32
         radius: 10
         color: zoomMa.containsMouse
-            ? Qt.hsva(Theme.surface.hsvHue, Theme.surface.hsvSaturation, Theme.surface.hsvValue, 0.85)
-            : Qt.hsva(Theme.surface.hsvHue, Theme.surface.hsvSaturation, Theme.surface.hsvValue, 0.65)
+            ? Qt.hsva(Theme.surface.hsvHue < 0 ? 0 : Theme.surface.hsvHue, Theme.surface.hsvSaturation, Theme.surface.hsvValue, 0.85)
+            : Qt.hsva(Theme.surface.hsvHue < 0 ? 0 : Theme.surface.hsvHue, Theme.surface.hsvSaturation, Theme.surface.hsvValue, 0.65)
         border.color: Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.15)
         border.width: 1
         opacity: (zoomPillTimer.running || zoomMa.containsMouse) ? 1.0 : 0.0

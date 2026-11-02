@@ -20,7 +20,7 @@
 #include <QLocalSocket>
 #include <QtQmlIntegration/qqmlintegration.h>
 
-// ── 1. SplitParser ───────────────────────────────────────────────────────────
+// ── 1. SplitParser & StdioCollector ──────────────────────────────────────────
 class SplitParser : public QObject {
     Q_OBJECT
     QML_ELEMENT
@@ -33,8 +33,9 @@ public:
     QString splitMarker() const { return m_splitMarker; }
     void setSplitMarker(const QString &marker);
 
-    void pushData(const QByteArray &data);
-    void flush();
+    virtual void pushData(const QByteArray &data);
+    virtual void flush();
+    virtual void reset();
 
 signals:
     void splitMarkerChanged();
@@ -43,6 +44,30 @@ signals:
 private:
     QString m_splitMarker = QStringLiteral("\n");
     QByteArray m_buffer;
+};
+
+class StdioCollector : public SplitParser {
+    Q_OBJECT
+    QML_ELEMENT
+
+    Q_PROPERTY(QString text READ text NOTIFY textChanged)
+
+public:
+    explicit StdioCollector(QObject *parent = nullptr);
+
+    QString text() const { return m_text; }
+
+    void pushData(const QByteArray &data) override;
+    void flush() override;
+    void reset() override;
+
+signals:
+    void textChanged();
+    void streamFinished();
+
+private:
+    QByteArray m_collected;
+    QString m_text;
 };
 
 // ── 2. Process ───────────────────────────────────────────────────────────────
@@ -186,12 +211,14 @@ class Sys : public QObject {
     Q_PROPERTY(QString clipboardText READ clipboardText WRITE setClipboardText NOTIFY clipboardTextChanged)
     Q_PROPERTY(bool hasTouchscreen READ hasTouchscreen CONSTANT)
     Q_PROPERTY(QString homeDir READ homeDir CONSTANT)
+    Q_PROPERTY(QString homePath READ homeDir CONSTANT)
     Q_PROPERTY(QString dataShareDir READ dataShareDir CONSTANT)
     Q_PROPERTY(QString appExecutable READ appExecutable CONSTANT)
     Q_PROPERTY(QString initialAction READ initialAction CONSTANT)
     Q_PROPERTY(QString initialTarget READ initialTarget CONSTANT)
     Q_PROPERTY(qreal lastMouseX READ lastMouseX NOTIFY lastMousePosChanged)
     Q_PROPERTY(qreal lastMouseY READ lastMouseY NOTIFY lastMousePosChanged)
+    Q_PROPERTY(QJsonObject qtColors READ qtColors NOTIFY qtColorsChanged)
 
 public:
     explicit Sys(QObject *parent = nullptr);
@@ -209,6 +236,7 @@ public:
 
     qreal lastMouseX() const { return m_lastMousePos.x(); }
     qreal lastMouseY() const { return m_lastMousePos.y(); }
+    QJsonObject qtColors() const { return m_qtColors; }
 
     bool eventFilter(QObject *watched, QEvent *event) override;
 
@@ -217,23 +245,30 @@ public:
     Q_INVOKABLE bool clipboardHasImage() const;
     Q_INVOKABLE QString pasteClipboardImage(const QString &destDir, const QString &baseName, const QString &relPrefix = QStringLiteral("assets/"));
     Q_INVOKABLE QJsonObject indexNotes(const QString &notesDir) const;
+    Q_INVOKABLE QJsonObject readQtColors() const;
+    Q_INVOKABLE void refreshQtColors();
 
 signals:
     void clipboardTextChanged();
     void lastMousePosChanged();
+    void qtColorsChanged();
     void ipcCommandReceived(const QString &action, const QString &target);
 
 private slots:
     void onNewIpcConnection();
+    void onQtThemeFileChanged();
 
 private:
     void startIpcServer();
+    void setupQtThemeWatcher();
 
     mutable int m_hasTouchscreen = -1;
     QPointF m_lastMousePos = QPointF(100, 100);
     QString m_initialAction;
     QString m_initialTarget;
     QLocalServer *m_ipcServer = nullptr;
+    QFileSystemWatcher *m_qtThemeWatcher = nullptr;
+    QJsonObject m_qtColors;
 };
 
 // ── 5. ConfigBackend Singleton ──────────────────────────────────────────────
@@ -264,6 +299,8 @@ class ConfigBackend : public QObject {
     Q_PROPERTY(int panelOpacity READ panelOpacity WRITE setPanelOpacity NOTIFY panelOpacityChanged)
     Q_PROPERTY(bool animationsEnabled READ animationsEnabled WRITE setAnimationsEnabled NOTIFY animationsEnabledChanged)
     Q_PROPERTY(double fontSizeScale READ fontSizeScale WRITE setFontSizeScale NOTIFY fontSizeScaleChanged)
+    Q_PROPERTY(QString customThemeName READ customThemeName WRITE setCustomThemeName NOTIFY customThemeNameChanged)
+    Q_PROPERTY(bool lightMode READ lightMode WRITE setLightMode NOTIFY lightModeChanged)
 
 public:
     explicit ConfigBackend(QObject *parent = nullptr);
@@ -332,6 +369,12 @@ public:
     double fontSizeScale() const { return m_fontSizeScale; }
     void setFontSizeScale(double val);
 
+    QString customThemeName() const { return m_customThemeName; }
+    void setCustomThemeName(const QString &val);
+
+    bool lightMode() const { return m_lightMode; }
+    void setLightMode(bool val);
+
     Q_INVOKABLE void save();
     Q_INVOKABLE void reload();
 
@@ -358,6 +401,8 @@ signals:
     void panelOpacityChanged();
     void animationsEnabledChanged();
     void fontSizeScaleChanged();
+    void customThemeNameChanged();
+    void lightModeChanged();
 
 private:
     void load();
@@ -374,7 +419,7 @@ private:
     QString m_language = QStringLiteral("auto");
     bool m_spellCheckEnabled = true;
     QString m_spellCheckLanguage = QStringLiteral("auto");
-    QString m_themeMode = QStringLiteral("system");
+    QString m_themeMode = QStringLiteral("pywal");
     bool m_hideScrollbars = false;
 
     int m_cardsPerRow = 3;
@@ -387,6 +432,8 @@ private:
     int m_panelOpacity = 94;
     bool m_animationsEnabled = true;
     double m_fontSizeScale = 1.0;
+    QString m_customThemeName = QStringLiteral("amarillo");
+    bool m_lightMode = false;
 
     QTimer *m_saveTimer = nullptr;
 };
@@ -410,6 +457,7 @@ public:
     Q_INVOKABLE void addPersonalWord(const QString &word);
     Q_INVOKABLE void removePersonalWord(const QString &word);
     Q_INVOKABLE void clearPersonalWords();
+    Q_INVOKABLE void refreshDictionaries();
 
 signals:
     void availableDictionariesChanged();

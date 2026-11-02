@@ -9,7 +9,7 @@ Item {
     property string clipboardText: Sys.clipboardText
     onClipboardTextChanged: {
         if (Sys.clipboardText !== clipboardText) {
-            Sys.setClipboardText(clipboardText);
+            Sys.clipboardText = clipboardText;
         }
     }
 
