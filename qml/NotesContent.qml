@@ -16,6 +16,16 @@ Item {
     signal openSettingsRequested(var originRect)
     property bool isSettingsOpen: false
 
+    function getSettingsButtonRect() {
+        if (!settingsBtn) return null;
+        try {
+            var origin = settingsBtn.mapToItem(null, 0, 0);
+            return Qt.rect(origin.x, origin.y, settingsBtn.width, settingsBtn.height);
+        } catch (e) {
+            return null;
+        }
+    }
+
     property bool _morphTransitioning: false
     property string activeMorphSlug: ""
     property var morphingNoteData: null

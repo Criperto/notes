@@ -29,9 +29,23 @@ ApplicationWindow {
         backgroundSourceItem: content
     }
 
+    function toggleSettings() {
+        if (settingsModal.isOpen && !settingsModal.isClosing) {
+            settingsModal.close();
+        } else {
+            var noteIsActive = (typeof NotesService !== "undefined" && NotesService.isEditing);
+            if (!noteIsActive && content && typeof content.getSettingsButtonRect === "function") {
+                var btnRect = content.getSettingsButtonRect();
+                settingsModal.open(btnRect);
+            } else {
+                settingsModal.open();
+            }
+        }
+    }
+
     Shortcut {
         sequence: "Ctrl+,"
-        onActivated: settingsModal.open()
+        onActivated: root.toggleSettings()
     }
 
     Shortcut {

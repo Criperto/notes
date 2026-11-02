@@ -61,7 +61,16 @@ Item {
         return Qt.hsva(h, s, v, alpha);
     }
 
+    function toggle(rect) {
+        if (isOpen && !isClosing) {
+            close();
+        } else {
+            open(rect);
+        }
+    }
+
     function open(rect) {
+        if (isOpen && !isClosing) return;
         closeCardAnim.stop();
         fadeCloseAnim.stop();
         var noteIsActive = (typeof NotesService !== "undefined" && NotesService.isEditing);
@@ -120,6 +129,13 @@ Item {
         if (!isOpen && !isClosing) return;
         openCardAnim.stop();
         fadeOpenAnim.stop();
+
+        if (isFromButton && backgroundSourceItem && typeof backgroundSourceItem.getSettingsButtonRect === "function") {
+            var curRect = backgroundSourceItem.getSettingsButtonRect();
+            if (curRect && typeof curRect.x === "number") {
+                originRect = curRect;
+            }
+        }
 
         if (!Theme.animationsEnabled || GamemodeService.gamemodeActive) {
             isOpen = false;
@@ -1134,13 +1150,8 @@ Item {
             anchors.fill: parent
             anchors.margins: 20
             spacing: 14
-            opacity: root.isOpen ? 1.0 : 0.0
+            opacity: 0.0
             visible: opacity > 0
-
-            Behavior on opacity {
-                enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
-                NumberAnimation { duration: 160; easing.type: Easing.OutCubic }
-            }
 
             // ── Cabecera ─────────────────────────────────────────────────
             RowLayout {
