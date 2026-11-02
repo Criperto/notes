@@ -138,10 +138,10 @@ Item {
     ParallelAnimation {
         id: openCardAnim
 
-        SpringAnimation { target: card; property: "x"; to: Math.round((root.width - targetWidth) / 2); spring: 8.0; damping: 0.88; mass: 0.48; epsilon: 0.25 }
-        SpringAnimation { target: card; property: "y"; to: Math.round((root.height - targetHeight) / 2); spring: 8.0; damping: 0.88; mass: 0.48; epsilon: 0.25 }
-        SpringAnimation { target: card; property: "width"; to: targetWidth; spring: 8.0; damping: 0.88; mass: 0.48; epsilon: 0.25 }
-        SpringAnimation { target: card; property: "height"; to: targetHeight; spring: 8.0; damping: 0.88; mass: 0.48; epsilon: 0.25 }
+        SpringAnimation { target: card; property: "x"; to: Math.round((root.width - targetWidth) / 2); spring: 5.2; damping: 0.78; mass: 0.70; epsilon: 0.5 }
+        SpringAnimation { target: card; property: "y"; to: Math.round((root.height - targetHeight) / 2); spring: 5.2; damping: 0.78; mass: 0.70; epsilon: 0.5 }
+        SpringAnimation { target: card; property: "width"; to: targetWidth; spring: 5.2; damping: 0.78; mass: 0.70; epsilon: 0.5 }
+        SpringAnimation { target: card; property: "height"; to: targetHeight; spring: 5.2; damping: 0.78; mass: 0.70; epsilon: 0.5 }
         NumberAnimation { target: card; property: "radius"; to: 16; duration: 200; easing.type: Easing.OutCubic }
         NumberAnimation { target: cardBtnContent; property: "opacity"; to: 0.0; duration: 100; easing.type: Easing.OutCubic }
 
@@ -156,10 +156,10 @@ Item {
 
         NumberAnimation { target: modalContentLayout; property: "opacity"; to: 0.0; duration: 80; easing.type: Easing.OutCubic }
 
-        SpringAnimation { target: card; property: "x"; to: originRect.x; spring: 8.0; damping: 0.88; mass: 0.48; epsilon: 0.25 }
-        SpringAnimation { target: card; property: "y"; to: originRect.y; spring: 8.0; damping: 0.88; mass: 0.48; epsilon: 0.25 }
-        SpringAnimation { target: card; property: "width"; to: (originRect.width > 0 ? originRect.width : 38); spring: 8.0; damping: 0.88; mass: 0.48; epsilon: 0.25 }
-        SpringAnimation { target: card; property: "height"; to: (originRect.height > 0 ? originRect.height : 38); spring: 8.0; damping: 0.88; mass: 0.48; epsilon: 0.25 }
+        SpringAnimation { target: card; property: "x"; to: originRect.x; spring: 5.6; damping: 0.82; mass: 0.65; epsilon: 0.5 }
+        SpringAnimation { target: card; property: "y"; to: originRect.y; spring: 5.6; damping: 0.82; mass: 0.65; epsilon: 0.5 }
+        SpringAnimation { target: card; property: "width"; to: (originRect.width > 0 ? originRect.width : 38); spring: 5.6; damping: 0.82; mass: 0.65; epsilon: 0.5 }
+        SpringAnimation { target: card; property: "height"; to: (originRect.height > 0 ? originRect.height : 38); spring: 5.6; damping: 0.82; mass: 0.65; epsilon: 0.5 }
         NumberAnimation { target: card; property: "radius"; to: 10; duration: 180; easing.type: Easing.OutCubic }
 
         SequentialAnimation {
@@ -997,7 +997,7 @@ Item {
                 id: cardBlurSrc
                 anchors.fill: parent
                 sourceItem: root.backgroundSourceItem
-                sourceRect: Qt.rect(Math.max(0, card.x), Math.max(0, card.y), Math.max(1, card.width), Math.max(1, card.height))
+                sourceRect: Qt.rect(Math.round(Math.max(0, card.x)), Math.round(Math.max(0, card.y)), Math.round(Math.max(1, card.width)), Math.round(Math.max(1, card.height)))
                 live: (root.isOpen || root.isClosing) && Theme.animationsEnabled && !GamemodeService.gamemodeActive
                 hideSource: false
                 layer.enabled: parent.visible
