@@ -6,8 +6,8 @@ import Notas
 
 Item {
     id: root
-    visible: isOpen || opacity > 0
-    opacity: isOpen ? 1.0 : 0.0
+    visible: isOpen || isClosing || opacity > 0
+    opacity: (isOpen || isClosing) ? 1.0 : 0.0
 
     anchors.fill: parent
     z: 9999
@@ -15,6 +15,8 @@ Item {
     signal closed()
 
     property bool isOpen: false
+    property bool isClosing: false
+    property bool isFromButton: false
     property bool springEnabled: false
     property rect originRect: Qt.rect(Math.round((width - 40) / 2), Math.round((height - 40) / 2), 40, 40)
     property int tabIndex: 0
@@ -52,11 +54,15 @@ Item {
 
     function open(rect) {
         springEnabled = false;
+        closeTimer.stop();
+        isClosing = false;
         var noteIsActive = (typeof NotesService !== "undefined" && NotesService.isEditing);
         if (!noteIsActive && rect && typeof rect.x === "number") {
             originRect = rect;
+            isFromButton = true;
         } else {
-            originRect = Qt.rect(Math.round((root.width - 40) / 2), Math.round((root.height - 40) / 2), 40, 40);
+            originRect = Qt.rect(Math.round((root.width - targetWidth) / 2), Math.round((root.height - targetHeight) / 2), targetWidth, targetHeight);
+            isFromButton = false;
         }
         if (typeof SpellService !== "undefined") {
             SpellService.refreshDicts();
@@ -76,8 +82,26 @@ Item {
         if (sharedContextMenu.visible) {
             sharedContextMenu.closeMenu();
         }
+        if (!isOpen) return;
         isOpen = false;
-        closed();
+        if (!Theme.animationsEnabled || GamemodeService.gamemodeActive || !isFromButton) {
+            isClosing = false;
+            closed();
+            return;
+        }
+        isClosing = true;
+        closeTimer.restart();
+    }
+
+    Timer {
+        id: closeTimer
+        interval: 280
+        repeat: false
+        onTriggered: {
+            root.isClosing = false;
+            root.springEnabled = false;
+            root.closed();
+        }
     }
 
     onOpacityChanged: {
@@ -87,7 +111,7 @@ Item {
     }
 
     Behavior on opacity {
-        enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+        enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive && !root.isFromButton
         NumberAnimation {
             duration: 150
             easing.type: Easing.OutQuad
@@ -853,16 +877,35 @@ Item {
 
     Rectangle {
         id: card
-        x: root.isOpen ? Math.round((root.width - targetWidth) / 2) : (typeof root.originRect.x === "number" ? root.originRect.x : Math.round((root.width - targetWidth) / 2))
-        y: root.isOpen ? Math.round((root.height - targetHeight) / 2) : (typeof root.originRect.y === "number" ? root.originRect.y : Math.round((root.height - targetHeight) / 2))
-        width: root.isOpen ? targetWidth : (root.originRect.width > 0 ? root.originRect.width : 40)
-        height: root.isOpen ? targetHeight : (root.originRect.height > 0 ? root.originRect.height : 40)
-        radius: root.isOpen ? 16 : 10
+        x: root.isOpen ? Math.round((root.width - targetWidth) / 2) : (root.isFromButton && typeof root.originRect.x === "number" ? root.originRect.x : Math.round((root.width - targetWidth) / 2))
+        y: root.isOpen ? Math.round((root.height - targetHeight) / 2) : (root.isFromButton && typeof root.originRect.y === "number" ? root.originRect.y : Math.round((root.height - targetHeight) / 2))
+        width: root.isOpen ? targetWidth : (root.isFromButton && root.originRect.width > 0 ? root.originRect.width : targetWidth)
+        height: root.isOpen ? targetHeight : (root.isFromButton && root.originRect.height > 0 ? root.originRect.height : targetHeight)
+        radius: root.isOpen ? 16 : (root.isFromButton ? 10 : 16)
 
-        color: Theme.surface
+        color: (!root.isFromButton || root.isOpen)
+            ? Qt.hsva(Theme.surface.hsvHue,
+                      Math.min(1, Theme.surface.hsvSaturation),
+                      Math.min(1, Theme.surface.hsvValue + 0.03),
+                      GamemodeService.gamemodeActive ? 1.0 : Theme.panelOpacity)
+            : Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.05)
         border.color: Theme.border
         border.width: 1
         clip: true
+
+        layer.enabled: !GamemodeService.gamemodeActive
+        layer.effect: MultiEffect {
+            shadowEnabled: true
+            shadowColor: Qt.rgba(0, 0, 0, 0.45)
+            shadowBlur: 0.6
+            shadowVerticalOffset: 6
+            shadowHorizontalOffset: 0
+        }
+
+        Behavior on color {
+            enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+            ColorAnimation { duration: 240; easing.type: Easing.OutCubic }
+        }
 
         Behavior on x {
             enabled: root.springEnabled && Theme.animationsEnabled && !GamemodeService.gamemodeActive
@@ -889,10 +932,48 @@ Item {
             anchors.fill: parent
         }
 
+        Item {
+            id: cardBtnContent
+            anchors.left: parent.left
+            anchors.top: parent.top
+            width: (root.originRect.width > 0) ? root.originRect.width : 38
+            height: (root.originRect.height > 0) ? root.originRect.height : 38
+            visible: root.isFromButton && opacity > 0
+            opacity: root.isOpen ? 0.0 : 1.0
+            z: 10
+            clip: true
+
+            Behavior on opacity {
+                enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                NumberAnimation { duration: 120; easing.type: Easing.OutCubic }
+            }
+
+            Image {
+                anchors.centerIn: parent
+                width: 16
+                height: 16
+                source: Theme.iconsPath + "settings.svg"
+                sourceSize: Qt.size(16, 16)
+                layer.enabled: true
+                layer.effect: MultiEffect {
+                    colorization: 1.0
+                    colorizationColor: Theme.muted
+                }
+            }
+        }
+
         ColumnLayout {
+            id: modalContentLayout
             anchors.fill: parent
             anchors.margins: 20
             spacing: 14
+            opacity: root.isOpen ? 1.0 : 0.0
+            visible: opacity > 0
+
+            Behavior on opacity {
+                enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                NumberAnimation { duration: 160; easing.type: Easing.OutCubic }
+            }
 
             // ── Cabecera ─────────────────────────────────────────────────
             RowLayout {
@@ -2452,52 +2533,72 @@ Item {
                         id: tabAbout
                         visible: root.tabIndex === 3
                         width: parent.width
-                        spacing: 12
+                        spacing: 14
 
                         BentoCard {
-                            implicitHeight: colAppInfo.implicitHeight + 28
+                            implicitHeight: colAppInfo.implicitHeight + 36
                             ColumnLayout {
                                 id: colAppInfo
                                 anchors.fill: parent
-                                anchors.margins: 14
-                                spacing: 14
+                                anchors.margins: 18
+                                spacing: 12
 
-                                RowLayout {
-                                    spacing: 16
-                                    Rectangle {
-                                        width: 60
-                                        height: 60
-                                        radius: 14
-                                        color: Theme.surfaceHover
-                                        border.color: Theme.border
-                                        border.width: 1
+                                Image {
+                                    Layout.alignment: Qt.AlignHCenter
+                                    width: 76
+                                    height: 76
+                                    source: Theme.iconsPath + "dev.criperto.Notas.svg"
+                                    sourceSize: Qt.size(76, 76)
+                                    fillMode: Image.PreserveAspectFit
+                                    mipmap: true
+                                }
+
+                                Text {
+                                    Layout.alignment: Qt.AlignHCenter
+                                    text: "Notas"
+                                    font.family: Theme.fontFamilyDisplay
+                                    font.pixelSize: 24
+                                    font.bold: true
+                                    color: Theme.text
+                                }
+
+                                Text {
+                                    Layout.alignment: Qt.AlignHCenter
+                                    text: "dev.criperto.Notas • Versión 0.1.0"
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: Theme.fontSizeSmall
+                                    color: Theme.muted
+                                }
+
+                                // Badge pill de Autor
+                                Rectangle {
+                                    Layout.alignment: Qt.AlignHCenter
+                                    implicitWidth: authorRow.implicitWidth + 24
+                                    implicitHeight: 28
+                                    radius: 14
+                                    color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.12)
+                                    border.color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.3)
+                                    border.width: 1
+
+                                    RowLayout {
+                                        id: authorRow
+                                        anchors.centerIn: parent
+                                        spacing: 6
 
                                         Image {
-                                            anchors.centerIn: parent
-                                            width: 44
-                                            height: 44
-                                            source: "qrc:/qt/qml/Notas/assets/icons/dev.criperto.Notas.svg"
-                                            sourceSize: Qt.size(44, 44)
+                                            width: 13
+                                            height: 13
+                                            source: Theme.iconsPath + "edit.svg"
+                                            sourceSize: Qt.size(13, 13)
+                                            layer.enabled: !GamemodeService.gamemodeActive
+                                            layer.effect: MultiEffect {
+                                                colorization: 1.0
+                                                colorizationColor: Theme.accent
+                                            }
                                         }
-                                    }
 
-                                    ColumnLayout {
-                                        spacing: 3
                                         Text {
-                                            text: "Notas"
-                                            font.family: Theme.fontFamilyDisplay
-                                            font.pixelSize: Theme.fontSizeTitleLarge
-                                            font.bold: true
-                                            color: Theme.text
-                                        }
-                                        Text {
-                                            text: "dev.criperto.Notas • Versión 0.1.0"
-                                            font.family: Theme.fontFamily
-                                            font.pixelSize: Theme.fontSizeSmall
-                                            color: Theme.muted
-                                        }
-                                        Text {
-                                            text: "Licencia: GNU General Public License v3.0 or later (GPL-3.0-or-later)"
+                                            text: "Creado por Criperto"
                                             font.family: Theme.fontFamily
                                             font.pixelSize: Theme.fontSizeSmall
                                             font.bold: true
@@ -2507,12 +2608,24 @@ Item {
                                 }
 
                                 Text {
-                                    Layout.fillWidth: true
+                                    Layout.alignment: Qt.AlignHCenter
+                                    text: "Licencia: GNU General Public License v3.0 or later (GPL-3.0-or-later)"
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: Theme.fontSizeSmall
+                                    font.bold: true
+                                    color: Theme.accent
+                                }
+
+                                Text {
+                                    Layout.alignment: Qt.AlignHCenter
+                                    Layout.preferredWidth: Math.min(parent.width - 32, 600)
                                     text: "Aplicación nativa de notas en Markdown con editor tipográfico de bloques, previsualización en vivo estilo Typora, diagramas Mermaid interactivos, corrección ortográfica multilingüe Hunspell y persistencia atómica en disco."
                                     font.family: Theme.fontFamily
                                     font.pixelSize: Theme.fontSizeBody
                                     color: Theme.text
+                                    horizontalAlignment: Text.AlignHCenter
                                     wrapMode: Text.WordWrap
+                                    lineHeight: 1.2
                                 }
                             }
                         }
@@ -2522,22 +2635,48 @@ Item {
                             ColumnLayout {
                                 id: colPaths
                                 anchors.fill: parent
-                                anchors.margins: 14
-                                spacing: 8
+                                anchors.margins: 16
+                                spacing: 10
 
-                                Text {
-                                    text: "Rutas y Archivos del Sistema"
-                                    font.family: Theme.fontFamily
-                                    font.pixelSize: Theme.fontSizeSubheading
-                                    font.bold: true
-                                    color: Theme.text
+                                RowLayout {
+                                    spacing: 8
+                                    Image {
+                                        width: 15
+                                        height: 15
+                                        source: Theme.iconsPath + "folder.svg"
+                                        sourceSize: Qt.size(15, 15)
+                                        layer.enabled: !GamemodeService.gamemodeActive
+                                        layer.effect: MultiEffect {
+                                            colorization: 1.0
+                                            colorizationColor: Theme.muted
+                                        }
+                                    }
+                                    Text {
+                                        text: "Rutas y Archivos del Sistema"
+                                        font.family: Theme.fontFamily
+                                        font.pixelSize: Theme.fontSizeSubheading
+                                        font.bold: true
+                                        color: Theme.text
+                                    }
                                 }
 
-                                Text {
-                                    text: "• Configuración: ~/.config/notas/config.json\n• Diccionarios Hunspell: ~/.local/share/notas/dictionaries/\n• Diccionario personal: ~/.config/notas/personal.dic\n• Socket IPC: $XDG_RUNTIME_DIR/notas.sock"
-                                    font.family: Theme.fontFamilyMonospace
-                                    font.pixelSize: Theme.fontSizeBodySecondary
-                                    color: Theme.muted
+                                GridLayout {
+                                    columns: 2
+                                    columnSpacing: 16
+                                    rowSpacing: 6
+                                    Layout.fillWidth: true
+
+                                    Text { text: "Configuración:"; color: Theme.muted; font.family: Theme.fontFamily; font.pixelSize: Theme.fontSizeBodySecondary }
+                                    Text { text: "~/.config/notas/config.json"; color: Theme.text; font.family: Theme.fontFamilyMonospace; font.pixelSize: Theme.fontSizeBodySecondary }
+
+                                    Text { text: "Diccionarios Hunspell:"; color: Theme.muted; font.family: Theme.fontFamily; font.pixelSize: Theme.fontSizeBodySecondary }
+                                    Text { text: "~/.local/share/notas/dictionaries/"; color: Theme.text; font.family: Theme.fontFamilyMonospace; font.pixelSize: Theme.fontSizeBodySecondary }
+
+                                    Text { text: "Diccionario personal:"; color: Theme.muted; font.family: Theme.fontFamily; font.pixelSize: Theme.fontSizeBodySecondary }
+                                    Text { text: "~/.config/notas/personal.dic"; color: Theme.text; font.family: Theme.fontFamilyMonospace; font.pixelSize: Theme.fontSizeBodySecondary }
+
+                                    Text { text: "Socket IPC:"; color: Theme.muted; font.family: Theme.fontFamily; font.pixelSize: Theme.fontSizeBodySecondary }
+                                    Text { text: "$XDG_RUNTIME_DIR/notas.sock"; color: Theme.text; font.family: Theme.fontFamilyMonospace; font.pixelSize: Theme.fontSizeBodySecondary }
                                 }
                             }
                         }
@@ -2547,32 +2686,51 @@ Item {
                             ColumnLayout {
                                 id: colShortcuts
                                 anchors.fill: parent
-                                anchors.margins: 14
-                                spacing: 8
+                                anchors.margins: 16
+                                spacing: 10
 
-                                Text {
-                                    text: "Atajos de Teclado Principales"
-                                    font.family: Theme.fontFamily
-                                    font.pixelSize: Theme.fontSizeSubheading
-                                    font.bold: true
-                                    color: Theme.text
+                                RowLayout {
+                                    spacing: 8
+                                    Image {
+                                        width: 15
+                                        height: 15
+                                        source: Theme.iconsPath + "code.svg"
+                                        sourceSize: Qt.size(15, 15)
+                                        layer.enabled: !GamemodeService.gamemodeActive
+                                        layer.effect: MultiEffect {
+                                            colorization: 1.0
+                                            colorizationColor: Theme.muted
+                                        }
+                                    }
+                                    Text {
+                                        text: "Atajos de Teclado Principales"
+                                        font.family: Theme.fontFamily
+                                        font.pixelSize: Theme.fontSizeSubheading
+                                        font.bold: true
+                                        color: Theme.text
+                                    }
                                 }
 
                                 RowLayout {
                                     Layout.fillWidth: true
-                                    Text {
+                                    spacing: 24
+
+                                    ColumnLayout {
                                         Layout.fillWidth: true
-                                        text: "Ctrl+N : Nueva nota\nCtrl+F : Buscar notas / en nota\nCtrl+, : Configuración\nCtrl+Q : Salir"
-                                        font.family: Theme.fontFamilyMonospace
-                                        font.pixelSize: Theme.fontSizeBodySecondary
-                                        color: Theme.text
+                                        spacing: 4
+                                        Text { text: "Ctrl+N : Nueva nota"; font.family: Theme.fontFamilyMonospace; font.pixelSize: Theme.fontSizeBodySecondary; color: Theme.text }
+                                        Text { text: "Ctrl+F : Buscar notas / en nota"; font.family: Theme.fontFamilyMonospace; font.pixelSize: Theme.fontSizeBodySecondary; color: Theme.text }
+                                        Text { text: "Ctrl+, : Configuración"; font.family: Theme.fontFamilyMonospace; font.pixelSize: Theme.fontSizeBodySecondary; color: Theme.text }
+                                        Text { text: "Ctrl+Q : Salir"; font.family: Theme.fontFamilyMonospace; font.pixelSize: Theme.fontSizeBodySecondary; color: Theme.text }
                                     }
-                                    Text {
+
+                                    ColumnLayout {
                                         Layout.fillWidth: true
-                                        text: "Ctrl+B / Ctrl+I : Negrita / Cursiva\nCtrl+K : Insertar enlace\nF7 : Alternar corrector ortográfico\nEsc : Cerrar nota / diálogo"
-                                        font.family: Theme.fontFamilyMonospace
-                                        font.pixelSize: Theme.fontSizeBodySecondary
-                                        color: Theme.text
+                                        spacing: 4
+                                        Text { text: "Ctrl+B / Ctrl+I : Negrita / Cursiva"; font.family: Theme.fontFamilyMonospace; font.pixelSize: Theme.fontSizeBodySecondary; color: Theme.text }
+                                        Text { text: "Ctrl+K : Insertar enlace"; font.family: Theme.fontFamilyMonospace; font.pixelSize: Theme.fontSizeBodySecondary; color: Theme.text }
+                                        Text { text: "F7 : Alternar corrector"; font.family: Theme.fontFamilyMonospace; font.pixelSize: Theme.fontSizeBodySecondary; color: Theme.text }
+                                        Text { text: "Esc : Cerrar nota / diálogo"; font.family: Theme.fontFamilyMonospace; font.pixelSize: Theme.fontSizeBodySecondary; color: Theme.text }
                                     }
                                 }
                             }

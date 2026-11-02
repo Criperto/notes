@@ -16,6 +16,7 @@ ApplicationWindow {
     NotesContent {
         id: content
         anchors.fill: parent
+        isSettingsOpen: settingsModal.isOpen || settingsModal.isClosing
         onCloseRequested: root.close()
         onOpenSettingsRequested: (originRect) => settingsModal.open(originRect)
     }

@@ -14,6 +14,7 @@ Item {
 
     signal closeRequested
     signal openSettingsRequested(var originRect)
+    property bool isSettingsOpen: false
 
     property bool _morphTransitioning: false
     property string activeMorphSlug: ""
@@ -580,9 +581,15 @@ Item {
                         Layout.preferredHeight: 38
                         Layout.preferredWidth: 38
                         radius: 10
+                        opacity: (root.isSettingsOpen && !NotesService.isEditing) ? 0.0 : 1.0
                         color: settingsMa.containsMouse ? Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.1) : Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.05)
                         border.color: Qt.hsva(Theme.text.hsvHue, Theme.text.hsvSaturation, Theme.text.hsvValue, 0.12)
                         border.width: 1
+
+                        Behavior on opacity {
+                            enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                            NumberAnimation { duration: 120; easing.type: Easing.OutCubic }
+                        }
 
                         Image {
                             anchors.centerIn: parent
