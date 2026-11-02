@@ -2404,7 +2404,7 @@ Item {
         if (!noteData) return;
         root.commitUndoToast();
         if (NotesService.debug) console.log("[NotesContent - morph] Abriendo nota con morfismo:", noteData.slug || noteData.title);
-        var orig = origin || {
+        var orig = origin || _findCurrentCardPosition(noteData.key || noteData.slug || noteData.id, true) || {
             x: width * 0.2,
             y: height * 0.2,
             width: width * 0.6,
@@ -2508,15 +2508,28 @@ Item {
         root.activeMorphSlug = noteData.key || noteData.slug || noteData.id || "";
         root.morphingNoteData = noteData;
 
-        morphContainer.springEnabled = false;
-        morphContainer.startX = 0;
-        morphContainer.startY = 0;
-        morphContainer.startW = width;
-        morphContainer.startH = height;
-        morphContainer.startRadius = 0;
+        // Calcular posición de origen en el menú de inicio para tener geometría válida de cierre
+        var cardPos = _findCurrentCardPosition(root.activeMorphSlug, true);
+        if (cardPos) {
+            morphContainer.startX = cardPos.x;
+            morphContainer.startY = cardPos.y;
+            morphContainer.startW = cardPos.width;
+            morphContainer.startH = cardPos.height;
+            morphContainer.startRadius = cardPos.radius !== undefined ? cardPos.radius : 16;
+        } else {
+            morphContainer.startX = Math.round((clippingRoot.width - 280) / 2);
+            morphContainer.startY = Math.round((clippingRoot.height - 200) / 2);
+            morphContainer.startW = 280;
+            morphContainer.startH = 200;
+            morphContainer.startRadius = 16;
+        }
+
         morphContainer.startColor = root.cardBaseColor;
-        morphContainer.startBorderColor = "transparent";
-        morphContainer.startBorderWidth = 0;
+        morphContainer.startBorderColor = Qt.hsva(Theme.text.hsvHue, Theme.text.hsvSaturation, Theme.text.hsvValue, 0.08);
+        morphContainer.startBorderWidth = 1;
+
+        // Apertura en frío instantánea a pantalla completa (sin animación de apertura)
+        morphContainer.springEnabled = false;
         morphContainer.isVisible = true;
         morphContainer.isExpanded = true;
         morphContainer.scale = 1;
@@ -2524,6 +2537,19 @@ Item {
 
         editorModal.morphReady = true;
         NotesService.openNote(noteData);
+
+        // Habilitar física de resorte tras montar el modal para que el cierre anime fluidamente hacia la card
+        Qt.callLater(function() {
+            morphContainer.springEnabled = true;
+            var refreshedPos = _findCurrentCardPosition(root.activeMorphSlug, true);
+            if (refreshedPos) {
+                morphContainer.startX = refreshedPos.x;
+                morphContainer.startY = refreshedPos.y;
+                morphContainer.startW = refreshedPos.width;
+                morphContainer.startH = refreshedPos.height;
+                morphContainer.startRadius = refreshedPos.radius !== undefined ? refreshedPos.radius : 16;
+            }
+        });
     }
 
     function handleIpcAction(act, tgt) {
@@ -2676,21 +2702,28 @@ Item {
         }
 
         // Actualizar la posición destino del cierre con la posición ACTUAL de la card
-        // en el grid (puede haber cambiado si la lista se reordenó al abrir la nota)
+        // en el grid (puede haber cambiado si la lista se reordenó al abrir la nota o al redimensionar)
         if (root.activeMorphSlug !== "") {
-            var foundPos = _findCurrentCardPosition(root.activeMorphSlug);
+            var foundPos = _findCurrentCardPosition(root.activeMorphSlug, true);
             if (foundPos) {
                 morphContainer.startX = foundPos.x;
                 morphContainer.startY = foundPos.y;
                 morphContainer.startW = foundPos.width;
                 morphContainer.startH = foundPos.height;
+                morphContainer.startRadius = foundPos.radius !== undefined ? foundPos.radius : 16;
             } else {
                 morphContainer.startX = Math.round((clippingRoot.width - 280) / 2);
                 morphContainer.startY = Math.round((clippingRoot.height - 200) / 2);
                 morphContainer.startW = 280;
                 morphContainer.startH = 200;
+                morphContainer.startRadius = 16;
             }
         }
+
+        morphContainer.startColor = root.cardBaseColor;
+        morphContainer.startBorderColor = Qt.hsva(Theme.text.hsvHue, Theme.text.hsvSaturation, Theme.text.hsvValue, 0.08);
+        morphContainer.startBorderWidth = 1;
+        morphContainer.springEnabled = true;
 
         if (!morphContainer.isExpanded) {
             morphContainer.isVisible = false;
@@ -2811,23 +2844,168 @@ Item {
     // Aviso de importación solo sin nota abierta (con blur+atenuación)
     readonly property bool importHintActive: (root.importCardState !== "hidden" || (importDropArea.hasImportable && NotesService.activeNote === null)) && NotesService.activeNote === null
 
-    // Busca la posición actual de la card con el slug dado en las columnas de masonry
-    // Retorna { x, y, width, height } relativo a clippingRoot, o null si no se encuentra.
-    function _findCurrentCardPosition(slug) {
-        if (!slug) return null;
+    function _findCardInRegistry(slug) {
+        if (!slug || !root._cardRegistry) return null;
         var card = root._cardRegistry[slug];
+        if (card) return card;
+
+        // Probar slug con extensiones comunes
+        if (root._cardRegistry[slug + "\0md"]) return root._cardRegistry[slug + "\0md"];
+        if (root._cardRegistry[slug + "\0txt"]) return root._cardRegistry[slug + "\0txt"];
+
+        // Probar slug limpio si slug tiene \0 o extensión
+        var clean = NotesService.slugOfKey ? NotesService.slugOfKey(slug) : slug.replace(/\0.*$/, "").replace(/\.(md|txt)$/, "");
+        if (clean !== slug) {
+            if (root._cardRegistry[clean]) return root._cardRegistry[clean];
+            if (root._cardRegistry[clean + "\0md"]) return root._cardRegistry[clean + "\0md"];
+            if (root._cardRegistry[clean + "\0txt"]) return root._cardRegistry[clean + "\0txt"];
+        }
+
+        // Búsqueda lineal como fallback si las keys difieren
+        for (var k in root._cardRegistry) {
+            var c = root._cardRegistry[k];
+            if (!c) continue;
+            var cKey = c.cardKey || "";
+            var cSlug = c.noteData ? (c.noteData.slug || c.noteData.key || c.noteData.id || "") : "";
+            if (cKey === slug || cSlug === slug || cKey === clean || cSlug === clean) {
+                return c;
+            }
+            if (NotesService.slugOfKey) {
+                if (NotesService.slugOfKey(cKey) === clean || NotesService.slugOfKey(cSlug) === clean) {
+                    return c;
+                }
+            }
+        }
+        return null;
+    }
+
+    function _estimateCardPositionInGrid(slug) {
+        if (!slug || !notesScroll) return null;
+        var clean = NotesService.slugOfKey ? NotesService.slugOfKey(slug) : slug.replace(/\0.*$/, "").replace(/\.(md|txt)$/, "");
+
+        var note = NotesService.getNote ? (NotesService.getNote(slug) || NotesService.getNote(clean)) : null;
+        var isPinned = note ? !!note.pinned : false;
+
+        var colsData = isPinned ? root.pinnedColumnsData : root.otherColumnsData;
+        var targetCol = -1;
+        var targetRow = -1;
+
+        if (colsData && colsData.length > 0) {
+            for (var c = 0; c < colsData.length; c++) {
+                var colArr = colsData[c] || [];
+                for (var r = 0; r < colArr.length; r++) {
+                    var item = colArr[r];
+                    if (!item) continue;
+                    var k = item.key || item.slug || item.id || "";
+                    var kClean = NotesService.slugOfKey ? NotesService.slugOfKey(k) : k.replace(/\0.*$/, "");
+                    if (k === slug || k === clean || kClean === clean) {
+                        targetCol = c;
+                        targetRow = r;
+                        break;
+                    }
+                }
+                if (targetCol !== -1) break;
+            }
+        }
+
+        if (targetCol === -1) {
+            var altData = isPinned ? root.otherColumnsData : root.pinnedColumnsData;
+            if (altData && altData.length > 0) {
+                for (var c2 = 0; c2 < altData.length; c2++) {
+                    var colArr2 = altData[c2] || [];
+                    for (var r2 = 0; r2 < colArr2.length; r2++) {
+                        var item2 = colArr2[r2];
+                        if (!item2) continue;
+                        var k2 = item2.key || item2.slug || item2.id || "";
+                        var k2Clean = NotesService.slugOfKey ? NotesService.slugOfKey(k2) : k2.replace(/\0.*$/, "");
+                        if (k2 === slug || k2 === clean || k2Clean === clean) {
+                            targetCol = c2;
+                            targetRow = r2;
+                            isPinned = !isPinned;
+                            break;
+                        }
+                    }
+                    if (targetCol !== -1) break;
+                }
+            }
+        }
+
+        if (targetCol === -1) return null;
+
+        var numCols = notesScroll.cols || 3;
+        var colW = notesScroll.colWidth || 260;
+        var colSpacing = 14;
+        var cardSpacing = 14;
+        var estCardH = 180;
+
+        var targetRowItem = isPinned ? pinnedMasonryRow : otherMasonryRow;
+        try {
+            if (targetRowItem && typeof targetRowItem.mapToItem === "function") {
+                var rowMapped = targetRowItem.mapToItem(clippingRoot, 0, 0);
+                var estX = rowMapped.x + targetCol * (colW + colSpacing);
+                var estY = rowMapped.y + targetRow * (estCardH + cardSpacing);
+
+                if (notesScroll && typeof notesScroll.mapToItem === "function") {
+                    var scrollMapped = notesScroll.mapToItem(clippingRoot, 0, 0);
+                    var viewY = scrollMapped.y;
+                    var viewH = notesScroll.height;
+                    if (estY < viewY || estY + estCardH > viewY + viewH) {
+                        var cardContentY = estY - rowMapped.y;
+                        notesScroll.contentY = Math.max(0, cardContentY - 20);
+                        rowMapped = targetRowItem.mapToItem(clippingRoot, 0, 0);
+                        estY = rowMapped.y + targetRow * (estCardH + cardSpacing);
+                    }
+                }
+
+                return {
+                    x: Math.round(estX),
+                    y: Math.round(estY),
+                    width: Math.round(colW),
+                    height: Math.round(estCardH),
+                    radius: 16
+                };
+            }
+        } catch (e) {
+            if (NotesService.debug) console.warn("[NotesContent] Falló cálculo estimado de grid:", e);
+        }
+        return null;
+    }
+
+    // Busca la posición actual de la card con el slug dado en las columnas de masonry
+    // Retorna { x, y, width, height, radius } relativo a clippingRoot, o null si no se encuentra.
+    function _findCurrentCardPosition(slug, ensureVisible) {
+        if (!slug) return null;
+        var card = _findCardInRegistry(slug);
         if (card) {
             try {
                 if (card.parent && typeof card.mapToItem === "function") {
+                    if (ensureVisible !== false) {
+                        _ensureCardVisible(card);
+                    }
                     var mapped = card.mapToItem(clippingRoot, 0, 0, card.width, card.height);
                     if (NotesService.debug) console.log("[NotesContent] Posición actual de card", slug, "→", mapped.x, mapped.y, mapped.width, mapped.height);
-                    return mapped;
+                    return {
+                        x: Math.round(mapped.x),
+                        y: Math.round(mapped.y),
+                        width: Math.round(mapped.width),
+                        height: Math.round(mapped.height),
+                        radius: 16
+                    };
                 }
             } catch (e) {
-                delete root._cardRegistry[slug];
+                if (root._cardRegistry && root._cardRegistry[slug] === card) {
+                    delete root._cardRegistry[slug];
+                }
             }
         }
-        if (NotesService.debug) console.log("[NotesContent] No se encontró card para slug:", slug, "— usando posición guardada");
+
+        var estimated = _estimateCardPositionInGrid(slug);
+        if (estimated) {
+            if (NotesService.debug) console.log("[NotesContent] Posición estimada en grid para", slug, "→", estimated.x, estimated.y, estimated.width, estimated.height);
+            return estimated;
+        }
+
+        if (NotesService.debug) console.log("[NotesContent] No se encontró card para slug:", slug, "— usando fallback centrado");
         return null;
     }
 
@@ -2930,17 +3108,19 @@ Item {
                 root.activeMorphSlug = parsed.key || parsed.slug;
                 root.morphingNoteData = parsed;
                 root.isCardMorph = true;
-                var foundPos = root._findCurrentCardPosition(root.activeMorphSlug);
+                var foundPos = root._findCurrentCardPosition(root.activeMorphSlug, false);
                 if (foundPos) {
                     morphContainer.startX = foundPos.x;
                     morphContainer.startY = foundPos.y;
                     morphContainer.startW = foundPos.width;
                     morphContainer.startH = foundPos.height;
+                    morphContainer.startRadius = foundPos.radius !== undefined ? foundPos.radius : 16;
                 } else {
                     morphContainer.startX = Math.round((clippingRoot.width - 280) / 2);
                     morphContainer.startY = Math.round((clippingRoot.height - 200) / 2);
                     morphContainer.startW = 280;
                     morphContainer.startH = 200;
+                    morphContainer.startRadius = 16;
                 }
             }
         }
@@ -2958,6 +3138,16 @@ Item {
         }
         function onNotesRefreshed() {
             if (root._flipArmed) flipSettleTimer.restart();
+            if (morphContainer.isExpanded && root.activeMorphSlug !== "") {
+                var refreshedPos = root._findCurrentCardPosition(root.activeMorphSlug, false);
+                if (refreshedPos) {
+                    morphContainer.startX = refreshedPos.x;
+                    morphContainer.startY = refreshedPos.y;
+                    morphContainer.startW = refreshedPos.width;
+                    morphContainer.startH = refreshedPos.height;
+                    morphContainer.startRadius = refreshedPos.radius !== undefined ? refreshedPos.radius : 16;
+                }
+            }
         }
     }
 

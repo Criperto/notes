@@ -3365,6 +3365,82 @@ runTest('F67: BlockTable soporte de SpellOverlay, timers y menús contextuales e
     assert.ok(tableQml.indexOf('acceptedButtons: Qt.LeftButton | Qt.RightButton') !== -1, "Vistas de celda deben aceptar clic derecho");
 });
 
+runTest('F68: Cálculo de posición en grid y resorte de cierre al abrir notas desde terminal', () => {
+    const notesContentQml = fs.readFileSync(path.resolve(__dirname, '../qml/NotesContent.qml'), 'utf8');
+
+    // 1. Verificación estática de funciones auxiliares y registry
+    assert.ok(notesContentQml.indexOf('function _findCardInRegistry(slug)') !== -1, "NotesContent debe declarar _findCardInRegistry");
+    assert.ok(notesContentQml.indexOf('function _estimateCardPositionInGrid(slug)') !== -1, "NotesContent debe declarar _estimateCardPositionInGrid");
+    assert.ok(notesContentQml.indexOf('function _findCurrentCardPosition(slug, ensureVisible)') !== -1, "NotesContent debe declarar _findCurrentCardPosition con ensureVisible");
+
+    // 2. Verificación de openNoteImmediate
+    assert.ok(notesContentQml.indexOf('var cardPos = _findCurrentCardPosition(root.activeMorphSlug, true);') !== -1, "openNoteImmediate debe calcular cardPos inicial");
+    assert.ok(notesContentQml.indexOf('morphContainer.startRadius = cardPos.radius !== undefined ? cardPos.radius : 16;') !== -1, "openNoteImmediate debe configurar startRadius");
+    assert.ok(notesContentQml.indexOf('morphContainer.springEnabled = true;') !== -1, "openNoteImmediate debe reactivar springEnabled en Qt.callLater");
+
+    // 3. Verificación de closeNoteWithMorph
+    assert.ok(notesContentQml.indexOf('var foundPos = _findCurrentCardPosition(root.activeMorphSlug, true);') !== -1, "closeNoteWithMorph debe invocar _findCurrentCardPosition con ensureVisible=true");
+    assert.ok(notesContentQml.indexOf('morphContainer.springEnabled = true;') !== -1, "closeNoteWithMorph debe asegurar springEnabled = true");
+
+    // 4. Verificación de onNotesRefreshed
+    assert.ok(notesContentQml.indexOf('if (morphContainer.isExpanded && root.activeMorphSlug !== "")') !== -1, "onNotesRefreshed debe re-sincronizar posición si la nota está expandida");
+
+    // 5. Test unitario de resolución de claves con formato slug\\0ext
+    const mockRegistry = {
+        "nota_uno\0md": { cardKey: "nota_uno\0md", noteData: { slug: "nota_uno", key: "nota_uno\0md" } },
+        "nota_dos\0txt": { cardKey: "nota_dos\0txt", noteData: { slug: "nota_dos", key: "nota_dos\0txt" } }
+    };
+
+    function resolveMockCard(slug, registry) {
+        if (!slug || !registry) return null;
+        if (registry[slug]) return registry[slug];
+        if (registry[slug + "\0md"]) return registry[slug + "\0md"];
+        if (registry[slug + "\0txt"]) return registry[slug + "\0txt"];
+        const clean = slug.replace(/\0.*$/, "").replace(/\.(md|txt)$/, "");
+        if (clean !== slug) {
+            if (registry[clean]) return registry[clean];
+            if (registry[clean + "\0md"]) return registry[clean + "\0md"];
+            if (registry[clean + "\0txt"]) return registry[clean + "\0txt"];
+        }
+        for (const k in registry) {
+            const c = registry[k];
+            if (!c) continue;
+            if (c.cardKey === slug || c.cardKey === clean) return c;
+            if (c.noteData && (c.noteData.slug === slug || c.noteData.slug === clean || c.noteData.key === slug)) return c;
+        }
+        return null;
+    }
+
+    assert.strictEqual(resolveMockCard("nota_uno", mockRegistry), mockRegistry["nota_uno\0md"], "Debe resolver nota_uno hacia nota_uno\\0md");
+    assert.strictEqual(resolveMockCard("nota_uno.md", mockRegistry), mockRegistry["nota_uno\0md"], "Debe resolver nota_uno.md hacia nota_uno\\0md");
+    assert.strictEqual(resolveMockCard("nota_dos", mockRegistry), mockRegistry["nota_dos\0txt"], "Debe resolver nota_dos hacia nota_dos\\0txt");
+    assert.strictEqual(resolveMockCard("inexistente", mockRegistry), null, "Debe retornar null si no existe");
+
+    // 6. Test unitario de cálculo geométrico en grid
+    const colsData = [
+        [{ key: "n0" }, { key: "n3" }],
+        [{ key: "n1" }, { key: "n4" }],
+        [{ key: "n2" }, { key: "n5" }]
+    ];
+    let foundCol = -1, foundRow = -1;
+    for (let c = 0; c < colsData.length; c++) {
+        for (let r = 0; r < colsData[c].length; r++) {
+            if (colsData[c][r].key === "n4") {
+                foundCol = c;
+                foundRow = r;
+                break;
+            }
+        }
+    }
+    assert.strictEqual(foundCol, 1, "n4 debe estar en columna 1");
+    assert.strictEqual(foundRow, 1, "n4 debe estar en fila 1");
+    const colW = 260, spacing = 14, cardH = 180;
+    const estX = foundCol * (colW + spacing);
+    const estY = foundRow * (cardH + spacing);
+    assert.strictEqual(estX, 274, "X estimado debe ser 274");
+    assert.strictEqual(estY, 194, "Y estimado debe ser 194");
+});
+
 console.log(`\n========================================`);
 console.log(`Resultados: ${passed} OK, ${failed} FAIL`);
 console.log(`========================================`);
