@@ -1012,29 +1012,34 @@ Item {
             anchors.fill: parent
             opacity: 0.0
 
-            // Máscara redondeada para recortar perfectamente el desenfoque en las esquinas y padding
+            // Máscara redondeada para recortar perfectamente el contenedor de desenfoque a las esquinas
             Item {
                 id: blurMaskItem
-                width: cardBlurContainer.sampleW
-                height: cardBlurContainer.sampleH
-                layer.enabled: cardBlurContainer.visible
+                anchors.fill: parent
+                layer.enabled: card.radius > 0
                 visible: false
 
                 Rectangle {
-                    x: Math.round(card.x - cardBlurContainer.sampleX)
-                    y: Math.round(card.y - cardBlurContainer.sampleY)
-                    width: card.width
-                    height: card.height
+                    anchors.fill: parent
                     radius: card.radius
                     color: "black"
                 }
             }
 
-            // Desenfoque recortado exclusivamente a la tarjeta (Frosted Glass) con margen de padding perimetral
+            // Desenfoque recortado estrictamente a la tarjeta con máscara redondeada y padding perimetral interno
             Item {
                 id: cardBlurContainer
                 anchors.fill: parent
+                clip: true
                 visible: (root.isOpen || root.isClosing) && HyprlandConfig.blurEnabled && !GamemodeService.gamemodeActive && root.backgroundSourceItem !== null
+
+                layer.enabled: card.radius > 0
+                layer.smooth: true
+                layer.effect: MultiEffect {
+                    autoPaddingEnabled: false
+                    maskEnabled: card.radius > 0
+                    maskSource: blurMaskItem
+                }
 
                 readonly property real blurPadding: 56
                 readonly property real bgW: root.backgroundSourceItem ? root.backgroundSourceItem.width : root.width
@@ -1064,12 +1069,11 @@ Item {
                     layer.enabled: parent.visible
                     layer.smooth: true
                     layer.effect: MultiEffect {
+                        autoPaddingEnabled: false
                         blurEnabled: HyprlandConfig.blurEnabled && !GamemodeService.gamemodeActive
                         blur: 1.0
                         blurMax: 56
                         saturation: 0.25
-                        maskEnabled: true
-                        maskSource: blurMaskItem
                     }
                 }
             }
