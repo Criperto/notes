@@ -4,50 +4,30 @@ import QtQuick.Layouts
 import QtQuick.Effects
 import Notas
 
-Item {
+Window {
     id: menuWindow
     visible: false
-    x: 0
-    y: 0
-    width: parent ? parent.width : 1080
-    height: parent ? parent.height : 760
-    z: 100000
+    flags: Qt.Popup | Qt.FramelessWindowHint
+    color: "transparent"
+    transientParent: (target && target.Window && target.Window.window) ? target.Window.window : null
 
     property var target: null
     property var extraItems: []
     signal extraItemTriggered(var item)
-    property real menuX: 0
-    property real menuY: 0
-    property real anchorX: 0
-    property real anchorY: 0
-    property bool flipH: false
-    property bool flipV: false
+
+    readonly property real shadowPadding: 14
+    readonly property real maxMenuHeight: Math.min(520, (Screen.desktopAvailableHeight > 0) ? (Screen.desktopAvailableHeight - 80) : 520)
+    readonly property real targetMenuWidth: 272
+    readonly property real targetMenuHeight: Math.min(maxMenuHeight, menuLayout.implicitHeight + 16)
+
+    width: targetMenuWidth + shadowPadding * 2
+    height: targetMenuHeight + shadowPadding * 2
+
     property bool isExpanded: false
     property bool isClosing: false
-    readonly property real targetMenuWidth: 272
-    readonly property real targetMenuHeight: menuLayout.implicitHeight + 12
     readonly property int windowRadius: (typeof HyprlandConfig !== "undefined" && HyprlandConfig.rounding >= 0) ? HyprlandConfig.rounding : 12
-    readonly property real edgeMargin: Math.max(8, (typeof HyprlandConfig !== "undefined" && HyprlandConfig.gapsOut > 0) ? HyprlandConfig.gapsOut : 10)
 
     property int highlightedNavIndex: -1
-
-    function _resolveHost(targetInput) {
-        if (targetInput && targetInput.Window && targetInput.Window.contentItem) {
-            return targetInput.Window.contentItem;
-        }
-        if (menuWindow.Window && menuWindow.Window.contentItem) {
-            return menuWindow.Window.contentItem;
-        }
-        return menuWindow.parent;
-    }
-
-    function _ensureHosted(targetInput) {
-        var host = _resolveHost(targetInput);
-        if (host && menuWindow.parent !== host) {
-            menuWindow.parent = host;
-        }
-        return host;
-    }
 
     function open(targetInput, customItems) {
         if (!targetInput) return;
@@ -56,11 +36,13 @@ Item {
         highlightedNavIndex = -1;
         target = targetInput;
         extraItems = (customItems && Array.isArray(customItems)) ? customItems : [];
-        _ensureHosted(targetInput);
+        if (targetInput.Window && targetInput.Window.window) {
+            transientParent = targetInput.Window.window;
+        }
 
         var gx = (typeof Sys !== "undefined") ? Sys.lastMouseX : 120;
         var gy = (typeof Sys !== "undefined") ? Sys.lastMouseY : 120;
-        _applyCoordinates(gx, gy);
+        _applyCoordinates(targetInput, gx, gy);
     }
 
     function openAt(targetInput, xPos, yPos, customItems) {
@@ -70,16 +52,18 @@ Item {
         highlightedNavIndex = -1;
         target = targetInput;
         extraItems = (customItems && Array.isArray(customItems)) ? customItems : [];
-        var host = _ensureHosted(targetInput);
+        if (targetInput.Window && targetInput.Window.window) {
+            transientParent = targetInput.Window.window;
+        }
 
         var cx = (typeof Sys !== "undefined") ? Sys.lastMouseX : 120;
         var cy = (typeof Sys !== "undefined") ? Sys.lastMouseY : 120;
-        if (host && typeof xPos === "number" && typeof yPos === "number") {
-            var pt = targetInput.mapToItem(host, xPos, yPos);
+        if (typeof xPos === "number" && typeof yPos === "number") {
+            var pt = targetInput.mapToItem(null, xPos, yPos);
             cx = pt.x;
             cy = pt.y;
         }
-        _applyCoordinates(cx, cy);
+        _applyCoordinates(targetInput, cx, cy);
     }
 
     function getActionableItems() {
@@ -192,12 +176,16 @@ Item {
         highlightedNavIndex = -1;
         target = targetInput;
         extraItems = (customItems && Array.isArray(customItems)) ? customItems : [];
+        if (targetInput.Window && targetInput.Window.window) {
+            transientParent = targetInput.Window.window;
+        }
 
-        var host = _ensureHosted(targetInput);
         var curPos = (typeof targetInput.cursorPosition === "number") ? targetInput.cursorPosition : 0;
+        var maxPos = (typeof targetInput.length === "number") ? targetInput.length : (targetInput.text ? targetInput.text.length : 0);
+        curPos = Math.max(0, Math.min(curPos, maxPos));
         var rect = (typeof targetInput.positionToRectangle === "function") ? targetInput.positionToRectangle(curPos) : Qt.rect(0, 0, 0, 20);
-        var pt = targetInput.mapToItem(host, rect.x, rect.y + rect.height);
-        _applyCoordinates(pt.x, pt.y);
+        var pt = targetInput.mapToItem(null, rect.x, rect.y + rect.height);
+        _applyCoordinates(targetInput, pt.x, pt.y);
     }
 
     function closeMenu() {
@@ -274,61 +262,26 @@ Item {
         }
     }
 
-    function _applyCoordinates(cx, cy) {
-        var screenWidth = menuWindow.width > 0 ? menuWindow.width : 1080;
-        var screenHeight = menuWindow.height > 0 ? menuWindow.height : 760;
+    function _applyCoordinates(targetInput, cx, cy) {
+        var win = (targetInput && targetInput.Window && targetInput.Window.window) ? targetInput.Window.window : null;
+        var winW = win ? win.width : 1080;
+        var winH = win ? win.height : 760;
 
-        var menuWidth = menuWindow.targetMenuWidth;
-        var menuHeight = menuWindow.targetMenuHeight;
-        var margin = menuWindow.edgeMargin;
+        var menuW = menuWindow.targetMenuWidth;
+        var menuH = menuWindow.targetMenuHeight;
 
-        // Detección horizontal adaptativa:
-        var canRight = (cx + menuWidth + margin <= screenWidth);
-        var canLeft = (cx - menuWidth - margin >= 0);
-        var shouldFlipH = false;
+        var posX = cx;
+        var posY = cy;
 
-        if (!canRight) {
-            if (canLeft) {
-                shouldFlipH = true;
-            } else {
-                shouldFlipH = (cx > (screenWidth - cx));
-            }
-        } else {
-            shouldFlipH = false;
+        if (posX + menuW > winW && (posX - menuW) >= 0) {
+            posX = posX - menuW;
+        }
+        if (posY + menuH > winH && (posY - menuH) >= 0) {
+            posY = posY - menuH;
         }
 
-        // Detección vertical adaptativa:
-        var canDown = (cy + menuHeight + margin <= screenHeight);
-        var canUp = (cy - menuHeight - margin >= 0);
-        var shouldFlipV = false;
-
-        if (!canDown) {
-            if (canUp) {
-                shouldFlipV = true;
-            } else {
-                shouldFlipV = (cy > (screenHeight - cy));
-            }
-        } else {
-            shouldFlipV = false;
-        }
-
-        menuWindow.flipH = shouldFlipH;
-        menuWindow.flipV = shouldFlipV;
-
-        if (!shouldFlipH) {
-            menuWindow.anchorX = Math.max(margin, Math.min(screenWidth - menuWidth - margin, cx));
-        } else {
-            menuWindow.anchorX = Math.max(margin + menuWidth, Math.min(screenWidth - margin, cx));
-        }
-
-        if (!shouldFlipV) {
-            menuWindow.anchorY = Math.max(margin, Math.min(screenHeight - menuHeight - margin, cy));
-        } else {
-            menuWindow.anchorY = Math.max(margin + menuHeight, Math.min(screenHeight - margin, cy));
-        }
-
-        menuWindow.menuX = shouldFlipH ? (menuWindow.anchorX - menuWidth) : menuWindow.anchorX;
-        menuWindow.menuY = shouldFlipV ? (menuWindow.anchorY - menuHeight) : menuWindow.anchorY;
+        menuWindow.x = Math.round(posX - menuWindow.shadowPadding);
+        menuWindow.y = Math.round(posY - menuWindow.shadowPadding);
 
         if (!Theme.animationsEnabled || GamemodeService.gamemodeActive) {
             menuWindow.isExpanded = true;
@@ -342,58 +295,28 @@ Item {
         }
     }
 
-    MouseArea {
-        anchors.fill: parent
-        acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
-        onClicked: menuWindow.close()
-    }
-
     Rectangle {
         id: menuBox
-        x: menuWindow.flipH ? (menuWindow.anchorX - width) : menuWindow.anchorX
-        y: menuWindow.flipV ? (menuWindow.anchorY - height) : menuWindow.anchorY
-        width: menuWindow.isExpanded ? menuWindow.targetMenuWidth : 1
-        height: menuWindow.isExpanded ? menuWindow.targetMenuHeight : 1
+        x: menuWindow.shadowPadding
+        y: menuWindow.shadowPadding
+        width: menuWindow.targetMenuWidth
+        height: menuWindow.targetMenuHeight
         radius: menuWindow.windowRadius
         opacity: menuWindow.isExpanded ? 1.0 : 0.0
+        scale: menuWindow.isExpanded ? 1.0 : 0.88
+        transformOrigin: Item.TopLeft
 
-        Behavior on width {
+        Behavior on scale {
             enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
-            SpringAnimation {
-                spring:  10.00
-                damping: 0.65
-                mass:    1.00
-                epsilon: 1.00
-            }
-        }
-        Behavior on height {
-            enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
-            SpringAnimation {
-                spring:  10.00
-                damping: 0.65
-                mass:    1.00
-                epsilon: 1.00
-            }
-        }
-        Behavior on radius {
-            enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
-            SpringAnimation {
-                spring:  10.00
-                damping: 0.65
-                mass:    1.00
-                epsilon: 1.00
-            }
+            NumberAnimation { duration: 160; easing.type: Easing.OutCubic }
         }
         Behavior on opacity {
             enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
-            NumberAnimation {
-                duration: menuWindow.isExpanded ? 160 : 120
-                easing.type: Easing.OutCubic
-            }
+            NumberAnimation { duration: 140; easing.type: Easing.OutCubic }
         }
 
         color: {
-            var opacityVal = 0.94;
+            var opacityVal = 0.96;
             if (GamemodeService.gamemodeActive) {
                 opacityVal = 1.0;
             }
@@ -402,41 +325,31 @@ Item {
             var val = Theme.surface ? Math.min(1, Theme.surface.hsvValue + 0.05) : 0.2;
             return Qt.hsva(hue, sat, val, opacityVal);
         }
-        border.color: Qt.hsva(Theme.text.hsvHue < 0 ? 0 : Theme.text.hsvHue, Theme.text.hsvSaturation, Theme.text.hsvValue, 0.1)
+        border.color: Qt.hsva(Theme.text.hsvHue < 0 ? 0 : Theme.text.hsvHue, Theme.text.hsvSaturation, Theme.text.hsvValue, 0.12)
         border.width: 1
 
-        // Consumir clics en el fondo de la caja del menú para no cerrarlo por error
-        MouseArea {
-            anchors.fill: parent
-            acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
+        layer.enabled: !GamemodeService.gamemodeActive
+        layer.effect: MultiEffect {
+            shadowEnabled: true
+            shadowColor: "#80000000"
+            shadowBlur: 0.65
+            shadowVerticalOffset: 6
         }
 
-        Item {
-            id: menuContentClipper
+        Flickable {
+            id: menuFlickable
             anchors.fill: parent
+            anchors.margins: 6
+            contentWidth: width
+            contentHeight: menuLayout.implicitHeight
+            boundsBehavior: Flickable.StopAtBounds
             clip: true
 
-            Item {
-                id: menuContentWrapper
-                x: menuWindow.flipH ? (menuBox.width - menuWindow.targetMenuWidth) : 0
-                y: menuWindow.flipV ? (menuBox.height - menuWindow.targetMenuHeight) : 0
-                width: menuWindow.targetMenuWidth
-                height: menuWindow.targetMenuHeight
-                opacity: menuWindow.isExpanded ? 1.0 : 0.0
-                Behavior on opacity {
-                    enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
-                    NumberAnimation { duration: 150; easing.type: Easing.OutCubic }
-                }
-
-                ColumnLayout {
-                    id: menuLayout
-                    anchors.top: parent.top
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    anchors.margins: 6
-                    spacing: 0
-
-                    // Elementos adicionales dinámicos (sin iconos, sugerencias, etc.)
+            ColumnLayout {
+                id: menuLayout
+                width: parent.width
+                spacing: 0
+// Elementos adicionales dinámicos (sin iconos, sugerencias, etc.)
                     Repeater {
                         model: menuWindow.extraItems
                         delegate: Item {
@@ -633,14 +546,6 @@ Item {
                                     }
                                 }
 
-                                Connections {
-                                    target: undoMA
-                                    function onContainsMouseChanged() {
-                                        if (!undoMA.containsMouse)
-                                            undoTextClip.offset = 0;
-                                    }
-                                }
-
                                 Text {
                                     id: undoTextA
                                     x: undoTextClip.offset
@@ -672,6 +577,9 @@ Item {
                             anchors.fill: parent
                             hoverEnabled: parent.enabled
                             cursorShape: parent.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                            onContainsMouseChanged: {
+                                if (!containsMouse) undoTextClip.offset = 0;
+                            }
                             onClicked: {
                                 if (target) target.undo();
                                 menuWindow.close();
@@ -748,14 +656,6 @@ Item {
                                     }
                                 }
 
-                                Connections {
-                                    target: redoMA
-                                    function onContainsMouseChanged() {
-                                        if (!redoMA.containsMouse)
-                                            redoTextClip.offset = 0;
-                                    }
-                                }
-
                                 Text {
                                     id: redoTextA
                                     x: redoTextClip.offset
@@ -787,6 +687,9 @@ Item {
                             anchors.fill: parent
                             hoverEnabled: parent.enabled
                             cursorShape: parent.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                            onContainsMouseChanged: {
+                                if (!containsMouse) redoTextClip.offset = 0;
+                            }
                             onClicked: {
                                 if (target) target.redo();
                                 menuWindow.close();
@@ -875,14 +778,6 @@ Item {
                                     }
                                 }
 
-                                Connections {
-                                    target: cutMA
-                                    function onContainsMouseChanged() {
-                                        if (!cutMA.containsMouse)
-                                            cutTextClip.offset = 0;
-                                    }
-                                }
-
                                 Text {
                                     id: cutTextA
                                     x: cutTextClip.offset
@@ -914,6 +809,9 @@ Item {
                             anchors.fill: parent
                             hoverEnabled: parent.enabled
                             cursorShape: parent.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                            onContainsMouseChanged: {
+                                if (!containsMouse) cutTextClip.offset = 0;
+                            }
                             onClicked: {
                                 if (target) target.cut();
                                 menuWindow.close();
@@ -989,14 +887,6 @@ Item {
                                     }
                                 }
 
-                                Connections {
-                                    target: copyMA
-                                    function onContainsMouseChanged() {
-                                        if (!copyMA.containsMouse)
-                                            copyTextClip.offset = 0;
-                                    }
-                                }
-
                                 Text {
                                     id: copyTextA
                                     x: copyTextClip.offset
@@ -1028,6 +918,9 @@ Item {
                             anchors.fill: parent
                             hoverEnabled: parent.enabled
                             cursorShape: parent.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                            onContainsMouseChanged: {
+                                if (!containsMouse) copyTextClip.offset = 0;
+                            }
                             onClicked: {
                                 if (target) target.copy();
                                 menuWindow.close();
@@ -1104,14 +997,6 @@ Item {
                                     }
                                 }
 
-                                Connections {
-                                    target: pasteMA
-                                    function onContainsMouseChanged() {
-                                        if (!pasteMA.containsMouse)
-                                            pasteTextClip.offset = 0;
-                                    }
-                                }
-
                                 Text {
                                     id: pasteTextA
                                     x: pasteTextClip.offset
@@ -1143,6 +1028,9 @@ Item {
                             anchors.fill: parent
                             hoverEnabled: parent.enabled
                             cursorShape: parent.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                            onContainsMouseChanged: {
+                                if (!containsMouse) pasteTextClip.offset = 0;
+                            }
                             onClicked: {
                                 if (target) target.paste();
                                 menuWindow.close();
@@ -1219,14 +1107,6 @@ Item {
                                     }
                                 }
 
-                                Connections {
-                                    target: deleteMA
-                                    function onContainsMouseChanged() {
-                                        if (!deleteMA.containsMouse)
-                                            deleteTextClip.offset = 0;
-                                    }
-                                }
-
                                 Text {
                                     id: deleteTextA
                                     x: deleteTextClip.offset
@@ -1258,6 +1138,9 @@ Item {
                             anchors.fill: parent
                             hoverEnabled: parent.enabled
                             cursorShape: parent.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                            onContainsMouseChanged: {
+                                if (!containsMouse) deleteTextClip.offset = 0;
+                            }
                             onClicked: {
                                 if (target) target.remove(target.selectionStart, target.selectionEnd);
                                 menuWindow.close();
@@ -1345,14 +1228,6 @@ Item {
                                     }
                                 }
 
-                                Connections {
-                                    target: selectAllMA
-                                    function onContainsMouseChanged() {
-                                        if (!selectAllMA.containsMouse)
-                                            selectAllTextClip.offset = 0;
-                                    }
-                                }
-
                                 Text {
                                     id: selectAllTextA
                                     x: selectAllTextClip.offset
@@ -1384,6 +1259,9 @@ Item {
                             anchors.fill: parent
                             hoverEnabled: parent.enabled
                             cursorShape: parent.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                            onContainsMouseChanged: {
+                                if (!containsMouse) selectAllTextClip.offset = 0;
+                            }
                             onClicked: {
                                 if (target) target.selectAll();
                                 menuWindow.close();
@@ -1394,4 +1272,3 @@ Item {
             }
         }
     }
-}

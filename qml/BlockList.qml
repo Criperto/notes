@@ -1024,16 +1024,22 @@ Item {
                             r.editor.clearSelectionExcept(r.blockData.bid, itemRow.index);
                         }
                     }
+                    var maxLen = lineEdit.length;
+                    var s = Math.max(0, Math.min(range.start, maxLen));
+                    var e = Math.max(s, Math.min(range.end, maxLen));
                     lineEdit.forceActiveFocus();
-                    lineEdit.select(range.start, range.end);
-                    lineEdit.remove(range.start, range.end);
-                    lineEdit.insert(range.start, replacement);
-                    var endPos = range.start + replacement.length;
+                    lineEdit.select(s, e);
+                    lineEdit.remove(s, e);
+                    lineEdit.insert(s, replacement);
+                    var endPos = s + replacement.length;
                     var selectWordAction = function() {
                         if (!lineEdit) return;
+                        var curLen = lineEdit.length;
+                        var clampedEnd = Math.max(0, Math.min(endPos, curLen));
+                        var clampedStart = Math.max(0, Math.min(s, clampedEnd));
                         lineEdit.forceActiveFocus();
-                        lineEdit.cursorPosition = endPos;
-                        lineEdit.select(range.start, endPos);
+                        lineEdit.cursorPosition = clampedEnd;
+                        lineEdit.select(clampedStart, clampedEnd);
                         if (r && r.editor && r.blockData && typeof r.editor.notifySingleInputSelection === "function") {
                             r.editor.notifySingleInputSelection(r.blockData.bid, itemRow.index);
                         }

@@ -11,7 +11,7 @@ ApplicationWindow {
     height: 760
     minimumWidth: 680
     minimumHeight: 500
-    color: Qt.rgba(Theme.background.r, Theme.background.g, Theme.background.b, Theme.panelOpacity)
+    color: "transparent"
 
     NotesContent {
         id: content

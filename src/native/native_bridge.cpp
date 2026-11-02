@@ -2,6 +2,7 @@
 
 #include <QCoreApplication>
 #include <QGuiApplication>
+#include <QFont>
 #include <QClipboard>
 #include <QMimeData>
 #include <QImage>
@@ -499,6 +500,7 @@ void Sys::onQtThemeFileChanged() {
     QTimer::singleShot(120, this, [this]() {
         setupQtThemeWatcher();
         refreshQtColors();
+        emit systemFontChanged();
     });
 }
 
@@ -826,6 +828,58 @@ QString Sys::appExecutable() const {
     return QCoreApplication::applicationFilePath();
 }
 
+bool Sys::hasQuickshellConfig() const {
+    const QString home = QDir::homePath();
+    return QFile::exists(home + QStringLiteral("/.config/quickshell/config/general.conf"))
+        || QFile::exists(home + QStringLiteral("/.config/quickshell/config/theme.conf"));
+}
+
+QString Sys::systemFontFamily() const {
+    const QString home = QDir::homePath();
+    QFile qt6ctFile(home + QStringLiteral("/.config/qt6ct/qt6ct.conf"));
+    if (qt6ctFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        QTextStream in(&qt6ctFile);
+        while (!in.atEnd()) {
+            QString line = in.readLine().trimmed();
+            if (line.startsWith(QStringLiteral("general="))) {
+                QString val = line.mid(8).trimmed();
+                if (val.startsWith('"') && val.endsWith('"')) {
+                    val = val.mid(1, val.length() - 2);
+                }
+                const QStringList parts = val.split(',');
+                if (!parts.isEmpty() && !parts[0].trimmed().isEmpty()) {
+                    return parts[0].trimmed();
+                }
+            }
+        }
+    }
+    QString appFont = QGuiApplication::font().family();
+    if (!appFont.isEmpty()) return appFont;
+    return QStringLiteral("Google Sans");
+}
+
+QString Sys::systemMonospaceFontFamily() const {
+    const QString home = QDir::homePath();
+    QFile qt6ctFile(home + QStringLiteral("/.config/qt6ct/qt6ct.conf"));
+    if (qt6ctFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        QTextStream in(&qt6ctFile);
+        while (!in.atEnd()) {
+            QString line = in.readLine().trimmed();
+            if (line.startsWith(QStringLiteral("fixed="))) {
+                QString val = line.mid(6).trimmed();
+                if (val.startsWith('"') && val.endsWith('"')) {
+                    val = val.mid(1, val.length() - 2);
+                }
+                const QStringList parts = val.split(',');
+                if (!parts.isEmpty() && !parts[0].trimmed().isEmpty()) {
+                    return parts[0].trimmed();
+                }
+            }
+        }
+    }
+    return QStringLiteral("Google Sans Code");
+}
+
 QString Sys::env(const QString &name, const QString &fallback) const {
     QByteArray val = qgetenv(name.toUtf8().constData());
     if (val.isEmpty()) return fallback;
@@ -1027,12 +1081,205 @@ ConfigBackend::ConfigBackend(QObject *parent)
     connect(m_saveTimer, &QTimer::timeout, this, &ConfigBackend::save);
 
     load();
+
+    if (hasQuickshellConfig()) {
+        loadQuickshellConfig();
+        setupQuickshellWatcher();
+    }
 }
 
 ConfigBackend::~ConfigBackend() {
     if (m_saveTimer && m_saveTimer->isActive()) {
         m_saveTimer->stop();
         save();
+    }
+}
+
+bool ConfigBackend::hasQuickshellConfig() const {
+    const QString home = QDir::homePath();
+    return QFile::exists(home + QStringLiteral("/.config/quickshell/config/general.conf"))
+        || QFile::exists(home + QStringLiteral("/.config/quickshell/config/theme.conf"));
+}
+
+void ConfigBackend::loadQuickshellConfig() {
+    const QString home = QDir::homePath();
+    bool changedOpacity = false;
+    bool changedScrollbars = false;
+    bool changedThemeMode = false;
+    bool changedCustomTheme = false;
+    bool changedLightMode = false;
+    bool changedNotesDir = false;
+    bool changedPreviews = false;
+    bool changedCycle = false;
+    bool changedCardsPerRow = false;
+    bool changedImportMode = false;
+    bool changedZoom = false;
+    bool changedSpellMode = false;
+
+    // 1. General config
+    QFile genFile(home + QStringLiteral("/.config/quickshell/config/general.conf"));
+    if (genFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        QTextStream in(&genFile);
+        while (!in.atEnd()) {
+            QString line = in.readLine().trimmed();
+            if (line.isEmpty() || line.startsWith('#') || line.startsWith(';')) continue;
+            int eq = line.indexOf('=');
+            if (eq == -1) continue;
+            QString k = line.left(eq).trimmed();
+            QString v = line.mid(eq + 1).trimmed();
+            if (k == QStringLiteral("panelOpacity")) {
+                int op = qBound(50, v.toInt(), 100);
+                if (m_panelOpacity != op) {
+                    m_panelOpacity = op;
+                    changedOpacity = true;
+                }
+            } else if (k == QStringLiteral("hideScrollbars")) {
+                bool hs = (v.compare(QStringLiteral("true"), Qt::CaseInsensitive) == 0);
+                if (m_hideScrollbars != hs) {
+                    m_hideScrollbars = hs;
+                    changedScrollbars = true;
+                }
+            }
+        }
+        genFile.close();
+    }
+
+    // 2. Theme config
+    QFile themeFile(home + QStringLiteral("/.config/quickshell/config/theme.conf"));
+    if (themeFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        QTextStream in(&themeFile);
+        while (!in.atEnd()) {
+            QString line = in.readLine().trimmed();
+            if (line.isEmpty() || line.startsWith('#') || line.startsWith(';')) continue;
+            int eq = line.indexOf('=');
+            if (eq == -1) continue;
+            QString k = line.left(eq).trimmed();
+            QString v = line.mid(eq + 1).trimmed();
+            if (k == QStringLiteral("useWallpaperColor")) {
+                bool useWal = (v.compare(QStringLiteral("true"), Qt::CaseInsensitive) == 0);
+                QString mode = useWal ? QStringLiteral("pywal") : QStringLiteral("custom");
+                if (m_themeMode != mode) {
+                    m_themeMode = mode;
+                    changedThemeMode = true;
+                }
+            } else if (k == QStringLiteral("customThemeName")) {
+                if (!v.isEmpty() && m_customThemeName != v) {
+                    m_customThemeName = v;
+                    changedCustomTheme = true;
+                }
+            } else if (k == QStringLiteral("lightMode")) {
+                bool lm = (v.compare(QStringLiteral("true"), Qt::CaseInsensitive) == 0);
+                if (m_lightMode != lm) {
+                    m_lightMode = lm;
+                    changedLightMode = true;
+                }
+            }
+        }
+        themeFile.close();
+    }
+
+    // 3. Notes config
+    QFile notesFile(home + QStringLiteral("/.config/quickshell/config/notes.conf"));
+    if (notesFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        QTextStream in(&notesFile);
+        while (!in.atEnd()) {
+            QString line = in.readLine().trimmed();
+            if (line.isEmpty() || line.startsWith('#') || line.startsWith(';')) continue;
+            int eq = line.indexOf('=');
+            if (eq == -1) continue;
+            QString k = line.left(eq).trimmed();
+            QString v = line.mid(eq + 1).trimmed();
+            if (k == QStringLiteral("notesDir")) {
+                QString expanded = v;
+                if (expanded.contains(QStringLiteral("$HOME"))) {
+                    expanded.replace(QStringLiteral("$HOME"), home);
+                }
+                if (expanded.contains(QStringLiteral("$XDG_DOCUMENTS_DIR"))) {
+                    QString docs = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
+                    if (docs.isEmpty()) docs = home + QStringLiteral("/Documentos");
+                    expanded.replace(QStringLiteral("$XDG_DOCUMENTS_DIR"), docs);
+                }
+                if (expanded.startsWith(QStringLiteral("~/"))) {
+                    expanded = home + expanded.mid(1);
+                }
+                if (!expanded.isEmpty() && m_notasDir != expanded) {
+                    m_notasDir = expanded;
+                    changedNotesDir = true;
+                }
+            } else if (k == QStringLiteral("showImagePreviews")) {
+                bool sp = (v.compare(QStringLiteral("true"), Qt::CaseInsensitive) == 0);
+                if (m_showImagePreviews != sp) {
+                    m_showImagePreviews = sp;
+                    changedPreviews = true;
+                }
+            } else if (k == QStringLiteral("cyclePreviewImages")) {
+                bool cp = (v.compare(QStringLiteral("true"), Qt::CaseInsensitive) == 0);
+                if (m_cyclePreviewImages != cp) {
+                    m_cyclePreviewImages = cp;
+                    changedCycle = true;
+                }
+            } else if (k == QStringLiteral("cardsPerRow")) {
+                int cpr = qBound(2, v.toInt(), 5);
+                if (m_cardsPerRow != cpr) {
+                    m_cardsPerRow = cpr;
+                    changedCardsPerRow = true;
+                }
+            } else if (k == QStringLiteral("importMode")) {
+                if (!v.isEmpty() && m_importMode != v) {
+                    m_importMode = v;
+                    changedImportMode = true;
+                }
+            } else if (k == QStringLiteral("editorZoom")) {
+                int z = qBound(50, v.toInt(), 300);
+                if (z > 0 && m_editorZoom != z) {
+                    m_editorZoom = z;
+                    changedZoom = true;
+                }
+            } else if (k == QStringLiteral("spellcheckMode")) {
+                if (!v.isEmpty() && m_spellcheckMode != v) {
+                    m_spellcheckMode = v;
+                    changedSpellMode = true;
+                }
+            }
+        }
+        notesFile.close();
+    }
+
+    if (changedOpacity) emit panelOpacityChanged();
+    if (changedScrollbars) emit hideScrollbarsChanged();
+    if (changedThemeMode) emit themeModeChanged();
+    if (changedCustomTheme) emit customThemeNameChanged();
+    if (changedLightMode) emit lightModeChanged();
+    if (changedNotesDir) emit notasDirChanged();
+    if (changedPreviews) emit showImagePreviewsChanged();
+    if (changedCycle) emit cyclePreviewImagesChanged();
+    if (changedCardsPerRow) emit cardsPerRowChanged();
+    if (changedImportMode) emit importModeChanged();
+    if (changedZoom) emit editorZoomChanged();
+    if (changedSpellMode) emit spellcheckModeChanged();
+}
+
+void ConfigBackend::setupQuickshellWatcher() {
+    if (!m_qsWatcher) {
+        m_qsWatcher = new QFileSystemWatcher(this);
+        connect(m_qsWatcher, &QFileSystemWatcher::fileChanged, this, [this]() {
+            QTimer::singleShot(150, this, [this]() {
+                loadQuickshellConfig();
+                setupQuickshellWatcher();
+            });
+        });
+    }
+
+    const QString home = QDir::homePath();
+    const QStringList qsFiles = {
+        home + QStringLiteral("/.config/quickshell/config/general.conf"),
+        home + QStringLiteral("/.config/quickshell/config/theme.conf"),
+        home + QStringLiteral("/.config/quickshell/config/notes.conf")
+    };
+    for (const auto &f : qsFiles) {
+        if (QFile::exists(f) && !m_qsWatcher->files().contains(f)) {
+            m_qsWatcher->addPath(f);
+        }
     }
 }
 

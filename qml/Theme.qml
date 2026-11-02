@@ -286,10 +286,13 @@ QtObject {
     readonly property color accentText:    textOn(accent)
 
     // ── Tipografía y Tokens de tamaño ────────────────────────────────────
-    readonly property string fontFamily:          "Google Sans, sans-serif"
-    readonly property string fontFamilyDisplay:   "Google Sans, sans-serif"
-    readonly property string fontFamilyRounded:   "Google Sans, sans-serif"
-    readonly property string fontFamilyMonospace: "monospace"
+    readonly property string systemFont: (typeof Sys !== "undefined" && Sys.systemFontFamily) ? Sys.systemFontFamily : ""
+    readonly property string systemMonospace: (typeof Sys !== "undefined" && Sys.systemMonospaceFontFamily) ? Sys.systemMonospaceFontFamily : ""
+
+    readonly property string fontFamily:          systemFont ? (systemFont + ", Google Sans, sans-serif") : "Google Sans, sans-serif"
+    readonly property string fontFamilyDisplay:   systemFont ? (systemFont + ", Google Sans, sans-serif") : "Google Sans, sans-serif"
+    readonly property string fontFamilyRounded:   systemFont ? (systemFont + ", Google Sans, sans-serif") : "Google Sans, sans-serif"
+    readonly property string fontFamilyMonospace: systemMonospace ? (systemMonospace + ", Google Sans Code, monospace") : "Google Sans Code, monospace"
 
     readonly property real fontSizeScale: (typeof ConfigBackend !== "undefined" && ConfigBackend.fontSizeScale > 0) ? ConfigBackend.fontSizeScale : 1.0
 

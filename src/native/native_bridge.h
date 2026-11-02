@@ -219,6 +219,9 @@ class Sys : public QObject {
     Q_PROPERTY(qreal lastMouseX READ lastMouseX NOTIFY lastMousePosChanged)
     Q_PROPERTY(qreal lastMouseY READ lastMouseY NOTIFY lastMousePosChanged)
     Q_PROPERTY(QJsonObject qtColors READ qtColors NOTIFY qtColorsChanged)
+    Q_PROPERTY(bool hasQuickshellConfig READ hasQuickshellConfig CONSTANT)
+    Q_PROPERTY(QString systemFontFamily READ systemFontFamily NOTIFY systemFontChanged)
+    Q_PROPERTY(QString systemMonospaceFontFamily READ systemMonospaceFontFamily NOTIFY systemFontChanged)
 
 public:
     explicit Sys(QObject *parent = nullptr);
@@ -237,6 +240,9 @@ public:
     qreal lastMouseX() const { return m_lastMousePos.x(); }
     qreal lastMouseY() const { return m_lastMousePos.y(); }
     QJsonObject qtColors() const { return m_qtColors; }
+    bool hasQuickshellConfig() const;
+    QString systemFontFamily() const;
+    QString systemMonospaceFontFamily() const;
 
     bool eventFilter(QObject *watched, QEvent *event) override;
 
@@ -252,6 +258,7 @@ signals:
     void clipboardTextChanged();
     void lastMousePosChanged();
     void qtColorsChanged();
+    void systemFontChanged();
     void ipcCommandReceived(const QString &action, const QString &target);
 
 private slots:
@@ -301,10 +308,13 @@ class ConfigBackend : public QObject {
     Q_PROPERTY(double fontSizeScale READ fontSizeScale WRITE setFontSizeScale NOTIFY fontSizeScaleChanged)
     Q_PROPERTY(QString customThemeName READ customThemeName WRITE setCustomThemeName NOTIFY customThemeNameChanged)
     Q_PROPERTY(bool lightMode READ lightMode WRITE setLightMode NOTIFY lightModeChanged)
+    Q_PROPERTY(bool hasQuickshellConfig READ hasQuickshellConfig CONSTANT)
 
 public:
     explicit ConfigBackend(QObject *parent = nullptr);
     ~ConfigBackend() override;
+
+    bool hasQuickshellConfig() const;
 
     QString notasDir() const { return m_notasDir; }
     void setNotasDir(const QString &val);
@@ -407,6 +417,8 @@ signals:
 private:
     void load();
     void scheduleSave();
+    void loadQuickshellConfig();
+    void setupQuickshellWatcher();
     QString configFilePath() const;
     QString legacyConfigFilePath() const;
 
@@ -436,6 +448,7 @@ private:
     bool m_lightMode = false;
 
     QTimer *m_saveTimer = nullptr;
+    QFileSystemWatcher *m_qsWatcher = nullptr;
 };
 
 // ── 6. SpellBackend Singleton ───────────────────────────────────────────────

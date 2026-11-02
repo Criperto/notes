@@ -603,7 +603,7 @@ Item {
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
                             onClicked: {
-                                var origin = settingsBtn.mapToItem(clippingRoot, 0, 0);
+                                var origin = settingsBtn.mapToItem(null, 0, 0);
                                 root.openSettingsRequested(Qt.rect(origin.x, origin.y, settingsBtn.width, settingsBtn.height));
                             }
                         }

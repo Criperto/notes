@@ -179,16 +179,22 @@ Item {
         if (root.editor && root.blockData && typeof root.editor.clearSelectionExcept === "function") {
             root.editor.clearSelectionExcept(root.blockData.bid);
         }
+        var maxLen = editInput.length;
+        var s = Math.max(0, Math.min(range.start, maxLen));
+        var e = Math.max(s, Math.min(range.end, maxLen));
         editInput.forceActiveFocus();
-        editInput.select(range.start, range.end);
-        editInput.remove(range.start, range.end);
-        editInput.insert(range.start, replacement);
-        var endPos = range.start + replacement.length;
+        editInput.select(s, e);
+        editInput.remove(s, e);
+        editInput.insert(s, replacement);
+        var endPos = s + replacement.length;
         var selectWordAction = function() {
             if (!editInput) return;
+            var curLen = editInput.length;
+            var clampedEnd = Math.max(0, Math.min(endPos, curLen));
+            var clampedStart = Math.max(0, Math.min(s, clampedEnd));
             editInput.forceActiveFocus();
-            editInput.cursorPosition = endPos;
-            editInput.select(range.start, endPos);
+            editInput.cursorPosition = clampedEnd;
+            editInput.select(clampedStart, clampedEnd);
             if (root.editor && root.blockData && typeof root.editor.notifySingleInputSelection === "function") {
                 root.editor.notifySingleInputSelection(root.blockData.bid);
             }

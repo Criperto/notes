@@ -91,8 +91,13 @@ Item {
                 return;
             }
 
+            var maxLen = (root.textItem.length !== undefined)
+                ? root.textItem.length
+                : (root.textItem.text ? root.textItem.text.length : 0);
+
             var posToRect = function(pos) {
                 if (root.textItem && typeof root.textItem.positionToRectangle === "function") {
+                    if (typeof pos !== "number" || pos < 0 || pos > maxLen) return null;
                     return root.textItem.positionToRectangle(pos);
                 }
                 return null;
@@ -106,6 +111,7 @@ Item {
             for (var i = 0; i < root.ranges.length; i++) {
                 var r = root.ranges[i];
                 if (!r || r.start === undefined || r.end === undefined || r.start >= r.end) continue;
+                if (r.start > maxLen || r.end > maxLen) continue;
 
                 var segments = SpellLogic.calculateWaveSegments(posToRect, r.start, r.end);
                 for (var s = 0; s < segments.length; s++) {

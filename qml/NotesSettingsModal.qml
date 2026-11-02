@@ -52,7 +52,8 @@ Item {
 
     function open(rect) {
         springEnabled = false;
-        if (rect && typeof rect.x === "number") {
+        var noteIsActive = (typeof NotesService !== "undefined" && NotesService.isEditing);
+        if (!noteIsActive && rect && typeof rect.x === "number") {
             originRect = rect;
         } else {
             originRect = Qt.rect(Math.round((root.width - 40) / 2), Math.round((root.height - 40) / 2), 40, 40);
@@ -833,6 +834,12 @@ Item {
     Rectangle {
         anchors.fill: parent
         color: Qt.rgba(0, 0, 0, 0.55)
+        opacity: root.isOpen ? 1.0 : 0.0
+
+        Behavior on opacity {
+            enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+            NumberAnimation { duration: 180; easing.type: Easing.OutQuad }
+        }
 
         MouseArea {
             anchors.fill: parent
@@ -850,7 +857,7 @@ Item {
         y: root.isOpen ? Math.round((root.height - targetHeight) / 2) : (typeof root.originRect.y === "number" ? root.originRect.y : Math.round((root.height - targetHeight) / 2))
         width: root.isOpen ? targetWidth : (root.originRect.width > 0 ? root.originRect.width : 40)
         height: root.isOpen ? targetHeight : (root.originRect.height > 0 ? root.originRect.height : 40)
-        radius: root.isOpen ? 16 : 8
+        radius: root.isOpen ? 16 : 10
 
         color: Theme.surface
         border.color: Theme.border
@@ -1171,6 +1178,7 @@ Item {
                                 spacing: 12
 
                                 SchemaSwitchRow {
+                                    visible: (typeof Sys === "undefined" || !Sys.hasQuickshellConfig)
                                     label: I18n.t("config.notes.show_image_previews", "Previsualizar imágenes en tarjetas")
                                     comment: I18n.t("config.notes.show_image_previews_comment", "Muestra miniaturas de imágenes en las tarjetas de notas.")
                                     checked: ConfigBackend.showImagePreviews
@@ -1178,6 +1186,7 @@ Item {
                                 }
 
                                 SchemaSwitchRow {
+                                    visible: (typeof Sys === "undefined" || !Sys.hasQuickshellConfig)
                                     label: I18n.t("config.notes.cycle_preview_images", "Alternar imágenes de vista previa")
                                     comment: I18n.t("config.notes.cycle_preview_images_comment", "Cambia suavemente cada 3 segundos entre las imágenes de la nota.")
                                     checked: ConfigBackend.cyclePreviewImages
@@ -1226,6 +1235,42 @@ Item {
                         }
 
                         BentoCard {
+                            visible: (typeof Sys !== "undefined" && Sys.hasQuickshellConfig)
+                            implicitHeight: syncRow.implicitHeight + 28
+                            RowLayout {
+                                id: syncRow
+                                anchors.fill: parent
+                                anchors.margins: 14
+                                spacing: 12
+                                Image {
+                                    width: 22
+                                    height: 22
+                                    source: Theme.iconsPath + "settings.svg"
+                                    sourceSize: Qt.size(22, 22)
+                                    layer.enabled: true
+                                    layer.effect: MultiEffect { colorization: 1.0; colorizationColor: Theme.accent }
+                                }
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 3
+                                    Text {
+                                        text: I18n.t("config.theme.qs_synced_title", "Esquema y Colores sincronizados")
+                                        color: Theme.text
+                                        font { pixelSize: Theme.fontSizeSubheading; bold: true; family: Theme.fontFamily }
+                                    }
+                                    Text {
+                                        text: I18n.t("config.theme.qs_synced_desc", "El tema de color, la opacidad y las preferencias se sincronizan automáticamente con tu configuración de Quickshell.")
+                                        color: Theme.muted
+                                        font { pixelSize: Theme.fontSizeBodySecondary; family: Theme.fontFamily }
+                                        wrapMode: Text.WordWrap
+                                        Layout.fillWidth: true
+                                    }
+                                }
+                            }
+                        }
+
+                        BentoCard {
+                            visible: (typeof Sys === "undefined" || !Sys.hasQuickshellConfig)
                             implicitHeight: colThemeSource.implicitHeight + 28
                             ColumnLayout {
                                 id: colThemeSource
@@ -1402,6 +1447,7 @@ Item {
                                 spacing: 12
 
                                 SchemaSliderRow {
+                                    visible: (typeof Sys === "undefined" || !Sys.hasQuickshellConfig)
                                     label: I18n.t("config.general.panel_opacity", "Opacidad del fondo")
                                     comment: I18n.t("config.general.panel_opacity_comment", "Nivel de opacidad de la ventana principal de Notas.")
                                     val: ConfigBackend.panelOpacity
