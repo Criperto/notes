@@ -14,7 +14,8 @@ Item {
     signal closed()
 
     property bool isOpen: false
-    property rect originRect: Qt.rect(width / 2, height / 2, 40, 40)
+    property bool springEnabled: false
+    property rect originRect: Qt.rect(Math.round((width - 40) / 2), Math.round((height - 40) / 2), 40, 40)
     property int tabIndex: 0
     property string catalogFilter: ""
     property string activeDownloadingLang: ""
@@ -28,18 +29,33 @@ Item {
     ]
 
     function open(rect) {
+        tabIndex = 0;
+        springEnabled = false;
         if (rect && typeof rect.x === "number") {
             originRect = rect;
         } else {
-            originRect = Qt.rect(width / 2, height / 2, 40, 40);
+            originRect = Qt.rect(Math.round((root.width - 40) / 2), Math.round((root.height - 40) / 2), 40, 40);
         }
-        tabIndex = 0;
-        isOpen = true;
+        isOpen = false;
+        if (!Theme.animationsEnabled || GamemodeService.gamemodeActive) {
+            isOpen = true;
+            return;
+        }
+        Qt.callLater(function() {
+            root.springEnabled = true;
+            root.isOpen = true;
+        });
     }
 
     function close() {
         isOpen = false;
         closed();
+    }
+
+    onOpacityChanged: {
+        if (opacity === 0) {
+            springEnabled = false;
+        }
     }
 
     Behavior on opacity {
@@ -266,8 +282,8 @@ Item {
 
     Rectangle {
         id: card
-        x: root.isOpen ? Math.round((root.width - targetWidth) / 2) : (root.originRect.x || Math.round((root.width - targetWidth) / 2))
-        y: root.isOpen ? Math.round((root.height - targetHeight) / 2) : (root.originRect.y || Math.round((root.height - targetHeight) / 2))
+        x: root.isOpen ? Math.round((root.width - targetWidth) / 2) : (typeof root.originRect.x === "number" ? root.originRect.x : Math.round((root.width - targetWidth) / 2))
+        y: root.isOpen ? Math.round((root.height - targetHeight) / 2) : (typeof root.originRect.y === "number" ? root.originRect.y : Math.round((root.height - targetHeight) / 2))
         width: root.isOpen ? targetWidth : (root.originRect.width > 0 ? root.originRect.width : 40)
         height: root.isOpen ? targetHeight : (root.originRect.height > 0 ? root.originRect.height : 40)
         radius: root.isOpen ? 16 : 8
@@ -277,11 +293,26 @@ Item {
         border.width: 1
         clip: true
 
-        Behavior on x { enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive; SpringAnimation { spring: 8.2; damping: 0.88; mass: 0.45 } }
-        Behavior on y { enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive; SpringAnimation { spring: 8.2; damping: 0.88; mass: 0.45 } }
-        Behavior on width { enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive; SpringAnimation { spring: 8.2; damping: 0.88; mass: 0.45 } }
-        Behavior on height { enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive; SpringAnimation { spring: 8.2; damping: 0.88; mass: 0.45 } }
-        Behavior on radius { enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive; SpringAnimation { spring: 8.2; damping: 0.88; mass: 0.45 } }
+        Behavior on x {
+            enabled: root.springEnabled && Theme.animationsEnabled && !GamemodeService.gamemodeActive
+            SpringAnimation { spring: 3.5; damping: 0.38; mass: 0.85; epsilon: 0.25 }
+        }
+        Behavior on y {
+            enabled: root.springEnabled && Theme.animationsEnabled && !GamemodeService.gamemodeActive
+            SpringAnimation { spring: 3.5; damping: 0.38; mass: 0.85; epsilon: 0.25 }
+        }
+        Behavior on width {
+            enabled: root.springEnabled && Theme.animationsEnabled && !GamemodeService.gamemodeActive
+            SpringAnimation { spring: 3.5; damping: 0.38; mass: 0.85; epsilon: 0.25 }
+        }
+        Behavior on height {
+            enabled: root.springEnabled && Theme.animationsEnabled && !GamemodeService.gamemodeActive
+            SpringAnimation { spring: 3.5; damping: 0.38; mass: 0.85; epsilon: 0.25 }
+        }
+        Behavior on radius {
+            enabled: root.springEnabled && Theme.animationsEnabled && !GamemodeService.gamemodeActive
+            NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
+        }
 
         MouseArea {
             anchors.fill: parent
