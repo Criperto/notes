@@ -474,6 +474,12 @@ Item {
             });
         }
 
+        MouseArea {
+            anchors.fill: parent
+            acceptedButtons: Qt.AllButtons
+            onClicked: {}
+        }
+
         // Cápsula activa flotante con SpringAnimation elástica y squash en bordes
         Rectangle {
             id: activeIndicator
@@ -1006,31 +1012,53 @@ Item {
             anchors.fill: parent
             opacity: 0.0
 
-            // Máscara redondeada para recortar perfectamente el desenfoque en las esquinas
+            // Máscara redondeada para recortar perfectamente el desenfoque en las esquinas y padding
             Item {
                 id: blurMaskItem
-                anchors.fill: parent
-                layer.enabled: card.radius > 0
+                width: cardBlurContainer.sampleW
+                height: cardBlurContainer.sampleH
+                layer.enabled: cardBlurContainer.visible
                 visible: false
 
                 Rectangle {
-                    anchors.fill: parent
+                    x: Math.round(card.x - cardBlurContainer.sampleX)
+                    y: Math.round(card.y - cardBlurContainer.sampleY)
+                    width: card.width
+                    height: card.height
                     radius: card.radius
                     color: "black"
                 }
             }
 
-            // Desenfoque recortado exclusivamente a la tarjeta (Frosted Glass)
+            // Desenfoque recortado exclusivamente a la tarjeta (Frosted Glass) con margen de padding perimetral
             Item {
                 id: cardBlurContainer
                 anchors.fill: parent
                 visible: (root.isOpen || root.isClosing) && HyprlandConfig.blurEnabled && !GamemodeService.gamemodeActive && root.backgroundSourceItem !== null
 
+                readonly property real blurPadding: 56
+                readonly property real bgW: root.backgroundSourceItem ? root.backgroundSourceItem.width : root.width
+                readonly property real bgH: root.backgroundSourceItem ? root.backgroundSourceItem.height : root.height
+
+                readonly property real padLeft: Math.min(blurPadding, Math.max(0, card.x))
+                readonly property real padTop: Math.min(blurPadding, Math.max(0, card.y))
+                readonly property real padRight: Math.min(blurPadding, Math.max(0, bgW - (card.x + card.width)))
+                readonly property real padBottom: Math.min(blurPadding, Math.max(0, bgH - (card.y + card.height)))
+
+                readonly property real sampleX: Math.round(Math.max(0, card.x - padLeft))
+                readonly property real sampleY: Math.round(Math.max(0, card.y - padTop))
+                readonly property real sampleW: Math.round(Math.max(1, Math.min(bgW - sampleX, card.width + padLeft + padRight)))
+                readonly property real sampleH: Math.round(Math.max(1, Math.min(bgH - sampleY, card.height + padTop + padBottom)))
+
                 ShaderEffectSource {
                     id: cardBlurSrc
-                    anchors.fill: parent
+                    x: -Math.round(card.x - cardBlurContainer.sampleX)
+                    y: -Math.round(card.y - cardBlurContainer.sampleY)
+                    width: cardBlurContainer.sampleW
+                    height: cardBlurContainer.sampleH
+
                     sourceItem: root.backgroundSourceItem
-                    sourceRect: Qt.rect(Math.round(Math.max(0, card.x)), Math.round(Math.max(0, card.y)), Math.round(Math.max(1, card.width)), Math.round(Math.max(1, card.height)))
+                    sourceRect: Qt.rect(cardBlurContainer.sampleX, cardBlurContainer.sampleY, cardBlurContainer.sampleW, cardBlurContainer.sampleH)
                     live: (root.isOpen || root.isClosing) && Theme.animationsEnabled && !GamemodeService.gamemodeActive
                     hideSource: false
                     layer.enabled: parent.visible
@@ -1038,9 +1066,9 @@ Item {
                     layer.effect: MultiEffect {
                         blurEnabled: HyprlandConfig.blurEnabled && !GamemodeService.gamemodeActive
                         blur: 1.0
-                        blurMax: 48
-                        saturation: 0.20
-                        maskEnabled: card.radius > 0
+                        blurMax: 56
+                        saturation: 0.25
+                        maskEnabled: true
                         maskSource: blurMaskItem
                     }
                 }
@@ -1055,7 +1083,7 @@ Item {
                                Math.min(1, Theme.surface.hsvSaturation),
                                Math.min(1, Theme.surface.hsvValue + 0.02),
                                (HyprlandConfig.blurEnabled && !GamemodeService.gamemodeActive)
-                                   ? 0.65
+                                   ? 0.60
                                    : (GamemodeService.gamemodeActive ? 1.0 : Theme.panelOpacity))
                 border.color: Theme.border
                 border.width: 1
@@ -1086,6 +1114,15 @@ Item {
                     colorizationColor: Theme.muted
                 }
             }
+        }
+
+        // ── Consumir clicks dentro de la tarjeta para evitar que se propaguen al backdrop ──
+        MouseArea {
+            id: cardClickBlocker
+            anchors.fill: parent
+            enabled: root.isOpen
+            acceptedButtons: Qt.AllButtons
+            onClicked: {}
         }
 
         ColumnLayout {
