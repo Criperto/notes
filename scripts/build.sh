@@ -18,18 +18,24 @@ case "${CMD}" in
     dev)
         echo "🚀 [build.sh] Compilando e iniciando en modo DEV..."
         export NOTAS_DEV=1
-        cargo build --bin notas
-        echo "✓ Binario listo en target/debug/notas. Lanzando..."
-        exec "${ROOT_DIR}/target/debug/notas" "$@"
+        cargo build --bin criperto-notes
+        ln -sf criperto-notes "${ROOT_DIR}/target/debug/criperto.notes"
+        ln -sf criperto-notes "${ROOT_DIR}/target/debug/notas"
+        echo "✓ Binario listo en target/debug/criperto.notes. Lanzando..."
+        exec "${ROOT_DIR}/target/debug/criperto.notes" "$@"
         ;;
     release)
         echo "📦 [build.sh] Compilando en modo RELEASE con optimizaciones..."
-        cargo build --release --bin notas
-        echo "✓ Binario listo en ${ROOT_DIR}/target/release/notas"
+        cargo build --release
+        ln -sf criperto-notes "${ROOT_DIR}/target/release/criperto.notes"
+        ln -sf criperto-notes "${ROOT_DIR}/target/release/notas"
+        echo "✓ Binarios listos en ${ROOT_DIR}/target/release/"
         ;;
     install)
-        echo "📦 [build.sh] Compilando e instalando en ~/.local/bin/notas..."
-        cargo build --release --bin notas
+        echo "📦 [build.sh] Compilando e instalando en ~/.local/bin/..."
+        cargo build --release
+        ln -sf criperto-notes "${ROOT_DIR}/target/release/criperto.notes"
+        ln -sf criperto-notes "${ROOT_DIR}/target/release/notas"
         "${ROOT_DIR}/scripts/install.sh"
         echo "✓ Instalación finalizada."
         ;;
@@ -39,7 +45,11 @@ case "${CMD}" in
         echo "🔍 [build.sh] Verificando compilación Cargo..."
         cargo check
         echo "🔍 [build.sh] Smoke test headless (verificación de carga limpia)..."
-        QT_QPA_PLATFORM=offscreen "${ROOT_DIR}/target/debug/notas" --check 2>&1 || true
+        if [[ -x "${ROOT_DIR}/target/release/criperto.notes" ]]; then
+            QT_QPA_PLATFORM=offscreen "${ROOT_DIR}/target/release/criperto.notes" --check 2>&1 || true
+        elif [[ -x "${ROOT_DIR}/target/debug/criperto.notes" ]]; then
+            QT_QPA_PLATFORM=offscreen "${ROOT_DIR}/target/debug/criperto.notes" --check 2>&1 || true
+        fi
         echo "✓ Chequeo completo."
         ;;
     clean)

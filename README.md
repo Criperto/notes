@@ -45,7 +45,10 @@
   - `qt6-wayland`
 - **Compilador C++:** `clang++` o `g++` con soporte C++17.
 - **CMake** y **pkg-config**.
-- **Hunspell** (opcional, para corrector ortográfico en tiempo real).
+- **Hunspell:** Motor del corrector ortográfico multilingüe en tiempo real (**obligatorio**).
+  - Arch Linux: `sudo pacman -S hunspell`
+  - Fedora: `sudo dnf install hunspell`
+  - Debian / Ubuntu: `sudo apt install hunspell`
 
 ---
 

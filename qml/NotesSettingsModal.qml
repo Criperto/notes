@@ -17,7 +17,7 @@ Item {
     property bool isOpen: false
     property bool isClosing: false
     property bool isFromButton: false
-    property bool springEnabled: false
+    property Item backgroundSourceItem: null
     property rect originRect: Qt.rect(Math.round((width - 40) / 2), Math.round((height - 40) / 2), 40, 40)
     property int tabIndex: 0
 
@@ -62,9 +62,8 @@ Item {
     }
 
     function open(rect) {
-        springEnabled = false;
-        closeTimer.stop();
-        isClosing = false;
+        closeCardAnim.stop();
+        fadeCloseAnim.stop();
         var noteIsActive = (typeof NotesService !== "undefined" && NotesService.isEditing);
         if (!noteIsActive && rect && typeof rect.x === "number") {
             originRect = rect;
@@ -76,54 +75,138 @@ Item {
         if (typeof SpellService !== "undefined") {
             SpellService.refreshDicts();
         }
-        isOpen = false;
+        isOpen = true;
+        isClosing = false;
+
         if (!Theme.animationsEnabled || GamemodeService.gamemodeActive) {
-            isOpen = true;
+            card.x = Math.round((root.width - targetWidth) / 2);
+            card.y = Math.round((root.height - targetHeight) / 2);
+            card.width = targetWidth;
+            card.height = targetHeight;
+            card.radius = 16;
+            cardBtnContent.opacity = 0.0;
+            modalContentLayout.opacity = 1.0;
             return;
         }
-        Qt.callLater(function() {
-            root.springEnabled = true;
-            root.isOpen = true;
-        });
+
+        if (isFromButton) {
+            card.x = originRect.x;
+            card.y = originRect.y;
+            card.width = originRect.width > 0 ? originRect.width : 38;
+            card.height = originRect.height > 0 ? originRect.height : 38;
+            card.radius = 10;
+            cardBtnContent.opacity = 1.0;
+            modalContentLayout.opacity = 0.0;
+            openCardAnim.restart();
+        } else {
+            card.x = Math.round((root.width - targetWidth) / 2);
+            card.y = Math.round((root.height - targetHeight) / 2);
+            card.width = targetWidth;
+            card.height = targetHeight;
+            card.radius = 16;
+            cardBtnContent.opacity = 0.0;
+            modalContentLayout.opacity = 0.0;
+            fadeOpenAnim.restart();
+        }
     }
 
     function close() {
         if (sharedContextMenu.visible) {
             sharedContextMenu.closeMenu();
         }
-        if (!isOpen) return;
-        isOpen = false;
-        if (!Theme.animationsEnabled || GamemodeService.gamemodeActive || !isFromButton) {
+        if (!isOpen && !isClosing) return;
+        openCardAnim.stop();
+        fadeOpenAnim.stop();
+
+        if (!Theme.animationsEnabled || GamemodeService.gamemodeActive) {
+            isOpen = false;
             isClosing = false;
             closed();
             return;
         }
+
+        if (!isFromButton) {
+            isClosing = true;
+            fadeCloseAnim.restart();
+            return;
+        }
+
         isClosing = true;
-        closeTimer.restart();
+        closeCardAnim.restart();
     }
 
-    Timer {
-        id: closeTimer
-        interval: 280
-        repeat: false
-        onTriggered: {
+    ParallelAnimation {
+        id: openCardAnim
+
+        SpringAnimation { target: card; property: "x"; to: Math.round((root.width - targetWidth) / 2); spring: 8.0; damping: 0.88; mass: 0.48; epsilon: 0.25 }
+        SpringAnimation { target: card; property: "y"; to: Math.round((root.height - targetHeight) / 2); spring: 8.0; damping: 0.88; mass: 0.48; epsilon: 0.25 }
+        SpringAnimation { target: card; property: "width"; to: targetWidth; spring: 8.0; damping: 0.88; mass: 0.48; epsilon: 0.25 }
+        SpringAnimation { target: card; property: "height"; to: targetHeight; spring: 8.0; damping: 0.88; mass: 0.48; epsilon: 0.25 }
+        NumberAnimation { target: card; property: "radius"; to: 16; duration: 200; easing.type: Easing.OutCubic }
+        NumberAnimation { target: cardBtnContent; property: "opacity"; to: 0.0; duration: 100; easing.type: Easing.OutCubic }
+
+        SequentialAnimation {
+            PauseAnimation { duration: 60 }
+            NumberAnimation { target: modalContentLayout; property: "opacity"; to: 1.0; duration: 160; easing.type: Easing.OutCubic }
+        }
+    }
+
+    ParallelAnimation {
+        id: closeCardAnim
+
+        NumberAnimation { target: modalContentLayout; property: "opacity"; to: 0.0; duration: 80; easing.type: Easing.OutCubic }
+
+        SpringAnimation { target: card; property: "x"; to: originRect.x; spring: 8.0; damping: 0.88; mass: 0.48; epsilon: 0.25 }
+        SpringAnimation { target: card; property: "y"; to: originRect.y; spring: 8.0; damping: 0.88; mass: 0.48; epsilon: 0.25 }
+        SpringAnimation { target: card; property: "width"; to: (originRect.width > 0 ? originRect.width : 38); spring: 8.0; damping: 0.88; mass: 0.48; epsilon: 0.25 }
+        SpringAnimation { target: card; property: "height"; to: (originRect.height > 0 ? originRect.height : 38); spring: 8.0; damping: 0.88; mass: 0.48; epsilon: 0.25 }
+        NumberAnimation { target: card; property: "radius"; to: 10; duration: 180; easing.type: Easing.OutCubic }
+
+        SequentialAnimation {
+            PauseAnimation { duration: 60 }
+            NumberAnimation { target: cardBtnContent; property: "opacity"; to: 1.0; duration: 120; easing.type: Easing.OutCubic }
+        }
+
+        onFinished: {
+            root.isOpen = false;
             root.isClosing = false;
-            root.springEnabled = false;
             root.closed();
         }
     }
 
-    onOpacityChanged: {
-        if (opacity === 0) {
-            springEnabled = false;
+    NumberAnimation {
+        id: fadeOpenAnim
+        target: modalContentLayout
+        property: "opacity"
+        to: 1.0
+        duration: 160
+        easing.type: Easing.OutCubic
+    }
+
+    NumberAnimation {
+        id: fadeCloseAnim
+        target: modalContentLayout
+        property: "opacity"
+        to: 0.0
+        duration: 120
+        easing.type: Easing.OutCubic
+        onFinished: {
+            root.isOpen = false;
+            root.isClosing = false;
+            root.closed();
         }
     }
 
-    Behavior on opacity {
-        enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive && !root.isFromButton
-        NumberAnimation {
-            duration: 150
-            easing.type: Easing.OutQuad
+    onWidthChanged: {
+        if (isOpen && !isClosing && !openCardAnim.running) {
+            card.x = Math.round((width - targetWidth) / 2);
+            card.width = targetWidth;
+        }
+    }
+    onHeightChanged: {
+        if (isOpen && !isClosing && !openCardAnim.running) {
+            card.y = Math.round((height - targetHeight) / 2);
+            card.height = targetHeight;
         }
     }
 
@@ -884,18 +967,12 @@ Item {
 
     Rectangle {
         id: card
-        x: root.isOpen ? Math.round((root.width - targetWidth) / 2) : (root.isFromButton && typeof root.originRect.x === "number" ? root.originRect.x : Math.round((root.width - targetWidth) / 2))
-        y: root.isOpen ? Math.round((root.height - targetHeight) / 2) : (root.isFromButton && typeof root.originRect.y === "number" ? root.originRect.y : Math.round((root.height - targetHeight) / 2))
-        width: root.isOpen ? targetWidth : (root.isFromButton && root.originRect.width > 0 ? root.originRect.width : targetWidth)
-        height: root.isOpen ? targetHeight : (root.isFromButton && root.originRect.height > 0 ? root.originRect.height : targetHeight)
-        radius: root.isOpen ? 16 : (root.isFromButton ? 10 : 16)
-
-        color: (!root.isFromButton || root.isOpen)
-            ? Qt.hsva(Theme.surface.hsvHue,
-                      Math.min(1, Theme.surface.hsvSaturation),
-                      Math.min(1, Theme.surface.hsvValue + 0.03),
-                      GamemodeService.gamemodeActive ? 1.0 : Theme.panelOpacity)
-            : Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.05)
+        x: Math.round((root.width - targetWidth) / 2)
+        y: Math.round((root.height - targetHeight) / 2)
+        width: targetWidth
+        height: targetHeight
+        radius: 16
+        color: "transparent"
         border.color: Theme.border
         border.width: 1
         clip: true
@@ -909,35 +986,49 @@ Item {
             shadowHorizontalOffset: 0
         }
 
-        Behavior on color {
-            enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
-            ColorAnimation { duration: 240; easing.type: Easing.OutCubic }
-        }
-
-        Behavior on x {
-            enabled: root.springEnabled && Theme.animationsEnabled && !GamemodeService.gamemodeActive
-            SpringAnimation { spring: 3.5; damping: 0.38; mass: 0.85; epsilon: 0.25 }
-        }
-        Behavior on y {
-            enabled: root.springEnabled && Theme.animationsEnabled && !GamemodeService.gamemodeActive
-            SpringAnimation { spring: 3.5; damping: 0.38; mass: 0.85; epsilon: 0.25 }
-        }
-        Behavior on width {
-            enabled: root.springEnabled && Theme.animationsEnabled && !GamemodeService.gamemodeActive
-            SpringAnimation { spring: 3.5; damping: 0.38; mass: 0.85; epsilon: 0.25 }
-        }
-        Behavior on height {
-            enabled: root.springEnabled && Theme.animationsEnabled && !GamemodeService.gamemodeActive
-            SpringAnimation { spring: 3.5; damping: 0.38; mass: 0.85; epsilon: 0.25 }
-        }
-        Behavior on radius {
-            enabled: root.springEnabled && Theme.animationsEnabled && !GamemodeService.gamemodeActive
-            NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
-        }
-
-        MouseArea {
+        // ── Desenfoque recortado exclusivamente a la tarjeta (Frosted Glass) ──
+        Item {
+            id: cardBlurContainer
             anchors.fill: parent
-            onWheel: (wheel) => { wheel.accepted = true; }
+            clip: true
+            visible: (root.isOpen || root.isClosing) && HyprlandConfig.blurEnabled && !GamemodeService.gamemodeActive && root.backgroundSourceItem !== null
+
+            ShaderEffectSource {
+                id: cardBlurSrc
+                anchors.fill: parent
+                sourceItem: root.backgroundSourceItem
+                sourceRect: Qt.rect(Math.max(0, card.x), Math.max(0, card.y), Math.max(1, card.width), Math.max(1, card.height))
+                live: (root.isOpen || root.isClosing) && Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                hideSource: false
+                layer.enabled: parent.visible
+                layer.smooth: true
+                layer.effect: MultiEffect {
+                    blurEnabled: HyprlandConfig.blurEnabled && !GamemodeService.gamemodeActive
+                    blur: 0.85
+                    blurMax: HyprlandConfig.quickshellBlurMax
+                    saturation: 0.15
+                }
+            }
+        }
+
+        // ── Superficie de fondo tintada sobre el blur ───────────────────────
+        Rectangle {
+            id: cardBgTint
+            anchors.fill: parent
+            radius: card.radius
+            color: (!root.isFromButton || root.isOpen)
+                ? Qt.hsva(Theme.surface.hsvHue,
+                          Math.min(1, Theme.surface.hsvSaturation),
+                          Math.min(1, Theme.surface.hsvValue + 0.03),
+                          (HyprlandConfig.blurEnabled && !GamemodeService.gamemodeActive)
+                              ? Math.min(0.85, Theme.panelOpacity)
+                              : (GamemodeService.gamemodeActive ? 1.0 : Theme.panelOpacity))
+                : Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.05)
+
+            Behavior on color {
+                enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                ColorAnimation { duration: 200; easing.type: Easing.OutCubic }
+            }
         }
 
         Item {
@@ -950,11 +1041,6 @@ Item {
             opacity: root.isOpen ? 0.0 : 1.0
             z: 10
             clip: true
-
-            Behavior on opacity {
-                enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
-                NumberAnimation { duration: 120; easing.type: Easing.OutCubic }
-            }
 
             Image {
                 anchors.centerIn: parent
@@ -1052,19 +1138,6 @@ Item {
                 contentHeight: activeTabCol.implicitHeight + 20
 
                 ScrollBar.vertical: CustomScrollBar { id: vbar }
-
-                WheelHandler {
-                    target: null
-                    acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
-                    onWheel: (event) => {
-                        var delta = event.angleDelta ? event.angleDelta.y : 0;
-                        if (delta !== 0) {
-                            var maxContentY = Math.max(0, modalFlickable.contentHeight - modalFlickable.height);
-                            modalFlickable.contentY = Math.max(0, Math.min(maxContentY, modalFlickable.contentY - delta));
-                        }
-                        event.accepted = true;
-                    }
-                }
 
                 Item {
                     id: stackContent

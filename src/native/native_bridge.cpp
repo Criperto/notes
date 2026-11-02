@@ -445,6 +445,9 @@ Sys::Sys(QObject *parent)
     m_qtColors = readQtColors();
     setupQtThemeWatcher();
     startIpcServer();
+
+    QGuiApplication::setFont(QFont(systemFontFamily()));
+    printStartupDiagnostics();
 }
 
 Sys::~Sys() {
@@ -836,6 +839,19 @@ bool Sys::hasQuickshellConfig() const {
 
 QString Sys::systemFontFamily() const {
     const QString home = QDir::homePath();
+    // 1. Quickshell font config
+    QFile qsFontFile(home + QStringLiteral("/.config/quickshell/config/font.conf"));
+    if (qsFontFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        QTextStream in(&qsFontFile);
+        while (!in.atEnd()) {
+            QString line = in.readLine().trimmed();
+            if (line.startsWith(QStringLiteral("fontFamily")) && line.contains('=')) {
+                QString val = line.section('=', 1).trimmed();
+                if (!val.isEmpty()) return val;
+            }
+        }
+    }
+    // 2. qt6ct font config
     QFile qt6ctFile(home + QStringLiteral("/.config/qt6ct/qt6ct.conf"));
     if (qt6ctFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
         QTextStream in(&qt6ctFile);
@@ -858,8 +874,51 @@ QString Sys::systemFontFamily() const {
     return QStringLiteral("Google Sans");
 }
 
+QString Sys::systemFontFamilyDisplay() const {
+    const QString home = QDir::homePath();
+    QFile qsFontFile(home + QStringLiteral("/.config/quickshell/config/font.conf"));
+    if (qsFontFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        QTextStream in(&qsFontFile);
+        while (!in.atEnd()) {
+            QString line = in.readLine().trimmed();
+            if (line.startsWith(QStringLiteral("fontFamilyDisplay")) && line.contains('=')) {
+                QString val = line.section('=', 1).trimmed();
+                if (!val.isEmpty()) return val;
+            }
+        }
+    }
+    return QStringLiteral("Google Sans Display");
+}
+
+QString Sys::systemFontFamilyRounded() const {
+    const QString home = QDir::homePath();
+    QFile qsFontFile(home + QStringLiteral("/.config/quickshell/config/font.conf"));
+    if (qsFontFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        QTextStream in(&qsFontFile);
+        while (!in.atEnd()) {
+            QString line = in.readLine().trimmed();
+            if (line.startsWith(QStringLiteral("fontFamilyRounded")) && line.contains('=')) {
+                QString val = line.section('=', 1).trimmed();
+                if (!val.isEmpty()) return val;
+            }
+        }
+    }
+    return systemFontFamily();
+}
+
 QString Sys::systemMonospaceFontFamily() const {
     const QString home = QDir::homePath();
+    QFile qsFontFile(home + QStringLiteral("/.config/quickshell/config/font.conf"));
+    if (qsFontFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        QTextStream in(&qsFontFile);
+        while (!in.atEnd()) {
+            QString line = in.readLine().trimmed();
+            if (line.startsWith(QStringLiteral("systemMonospaceFontFamily")) && line.contains('=')) {
+                QString val = line.section('=', 1).trimmed();
+                if (!val.isEmpty()) return val;
+            }
+        }
+    }
     QFile qt6ctFile(home + QStringLiteral("/.config/qt6ct/qt6ct.conf"));
     if (qt6ctFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
         QTextStream in(&qt6ctFile);
@@ -878,6 +937,32 @@ QString Sys::systemMonospaceFontFamily() const {
         }
     }
     return QStringLiteral("Google Sans Code");
+}
+
+void Sys::printStartupDiagnostics() const {
+    if (qEnvironmentVariableIsSet("NOTAS_QUIET")) return;
+    const QString home = QDir::homePath();
+    const QString configPath = home + QStringLiteral("/.config/notas/config.json");
+    const QString qsPath = home + QStringLiteral("/.config/quickshell");
+    const bool qsDetected = hasQuickshellConfig();
+    const QString fontBody = systemFontFamily();
+    const QString fontDisplay = systemFontFamilyDisplay();
+    const QString fontMono = systemMonospaceFontFamily();
+    const QString hunspellBin = QStandardPaths::findExecutable(QStringLiteral("hunspell"));
+
+    fprintf(stdout, "\n");
+    fprintf(stdout, "╭─────────────────────────────────────────────────────────────────────────────╮\n");
+    fprintf(stdout, "│ 📝 dev.criperto.Notas v0.1.0 (criperto.notes)                              │\n");
+    fprintf(stdout, "│    Editor nativo de notas en Markdown para Wayland                          │\n");
+    fprintf(stdout, "├─────────────────────────────────────────────────────────────────────────────┤\n");
+    fprintf(stdout, "│ • Configuración : %-57s │\n", configPath.toUtf8().constData());
+    fprintf(stdout, "│ • Quickshell    : %-57s │\n", qsDetected ? "Detectado e integrado (~/.config/quickshell)" : "No detectado (Modo Standalone)");
+    fprintf(stdout, "│ • Fuente Texto  : %-57s │\n", fontBody.toUtf8().constData());
+    fprintf(stdout, "│ • Fuente Display: %-57s │\n", fontDisplay.toUtf8().constData());
+    fprintf(stdout, "│ • Fuente Mono   : %-57s │\n", fontMono.toUtf8().constData());
+    fprintf(stdout, "│ • Motor Spell   : %-57s │\n", hunspellBin.isEmpty() ? "No encontrado (Desactivado)" : hunspellBin.toUtf8().constData());
+    fprintf(stdout, "╰─────────────────────────────────────────────────────────────────────────────╯\n\n");
+    fflush(stdout);
 }
 
 QString Sys::env(const QString &name, const QString &fallback) const {

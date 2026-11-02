@@ -5,6 +5,18 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 echo "==> Instalando Notas (dev.criperto.Notas)..."
 
+# 0. Verificar dependencias obligatorias
+if ! command -v hunspell &>/dev/null; then
+    echo "❌ Error: 'hunspell' no está instalado en el sistema." >&2
+    echo "   Notas requiere Hunspell como dependencia obligatoria para el corrector ortográfico." >&2
+    echo "   Por favor, instálalo con el gestor de paquetes de tu distribución:" >&2
+    echo "     - Arch Linux:    sudo pacman -S hunspell" >&2
+    echo "     - Fedora:        sudo dnf install hunspell" >&2
+    echo "     - Debian/Ubuntu: sudo apt install hunspell" >&2
+    exit 1
+fi
+echo "✓ Dependencia obligatoria detectada: $(command -v hunspell)"
+
 # 1. Asegurar directorios de destino
 mkdir -p "$HOME/.local/bin"
 mkdir -p "$HOME/.local/share/applications"
@@ -25,18 +37,28 @@ fi
 
 # 2. Binario
 BIN_SRC=""
-if [[ -f "$SCRIPT_DIR/target/release/notas" ]]; then
+if [[ -f "$SCRIPT_DIR/target/release/criperto-notes" ]]; then
+    BIN_SRC="$SCRIPT_DIR/target/release/criperto-notes"
+elif [[ -f "$SCRIPT_DIR/target/release/criperto.notes" ]]; then
+    BIN_SRC="$SCRIPT_DIR/target/release/criperto.notes"
+elif [[ -f "$SCRIPT_DIR/target/release/notas" ]]; then
     BIN_SRC="$SCRIPT_DIR/target/release/notas"
+elif [[ -f "$SCRIPT_DIR/target/debug/criperto-notes" ]]; then
+    BIN_SRC="$SCRIPT_DIR/target/debug/criperto-notes"
+elif [[ -f "$SCRIPT_DIR/target/debug/criperto.notes" ]]; then
+    BIN_SRC="$SCRIPT_DIR/target/debug/criperto.notes"
 elif [[ -f "$SCRIPT_DIR/target/debug/notas" ]]; then
     BIN_SRC="$SCRIPT_DIR/target/debug/notas"
 else
     echo "Compilando binario de release..."
     cd "$SCRIPT_DIR" && cargo build --release
-    BIN_SRC="$SCRIPT_DIR/target/release/notas"
+    BIN_SRC="$SCRIPT_DIR/target/release/criperto-notes"
 fi
 
+ln -sf "$BIN_SRC" "$HOME/.local/bin/criperto.notes"
+ln -sf "$BIN_SRC" "$HOME/.local/bin/criperto-notes"
 ln -sf "$BIN_SRC" "$HOME/.local/bin/notas"
-echo "✓ Binario enlazado en $HOME/.local/bin/notas"
+echo "✓ Binarios enlazados en $HOME/.local/bin/criperto.notes y $HOME/.local/bin/notas"
 
 # 3. Icono
 ln -sf "$SCRIPT_DIR/assets/icons/dev.criperto.Notas.svg" "$HOME/.local/share/icons/hicolor/scalable/apps/dev.criperto.Notas.svg"

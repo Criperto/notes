@@ -221,6 +221,8 @@ class Sys : public QObject {
     Q_PROPERTY(QJsonObject qtColors READ qtColors NOTIFY qtColorsChanged)
     Q_PROPERTY(bool hasQuickshellConfig READ hasQuickshellConfig CONSTANT)
     Q_PROPERTY(QString systemFontFamily READ systemFontFamily NOTIFY systemFontChanged)
+    Q_PROPERTY(QString systemFontFamilyDisplay READ systemFontFamilyDisplay NOTIFY systemFontChanged)
+    Q_PROPERTY(QString systemFontFamilyRounded READ systemFontFamilyRounded NOTIFY systemFontChanged)
     Q_PROPERTY(QString systemMonospaceFontFamily READ systemMonospaceFontFamily NOTIFY systemFontChanged)
 
 public:
@@ -242,7 +244,10 @@ public:
     QJsonObject qtColors() const { return m_qtColors; }
     bool hasQuickshellConfig() const;
     QString systemFontFamily() const;
+    QString systemFontFamilyDisplay() const;
+    QString systemFontFamilyRounded() const;
     QString systemMonospaceFontFamily() const;
+    void printStartupDiagnostics() const;
 
     bool eventFilter(QObject *watched, QEvent *event) override;
 

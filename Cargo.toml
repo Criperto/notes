@@ -1,10 +1,14 @@
 [package]
-name = "notas"
+name = "criperto-notes"
 version = "0.1.0"
 edition = "2021"
 authors = ["Tomas <dev@criperto.com>"]
 license = "GPL-3.0-or-later"
 description = "Aplicación nativa de notas en Markdown con editor de bloques y diagramas Mermaid"
+
+[[bin]]
+name = "criperto-notes"
+path = "src/main.rs"
 
 [dependencies]
 cxx = "1.0"
