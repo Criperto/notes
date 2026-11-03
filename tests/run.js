@@ -3591,6 +3591,21 @@ runTest('F71: Acerca de enlaces a GitHub / repositorio y eliminación de subfond
     assert.ok(settingsModalQml.indexOf('component BentoCard: Rectangle {\n        Layout.fillWidth: true\n        color: "transparent"\n        border.width: 0') !== -1, "BentoCard debe ser transparente y sin borde");
 });
 
+runTest('F72: Desenfoque de fondo fijo y reforzado en ventana de configuración (sin depender de modules/settings)', () => {
+    const settingsModalQml = fs.readFileSync(path.resolve(__dirname, '../qml/NotesSettingsModal.qml'), 'utf8');
+
+    // 1. Valores fijos de desenfoque aumentados (blurMax >= 80 y blurPadding >= 80)
+    assert.ok(settingsModalQml.indexOf('blurMax: 96') !== -1, "blurMax debe ser 96 para máximo bokeh en fondo de configuración");
+    assert.ok(settingsModalQml.indexOf('blurPadding: 96') !== -1, "blurPadding debe coincidir con blurMax (96)");
+
+    // 2. No debe extraer valores de desenfoque de HyprlandConfig / modules/settings
+    assert.strictEqual(settingsModalQml.indexOf('HyprlandConfig.blurEnabled'), -1, "No debe enlazar blurEnabled a HyprlandConfig en el modal");
+    assert.strictEqual(settingsModalQml.indexOf('HyprlandConfig.quickshellBlurMax'), -1, "No debe tomar blurMax de HyprlandConfig");
+
+    // 3. Opacidad de superficie incrementada para legibilidad
+    assert.ok(settingsModalQml.indexOf('? 0.85') !== -1, "cardBgTint debe tener opacidad de 0.85 para evitar traslúcido excesivo de notas de fondo");
+});
+
 console.log(`\n========================================`);
 console.log(`Resultados: ${passed} OK, ${failed} FAIL`);
 console.log(`========================================`);

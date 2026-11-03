@@ -1061,7 +1061,7 @@ Item {
                 id: cardBlurContainer
                 anchors.fill: parent
                 clip: true
-                visible: (root.isOpen || root.isClosing) && HyprlandConfig.blurEnabled && !GamemodeService.gamemodeActive && root.backgroundSourceItem !== null
+                visible: (root.isOpen || root.isClosing) && !GamemodeService.gamemodeActive && root.backgroundSourceItem !== null
 
                 layer.enabled: card.radius > 0
                 layer.smooth: true
@@ -1071,7 +1071,7 @@ Item {
                     maskSource: blurMaskItem
                 }
 
-                readonly property real blurPadding: 56
+                readonly property real blurPadding: 96
                 readonly property real bgW: root.backgroundSourceItem ? root.backgroundSourceItem.width : root.width
                 readonly property real bgH: root.backgroundSourceItem ? root.backgroundSourceItem.height : root.height
 
@@ -1100,10 +1100,10 @@ Item {
                     layer.smooth: true
                     layer.effect: MultiEffect {
                         autoPaddingEnabled: false
-                        blurEnabled: HyprlandConfig.blurEnabled && !GamemodeService.gamemodeActive
+                        blurEnabled: !GamemodeService.gamemodeActive
                         blur: 1.0
-                        blurMax: 56
-                        saturation: 0.25
+                        blurMax: 96
+                        saturation: 0.20
                     }
                 }
             }
@@ -1116,8 +1116,8 @@ Item {
                 color: Qt.hsva(Theme.surface.hsvHue,
                                Math.min(1, Theme.surface.hsvSaturation),
                                Math.min(1, Theme.surface.hsvValue + 0.02),
-                               (HyprlandConfig.blurEnabled && !GamemodeService.gamemodeActive)
-                                   ? 0.60
+                               (!GamemodeService.gamemodeActive && root.backgroundSourceItem !== null)
+                                   ? 0.85
                                    : (GamemodeService.gamemodeActive ? 1.0 : Theme.panelOpacity))
                 border.color: Theme.border
                 border.width: 1
