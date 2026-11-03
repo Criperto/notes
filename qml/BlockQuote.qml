@@ -19,8 +19,10 @@ Item {
     property var spellRanges: []
 
     implicitWidth: parent ? parent.width : 400
-    // F24: misma altura en vista y edición (antes +16 vs +12 → salto de 4px).
-    implicitHeight: ((isEditing || isSelected) && editInput.length > 0) ? (editInput.paintedHeight + 14) : (viewCol.implicitHeight + 14)
+    // F24 / F77: misma altura en vista y edición con escalado proporcional a zoom
+    implicitHeight: ((isEditing || isSelected) && editInput.length > 0)
+        ? (editInput.paintedHeight + Math.round(14 * EditorMetrics.zoom))
+        : (viewCol.implicitHeight + Math.round(14 * EditorMetrics.zoom))
 
     readonly property string cleanQuoteText: {
         if (!blockData || !blockData.raw) return "";
@@ -489,7 +491,7 @@ Item {
         id: calloutBg
         visible: root.isCallout && !root.isEditing && !root.isSelected
         anchors.fill: parent
-        radius: 6
+        radius: Math.max(4, Math.round(6 * EditorMetrics.zoom))
         color: root.calloutColor
         opacity: Theme.isDark ? 0.08 : 0.05
     }
@@ -497,10 +499,10 @@ Item {
     // Barra de acento izquierda
     Rectangle {
         id: quoteBar
-        width: root.isCallout ? 4 : 3
+        width: root.isCallout ? Math.max(3, Math.round(4 * EditorMetrics.zoom)) : Math.max(2, Math.round(3 * EditorMetrics.zoom))
         height: parent.height - 4
         y: 2
-        radius: root.isCallout ? 2 : 1.5
+        radius: root.isCallout ? Math.max(1.5, Math.round(2 * EditorMetrics.zoom)) : 1.5
         color: root.isCallout ? root.calloutColor : Theme.accent
     }
 
@@ -511,35 +513,36 @@ Item {
         visible: !root.isEditing && !root.isSelected
         anchors.left: quoteBar.right
         anchors.right: parent.right
-        anchors.leftMargin: root.isCallout ? 14 : 12
-        anchors.rightMargin: root.isCallout ? 12 : 0
+        anchors.leftMargin: root.isCallout ? Math.round(14 * EditorMetrics.zoom) : Math.round(12 * EditorMetrics.zoom)
+        anchors.rightMargin: root.isCallout ? Math.round(12 * EditorMetrics.zoom) : 0
         anchors.top: parent.top
-        anchors.topMargin: root.isCallout ? 8 : 0
-        implicitHeight: contentCol.implicitHeight + (root.isCallout ? 16 : 0)
+        anchors.topMargin: root.isCallout ? Math.round(8 * EditorMetrics.zoom) : 0
+        implicitHeight: contentCol.implicitHeight + (root.isCallout ? Math.round(16 * EditorMetrics.zoom) : 0)
 
         Column {
             id: contentCol
             width: parent.width
-            spacing: root.isCallout ? 6 : 4
+            spacing: root.isCallout ? Math.round(6 * EditorMetrics.zoom) : Math.round(4 * EditorMetrics.zoom)
 
-            // Cabecera del Callout (ícono + título)
+            // Cabecera del Callout (ícono + título adaptados al zoom del editor)
             Row {
                 id: calloutHeader
                 visible: root.isCallout
                 width: parent.width
-                height: 20
-                spacing: 8
+                height: Math.max(18, Math.round(24 * EditorMetrics.zoom))
+                spacing: Math.max(4, Math.round(8 * EditorMetrics.zoom))
 
                 Item {
-                    width: 18
-                    height: 18
+                    id: calloutIconBox
+                    width: Math.max(14, Math.round(18 * EditorMetrics.zoom))
+                    height: width
                     anchors.verticalCenter: parent.verticalCenter
 
                     Image {
                         id: calloutIconImg
                         anchors.fill: parent
                         source: root.calloutTypeDef ? (Theme.iconsPath + root.calloutTypeDef.icon) : ""
-                        sourceSize: Qt.size(18, 18)
+                        sourceSize: Qt.size(parent.width, parent.height)
                         visible: false
                     }
 
@@ -557,7 +560,7 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                     font.family: Theme.fontFamily
                     font.weight: Font.DemiBold
-                    font.pixelSize: Theme.fontSizeBody
+                    font.pixelSize: Math.round(EditorMetrics.body * 1.05)
                     color: root.calloutColor
                     text: root.hasCustomTitle ? root._headerHtml(root.calloutTitleText) : root.calloutTitleText
                     textFormat: root.hasCustomTitle ? Text.RichText : Text.PlainText
@@ -798,7 +801,7 @@ Item {
         anchors.right: parent.right
         anchors.top: parent.top
         anchors.bottom: parent.bottom
-        anchors.leftMargin: 12
+        anchors.leftMargin: root.isCallout ? Math.round(14 * EditorMetrics.zoom) : Math.round(12 * EditorMetrics.zoom)
         z: 5
         enabled: true
         acceptedButtons: Qt.LeftButton | Qt.RightButton
@@ -938,7 +941,9 @@ Item {
         cursorVisible: activeFocus && root.isEditing && (!root.editor || !root.editor.readOnly)
         anchors.left: quoteBar.right
         anchors.right: parent.right
-        anchors.leftMargin: 12
+        anchors.leftMargin: root.isCallout ? Math.round(14 * EditorMetrics.zoom) : Math.round(12 * EditorMetrics.zoom)
+        anchors.top: parent.top
+        anchors.topMargin: root.isCallout ? Math.round(8 * EditorMetrics.zoom) : 0
         textFormat: TextEdit.RichText
         text: ""
         color: Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.92)

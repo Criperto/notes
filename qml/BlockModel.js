@@ -681,7 +681,7 @@ function estimateBlockHeight(type, raw, pageW) {
                 totalQVisualLines += Math.max(1, Math.ceil(qLines[k].length / (charsPerLine - 6)));
             }
             var h = Math.max(36, totalQVisualLines * 24 + 14);
-            if (isCallout) h += 28; // Espacio extra para cabecera de callout (ícono + título + márgenes)
+            if (isCallout) h += Math.max(20, Math.round(28 * (pw / 700))); // Espacio extra para cabecera de callout (ícono + título + márgenes escalados)
             return h;
         }
         case "code": {

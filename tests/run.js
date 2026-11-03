@@ -3870,6 +3870,8 @@ runTest('F77: Callouts GitHub parseCallout, searchUnits, colores y altura', () =
     const normalHeight = BlockModel.estimateBlockHeight('quote', '> Un texto de cita común');
     const calloutHeight = BlockModel.estimateBlockHeight('quote', '> [!NOTE]\n> Un texto de cita común');
     assert.ok(calloutHeight > normalHeight, `La altura estimada del callout (${calloutHeight}) debe superar la de la cita simple (${normalHeight})`);
+    const calloutHeightZoom2 = BlockModel.estimateBlockHeight('quote', '> [!NOTE]\n> Un texto de cita común', 1400);
+    assert.ok(calloutHeightZoom2 > calloutHeight, `Con mayor zoom la cabecera escala (${calloutHeightZoom2} > ${calloutHeight})`);
 
     // 9. CalloutTypes metadatos y resolución de colores
     for (const t of types) {
