@@ -507,6 +507,8 @@ Item {
 
                     function segHtml(rawMd, useHeading) {
                         var opts = {
+                            zoom: EditorMetrics.zoom,
+                            fontFamilyMonospace: Theme.fontFamilyMonospace || "Google Sans Code",
                             linkColor: "" + Theme.accent, highlightBg: EditorMetrics.highlightBg,
                             baseFolder: root.editor ? root.editor.imgBaseFolder : "",
                             imageSkipMissing: true,

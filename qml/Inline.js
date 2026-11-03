@@ -44,12 +44,41 @@ function _darkenColor(colorStr, factor) {
     return colorStr;
 }
 
+// Configuración global reactiva sincronizada con EditorMetrics y Theme
+var _defaultZoom = 1.0;
+function setZoom(z) {
+    if (typeof z === "number" && z > 0 && Math.abs(_defaultZoom - z) > 0.001) {
+        _defaultZoom = z;
+    }
+}
+
+var _defaultTheme = {
+    accent: "#e56018",
+    lightMode: false,
+    surface: "#1c1815",
+    color15: "#ffffff",
+    fontFamilyMonospace: "Google Sans Code, monospace"
+};
+function setThemeConfig(cfg) {
+    if (!cfg || typeof cfg !== "object") return;
+    if (cfg.accent) _defaultTheme.accent = String(cfg.accent);
+    if (cfg.lightMode !== undefined) _defaultTheme.lightMode = Boolean(cfg.lightMode);
+    if (cfg.surface) _defaultTheme.surface = String(cfg.surface);
+    if (cfg.color15) _defaultTheme.color15 = String(cfg.color15);
+    if (cfg.fontFamilyMonospace) _defaultTheme.fontFamilyMonospace = String(cfg.fontFamilyMonospace);
+}
+function setFontFamilyMonospace(f) {
+    if (typeof f === "string" && f.trim() !== "") {
+        _defaultTheme.fontFamilyMonospace = f.trim();
+    }
+}
+
 // Genera un SVG data URI con diseño 3D realista multicapa de tecla de teclado (keycap),
-// inspirado en keycap_base.svg y keycap_body.svg de shortcuts_viewer, adaptado dinámicamente al color de acento del tema.
+// inspirado en keycap_base.svg y keycap_body.svg de shortcuts_viewer, adaptado dinámicamente al color de acento del tema y zoom del editor.
 function renderKeycapSvg(label, opts) {
     var rawText = (label !== undefined && label !== null) ? String(label).trim() : "";
     var options = opts || {};
-    var isLight = Boolean(options.lightMode);
+    var isLight = (options.lightMode !== undefined) ? Boolean(options.lightMode) : _defaultTheme.lightMode;
 
     // Normalizar texto a mayúsculas estilo shortcuts_viewer para modificadores y letras
     var disp = rawText;
@@ -62,19 +91,33 @@ function renderKeycapSvg(label, opts) {
         disp = rawText.toUpperCase();
     }
 
-    var charW = 7.5;
-    var contentW = Math.max(10, disp.length * charW);
-    var w = Math.max(32, Math.round(contentW + 18));
-    var h = 28;
+    // Escalar proporciones geométricas armónicamente según el nivel de zoom del editor
+    var z = (typeof options.zoom === "number" && options.zoom > 0) ? options.zoom : _defaultZoom;
+    z = Math.max(0.4, Math.min(3.5, z));
+
+    var charW = 7.5 * z;
+    var contentW = Math.max(10 * z, disp.length * charW);
+    var w = Math.max(Math.round(30 * z), Math.round(contentW + 18 * z));
+    var h = Math.max(16, Math.round(26 * z));
 
     // Colores dinámicos del tema: el bisel exterior se tiñe del color de acento del tema (Theme.accent)
-    var defaultAccent = options.accent || options.linkColor || "#e56018";
+    var defaultAccent = options.accent || options.linkColor || _defaultTheme.accent;
     var bezelColor = options.kbdBezel || (isLight ? "#dcdcdc" : defaultAccent);
     var shadowColor1 = options.kbdShadow1 || options.kbdShadow || _darkenColor(bezelColor, 1.55);
     var shadowColor2 = options.kbdShadow2 || _darkenColor(bezelColor, 1.25);
-    var plateColor = options.kbdPlate || (isLight ? "#ffffff" : "#1c1815");
-    var textColor = options.kbdText || (isLight ? "#1c1c1c" : (options.kbdColor || "#ffffff"));
-    var fontFamily = options.fontFamilyMonospace || options.fontFamily || "monospace";
+    var plateColor = options.kbdPlate || (isLight ? "#ffffff" : _defaultTheme.surface);
+    var textColor = options.kbdText || (isLight ? "#1c1c1c" : (options.kbdColor || _defaultTheme.color15));
+
+    // Tipografía mono / code del tema (Google Sans Code con fallback a monospace)
+    var rawFont = options.fontFamilyMonospace || options.fontFamily || _defaultTheme.fontFamilyMonospace;
+    var cleanFont = rawFont ? String(rawFont).replace(/['"]/g, "").trim() : "Google Sans Code";
+    if (cleanFont.toLowerCase().indexOf("monospace") === -1) {
+        cleanFont = "'" + cleanFont + "', monospace";
+    } else if (cleanFont.indexOf("'") === -1 && cleanFont.indexOf('"') === -1) {
+        var baseName = cleanFont.replace(/,\s*monospace/i, "").trim();
+        cleanFont = (baseName.length > 0) ? ("'" + baseName + "', monospace") : "monospace";
+    }
+    var fontFamily = cleanFont;
 
     var safeText = disp
         .replace(/&/g, "&amp;")
@@ -82,26 +125,29 @@ function renderKeycapSvg(label, opts) {
         .replace(/>/g, "&gt;")
         .replace(/"/g, "&quot;");
 
-    var bodyH = 23;
-    var shadowY = 4.5;
-    var plateX = 4.0;
-    var plateY = 3.5;
-    var plateH = 16.0;
-    var rx = 5.5;
-    var plateRx = 2.8;
-    var textY = 11.5;
+    var bodyH = Math.round(21.0 * z * 10) / 10;
+    var shadowY = Math.round(4.0 * z * 10) / 10;
+    var shadowMidY = Math.round((shadowY - 1.4 * z) * 10) / 10;
+    var plateX = Math.round(3.8 * z * 10) / 10;
+    var plateY = Math.round(3.2 * z * 10) / 10;
+    var plateW = Math.round((w - plateX * 2) * 10) / 10;
+    var plateH = Math.round(15.0 * z * 10) / 10;
+    var rx = Math.round(5.0 * z * 10) / 10;
+    var plateRx = Math.round(2.6 * z * 10) / 10;
+    var fontSize = Math.round(10.0 * z * 10) / 10;
+    var textY = Math.round((plateY + plateH / 2.0) * 10) / 10;
 
     var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '">' +
         '<!-- Capa 3D inferior / Profundidad (keycap_base.svg) -->' +
         '<rect x="1" y="' + shadowY + '" width="' + (w - 2) + '" height="' + bodyH + '" rx="' + rx + '" fill="' + shadowColor1 + '"/>' +
         '<!-- Capa 3D intermedia / Bisel -->' +
-        '<rect x="1" y="' + (shadowY - 1.5) + '" width="' + (w - 2) + '" height="' + bodyH + '" rx="' + rx + '" fill="' + shadowColor2 + '"/>' +
+        '<rect x="1" y="' + shadowMidY + '" width="' + (w - 2) + '" height="' + bodyH + '" rx="' + rx + '" fill="' + shadowColor2 + '"/>' +
         '<!-- Capa superior / Bisel del cuerpo (keycap_body.svg) -->' +
         '<rect x="1" y="1" width="' + (w - 2) + '" height="' + bodyH + '" rx="' + rx + '" fill="' + bezelColor + '"/>' +
         '<!-- Placa central interna recesada (Theme.surface) -->' +
-        '<rect x="' + plateX + '" y="' + plateY + '" width="' + (w - plateX * 2) + '" height="' + plateH + '" rx="' + plateRx + '" fill="' + plateColor + '"/>' +
+        '<rect x="' + plateX + '" y="' + plateY + '" width="' + plateW + '" height="' + plateH + '" rx="' + plateRx + '" fill="' + plateColor + '"/>' +
         '<!-- Leyenda centrada en la placa interna -->' +
-        '<text x="' + (w / 2.0) + '" y="' + textY + '" fill="' + textColor + '" font-family="' + fontFamily + '" font-size="10.5" font-weight="bold" text-anchor="middle" dominant-baseline="central">' + safeText + '</text>' +
+        '<text x="' + (w / 2.0) + '" y="' + textY + '" fill="' + textColor + '" font-family="' + fontFamily + '" font-size="' + fontSize + '" font-weight="bold" text-anchor="middle" dominant-baseline="central">' + safeText + '</text>' +
         '</svg>';
 
     return "data:image/svg+xml;utf8," + encodeURIComponent(svg);

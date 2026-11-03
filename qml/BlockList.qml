@@ -1326,6 +1326,8 @@ Item {
                         width: parent.width
                         textFormat: Text.RichText
                         text: Inline.inlineToHtml(Inline.stripImages(itemRow.text), {
+                            zoom: EditorMetrics.zoom,
+                            fontFamilyMonospace: Theme.fontFamilyMonospace || "Google Sans Code",
                             headingSizes: root.headingSizes,
                             linkColor: "" + Theme.accent, highlightBg: EditorMetrics.highlightBg,
                             searchQuery: root.editor ? root.editor.searchQuery : "",

@@ -3684,13 +3684,25 @@ runTest('F75: Renderizado visual de teclas kbd y modo configurable para archivos
     assert.ok(htmlEscaped.indexOf('data:image/svg+xml;utf8,') !== -1, "Debe decodificar y estilizar kbd pre-escapado");
     assert.strictEqual(htmlEscaped.indexOf('&lt;kbd&gt;'), -1, "No debe dejar entidades &lt;kbd&gt; sin estilizar");
 
-    // 3. Función generadora renderKeycapSvg y dimensiones dinámicas
+    // 3. Función generadora renderKeycapSvg y dimensiones dinámicas con adaptación a zoom y tipografía mono
     const svgShort = decodeURIComponent(Inline.renderKeycapSvg("Z", {}));
     const svgLong = decodeURIComponent(Inline.renderKeycapSvg("Shift", {}));
     const widthShortMatch = svgShort.match(/width="(\d+)"/);
     const widthLongMatch = svgLong.match(/width="(\d+)"/);
     assert.ok(widthShortMatch && parseInt(widthShortMatch[1], 10) >= 24, "Tecla simple debe tener ancho mínimo de 24px");
     assert.ok(widthLongMatch && parseInt(widthLongMatch[1], 10) > parseInt(widthShortMatch[1], 10), "Tecla 'Shift' debe ser más ancha que tecla simple 'Z'");
+
+    // Adaptación a zoom (1.0x vs 1.5x)
+    const svgZoom1 = decodeURIComponent(Inline.renderKeycapSvg("CTRL", { zoom: 1.0 }));
+    const svgZoom15 = decodeURIComponent(Inline.renderKeycapSvg("CTRL", { zoom: 1.5 }));
+    const h1Match = svgZoom1.match(/height="(\d+)"/);
+    const h15Match = svgZoom15.match(/height="(\d+)"/);
+    assert.strictEqual(parseInt(h1Match[1], 10), 26, "Altura base a 1.0x debe ser 26px");
+    assert.strictEqual(parseInt(h15Match[1], 10), 39, "Altura escalada a 1.5x debe ser 39px (26 * 1.5)");
+
+    // Adaptación de tipografía mono del tema
+    const svgFont = decodeURIComponent(Inline.renderKeycapSvg("ESC", { fontFamilyMonospace: "Google Sans Code" }));
+    assert.ok(svgFont.indexOf("font-family=\"'Google Sans Code', monospace\"") !== -1, "El texto interior debe usar la tipografía monospace configurada");
 
     // 4. SearchLogic stripForSearch con <kbd>
     const searchStripped = SearchLogic.stripForSearch("Presione <kbd>Ctrl</kbd> + <kbd>S</kbd>");

@@ -923,6 +923,7 @@ Item {
                                         anchors.rightMargin: 8
                                         anchors.verticalCenter: parent.verticalCenter
                                         text: Inline.inlineToHtml(modelData, {
+                                            zoom: EditorMetrics.zoom,
                                             linkColor: "" + Theme.accent, highlightBg: EditorMetrics.highlightBg,
                                             codeBg: Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.08),
                                             codeColor: Theme.text,
@@ -931,7 +932,7 @@ Item {
                                             kbdShadow2: Theme.lightMode ? "#b0b0b0" : ("" + Qt.darker(Theme.accent, 1.25)),
                                             kbdPlate: Theme.lightMode ? "#ffffff" : ("" + Theme.surface),
                                             kbdText: Theme.lightMode ? "#1c1c1c" : ("" + Theme.color15),
-                                            fontFamily: Theme.fontFamilyMonospace || Theme.fontFamily || "monospace",
+                                            fontFamilyMonospace: Theme.fontFamilyMonospace || "Google Sans Code",
                                             lightMode: Theme.lightMode,
                                             baseFolder: root.editor ? root.editor.imgBaseFolder : "",
                                             imageSkipMissing: true,
@@ -1339,6 +1340,7 @@ Item {
                                     anchors.rightMargin: 8
                                     anchors.verticalCenter: parent.verticalCenter
                                     text: Inline.inlineToHtml(modelData, {
+                                        zoom: EditorMetrics.zoom,
                                         linkColor: "" + Theme.accent, highlightBg: EditorMetrics.highlightBg,
                                         codeBg: Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.08),
                                         codeColor: Theme.text,
@@ -1347,7 +1349,7 @@ Item {
                                         kbdShadow2: Theme.lightMode ? "#b0b0b0" : ("" + Qt.darker(Theme.accent, 1.25)),
                                         kbdPlate: Theme.lightMode ? "#ffffff" : ("" + Theme.surface),
                                         kbdText: Theme.lightMode ? "#1c1c1c" : ("" + Theme.color15),
-                                        fontFamily: Theme.fontFamilyMonospace || Theme.fontFamily || "monospace",
+                                        fontFamilyMonospace: Theme.fontFamilyMonospace || "Google Sans Code",
                                         lightMode: Theme.lightMode,
                                         baseFolder: root.editor ? root.editor.imgBaseFolder : "",
                                         imageSkipMissing: true,

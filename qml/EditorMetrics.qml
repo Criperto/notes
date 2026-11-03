@@ -19,7 +19,32 @@ Item {
     readonly property string highlightBg: "rgba(" + Math.round(Theme.color3.r * 255) + ", "
         + Math.round(Theme.color3.g * 255) + ", " + Math.round(Theme.color3.b * 255) + ", 0.35)"
     onHighlightBgChanged: Inline.setHighlightBg(highlightBg)
-    Component.onCompleted: Inline.setHighlightBg(highlightBg)
+
+    function syncThemeToInline() {
+        if (typeof Theme !== "undefined" && Theme) {
+            Inline.setThemeConfig({
+                accent: "" + Theme.accent,
+                lightMode: Boolean(Theme.lightMode),
+                surface: "" + Theme.surface,
+                color15: "" + Theme.color15,
+                fontFamilyMonospace: Theme.fontFamilyMonospace || "Google Sans Code"
+            });
+        }
+    }
+
+    Component.onCompleted: {
+        Inline.setHighlightBg(highlightBg);
+        Inline.setZoom(root.zoom);
+        root.syncThemeToInline();
+    }
+
+    Connections {
+        target: (typeof Theme !== "undefined") ? Theme : null
+        function onAccentChanged() { root.syncThemeToInline(); }
+        function onLightModeChanged() { root.syncThemeToInline(); }
+        function onSurfaceChanged() { root.syncThemeToInline(); }
+        function onFontFamilyMonospaceChanged() { root.syncThemeToInline(); }
+    }
 
     function fs(px) { return Math.max(6, Math.round(px * root.zoom)); }
 
@@ -63,6 +88,7 @@ Item {
     }
 
     onZoomChanged: {
+        Inline.setZoom(root.zoom);
         saveZoomTimer.restart();
     }
 
