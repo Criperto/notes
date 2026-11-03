@@ -17,8 +17,35 @@ function escapeHtml(text) {
         .replace(/'/g, "&#39;");
 }
 
+// Helper para oscurecer colores CSS (hex #rrggbb o rgb/rgba) para sombras 3D vectoriales
+function _darkenColor(colorStr, factor) {
+    if (!colorStr || typeof colorStr !== "string") return "#555555";
+    var c = colorStr.trim();
+    var f = (typeof factor === "number" && factor > 0) ? factor : 1.4;
+    if (c[0] === "#") {
+        var hex = c.substring(1);
+        if (hex.length === 3) {
+            hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
+        }
+        if (hex.length >= 6) {
+            var r = Math.max(0, Math.min(255, Math.round(parseInt(hex.substring(0, 2), 16) / f)));
+            var g = Math.max(0, Math.min(255, Math.round(parseInt(hex.substring(2, 4), 16) / f)));
+            var b = Math.max(0, Math.min(255, Math.round(parseInt(hex.substring(4, 6), 16) / f)));
+            return "rgb(" + r + "," + g + "," + b + ")";
+        }
+    }
+    var m = c.match(/rgba?\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
+    if (m) {
+        var r = Math.max(0, Math.min(255, Math.round(parseInt(m[1], 10) / f)));
+        var g = Math.max(0, Math.min(255, Math.round(parseInt(m[2], 10) / f)));
+        var b = Math.max(0, Math.min(255, Math.round(parseInt(m[3], 10) / f)));
+        return "rgb(" + r + "," + g + "," + b + ")";
+    }
+    return colorStr;
+}
+
 // Genera un SVG data URI con diseño 3D realista multicapa de tecla de teclado (keycap),
-// inspirado en keycap_base.svg y keycap_body.svg de shortcuts_viewer, adaptado dinámicamente al tema.
+// inspirado en keycap_base.svg y keycap_body.svg de shortcuts_viewer, adaptado dinámicamente al color de acento del tema.
 function renderKeycapSvg(label, opts) {
     var rawText = (label !== undefined && label !== null) ? String(label).trim() : "";
     var options = opts || {};
@@ -40,10 +67,11 @@ function renderKeycapSvg(label, opts) {
     var w = Math.max(32, Math.round(contentW + 18));
     var h = 28;
 
-    // Colores fieles a shortcuts_viewer: Theme.color15 (cuerpo), Qt.darker(Theme.color15, 1.45) (sombra), Theme.surface (placa)
-    var bezelColor = options.kbdBezel || (isLight ? "#dcdcdc" : (options.kbdColor || "#e6ded7"));
-    var shadowColor1 = options.kbdShadow1 || options.kbdShadow || (isLight ? "#9f9f9f" : "#8f8782");
-    var shadowColor2 = options.kbdShadow2 || (isLight ? "#b0b0b0" : "#a8a09a");
+    // Colores dinámicos del tema: el bisel exterior se tiñe del color de acento del tema (Theme.accent)
+    var defaultAccent = options.accent || options.linkColor || "#e56018";
+    var bezelColor = options.kbdBezel || (isLight ? "#dcdcdc" : defaultAccent);
+    var shadowColor1 = options.kbdShadow1 || options.kbdShadow || _darkenColor(bezelColor, 1.55);
+    var shadowColor2 = options.kbdShadow2 || _darkenColor(bezelColor, 1.25);
     var plateColor = options.kbdPlate || (isLight ? "#ffffff" : "#1c1815");
     var textColor = options.kbdText || (isLight ? "#1c1c1c" : (options.kbdColor || "#ffffff"));
     var fontFamily = options.fontFamilyMonospace || options.fontFamily || "monospace";

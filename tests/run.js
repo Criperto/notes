@@ -3653,14 +3653,14 @@ runTest('F74: Agrupación de imágenes consecutivas, dimensionamiento intrínsec
 });
 
 runTest('F75: Renderizado visual de teclas kbd y modo configurable para archivos externos', () => {
-    // 1. Renderizado de etiquetas <kbd> en inlineToHtml con SVG 3D realista
+    // 1. Renderizado de etiquetas <kbd> en inlineToHtml con SVG 3D realista y bisel teñido del color de acento
     const rawKbd = "<kbd>Ctrl</kbd> + <kbd>,</kbd>";
     const htmlKbd = Inline.inlineToHtml(rawKbd, {
-        kbdBezel: "rgba(255, 255, 255, 0.24)",
-        kbdShadow1: "rgba(0, 0, 0, 0.65)",
-        kbdShadow2: "rgba(0, 0, 0, 0.35)",
-        kbdPlate: "rgba(0, 0, 0, 0.40)",
-        kbdText: "#f0f0f0"
+        kbdBezel: "#e56018",
+        kbdShadow1: "#8f3805",
+        kbdShadow2: "#b5490a",
+        kbdPlate: "#1c1815",
+        kbdText: "#ffffff"
     });
     assert.ok(htmlKbd.indexOf('<img src="data:image/svg+xml;utf8,') !== -1, "inlineToHtml debe renderizar keycaps como imagen SVG en línea");
     assert.ok(htmlKbd.indexOf('align="middle"') !== -1, "inlineToHtml debe alinear verticalmente el keycap al medio");
@@ -3674,6 +3674,7 @@ runTest('F75: Renderizado visual de teclas kbd y modo configurable para archivos
     assert.ok(decodedSvg.indexOf('Capa 3D inferior') !== -1, "SVG debe tener capa 3D inferior de profundidad");
     assert.ok(decodedSvg.indexOf('Capa 3D intermedia') !== -1, "SVG debe tener bisel intermedio");
     assert.ok(decodedSvg.indexOf('Capa superior') !== -1, "SVG debe tener cuerpo superior de tecla");
+    assert.ok(decodedSvg.indexOf('#e56018') !== -1, "El bisel superior debe teñirse con el color de acento configurado");
     assert.ok(decodedSvg.indexOf('Placa central interna') !== -1, "SVG debe tener placa central recesada");
     assert.ok(decodedSvg.indexOf('CTRL') !== -1, "SVG debe incluir el texto 'CTRL'");
 
