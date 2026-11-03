@@ -17,6 +17,47 @@ function escapeHtml(text) {
         .replace(/'/g, "&#39;");
 }
 
+// Genera un SVG data URI con diseño 3D realista multicapa de tecla de teclado (keycap),
+// inspirado en keycap_base.svg y keycap_body.svg, adaptado dinámicamente a la paleta del tema.
+function renderKeycapSvg(label, opts) {
+    var rawText = (label !== undefined && label !== null) ? String(label).trim() : "";
+    var options = opts || {};
+    var isLight = Boolean(options.lightMode);
+
+    var charW = 7.2;
+    var contentW = rawText.length * charW;
+    var w = Math.max(24, Math.round(contentW + 14));
+    var h = 22;
+
+    var bezelColor = options.kbdBezel || (isLight ? "#dcdcdc" : "rgba(255, 255, 255, 0.24)");
+    var shadow1 = options.kbdShadow1 || (isLight ? "#9f9f9f" : "rgba(0, 0, 0, 0.65)");
+    var shadow2 = options.kbdShadow2 || (isLight ? "#b0b0b0" : "rgba(0, 0, 0, 0.35)");
+    var plateColor = options.kbdPlate || options.kbdBg || (isLight ? "#f5f5f5" : "rgba(0, 0, 0, 0.40)");
+    var textColor = options.kbdText || options.kbdColor || options.codeColor || (isLight ? "#1c1c1c" : "#eedfd5");
+    var fontFamily = options.fontFamilyMonospace || options.fontFamily || "monospace";
+
+    var safeText = rawText
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '">' +
+        '<!-- Capa 3D inferior (Profundidad) -->' +
+        '<rect x="1" y="4" width="' + (w - 2) + '" height="17" rx="3.5" fill="' + shadow1 + '"/>' +
+        '<!-- Capa 3D intermedia (Bisel) -->' +
+        '<rect x="1" y="3" width="' + (w - 2) + '" height="17" rx="3.5" fill="' + shadow2 + '"/>' +
+        '<!-- Capa superior (Cuerpo de la tecla) -->' +
+        '<rect x="1" y="1" width="' + (w - 2) + '" height="17" rx="3.5" fill="' + bezelColor + '"/>' +
+        '<!-- Placa central interna (Receso) -->' +
+        '<rect x="3" y="2.5" width="' + (w - 6) + '" height="12.5" rx="2.2" fill="' + plateColor + '"/>' +
+        '<!-- Leyenda centrada en la placa interna -->' +
+        '<text x="' + (w / 2.0) + '" y="8.75" fill="' + textColor + '" font-family="' + fontFamily + '" font-size="10" font-weight="bold" text-anchor="middle" dominant-baseline="central">' + safeText + '</text>' +
+        '</svg>';
+
+    return "data:image/svg+xml;utf8," + encodeURIComponent(svg);
+}
+
 // Convierte texto markdown inline a HTML seguro para componentes Text de Qt
 function inlineToHtml(src, opts) {
     if (!src || typeof src !== "string") return "";
@@ -64,8 +105,9 @@ function inlineToHtml(src, opts) {
     text = text.replace(/<kbd>([\s\S]*?)<\/kbd>|&lt;kbd&gt;([\s\S]*?)&lt;\/kbd&gt;/gi, function(match, c1, c2) {
         var token = "\uE000KBD_" + kbds.length + "\uE000";
         var kbdContent = (c1 !== undefined) ? c1 : c2;
-        var safeKbd = escapeHtml(kbdContent);
-        var html = '<span style="font-family: monospace; font-size: 0.9em; background-color: ' + kbdBg + '; color: ' + kbdColor + '; border: 1px solid ' + kbdBorder + '; border-radius: 4px; padding: 1px 5px;">' + safeKbd + '</span>';
+        var cleanContent = kbdContent.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">");
+        var svgUri = renderKeycapSvg(cleanContent, options);
+        var html = '<img src="' + svgUri + '" align="middle"/>';
         kbds.push(html);
         return token;
     });

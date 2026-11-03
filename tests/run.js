@@ -3653,32 +3653,54 @@ runTest('F74: Agrupación de imágenes consecutivas, dimensionamiento intrínsec
 });
 
 runTest('F75: Renderizado visual de teclas kbd y modo configurable para archivos externos', () => {
-    // 1. Renderizado de etiquetas <kbd> en inlineToHtml
+    // 1. Renderizado de etiquetas <kbd> en inlineToHtml con SVG 3D realista
     const rawKbd = "<kbd>Ctrl</kbd> + <kbd>,</kbd>";
     const htmlKbd = Inline.inlineToHtml(rawKbd, {
-        kbdBg: "rgba(255, 255, 255, 0.10)",
-        kbdColor: "#f0f0f0",
-        kbdBorder: "rgba(255, 255, 255, 0.22)"
+        kbdBezel: "rgba(255, 255, 255, 0.24)",
+        kbdShadow1: "rgba(0, 0, 0, 0.65)",
+        kbdShadow2: "rgba(0, 0, 0, 0.35)",
+        kbdPlate: "rgba(0, 0, 0, 0.40)",
+        kbdText: "#f0f0f0"
     });
-    assert.ok(htmlKbd.indexOf('font-family: monospace') !== -1, "inlineToHtml debe aplicar estilo monospace a <kbd>");
-    assert.ok(htmlKbd.indexOf('Ctrl') !== -1, "inlineToHtml debe contener 'Ctrl'");
-    assert.ok(htmlKbd.indexOf('border: 1px solid') !== -1, "inlineToHtml debe definir borde para el keycap badge");
-    assert.ok(htmlKbd.indexOf('border-radius: 4px') !== -1, "inlineToHtml debe redondear bordes del badge");
-    assert.ok(htmlKbd.indexOf(' + ') !== -1, "El separador ' + ' debe mantenerse fuera de los badges");
+    assert.ok(htmlKbd.indexOf('<img src="data:image/svg+xml;utf8,') !== -1, "inlineToHtml debe renderizar keycaps como imagen SVG en línea");
+    assert.ok(htmlKbd.indexOf('align="middle"') !== -1, "inlineToHtml debe alinear verticalmente el keycap al medio");
+    assert.ok(htmlKbd.indexOf(' + ') !== -1, "El separador ' + ' debe mantenerse fuera de los keycaps");
     assert.strictEqual(htmlKbd.indexOf('&lt;kbd&gt;'), -1, "No debe escapar las etiquetas kbd a entidades planas");
+
+    // Decodificar el SVG generado para verificar la estructura multicapa 3D
+    const svgMatch = htmlKbd.match(/data:image\/svg\+xml;utf8,([^"]+)/);
+    assert.ok(svgMatch, "Debe contener una URI de datos SVG válida");
+    const decodedSvg = decodeURIComponent(svgMatch[1]);
+    assert.ok(decodedSvg.indexOf('Capa 3D inferior') !== -1, "SVG debe tener capa 3D inferior de profundidad");
+    assert.ok(decodedSvg.indexOf('Capa 3D intermedia') !== -1, "SVG debe tener bisel intermedio");
+    assert.ok(decodedSvg.indexOf('Capa superior') !== -1, "SVG debe tener cuerpo superior de tecla");
+    assert.ok(decodedSvg.indexOf('Placa central interna') !== -1, "SVG debe tener placa central recesada");
+    assert.ok(decodedSvg.indexOf('Ctrl') !== -1, "SVG debe incluir el texto 'Ctrl'");
 
     // 2. Soporte de &lt;kbd&gt; si llega pre-escapado
     const preEscaped = "&lt;kbd&gt;Shift&lt;/kbd&gt; + &lt;kbd&gt;Z&lt;/kbd&gt;";
     const htmlEscaped = Inline.inlineToHtml(preEscaped, {});
-    assert.ok(htmlEscaped.indexOf('Shift') !== -1, "Debe decodificar y estilizar kbd pre-escapado");
+    assert.ok(htmlEscaped.indexOf('data:image/svg+xml;utf8,') !== -1, "Debe decodificar y estilizar kbd pre-escapado");
     assert.strictEqual(htmlEscaped.indexOf('&lt;kbd&gt;'), -1, "No debe dejar entidades &lt;kbd&gt; sin estilizar");
 
-    // 3. formatForLiveEditing de <kbd>
+    // 3. Función generadora renderKeycapSvg y dimensiones dinámicas
+    const svgShort = decodeURIComponent(Inline.renderKeycapSvg("Z", {}));
+    const svgLong = decodeURIComponent(Inline.renderKeycapSvg("Shift", {}));
+    const widthShortMatch = svgShort.match(/width="(\d+)"/);
+    const widthLongMatch = svgLong.match(/width="(\d+)"/);
+    assert.ok(widthShortMatch && parseInt(widthShortMatch[1], 10) >= 24, "Tecla simple debe tener ancho mínimo de 24px");
+    assert.ok(widthLongMatch && parseInt(widthLongMatch[1], 10) > parseInt(widthShortMatch[1], 10), "Tecla 'Shift' debe ser más ancha que tecla simple 'Z'");
+
+    // 4. SearchLogic stripForSearch con <kbd>
+    const searchStripped = SearchLogic.stripForSearch("Presione <kbd>Ctrl</kbd> + <kbd>S</kbd>");
+    assert.strictEqual(searchStripped.text, "Presione Ctrl + S", "stripForSearch debe descartar tags kbd preservando su contenido");
+
+    // 5. formatForLiveEditing de <kbd>
     const liveKbd = Inline.formatForLiveEditing("<kbd>Ctrl</kbd> + <kbd>Q</kbd>", { hideSyntax: true });
     assert.ok(liveKbd.indexOf('font-family: monospace') !== -1, "formatForLiveEditing debe estilizar keycaps");
     assert.ok(liveKbd.indexOf('Ctrl') !== -1, "formatForLiveEditing debe preservar texto");
 
-    // 4. Lógica de apertura de archivos externos vs internos
+    // 6. Lógica de apertura de archivos externos vs internos
     const notesDir = "/home/user/Documentos/notes";
     const internalPath = "/home/user/Documentos/notes/mi-nota.md";
     const externalPath = "/home/user/Proyectos/qs-notes/README.md";
@@ -3701,12 +3723,12 @@ runTest('F75: Renderizado visual de teclas kbd y modo configurable para archivos
     // CLI --edit fuerza edición sin importar config
     assert.strictEqual(shouldPreviewExternal("edit", externalPath, "preview", notesDir), false, "Acción 'edit' debe forzar modo edición");
 
-    // 5. Botón de importar en modo edición de notas externas
+    // 7. Botón de importar en modo edición de notas externas
     const editorModalQml = fs.readFileSync(path.resolve(__dirname, '../qml/NoteEditorModal.qml'), 'utf8');
     assert.ok(editorModalQml.indexOf('root.isExternalNote && !root.isPreviewMode') !== -1, "NoteEditorModal debe mostrar botón Importar cuando se edita un archivo externo");
     assert.ok(editorModalQml.indexOf('NotesService.importExternalAndEdit()') !== -1, "Botón de importar en edición debe invocar importExternalAndEdit");
 
-    // 6. Selector de configuración en NotesSettingsModal
+    // 8. Selector de configuración en NotesSettingsModal
     const settingsModalQml = fs.readFileSync(path.resolve(__dirname, '../qml/NotesSettingsModal.qml'), 'utf8');
     assert.ok(settingsModalQml.indexOf('ConfigBackend.externalFileOpenMode') !== -1, "NotesSettingsModal debe enlazar a externalFileOpenMode");
     assert.ok(settingsModalQml.indexOf('config.notes.external_open_mode') !== -1, "NotesSettingsModal debe tener etiqueta i18n para el modo de apertura de archivos externos");

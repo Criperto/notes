@@ -96,6 +96,14 @@ function stripForSearch(md) {
                 i += auto[0].length;
                 continue;
             }
+            if (s.substring(i, i + 5).toLowerCase() === "<kbd>") {
+                var closeKbd = s.toLowerCase().indexOf("</kbd>", i + 5);
+                if (closeKbd !== -1) {
+                    pushChars(s.substring(i + 5, closeKbd), i + 5);
+                    i = closeKbd + 6;
+                    continue;
+                }
+            }
         }
         // Código inline `code`: se conserva el interior
         if (s[i] === "`") {
