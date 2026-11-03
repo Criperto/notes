@@ -3767,12 +3767,14 @@ runTest('F76: Espera de carga inicial en modo preview y acción configurable al 
     assert.ok(mainQml.indexOf('initialAction: (typeof Sys !== "undefined") ? Sys.initialAction : ""') !== -1, "Main.qml debe propagar Sys.initialAction a content");
     assert.ok(mainQml.indexOf('initialTarget: (typeof Sys !== "undefined") ? Sys.initialTarget : ""') !== -1, "Main.qml debe propagar Sys.initialTarget a content");
 
-    // 3. NotesConfig declara previewCloseAction con opciones 'close' y 'home'
+    // 3. NotesConfig declara previewCloseAction con opciones 'close' y 'home' con default 'home' e importMode 'move'
     const notesConfigQml = fs.readFileSync(path.resolve(__dirname, '../qml/NotesConfig.qml'), 'utf8');
     assert.ok(notesConfigQml.indexOf('key: "previewCloseAction"') !== -1, "NotesConfig schema debe definir previewCloseAction");
-    assert.ok(notesConfigQml.indexOf('default: "close"') !== -1, "previewCloseAction debe tener default 'close'");
+    assert.ok(notesConfigQml.indexOf('default: "home"') !== -1, "previewCloseAction debe tener default 'home'");
     assert.ok(notesConfigQml.indexOf('values: ["close", "home"]') !== -1, "previewCloseAction debe admitir 'close' y 'home'");
     assert.ok(notesConfigQml.indexOf('property string previewCloseAction') !== -1, "NotesConfig debe tener propiedad reactiva previewCloseAction");
+    assert.ok(notesConfigQml.indexOf('key: "importMode"') !== -1, "NotesConfig schema debe definir importMode");
+    assert.ok(notesConfigQml.indexOf('default: "move"') !== -1, "importMode debe tener default 'move'");
 
     // 4. NotesSettingsModal incluye selector para previewCloseAction
     const settingsModalQml = fs.readFileSync(path.resolve(__dirname, '../qml/NotesSettingsModal.qml'), 'utf8');

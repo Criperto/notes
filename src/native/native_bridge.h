@@ -212,6 +212,7 @@ class Sys : public QObject {
     Q_PROPERTY(bool hasTouchscreen READ hasTouchscreen CONSTANT)
     Q_PROPERTY(QString homeDir READ homeDir CONSTANT)
     Q_PROPERTY(QString homePath READ homeDir CONSTANT)
+    Q_PROPERTY(QString documentsDir READ documentsDir CONSTANT)
     Q_PROPERTY(QString dataShareDir READ dataShareDir CONSTANT)
     Q_PROPERTY(QString appExecutable READ appExecutable CONSTANT)
     Q_PROPERTY(QString initialAction READ initialAction CONSTANT)
@@ -234,6 +235,7 @@ public:
 
     bool hasTouchscreen() const;
     QString homeDir() const;
+    QString documentsDir() const;
     QString dataShareDir() const;
     QString appExecutable() const;
     QString initialAction() const { return m_initialAction; }
@@ -457,9 +459,9 @@ private:
     bool m_syncWithQuickshell = true;
 
     int m_cardsPerRow = 3;
-    QString m_importMode = QStringLiteral("copy");
+    QString m_importMode = QStringLiteral("move");
     QString m_externalFileOpenMode = QStringLiteral("preview");
-    QString m_previewCloseAction = QStringLiteral("close");
+    QString m_previewCloseAction = QStringLiteral("home");
     QString m_spellcheckMode = QStringLiteral("auto");
     QString m_disabledSpellLanguages;
     QString m_primarySpellLanguage;

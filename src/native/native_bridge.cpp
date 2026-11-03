@@ -818,6 +818,14 @@ QString Sys::homeDir() const {
     return QDir::homePath();
 }
 
+QString Sys::documentsDir() const {
+    QString doc = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
+    if (doc.isEmpty()) {
+        doc = QDir::homePath() + QStringLiteral("/Documentos");
+    }
+    return doc;
+}
+
 QString Sys::dataShareDir() const {
     QString devDir = QDir::currentPath();
     if (QFile::exists(devDir + QStringLiteral("/qml/Main.qml"))) {
@@ -1226,7 +1234,11 @@ QJsonObject Sys::indexNotes(const QString &notesDirStr) const {
 ConfigBackend::ConfigBackend(QObject *parent)
     : QObject(parent)
 {
-    m_notasDir = QDir::homePath() + QStringLiteral("/Documentos/notes");
+    QString docs = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
+    if (docs.isEmpty()) {
+        docs = QDir::homePath() + QStringLiteral("/Documentos");
+    }
+    m_notasDir = docs + QStringLiteral("/notes");
     if (!QFile::exists(QDir::homePath() + QStringLiteral("/.cache/wal/colors.json"))) {
         m_themeMode = QStringLiteral("qt");
     }
@@ -1790,7 +1802,10 @@ void ConfigBackend::load() {
             QJsonDocument doc = QJsonDocument::fromJson(file.readAll());
             if (doc.isObject()) {
                 QJsonObject obj = doc.object();
-                if (obj.contains("notasDir")) m_notasDir = obj["notasDir"].toString();
+                if (obj.contains("notasDir")) {
+                    QString nd = obj["notasDir"].toString().trimmed();
+                    if (!nd.isEmpty()) m_notasDir = nd;
+                }
                 if (obj.contains("editorFontSize")) m_editorFontSize = obj["editorFontSize"].toInt(16);
                 if (obj.contains("editorZoom")) m_editorZoom = obj["editorZoom"].toInt(100);
                 if (obj.contains("showImagePreviews")) m_showImagePreviews = obj["showImagePreviews"].toBool(true);
@@ -1803,9 +1818,9 @@ void ConfigBackend::load() {
                 if (obj.contains("hideScrollbars")) m_hideScrollbars = obj["hideScrollbars"].toBool(false);
 
                 if (obj.contains("cardsPerRow")) m_cardsPerRow = obj["cardsPerRow"].toInt(3);
-                if (obj.contains("importMode")) m_importMode = obj["importMode"].toString("copy");
+                if (obj.contains("importMode")) m_importMode = obj["importMode"].toString("move");
                 if (obj.contains("externalFileOpenMode")) m_externalFileOpenMode = obj["externalFileOpenMode"].toString("preview");
-                if (obj.contains("previewCloseAction")) m_previewCloseAction = obj["previewCloseAction"].toString("close");
+                if (obj.contains("previewCloseAction")) m_previewCloseAction = obj["previewCloseAction"].toString("home");
                 if (obj.contains("spellcheckMode")) m_spellcheckMode = obj["spellcheckMode"].toString("auto");
                 if (obj.contains("disabledSpellLanguages")) m_disabledSpellLanguages = obj["disabledSpellLanguages"].toString();
                 if (obj.contains("primarySpellLanguage")) m_primarySpellLanguage = obj["primarySpellLanguage"].toString();

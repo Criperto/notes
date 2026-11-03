@@ -40,7 +40,7 @@ QtObject {
         {
             key: "importMode",
             type: "enum",
-            default: "copy",
+            default: "move",
             values: ["copy", "move"],
             labels: [
                 I18n.t("config.notes.import_mode_copy", "Copiar"),
@@ -64,7 +64,7 @@ QtObject {
         {
             key: "previewCloseAction",
             type: "enum",
-            default: "close",
+            default: "home",
             values: ["close", "home"],
             labels: [
                 I18n.t("config.notes.preview_close_exit", "Cerrar la aplicación"),
@@ -118,7 +118,7 @@ QtObject {
         if (ConfigBackend.cardsPerRow !== cardsPerRow) ConfigBackend.cardsPerRow = cardsPerRow;
     }
 
-    property string importMode: (ConfigBackend && ConfigBackend.importMode) ? ConfigBackend.importMode : "copy"
+    property string importMode: (ConfigBackend && ConfigBackend.importMode) ? ConfigBackend.importMode : "move"
     onImportModeChanged: {
         if (ConfigBackend.importMode !== importMode) ConfigBackend.importMode = importMode;
     }
@@ -128,7 +128,7 @@ QtObject {
         if (ConfigBackend.externalFileOpenMode !== externalFileOpenMode) ConfigBackend.externalFileOpenMode = externalFileOpenMode;
     }
 
-    property string previewCloseAction: (ConfigBackend && ConfigBackend.previewCloseAction) ? ConfigBackend.previewCloseAction : "close"
+    property string previewCloseAction: (ConfigBackend && ConfigBackend.previewCloseAction) ? ConfigBackend.previewCloseAction : "home"
     onPreviewCloseActionChanged: {
         if (ConfigBackend.previewCloseAction !== previewCloseAction) ConfigBackend.previewCloseAction = previewCloseAction;
     }
@@ -205,7 +205,7 @@ QtObject {
         }
         p = p.replace(/\$HOME/g, home).replace(/\$\{HOME\}/g, home);
 
-        var docsDir = Sys.env("XDG_DOCUMENTS_DIR", home + "/Documentos");
+        var docsDir = (typeof Sys !== "undefined" && Sys.documentsDir) ? Sys.documentsDir : Sys.env("XDG_DOCUMENTS_DIR", home + "/Documentos");
         if (!docsDir || docsDir === "") {
             docsDir = home + "/Documentos";
         }
