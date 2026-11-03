@@ -3,6 +3,7 @@ import QtQuick.Layouts
 import QtQuick.Effects
 import Notas
 import "."
+import "PreviewLogic.js" as PreviewLogic
 
 Item {
     id: root
@@ -208,7 +209,7 @@ Item {
         id: imagesFlow
         visible: !root.isRawActive && root.imagesList.length > 0
         width: parent.width
-        spacing: 10
+        spacing: 6
 
         Repeater {
             id: imagesRepeater
@@ -235,22 +236,48 @@ Item {
                 Component.onCompleted: {
                     if (isCardReady) root.notifyCardReady();
                 }
+
+                readonly property bool isBadge: {
+                    if (PreviewLogic.isBadgeLike(modelData.src, modelData.alt)) return true;
+                    var cachedDim = (root.editor && root.editor._imageDimensions) ? root.editor._imageDimensions[modelData.src] : null;
+                    if (cachedDim && cachedDim.h > 0 && cachedDim.h <= 36) return true;
+                    if (imgItem.implicitHeight > 0 && imgItem.implicitHeight <= 36) return true;
+                    return false;
+                }
+
                 readonly property real availW: imagesFlow.width > 0 ? imagesFlow.width : 400
+                readonly property real naturalW: {
+                    if (imgItem.implicitWidth > 0) return imgItem.implicitWidth;
+                    var cachedDim = (root.editor && root.editor._imageDimensions) ? root.editor._imageDimensions[modelData.src] : null;
+                    if (cachedDim && cachedDim.w > 0) return cachedDim.w;
+                    return 0;
+                }
+                readonly property real naturalH: {
+                    if (imgItem.implicitHeight > 0) return imgItem.implicitHeight;
+                    var cachedDim = (root.editor && root.editor._imageDimensions) ? root.editor._imageDimensions[modelData.src] : null;
+                    if (cachedDim && cachedDim.h > 0) return cachedDim.h;
+                    return 0;
+                }
+
                 readonly property real targetW: {
-                    if (root.imagesList.length > 1) {
-                        return Math.min((availW - 10) / 2, (imgItem.implicitWidth > 0 ? imgItem.implicitWidth : availW / 2));
+                    if (isBadge) {
+                        return naturalW > 0 ? Math.min(availW, naturalW) : 120;
                     }
-                    return Math.min(availW, (imgItem.implicitWidth > 0 ? imgItem.implicitWidth : availW));
+                    if (naturalW > 0) {
+                        if (root.imagesList.length > 1 && naturalW >= availW * 0.45) {
+                            return Math.min((availW - 10) / 2, naturalW);
+                        }
+                        return Math.min(availW, naturalW);
+                    }
+                    return root.imagesList.length > 1 ? Math.min((availW - 10) / 2, 400) : Math.min(availW, 600);
                 }
                 readonly property real targetH: {
-                    if (imgItem.implicitWidth > 0 && imgItem.implicitHeight > 0) {
-                        return Math.round(targetW * (imgItem.implicitHeight / imgItem.implicitWidth));
+                    if (naturalW > 0 && naturalH > 0) {
+                        var scaledH = Math.round(targetW * (naturalH / naturalW));
+                        if (!isBadge && scaledH > 560) return 560;
+                        return Math.max(isBadge ? 16 : 24, scaledH);
                     }
-                    var cachedDim = (root.editor && root.editor._imageDimensions) ? root.editor._imageDimensions[modelData.src] : null;
-                    if (cachedDim && cachedDim.w > 0 && cachedDim.h > 0) {
-                        return Math.round(targetW * (cachedDim.h / cachedDim.w));
-                    }
-                    return 240;
+                    return isBadge ? 24 : 180;
                 }
 
                 width: targetW
@@ -258,12 +285,12 @@ Item {
 
                 Rectangle {
                     anchors.fill: parent
-                    radius: 8
-                    color: Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.04)
+                    radius: imgCard.isBadge ? 4 : 8
+                    color: imgCard.isBadge ? "transparent" : Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.04)
                     border.color: (root.isEditing && !root.isRawActive)
                         ? Theme.accent
-                        : Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.08)
-                    border.width: (root.isEditing && !root.isRawActive) ? 1.5 : 1
+                        : (imgCard.isBadge ? "transparent" : Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.08))
+                    border.width: (root.isEditing && !root.isRawActive) ? 1.5 : (imgCard.isBadge ? 0 : 1)
                     clip: true
 
                     Image {
@@ -271,7 +298,6 @@ Item {
                         anchors.fill: parent
                         asynchronous: true
                         fillMode: Image.PreserveAspectFit
-                        sourceSize: Qt.size(1400, 0)
                         source: imgCard.loadable ? root.resolveSource(modelData.src) : ""
 
                         onStatusChanged: {

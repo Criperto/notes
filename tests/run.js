@@ -3625,6 +3625,33 @@ runTest('F73: Asociación de Notas como aplicación por defecto para .md y .txt 
     assert.ok(installScript.indexOf('mimeapps.list') !== -1, "install.sh debe asegurar persistencia en mimeapps.list");
 });
 
+runTest('F74: Agrupación de imágenes consecutivas, dimensionamiento intrínseco de badges y remoción de sourceSize rígido', () => {
+    // 1. Agrupación en BlockModel de líneas consecutivas de badges / imágenes
+    const md = "# Notas\n\n![License](https://img.shields.io/badge/license-blue.svg)\n![Version](https://img.shields.io/badge/version-orange.svg)\n![Platform](https://img.shields.io/badge/platform-purple.svg)\n\nTexto siguiente";
+    const res = BlockModel.splitBlocks(md);
+    assert.strictEqual(res.blocks.length, 3, "Debe agrupar los 3 badges consecutivos en un único bloque 'image'");
+    assert.strictEqual(res.blocks[0].type, "heading");
+    assert.strictEqual(res.blocks[1].type, "image");
+    assert.strictEqual(res.blocks[2].type, "paragraph");
+
+    // Invariante de reconstrucción idéntica byte a byte
+    assert.strictEqual(BlockModel.joinBlocks(res), md, "joinBlocks debe reconstruir exactamente el markdown con saltos de línea originales");
+
+    // 2. Estimación inteligente de altura para badges vs imágenes normales
+    const badgeHeight = BlockModel.estimateBlockHeight("image", res.blocks[1].raw, 800);
+    assert.strictEqual(badgeHeight, 36, "Badge block debe estimarse en ~36px para evitar saltos en viewport");
+
+    const normalHeight = BlockModel.estimateBlockHeight("image", "![Screenshot](/home/user/photo.png)", 800);
+    assert.strictEqual(normalHeight, 240, "Imagen normal debe estimarse en 240px");
+
+    // 3. Verificaciones de BlockImage.qml
+    const blockImageQml = fs.readFileSync(path.resolve(__dirname, '../qml/BlockImage.qml'), 'utf8');
+    assert.strictEqual(blockImageQml.indexOf('sourceSize: Qt.size(1400, 0)'), -1, "No debe forzar sourceSize de 1400px en SVGs e imágenes");
+    assert.ok(blockImageQml.indexOf('PreviewLogic.isBadgeLike') !== -1, "Debe detectar badges usando PreviewLogic");
+    assert.ok(blockImageQml.indexOf('readonly property bool isBadge') !== -1, "Debe definir propiedad isBadge");
+    assert.ok(blockImageQml.indexOf('imgCard.isBadge ? "transparent"') !== -1, "Badges deben renderizarse con fondo transparente sin tarjeta tosca");
+});
+
 console.log(`\n========================================`);
 console.log(`Resultados: ${passed} OK, ${failed} FAIL`);
 console.log(`========================================`);

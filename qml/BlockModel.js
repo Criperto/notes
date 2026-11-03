@@ -250,7 +250,7 @@ function _parseNextBlock(lines, startIdx) {
 
     // 7. Línea de imágenes única o múltiple
     if (_isImageLine(line)) {
-        return _consumeSingleLineBlock(lines, startIdx, "image", {});
+        return _consumeImageBlock(lines, startIdx);
     }
 
     // 8. Bloque HTML
@@ -342,6 +342,40 @@ function _consumeSingleLineBlock(lines, startIdx, type, extra) {
     };
     if (extra && extra.level) block.level = extra.level;
     return { nextIndex: i, block: block };
+}
+
+function _consumeImageBlock(lines, startIdx) {
+    var rawLines = [];
+    var i = startIdx;
+
+    while (i < lines.length) {
+        var cur = lines[i];
+        if (cur.content.trim() === "") {
+            break; // Una línea en blanco separa el bloque de imágenes
+        }
+        if (_isImageLine(cur.content)) {
+            rawLines.push(cur.content);
+            i++;
+        } else {
+            break;
+        }
+    }
+
+    var sep = lines[i - 1].eol;
+    while (i < lines.length && lines[i].content.trim() === "") {
+        sep += lines[i].content + lines[i].eol;
+        i++;
+    }
+
+    return {
+        nextIndex: i,
+        block: {
+            bid: getNextBid(),
+            type: "image",
+            raw: _joinLinesPreservingEols(lines, startIdx, i - 1, rawLines),
+            sep: sep
+        }
+    };
 }
 
 function _consumeTableBlock(lines, startIdx) {
@@ -661,6 +695,9 @@ function estimateBlockHeight(type, raw, pageW) {
             return Math.max(64, tRows * 34 + 20);
         }
         case "image": {
+            if (str && _isBadgeLikeText(str)) {
+                return 36;
+            }
             return 240;
         }
         case "hr": {
@@ -671,6 +708,18 @@ function estimateBlockHeight(type, raw, pageW) {
             return Math.max(28, rLines * 22 + 10);
         }
     }
+}
+
+function _isBadgeLikeText(str) {
+    if (!str) return false;
+    var low = str.toLowerCase();
+    return low.indexOf("shields.io") !== -1 ||
+           low.indexOf("/badge/") !== -1 ||
+           low.indexOf("badge.svg") !== -1 ||
+           low.indexOf("-badge.svg") !== -1 ||
+           low.indexOf("badgen.net") !== -1 ||
+           low.indexOf("codecov.io") !== -1 ||
+           low.indexOf("actions/workflows") !== -1;
 }
 
 // Detecta si al presionar Enter el cursor está al final de la línea de cierre de un fence (``` o ~~~)
