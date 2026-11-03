@@ -10,6 +10,6 @@ Icon=dev.criperto.Notas
 Terminal=false
 Type=Application
 Categories=Office;Utility;TextEditor;
-MimeType=text/markdown;text/plain;
+MimeType=text/markdown;text/plain;text/x-markdown;
 StartupWMClass=dev.criperto.Notas
 Keywords=notes;markdown;mermaid;editor;text;notas;

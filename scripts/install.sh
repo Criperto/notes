@@ -76,4 +76,28 @@ if command -v gtk-update-icon-cache &>/dev/null; then
     gtk-update-icon-cache -q -t -f "$HOME/.local/share/icons/hicolor" 2>/dev/null || true
 fi
 
+# 6. Asociar como aplicación por defecto para archivos .md y .txt
+MIME_TYPES=("text/markdown" "text/plain" "text/x-markdown")
+if command -v xdg-mime &>/dev/null; then
+    for mime in "${MIME_TYPES[@]}"; do
+        xdg-mime default dev.criperto.Notas.desktop "$mime" 2>/dev/null || true
+    done
+fi
+
+# Asegurar persistencia directa en ~/.config/mimeapps.list
+MIMEAPPS="$HOME/.config/mimeapps.list"
+if [[ -f "$MIMEAPPS" ]]; then
+    if ! grep -q "^\[Default Applications\]" "$MIMEAPPS"; then
+        printf "\n[Default Applications]\n" >> "$MIMEAPPS"
+    fi
+    for mime in "${MIME_TYPES[@]}"; do
+        if grep -q "^${mime}=" "$MIMEAPPS"; then
+            sed -i "s|^${mime}=.*|${mime}=dev.criperto.Notas.desktop|" "$MIMEAPPS"
+        else
+            sed -i "/^\[Default Applications\]/a ${mime}=dev.criperto.Notas.desktop" "$MIMEAPPS"
+        fi
+    done
+fi
+echo "✓ Configurada como aplicación predeterminada para .md y .txt (text/markdown, text/plain, text/x-markdown)"
+
 echo "==> ¡Instalación completada exitosamente! Puedes ejecutar 'notas' desde cualquier terminal o lanzador."

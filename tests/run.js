@@ -3606,6 +3606,25 @@ runTest('F72: Desenfoque de fondo fijo y reforzado en ventana de configuración 
     assert.ok(settingsModalQml.indexOf('? 0.85') !== -1, "cardBgTint debe tener opacidad de 0.85 para evitar traslúcido excesivo de notas de fondo");
 });
 
+runTest('F73: Asociación de Notas como aplicación por defecto para .md y .txt en desktop entry y script de instalación', () => {
+    const desktopEntry = fs.readFileSync(path.resolve(__dirname, '../assets/dev.criperto.Notas.desktop'), 'utf8');
+    const installScript = fs.readFileSync(path.resolve(__dirname, '../scripts/install.sh'), 'utf8');
+
+    // 1. Declaración de tipos MIME soportados en el desktop entry
+    assert.ok(desktopEntry.indexOf('MimeType=') !== -1, "Desktop entry debe declarar clave MimeType");
+    assert.ok(desktopEntry.indexOf('text/markdown') !== -1, "Desktop entry debe soportar text/markdown");
+    assert.ok(desktopEntry.indexOf('text/plain') !== -1, "Desktop entry debe soportar text/plain");
+    assert.ok(desktopEntry.indexOf('text/x-markdown') !== -1, "Desktop entry debe soportar text/x-markdown");
+    assert.ok(desktopEntry.indexOf('Exec=criperto.notes %F') !== -1, "Desktop entry debe incluir %F para recibir archivos como argumentos");
+
+    // 2. Asociación como editor predeterminado en script de instalación
+    assert.ok(installScript.indexOf('xdg-mime default dev.criperto.Notas.desktop') !== -1, "install.sh debe ejecutar xdg-mime default");
+    assert.ok(installScript.indexOf('text/markdown') !== -1, "install.sh debe configurar text/markdown");
+    assert.ok(installScript.indexOf('text/plain') !== -1, "install.sh debe configurar text/plain");
+    assert.ok(installScript.indexOf('text/x-markdown') !== -1, "install.sh debe configurar text/x-markdown");
+    assert.ok(installScript.indexOf('mimeapps.list') !== -1, "install.sh debe asegurar persistencia en mimeapps.list");
+});
+
 console.log(`\n========================================`);
 console.log(`Resultados: ${passed} OK, ${failed} FAIL`);
 console.log(`========================================`);
