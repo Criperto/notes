@@ -3675,7 +3675,7 @@ runTest('F75: Renderizado visual de teclas kbd y modo configurable para archivos
     assert.ok(decodedSvg.indexOf('Capa 3D intermedia') !== -1, "SVG debe tener bisel intermedio");
     assert.ok(decodedSvg.indexOf('Capa superior') !== -1, "SVG debe tener cuerpo superior de tecla");
     assert.ok(decodedSvg.indexOf('Placa central interna') !== -1, "SVG debe tener placa central recesada");
-    assert.ok(decodedSvg.indexOf('Ctrl') !== -1, "SVG debe incluir el texto 'Ctrl'");
+    assert.ok(decodedSvg.indexOf('CTRL') !== -1, "SVG debe incluir el texto 'CTRL'");
 
     // 2. Soporte de &lt;kbd&gt; si llega pre-escapado
     const preEscaped = "&lt;kbd&gt;Shift&lt;/kbd&gt; + &lt;kbd&gt;Z&lt;/kbd&gt;";

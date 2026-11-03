@@ -18,41 +18,62 @@ function escapeHtml(text) {
 }
 
 // Genera un SVG data URI con diseño 3D realista multicapa de tecla de teclado (keycap),
-// inspirado en keycap_base.svg y keycap_body.svg, adaptado dinámicamente a la paleta del tema.
+// inspirado en keycap_base.svg y keycap_body.svg de shortcuts_viewer, adaptado dinámicamente al tema.
 function renderKeycapSvg(label, opts) {
     var rawText = (label !== undefined && label !== null) ? String(label).trim() : "";
     var options = opts || {};
     var isLight = Boolean(options.lightMode);
 
-    var charW = 7.2;
-    var contentW = rawText.length * charW;
-    var w = Math.max(24, Math.round(contentW + 14));
-    var h = 22;
+    // Normalizar texto a mayúsculas estilo shortcuts_viewer para modificadores y letras
+    var disp = rawText;
+    var lower = rawText.toLowerCase();
+    if (lower === "ctrl" || lower === "shift" || lower === "alt" || lower === "esc" ||
+        lower === "enter" || lower === "space" || lower === "tab" || lower === "del" ||
+        lower === "backspace" || lower === "home" || lower === "end" || lower === "super" || lower === "win") {
+        disp = (lower === "super" || lower === "win") ? "SUPER" : lower.toUpperCase();
+    } else if (rawText.length === 1 && /[a-z]/i.test(rawText)) {
+        disp = rawText.toUpperCase();
+    }
 
-    var bezelColor = options.kbdBezel || (isLight ? "#dcdcdc" : "rgba(255, 255, 255, 0.24)");
-    var shadow1 = options.kbdShadow1 || (isLight ? "#9f9f9f" : "rgba(0, 0, 0, 0.65)");
-    var shadow2 = options.kbdShadow2 || (isLight ? "#b0b0b0" : "rgba(0, 0, 0, 0.35)");
-    var plateColor = options.kbdPlate || options.kbdBg || (isLight ? "#f5f5f5" : "rgba(0, 0, 0, 0.40)");
-    var textColor = options.kbdText || options.kbdColor || options.codeColor || (isLight ? "#1c1c1c" : "#eedfd5");
+    var charW = 7.5;
+    var contentW = Math.max(10, disp.length * charW);
+    var w = Math.max(32, Math.round(contentW + 18));
+    var h = 28;
+
+    // Colores fieles a shortcuts_viewer: Theme.color15 (cuerpo), Qt.darker(Theme.color15, 1.45) (sombra), Theme.surface (placa)
+    var bezelColor = options.kbdBezel || (isLight ? "#dcdcdc" : (options.kbdColor || "#e6ded7"));
+    var shadowColor1 = options.kbdShadow1 || options.kbdShadow || (isLight ? "#9f9f9f" : "#8f8782");
+    var shadowColor2 = options.kbdShadow2 || (isLight ? "#b0b0b0" : "#a8a09a");
+    var plateColor = options.kbdPlate || (isLight ? "#ffffff" : "#1c1815");
+    var textColor = options.kbdText || (isLight ? "#1c1c1c" : (options.kbdColor || "#ffffff"));
     var fontFamily = options.fontFamilyMonospace || options.fontFamily || "monospace";
 
-    var safeText = rawText
+    var safeText = disp
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
         .replace(/>/g, "&gt;")
         .replace(/"/g, "&quot;");
 
+    var bodyH = 23;
+    var shadowY = 4.5;
+    var plateX = 4.0;
+    var plateY = 3.5;
+    var plateH = 16.0;
+    var rx = 5.5;
+    var plateRx = 2.8;
+    var textY = 11.5;
+
     var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '">' +
-        '<!-- Capa 3D inferior (Profundidad) -->' +
-        '<rect x="1" y="4" width="' + (w - 2) + '" height="17" rx="3.5" fill="' + shadow1 + '"/>' +
-        '<!-- Capa 3D intermedia (Bisel) -->' +
-        '<rect x="1" y="3" width="' + (w - 2) + '" height="17" rx="3.5" fill="' + shadow2 + '"/>' +
-        '<!-- Capa superior (Cuerpo de la tecla) -->' +
-        '<rect x="1" y="1" width="' + (w - 2) + '" height="17" rx="3.5" fill="' + bezelColor + '"/>' +
-        '<!-- Placa central interna (Receso) -->' +
-        '<rect x="3" y="2.5" width="' + (w - 6) + '" height="12.5" rx="2.2" fill="' + plateColor + '"/>' +
+        '<!-- Capa 3D inferior / Profundidad (keycap_base.svg) -->' +
+        '<rect x="1" y="' + shadowY + '" width="' + (w - 2) + '" height="' + bodyH + '" rx="' + rx + '" fill="' + shadowColor1 + '"/>' +
+        '<!-- Capa 3D intermedia / Bisel -->' +
+        '<rect x="1" y="' + (shadowY - 1.5) + '" width="' + (w - 2) + '" height="' + bodyH + '" rx="' + rx + '" fill="' + shadowColor2 + '"/>' +
+        '<!-- Capa superior / Bisel del cuerpo (keycap_body.svg) -->' +
+        '<rect x="1" y="1" width="' + (w - 2) + '" height="' + bodyH + '" rx="' + rx + '" fill="' + bezelColor + '"/>' +
+        '<!-- Placa central interna recesada (Theme.surface) -->' +
+        '<rect x="' + plateX + '" y="' + plateY + '" width="' + (w - plateX * 2) + '" height="' + plateH + '" rx="' + plateRx + '" fill="' + plateColor + '"/>' +
         '<!-- Leyenda centrada en la placa interna -->' +
-        '<text x="' + (w / 2.0) + '" y="8.75" fill="' + textColor + '" font-family="' + fontFamily + '" font-size="10" font-weight="bold" text-anchor="middle" dominant-baseline="central">' + safeText + '</text>' +
+        '<text x="' + (w / 2.0) + '" y="' + textY + '" fill="' + textColor + '" font-family="' + fontFamily + '" font-size="10.5" font-weight="bold" text-anchor="middle" dominant-baseline="central">' + safeText + '</text>' +
         '</svg>';
 
     return "data:image/svg+xml;utf8," + encodeURIComponent(svg);
