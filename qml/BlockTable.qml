@@ -924,6 +924,11 @@ Item {
                                         anchors.verticalCenter: parent.verticalCenter
                                         text: Inline.inlineToHtml(modelData, {
                                             linkColor: "" + Theme.accent, highlightBg: EditorMetrics.highlightBg,
+                                            codeBg: Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.08),
+                                            codeColor: Theme.text,
+                                            kbdBg: Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.09),
+                                            kbdColor: Theme.text,
+                                            kbdBorder: Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.22),
                                             baseFolder: root.editor ? root.editor.imgBaseFolder : "",
                                             imageSkipMissing: true,
                                             imageExists: root.editor ? root.editor.imageExistsFn : null,
@@ -1331,6 +1336,11 @@ Item {
                                     anchors.verticalCenter: parent.verticalCenter
                                     text: Inline.inlineToHtml(modelData, {
                                         linkColor: "" + Theme.accent, highlightBg: EditorMetrics.highlightBg,
+                                        codeBg: Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.08),
+                                        codeColor: Theme.text,
+                                        kbdBg: Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.09),
+                                        kbdColor: Theme.text,
+                                        kbdBorder: Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.22),
                                         baseFolder: root.editor ? root.editor.imgBaseFolder : "",
                                         imageSkipMissing: true,
                                         imageExists: root.editor ? root.editor.imageExistsFn : null,

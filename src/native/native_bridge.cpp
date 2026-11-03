@@ -1330,6 +1330,7 @@ void ConfigBackend::loadQuickshellConfig() {
     bool changedCycle = false;
     bool changedCardsPerRow = false;
     bool changedImportMode = false;
+    bool changedExternalMode = false;
     bool changedZoom = false;
     bool changedSpellMode = false;
     bool changedBlur = false;
@@ -1461,6 +1462,11 @@ void ConfigBackend::loadQuickshellConfig() {
                     m_importMode = v;
                     changedImportMode = true;
                 }
+            } else if (k == QStringLiteral("externalFileOpenMode")) {
+                if (!v.isEmpty() && m_externalFileOpenMode != v) {
+                    m_externalFileOpenMode = v;
+                    changedExternalMode = true;
+                }
             } else if (k == QStringLiteral("editorZoom")) {
                 int z = qBound(50, v.toInt(), 300);
                 if (z > 0 && m_editorZoom != z) {
@@ -1544,6 +1550,7 @@ void ConfigBackend::loadQuickshellConfig() {
     if (changedCycle) emit cyclePreviewImagesChanged();
     if (changedCardsPerRow) emit cardsPerRowChanged();
     if (changedImportMode) emit importModeChanged();
+    if (changedExternalMode) emit externalFileOpenModeChanged();
     if (changedZoom) emit editorZoomChanged();
     if (changedSpellMode) emit spellcheckModeChanged();
 }
@@ -1681,6 +1688,13 @@ void ConfigBackend::setImportMode(const QString &val) {
     scheduleSave();
 }
 
+void ConfigBackend::setExternalFileOpenMode(const QString &val) {
+    if (m_externalFileOpenMode == val) return;
+    m_externalFileOpenMode = val;
+    emit externalFileOpenModeChanged();
+    scheduleSave();
+}
+
 void ConfigBackend::setSpellcheckMode(const QString &val) {
     if (m_spellcheckMode == val) return;
     m_spellcheckMode = val;
@@ -1776,6 +1790,7 @@ void ConfigBackend::load() {
 
                 if (obj.contains("cardsPerRow")) m_cardsPerRow = obj["cardsPerRow"].toInt(3);
                 if (obj.contains("importMode")) m_importMode = obj["importMode"].toString("copy");
+                if (obj.contains("externalFileOpenMode")) m_externalFileOpenMode = obj["externalFileOpenMode"].toString("preview");
                 if (obj.contains("spellcheckMode")) m_spellcheckMode = obj["spellcheckMode"].toString("auto");
                 if (obj.contains("disabledSpellLanguages")) m_disabledSpellLanguages = obj["disabledSpellLanguages"].toString();
                 if (obj.contains("primarySpellLanguage")) m_primarySpellLanguage = obj["primarySpellLanguage"].toString();
@@ -1870,6 +1885,7 @@ void ConfigBackend::save() {
 
     obj[QStringLiteral("cardsPerRow")] = m_cardsPerRow;
     obj[QStringLiteral("importMode")] = m_importMode;
+    obj[QStringLiteral("externalFileOpenMode")] = m_externalFileOpenMode;
     obj[QStringLiteral("spellcheckMode")] = m_spellcheckMode;
     obj[QStringLiteral("disabledSpellLanguages")] = m_disabledSpellLanguages;
     obj[QStringLiteral("primarySpellLanguage")] = m_primarySpellLanguage;
@@ -1912,6 +1928,7 @@ void ConfigBackend::reload() {
 
     emit cardsPerRowChanged();
     emit importModeChanged();
+    emit externalFileOpenModeChanged();
     emit spellcheckModeChanged();
     emit disabledSpellLanguagesChanged();
     emit primarySpellLanguageChanged();

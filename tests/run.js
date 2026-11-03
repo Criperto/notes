@@ -3652,6 +3652,66 @@ runTest('F74: Agrupación de imágenes consecutivas, dimensionamiento intrínsec
     assert.ok(blockImageQml.indexOf('imgCard.isBadge ? "transparent"') !== -1, "Badges deben renderizarse con fondo transparente sin tarjeta tosca");
 });
 
+runTest('F75: Renderizado visual de teclas kbd y modo configurable para archivos externos', () => {
+    // 1. Renderizado de etiquetas <kbd> en inlineToHtml
+    const rawKbd = "<kbd>Ctrl</kbd> + <kbd>,</kbd>";
+    const htmlKbd = Inline.inlineToHtml(rawKbd, {
+        kbdBg: "rgba(255, 255, 255, 0.10)",
+        kbdColor: "#f0f0f0",
+        kbdBorder: "rgba(255, 255, 255, 0.22)"
+    });
+    assert.ok(htmlKbd.indexOf('font-family: monospace') !== -1, "inlineToHtml debe aplicar estilo monospace a <kbd>");
+    assert.ok(htmlKbd.indexOf('Ctrl') !== -1, "inlineToHtml debe contener 'Ctrl'");
+    assert.ok(htmlKbd.indexOf('border: 1px solid') !== -1, "inlineToHtml debe definir borde para el keycap badge");
+    assert.ok(htmlKbd.indexOf('border-radius: 4px') !== -1, "inlineToHtml debe redondear bordes del badge");
+    assert.ok(htmlKbd.indexOf(' + ') !== -1, "El separador ' + ' debe mantenerse fuera de los badges");
+    assert.strictEqual(htmlKbd.indexOf('&lt;kbd&gt;'), -1, "No debe escapar las etiquetas kbd a entidades planas");
+
+    // 2. Soporte de &lt;kbd&gt; si llega pre-escapado
+    const preEscaped = "&lt;kbd&gt;Shift&lt;/kbd&gt; + &lt;kbd&gt;Z&lt;/kbd&gt;";
+    const htmlEscaped = Inline.inlineToHtml(preEscaped, {});
+    assert.ok(htmlEscaped.indexOf('Shift') !== -1, "Debe decodificar y estilizar kbd pre-escapado");
+    assert.strictEqual(htmlEscaped.indexOf('&lt;kbd&gt;'), -1, "No debe dejar entidades &lt;kbd&gt; sin estilizar");
+
+    // 3. formatForLiveEditing de <kbd>
+    const liveKbd = Inline.formatForLiveEditing("<kbd>Ctrl</kbd> + <kbd>Q</kbd>", { hideSyntax: true });
+    assert.ok(liveKbd.indexOf('font-family: monospace') !== -1, "formatForLiveEditing debe estilizar keycaps");
+    assert.ok(liveKbd.indexOf('Ctrl') !== -1, "formatForLiveEditing debe preservar texto");
+
+    // 4. Lógica de apertura de archivos externos vs internos
+    const notesDir = "/home/user/Documentos/notes";
+    const internalPath = "/home/user/Documentos/notes/mi-nota.md";
+    const externalPath = "/home/user/Proyectos/qs-notes/README.md";
+
+    assert.strictEqual(ImportLogic.isInsideDir(internalPath, notesDir), true, "internalPath debe detectarse dentro de notesDir");
+    assert.strictEqual(ImportLogic.isInsideDir(externalPath, notesDir), false, "externalPath debe detectarse fuera de notesDir");
+
+    function shouldPreviewExternal(act, tgt, externalFileOpenMode, notesDir) {
+        var isOutside = !ImportLogic.isInsideDir(tgt, notesDir);
+        return (act !== "edit") && isOutside && (externalFileOpenMode !== "edit");
+    }
+
+    // Default ("preview"): externo abre en preview, interno en edición
+    assert.strictEqual(shouldPreviewExternal("open", externalPath, "preview", notesDir), true, "Archivo externo con mode preview debe abrir en preview");
+    assert.strictEqual(shouldPreviewExternal("open", internalPath, "preview", notesDir), false, "Archivo interno debe abrir siempre en edición");
+
+    // Configurado en "edit": externo abre en edición
+    assert.strictEqual(shouldPreviewExternal("open", externalPath, "edit", notesDir), false, "Archivo externo con mode edit debe abrir en edición directa");
+
+    // CLI --edit fuerza edición sin importar config
+    assert.strictEqual(shouldPreviewExternal("edit", externalPath, "preview", notesDir), false, "Acción 'edit' debe forzar modo edición");
+
+    // 5. Botón de importar en modo edición de notas externas
+    const editorModalQml = fs.readFileSync(path.resolve(__dirname, '../qml/NoteEditorModal.qml'), 'utf8');
+    assert.ok(editorModalQml.indexOf('root.isExternalNote && !root.isPreviewMode') !== -1, "NoteEditorModal debe mostrar botón Importar cuando se edita un archivo externo");
+    assert.ok(editorModalQml.indexOf('NotesService.importExternalAndEdit()') !== -1, "Botón de importar en edición debe invocar importExternalAndEdit");
+
+    // 6. Selector de configuración en NotesSettingsModal
+    const settingsModalQml = fs.readFileSync(path.resolve(__dirname, '../qml/NotesSettingsModal.qml'), 'utf8');
+    assert.ok(settingsModalQml.indexOf('ConfigBackend.externalFileOpenMode') !== -1, "NotesSettingsModal debe enlazar a externalFileOpenMode");
+    assert.ok(settingsModalQml.indexOf('config.notes.external_open_mode') !== -1, "NotesSettingsModal debe tener etiqueta i18n para el modo de apertura de archivos externos");
+});
+
 console.log(`\n========================================`);
 console.log(`Resultados: ${passed} OK, ${failed} FAIL`);
 console.log(`========================================`);

@@ -38,8 +38,8 @@ Item {
     property bool keyboardNavActive: false
     property string initialAction: ""
     property string initialTarget: ""
-    property bool launchedForExternal: (initialAction === "previewFile" || initialAction === "openPath")
-    property bool isReadyToShow: (initialAction === "" || initialAction === "toggle" || initialAction === "open")
+    property bool launchedForExternal: (initialAction === "previewFile" || initialAction === "openPath" || initialAction === "preview" || initialAction === "edit")
+    property bool isReadyToShow: (initialAction === "" || initialAction === "toggle" || (initialAction === "open" && initialTarget === ""))
     property bool _previewCloseAnimActive: false
     property real _previewCloseDy: 0
     property real _previewCloseScale: 0.35
@@ -2562,9 +2562,11 @@ Item {
             }
             return;
         }
-        if (act === "open" || act === "openPath") {
+        if (act === "open" || act === "openPath" || act === "edit") {
             if (!tgt || tgt === "") return;
-            NotesService.openPath(tgt, false, function(note) {
+            var isOutside = !ImportLogic.isInsideDir(tgt, NotesService.notesDir);
+            var shouldPreview = (act !== "edit") && isOutside && (NotesConfig.externalFileOpenMode !== "edit");
+            NotesService.openPath(tgt, shouldPreview, function(note) {
                 if (note) {
                     if (note.isExternal) root.launchedForExternal = true;
                     if (morphContainer.isExpanded) {

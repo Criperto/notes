@@ -39,6 +39,10 @@ struct Cli {
     #[arg(short = 'p', long = "preview")]
     preview: bool,
 
+    /// Forzar apertura en modo edición directa
+    #[arg(short = 'e', long = "edit")]
+    edit: bool,
+
     /// Desactivar sincronización con Quickshell (modo standalone para testing)
     #[arg(long = "no-sync", alias = "standalone")]
     no_sync: bool,
@@ -155,7 +159,13 @@ fn main() {
         ("new".to_string(), new_val.unwrap_or_default())
     } else if let Some(ref p) = cli.path {
         let resolved = resolve_target_path(p);
-        let act = if cli.preview { "preview" } else { "open" };
+        let act = if cli.preview {
+            "preview"
+        } else if cli.edit {
+            "edit"
+        } else {
+            "open"
+        };
         (act.to_string(), resolved)
     } else {
         ("raise".to_string(), String::new())

@@ -50,6 +50,18 @@ QtObject {
             comment: I18n.t("config.notes.import_mode_comment", "Si los .md arrastrados se copian o se mueven a la carpeta de notas.")
         },
         {
+            key: "externalFileOpenMode",
+            type: "enum",
+            default: "preview",
+            values: ["preview", "edit"],
+            labels: [
+                I18n.t("config.notes.external_mode_preview", "Vista previa (Solo lectura)"),
+                I18n.t("config.notes.external_mode_edit", "Edición directa")
+            ],
+            label: I18n.t("config.notes.external_open_mode", "Al abrir archivos externos"),
+            comment: I18n.t("config.notes.external_open_mode_comment", "Cómo abrir notas ubicadas fuera de la carpeta de notas.")
+        },
+        {
             key: "editorZoom",
             type: "int",
             min: 50,
@@ -99,6 +111,11 @@ QtObject {
         if (ConfigBackend.importMode !== importMode) ConfigBackend.importMode = importMode;
     }
 
+    property string externalFileOpenMode: (ConfigBackend && ConfigBackend.externalFileOpenMode) ? ConfigBackend.externalFileOpenMode : "preview"
+    onExternalFileOpenModeChanged: {
+        if (ConfigBackend.externalFileOpenMode !== externalFileOpenMode) ConfigBackend.externalFileOpenMode = externalFileOpenMode;
+    }
+
     property int editorZoom: (ConfigBackend && ConfigBackend.editorZoom >= 50) ? ConfigBackend.editorZoom : 100 // editorZoom: 100
     onEditorZoomChanged: {
         if (ConfigBackend.editorZoom !== editorZoom) ConfigBackend.editorZoom = editorZoom;
@@ -125,6 +142,9 @@ QtObject {
         }
         function onImportModeChanged() {
             if (root.importMode !== ConfigBackend.importMode) root.importMode = ConfigBackend.importMode;
+        }
+        function onExternalFileOpenModeChanged() {
+            if (root.externalFileOpenMode !== ConfigBackend.externalFileOpenMode) root.externalFileOpenMode = ConfigBackend.externalFileOpenMode;
         }
         function onEditorZoomChanged() {
             if (root.editorZoom !== ConfigBackend.editorZoom) root.editorZoom = ConfigBackend.editorZoom;

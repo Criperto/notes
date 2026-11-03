@@ -1727,6 +1727,60 @@ Item {
                     }
                 }
 
+                // Botón "Importar a Notas" (cuando se edita un archivo externo directamente)
+                Rectangle {
+                    height: 30
+                    radius: 8
+                    color: importEditMa.containsMouse ? Qt.darker(Theme.accent, 1.15) : Theme.accent
+                    Layout.preferredWidth: importEditRow.implicitWidth + 20
+                    opacity: root.isExpanded ? 1.0 : 0.0
+                    visible: opacity > 0.0 && root.isExternalNote && !root.isPreviewMode
+
+                    Behavior on color {
+                        enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                        ColorAnimation { duration: 140 }
+                    }
+
+                    RowLayout {
+                        id: importEditRow
+                        anchors.centerIn: parent
+                        spacing: 6
+
+                        Image {
+                            width: 14
+                            height: 14
+                            source: Theme.iconsPath + "download.svg"
+                            sourceSize: Qt.size(14, 14)
+                            layer.enabled: true
+                            layer.effect: MultiEffect {
+                                colorization: 1.0
+                                colorizationColor: Theme.textOn(Theme.accent)
+                            }
+                        }
+
+                        Text {
+                            text: I18n.t("notes.preview.action_import", "Importar a Notas")
+                            color: Theme.textOn(Theme.accent)
+                            font.family: Theme.fontFamily
+                            font.pixelSize: Theme.fontSizeSmall
+                            font.bold: true
+                        }
+                    }
+
+                    MouseArea {
+                        id: importEditMa
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onEntered: tooltipLayer.showTooltip(parent, I18n.t("notes.preview.action_import_desc", "Importar esta nota externa a tu carpeta de notas"), "")
+                        onExited: tooltipLayer.hideTooltip()
+                        onClicked: {
+                            tooltipLayer.hideTooltip();
+                            NotesService.importExternalAndEdit();
+                        }
+                    }
+                }
+
                 // Indicador de estado de guardado
                 Rectangle {
                     height: 30

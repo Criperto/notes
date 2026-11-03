@@ -24,6 +24,9 @@ function inlineToHtml(src, opts) {
     var linkColor = options.linkColor || "#5294e2";
     var codeBg = options.codeBg || "rgba(255, 255, 255, 0.08)";
     var codeColor = options.codeColor || "#f0f0f0";
+    var kbdBg = options.kbdBg || "rgba(255, 255, 255, 0.10)";
+    var kbdColor = options.kbdColor || options.codeColor || "#f0f0f0";
+    var kbdBorder = options.kbdBorder || "rgba(255, 255, 255, 0.22)";
     var highlightBg = options.highlightBg || _defaultHighlightBg;
 
     var text = src;
@@ -53,6 +56,17 @@ function inlineToHtml(src, opts) {
         var safeCode = escapeHtml(codeContent);
         var html = '<span style="font-family: monospace; background-color: ' + codeBg + '; color: ' + codeColor + '; padding: 1px 4px; border-radius: 4px;">' + safeCode + '</span>';
         codeSpans.push(html);
+        return token;
+    });
+
+    // 2b. Extraer etiquetas <kbd>...</kbd> antes de escapar HTML
+    var kbds = [];
+    text = text.replace(/<kbd>([\s\S]*?)<\/kbd>|&lt;kbd&gt;([\s\S]*?)&lt;\/kbd&gt;/gi, function(match, c1, c2) {
+        var token = "\uE000KBD_" + kbds.length + "\uE000";
+        var kbdContent = (c1 !== undefined) ? c1 : c2;
+        var safeKbd = escapeHtml(kbdContent);
+        var html = '<span style="font-family: monospace; font-size: 0.9em; background-color: ' + kbdBg + '; color: ' + kbdColor + '; border: 1px solid ' + kbdBorder + '; border-radius: 4px; padding: 1px 5px;">' + safeKbd + '</span>';
+        kbds.push(html);
         return token;
     });
 
@@ -215,6 +229,12 @@ function inlineToHtml(src, opts) {
     for (var c = 0; c < codeSpans.length; c++) {
         var codeHtml = codeSpans[c];
         text = text.replace("\uE000CODE_" + c + "\uE000", function() { return codeHtml; });
+    }
+
+    // 10b. Restaurar etiquetas kbd estilizadas
+    for (var k = 0; k < kbds.length; k++) {
+        var kbdHtml = kbds[k];
+        text = text.replace("\uE000KBD_" + k + "\uE000", function() { return kbdHtml; });
     }
 
     // 11. Restaurar caracteres escapados a texto plano seguro
@@ -656,6 +676,21 @@ function _collectInlineSpans(src) {
         spans.push({ type: "underline", start: m.index, end: m.index + m[0].length, openDelim: isEsc ? "&lt;u&gt;" : "<u>", closeDelim: isEsc ? "&lt;/u&gt;" : "</u>", inner: inner });
     }
 
+    // 9b. Teclas de atajo: <kbd>...</kbd> o &lt;kbd&gt;...&lt;/kbd&gt;
+    var kbdRegex = /<kbd>([\s\S]*?)<\/kbd>|&lt;kbd&gt;([\s\S]*?)&lt;\/kbd&gt;/gi;
+    while ((m = kbdRegex.exec(maskedSrc)) !== null) {
+        var innerKbd = m[1] !== undefined ? m[1] : m[2];
+        var isEscKbd = (m[0].indexOf("&lt;") !== -1);
+        spans.push({
+            type: "kbd",
+            start: m.index,
+            end: m.index + m[0].length,
+            openDelim: isEscKbd ? "&lt;kbd&gt;" : "<kbd>",
+            closeDelim: isEscKbd ? "&lt;/kbd&gt;" : "</kbd>",
+            inner: innerKbd
+        });
+    }
+
     // 10. Resaltado: ==...==
     var hlRegex = /==([^\s=]|[^\s=][\s\S]*?[^\s=])==/g;
     while ((m = hlRegex.exec(maskedSrc)) !== null) {
@@ -694,6 +729,9 @@ function formatForLiveEditing(src, opts) {
     var dimColor = options.dimColor || "#888888";
     var codeBg = options.codeBg || "rgba(255, 255, 255, 0.12)";
     var codeColor = options.codeColor || "#f0f0f0";
+    var kbdBg = options.kbdBg || "rgba(255, 255, 255, 0.10)";
+    var kbdColor = options.kbdColor || options.codeColor || "#f0f0f0";
+    var kbdBorder = options.kbdBorder || "rgba(255, 255, 255, 0.22)";
     var linkColor = options.linkColor || "#5294e2";
     var highlightBg = options.highlightBg || _defaultHighlightBg;
     var alwaysRevealAll = !!options.alwaysRevealAll;
@@ -758,7 +796,7 @@ function formatForLiveEditing(src, opts) {
             : (hideSyntax ? "" : ('<span style="font-size: 1px; color: transparent;">' + escapeHtml(sp.closeDelim) + '</span>'));
 
         var innerHtml = "";
-        if (sp.type === "code" || sp.type === "link" || sp.type === "image" || sp.type === "wikilink") {
+        if (sp.type === "code" || sp.type === "kbd" || sp.type === "link" || sp.type === "image" || sp.type === "wikilink") {
             innerHtml = escapeHtml(sp.inner);
         } else {
             // Formatear recursivamente el contenido interno (soporta formatos anidados como **negrita *cursiva***)
@@ -793,6 +831,9 @@ function formatForLiveEditing(src, opts) {
                 break;
             case "code":
                 out += '<span style="font-family: monospace; background-color: ' + codeBg + '; color: ' + codeColor + '; border-radius: 4px; padding: 1px 4px;">' + openHtml + innerHtml + closeHtml + '</span>';
+                break;
+            case "kbd":
+                out += '<span style="font-family: monospace; font-size: 0.9em; background-color: ' + kbdBg + '; color: ' + kbdColor + '; border: 1px solid ' + kbdBorder + '; border-radius: 4px; padding: 1px 5px;">' + openHtml + innerHtml + closeHtml + '</span>';
                 break;
             case "link":
                 out += '<span style="color: ' + linkColor + '; text-decoration: underline;">' + openHtml + innerHtml + closeHtml + '</span>';

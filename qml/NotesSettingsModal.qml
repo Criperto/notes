@@ -1437,6 +1437,31 @@ Item {
                                         }
                                     }
                                 }
+
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 6
+
+                                    Text {
+                                        text: I18n.t("config.notes.external_open_mode", "Al abrir archivos externos")
+                                        color: Theme.text
+                                        font {
+                                            pixelSize: Theme.fontSizeSubheading
+                                            family: Theme.fontFamily
+                                        }
+                                    }
+
+                                    SegmentedPicker {
+                                        options: [
+                                            { value: "preview", label: I18n.t("config.notes.external_mode_preview", "Vista previa (Solo lectura)") },
+                                            { value: "edit", label: I18n.t("config.notes.external_mode_edit", "Edición directa") }
+                                        ]
+                                        currentValue: ConfigBackend.externalFileOpenMode
+                                        onSelected: (val) => {
+                                            if (ConfigBackend.externalFileOpenMode !== val) ConfigBackend.externalFileOpenMode = val;
+                                        }
+                                    }
+                                }
                             }
                         }
 
