@@ -62,6 +62,18 @@ QtObject {
             comment: I18n.t("config.notes.external_open_mode_comment", "Cómo abrir notas ubicadas fuera de la carpeta de notas.")
         },
         {
+            key: "previewCloseAction",
+            type: "enum",
+            default: "close",
+            values: ["close", "home"],
+            labels: [
+                I18n.t("config.notes.preview_close_exit", "Cerrar la aplicación"),
+                I18n.t("config.notes.preview_close_home", "Volver al inicio de Notas")
+            ],
+            label: I18n.t("config.notes.preview_close_action", "Al cerrar vista previa con 'X'"),
+            comment: I18n.t("config.notes.preview_close_action_comment", "Define si la 'X' cierra la aplicación o vuelve al inicio normal de Notas.")
+        },
+        {
             key: "editorZoom",
             type: "int",
             min: 50,
@@ -116,6 +128,11 @@ QtObject {
         if (ConfigBackend.externalFileOpenMode !== externalFileOpenMode) ConfigBackend.externalFileOpenMode = externalFileOpenMode;
     }
 
+    property string previewCloseAction: (ConfigBackend && ConfigBackend.previewCloseAction) ? ConfigBackend.previewCloseAction : "close"
+    onPreviewCloseActionChanged: {
+        if (ConfigBackend.previewCloseAction !== previewCloseAction) ConfigBackend.previewCloseAction = previewCloseAction;
+    }
+
     property int editorZoom: (ConfigBackend && ConfigBackend.editorZoom >= 50) ? ConfigBackend.editorZoom : 100 // editorZoom: 100
     onEditorZoomChanged: {
         if (ConfigBackend.editorZoom !== editorZoom) ConfigBackend.editorZoom = editorZoom;
@@ -146,6 +163,9 @@ QtObject {
         function onExternalFileOpenModeChanged() {
             if (root.externalFileOpenMode !== ConfigBackend.externalFileOpenMode) root.externalFileOpenMode = ConfigBackend.externalFileOpenMode;
         }
+        function onPreviewCloseActionChanged() {
+            if (root.previewCloseAction !== ConfigBackend.previewCloseAction) root.previewCloseAction = ConfigBackend.previewCloseAction;
+        }
         function onEditorZoomChanged() {
             if (root.editorZoom !== ConfigBackend.editorZoom) root.editorZoom = ConfigBackend.editorZoom;
         }
@@ -156,6 +176,9 @@ QtObject {
 
     function postApply(raw) {
         if (!raw) return;
+        if (raw.previewCloseAction !== undefined && root.previewCloseAction !== raw.previewCloseAction) {
+            root.previewCloseAction = String(raw.previewCloseAction);
+        }
         if (raw.zoom !== undefined && raw.editorZoom === undefined) {
             var z = parseInt(raw.zoom, 10);
             if (!isNaN(z) && z >= 50 && z <= 300 && root.editorZoom !== z) {

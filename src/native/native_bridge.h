@@ -305,6 +305,7 @@ class ConfigBackend : public QObject {
     Q_PROPERTY(int cardsPerRow READ cardsPerRow WRITE setCardsPerRow NOTIFY cardsPerRowChanged)
     Q_PROPERTY(QString importMode READ importMode WRITE setImportMode NOTIFY importModeChanged)
     Q_PROPERTY(QString externalFileOpenMode READ externalFileOpenMode WRITE setExternalFileOpenMode NOTIFY externalFileOpenModeChanged)
+    Q_PROPERTY(QString previewCloseAction READ previewCloseAction WRITE setPreviewCloseAction NOTIFY previewCloseActionChanged)
     Q_PROPERTY(QString spellcheckMode READ spellcheckMode WRITE setSpellcheckMode NOTIFY spellcheckModeChanged)
     Q_PROPERTY(QString disabledSpellLanguages READ disabledSpellLanguages WRITE setDisabledSpellLanguages NOTIFY disabledSpellLanguagesChanged)
     Q_PROPERTY(QString primarySpellLanguage READ primarySpellLanguage WRITE setPrimarySpellLanguage NOTIFY primarySpellLanguageChanged)
@@ -368,6 +369,9 @@ public:
     QString externalFileOpenMode() const { return m_externalFileOpenMode; }
     void setExternalFileOpenMode(const QString &val);
 
+    QString previewCloseAction() const { return m_previewCloseAction; }
+    void setPreviewCloseAction(const QString &val);
+
     QString spellcheckMode() const { return m_spellcheckMode; }
     void setSpellcheckMode(const QString &val);
 
@@ -417,6 +421,7 @@ signals:
     void cardsPerRowChanged();
     void importModeChanged();
     void externalFileOpenModeChanged();
+    void previewCloseActionChanged();
     void spellcheckModeChanged();
     void disabledSpellLanguagesChanged();
     void primarySpellLanguageChanged();
@@ -454,6 +459,7 @@ private:
     int m_cardsPerRow = 3;
     QString m_importMode = QStringLiteral("copy");
     QString m_externalFileOpenMode = QStringLiteral("preview");
+    QString m_previewCloseAction = QStringLiteral("close");
     QString m_spellcheckMode = QStringLiteral("auto");
     QString m_disabledSpellLanguages;
     QString m_primarySpellLanguage;

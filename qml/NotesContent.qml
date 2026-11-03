@@ -38,15 +38,16 @@ Item {
     property bool keyboardNavActive: false
     property string initialAction: ""
     property string initialTarget: ""
+    property bool _initialActionHandled: false
     property bool launchedForExternal: (initialAction === "previewFile" || initialAction === "openPath" || initialAction === "preview" || initialAction === "edit")
-    property bool isReadyToShow: (initialAction === "" || initialAction === "toggle" || (initialAction === "open" && initialTarget === ""))
+    property bool isReadyToShow: (initialAction === "" || initialAction === "raise" || initialAction === "toggle" || (initialAction === "open" && initialTarget === ""))
     property bool _previewCloseAnimActive: false
     property real _previewCloseDy: 0
     property real _previewCloseScale: 0.35
 
     Timer {
         id: readyToShowFallbackTimer
-        interval: 350
+        interval: 600
         repeat: false
         running: !root.isReadyToShow
         onTriggered: root.isReadyToShow = true
@@ -2575,7 +2576,9 @@ Item {
                         root.openNoteImmediate(note);
                     }
                 }
-                root.isReadyToShow = true;
+                Qt.callLater(function() {
+                    root.isReadyToShow = true;
+                });
             });
             return;
         }
@@ -2590,7 +2593,9 @@ Item {
                         root.openNoteImmediate(pNote);
                     }
                 }
-                root.isReadyToShow = true;
+                Qt.callLater(function() {
+                    root.isReadyToShow = true;
+                });
             });
             return;
         }
@@ -2603,6 +2608,9 @@ Item {
             if (tgt) {
                 NotesService.renameNote(NotesService.activeNote.slug, tgt);
             }
+            Qt.callLater(function() {
+                root.isReadyToShow = true;
+            });
             return;
         }
     }
@@ -2734,8 +2742,13 @@ Item {
             root.morphingNoteData = null;
             root.isCardMorph = false;
             NotesService.closeNote();
-            if (root.launchedForExternal) {
+            if (root.launchedForExternal && (NotesConfig.previewCloseAction !== "home")) {
                 root.closeRequested();
+            } else {
+                root.launchedForExternal = false;
+                if (NotesService.notesList.length === 0 && !NotesService.loading) {
+                    NotesService.refresh();
+                }
             }
             return;
         }
@@ -2760,8 +2773,14 @@ Item {
             root.isCardMorph = false;
             editorModal.clearClosedNote();
             NotesService.closeNote();
-            if (root.launchedForExternal || (editorModal.noteData && editorModal.noteData.isExternal)) {
+            var shouldCloseApp = (NotesConfig.previewCloseAction !== "home") && (root.launchedForExternal || (editorModal.noteData && editorModal.noteData.isExternal));
+            if (shouldCloseApp) {
                 root.closeRequested();
+            } else {
+                root.launchedForExternal = false;
+                if (NotesService.notesList.length === 0 && !NotesService.loading) {
+                    NotesService.refresh();
+                }
             }
             return;
         }
@@ -3025,8 +3044,13 @@ Item {
             root.isCardMorph = false;
             editorModal.clearClosedNote();
             NotesService.closeNote();
-            if (root.launchedForExternal) {
+            if (root.launchedForExternal && (NotesConfig.previewCloseAction !== "home")) {
                 root.closeRequested();
+            } else {
+                root.launchedForExternal = false;
+                if (NotesService.notesList.length === 0 && !NotesService.loading) {
+                    NotesService.refresh();
+                }
             }
         }
     }
@@ -3096,8 +3120,14 @@ Item {
             var wasExternal = root.launchedForExternal || (editorModal.noteData && editorModal.noteData.isExternal);
             editorModal.clearClosedNote();
             NotesService.closeNote();
-            if (wasExternal) {
+            var shouldCloseApp = (NotesConfig.previewCloseAction !== "home") && wasExternal;
+            if (shouldCloseApp) {
                 root.closeRequested();
+            } else {
+                root.launchedForExternal = false;
+                if (NotesService.notesList.length === 0 && !NotesService.loading) {
+                    NotesService.refresh();
+                }
             }
         }
     }
@@ -3178,7 +3208,8 @@ Item {
     }
 
     Component.onCompleted: {
-        if (root.initialAction !== "") {
+        if (root.initialAction !== "" && !root._initialActionHandled) {
+            root._initialActionHandled = true;
             Qt.callLater(function() {
                 root.handleIpcAction(root.initialAction, root.initialTarget);
             });

@@ -1461,6 +1461,33 @@ Item {
                                             if (ConfigBackend.externalFileOpenMode !== val) ConfigBackend.externalFileOpenMode = val;
                                         }
                                     }
+
+                                    Item {
+                                        Layout.fillWidth: true
+                                        implicitHeight: 4
+                                    }
+
+                                    Text {
+                                        text: I18n.t("config.notes.preview_close_action", "Al cerrar vista previa con 'X'")
+                                        color: Theme.text
+                                        font {
+                                            pixelSize: Theme.fontSizeSubheading
+                                            family: Theme.fontFamily
+                                        }
+                                    }
+
+                                    SegmentedPicker {
+                                        options: [
+                                            { value: "close", label: I18n.t("config.notes.preview_close_exit", "Cerrar aplicación") },
+                                            { value: "home", label: I18n.t("config.notes.preview_close_home", "Volver al inicio") }
+                                        ]
+                                        currentValue: (typeof ConfigBackend !== "undefined" && ConfigBackend.previewCloseAction) ? ConfigBackend.previewCloseAction : "close"
+                                        onSelected: (val) => {
+                                            if (typeof ConfigBackend !== "undefined" && ConfigBackend.previewCloseAction !== val) {
+                                                ConfigBackend.previewCloseAction = val;
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }

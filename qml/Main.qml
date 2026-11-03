@@ -6,7 +6,7 @@ import Notas
 
 ApplicationWindow {
     id: root
-    visible: true
+    visible: content.isReadyToShow
     title: "Notas"
     width: 1080
     height: 760
@@ -17,6 +17,8 @@ ApplicationWindow {
     NotesContent {
         id: content
         anchors.fill: parent
+        initialAction: (typeof Sys !== "undefined") ? Sys.initialAction : ""
+        initialTarget: (typeof Sys !== "undefined") ? Sys.initialTarget : ""
         isSettingsOpen: settingsModal.isOpen || settingsModal.isClosing
         onCloseRequested: root.close()
         onOpenSettingsRequested: (originRect) => settingsModal.open(originRect)
@@ -86,7 +88,7 @@ ApplicationWindow {
     }
 
     Component.onCompleted: {
-        if (typeof Sys !== "undefined" && Sys.initialAction !== "") {
+        if (!content.initialAction && typeof Sys !== "undefined" && Sys.initialAction !== "") {
             Qt.callLater(() => {
                 content.handleIpcAction(Sys.initialAction, Sys.initialTarget);
             });

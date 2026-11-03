@@ -3747,6 +3747,54 @@ runTest('F75: Renderizado visual de teclas kbd y modo configurable para archivos
     assert.ok(settingsModalQml.indexOf('config.notes.external_open_mode') !== -1, "NotesSettingsModal debe tener etiqueta i18n para el modo de apertura de archivos externos");
 });
 
+runTest('F76: Espera de carga inicial en modo preview y acción configurable al cerrar con X', () => {
+    // 1. Contrato de visibilidad inicial diferida en NotesContent y Main.qml
+    function computeIsReadyToShow(initialAction, initialTarget) {
+        return (initialAction === "" || initialAction === "raise" || initialAction === "toggle" || (initialAction === "open" && initialTarget === ""));
+    }
+
+    assert.strictEqual(computeIsReadyToShow("", ""), true, "Lanzamiento normal sin parámetros debe estar listo de inmediato");
+    assert.strictEqual(computeIsReadyToShow("raise", ""), true, "Acción raise debe estar lista de inmediato");
+    assert.strictEqual(computeIsReadyToShow("toggle", ""), true, "Acción toggle debe estar lista de inmediato");
+    assert.strictEqual(computeIsReadyToShow("open", ""), true, "Acción open sin target debe estar lista de inmediato");
+    assert.strictEqual(computeIsReadyToShow("preview", "/tmp/doc.md"), false, "Lanzamiento en preview con target debe ocultar la ventana hasta cargar");
+    assert.strictEqual(computeIsReadyToShow("open", "/tmp/doc.md"), false, "Lanzamiento en open con target debe ocultar la ventana hasta cargar");
+    assert.strictEqual(computeIsReadyToShow("edit", "/tmp/doc.md"), false, "Lanzamiento en edit con target debe ocultar la ventana hasta cargar");
+
+    // 2. Main.qml vincula visible a content.isReadyToShow
+    const mainQml = fs.readFileSync(path.resolve(__dirname, '../qml/Main.qml'), 'utf8');
+    assert.ok(mainQml.indexOf('visible: content.isReadyToShow') !== -1, "ApplicationWindow debe vincular su propiedad visible a content.isReadyToShow");
+    assert.ok(mainQml.indexOf('initialAction: (typeof Sys !== "undefined") ? Sys.initialAction : ""') !== -1, "Main.qml debe propagar Sys.initialAction a content");
+    assert.ok(mainQml.indexOf('initialTarget: (typeof Sys !== "undefined") ? Sys.initialTarget : ""') !== -1, "Main.qml debe propagar Sys.initialTarget a content");
+
+    // 3. NotesConfig declara previewCloseAction con opciones 'close' y 'home'
+    const notesConfigQml = fs.readFileSync(path.resolve(__dirname, '../qml/NotesConfig.qml'), 'utf8');
+    assert.ok(notesConfigQml.indexOf('key: "previewCloseAction"') !== -1, "NotesConfig schema debe definir previewCloseAction");
+    assert.ok(notesConfigQml.indexOf('default: "close"') !== -1, "previewCloseAction debe tener default 'close'");
+    assert.ok(notesConfigQml.indexOf('values: ["close", "home"]') !== -1, "previewCloseAction debe admitir 'close' y 'home'");
+    assert.ok(notesConfigQml.indexOf('property string previewCloseAction') !== -1, "NotesConfig debe tener propiedad reactiva previewCloseAction");
+
+    // 4. NotesSettingsModal incluye selector para previewCloseAction
+    const settingsModalQml = fs.readFileSync(path.resolve(__dirname, '../qml/NotesSettingsModal.qml'), 'utf8');
+    assert.ok(settingsModalQml.indexOf('ConfigBackend.previewCloseAction') !== -1, "NotesSettingsModal debe conectar con ConfigBackend.previewCloseAction");
+    assert.ok(settingsModalQml.indexOf('config.notes.preview_close_action') !== -1, "NotesSettingsModal debe tener etiqueta i18n para la acción al cerrar preview");
+    assert.ok(settingsModalQml.indexOf('config.notes.preview_close_exit') !== -1, "NotesSettingsModal debe tener opción para cerrar app");
+    assert.ok(settingsModalQml.indexOf('config.notes.preview_close_home') !== -1, "NotesSettingsModal debe tener opción para volver al inicio");
+
+    // 5. Contrato de decisión al cerrar preview (cerrar app vs volver al inicio)
+    function shouldCloseAppOnPreviewClose(previewCloseAction, wasExternal) {
+        return (previewCloseAction !== "home") && Boolean(wasExternal);
+    }
+
+    assert.strictEqual(shouldCloseAppOnPreviewClose("close", true), true, "Con 'close' y nota externa, debe cerrar la aplicación");
+    assert.strictEqual(shouldCloseAppOnPreviewClose("home", true), false, "Con 'home' y nota externa, NO debe cerrar la app sino volver al inicio");
+    assert.strictEqual(shouldCloseAppOnPreviewClose("home", false), false, "Con nota interna y 'home', no cierra la app");
+
+    // 6. NotesContent respeta previewCloseAction al cerrar
+    const notesContentQml = fs.readFileSync(path.resolve(__dirname, '../qml/NotesContent.qml'), 'utf8');
+    assert.ok(notesContentQml.indexOf('NotesConfig.previewCloseAction !== "home"') !== -1, "NotesContent debe consultar NotesConfig.previewCloseAction antes de cerrar la ventana");
+});
+
 console.log(`\n========================================`);
 console.log(`Resultados: ${passed} OK, ${failed} FAIL`);
 console.log(`========================================`);
