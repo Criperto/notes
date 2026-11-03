@@ -463,10 +463,8 @@ Item {
 
     component BentoCard: Rectangle {
         Layout.fillWidth: true
-        radius: 12
-        color: root._hsva(Theme.surface, 0.03, 0.55)
-        border.color: root._hsva(Theme.text, 0, 0.08)
-        border.width: 1
+        color: "transparent"
+        border.width: 0
     }
 
     // ── SegmentedPicker (copiado de ThemeManager.qml / SchemaForm.qml) ────────
@@ -733,15 +731,15 @@ Item {
         }
 
         Layout.fillWidth: true
-        implicitHeight: 48
+        implicitHeight: 46
         radius: 8
-        color: "transparent"
-        border.color: root._hsva(Theme.text, 0, 0.06)
-        border.width: 1
+        color: rowMouse.containsMouse ? root._hsva(Theme.text, 0, 0.04) : "transparent"
+        border.width: 0
 
         MouseArea {
             id: rowMouse
             anchors.fill: parent
+            hoverEnabled: true
             cursorShape: bf.isDisabled ? Qt.ArrowCursor : Qt.PointingHandCursor
             onClicked: {
                 if (!bf.isDisabled) {
@@ -752,8 +750,8 @@ Item {
 
         RowLayout {
             anchors.fill: parent
-            anchors.leftMargin: 12
-            anchors.rightMargin: 12
+            anchors.leftMargin: 4
+            anchors.rightMargin: 4
             spacing: 10
 
             ColumnLayout {
@@ -1259,11 +1257,14 @@ Item {
                         }
 
                         BentoCard {
-                            implicitHeight: colDir.implicitHeight + 28
+                            implicitHeight: colDir.implicitHeight + 8
                             ColumnLayout {
                                 id: colDir
                                 anchors.fill: parent
-                                anchors.margins: 14
+                                anchors.leftMargin: 4
+                                anchors.rightMargin: 4
+                                anchors.topMargin: 2
+                                anchors.bottomMargin: 6
                                 spacing: 12
 
                                 ColumnLayout {
@@ -1445,11 +1446,14 @@ Item {
                         }
 
                         BentoCard {
-                            implicitHeight: colEditorOpts.implicitHeight + 28
+                            implicitHeight: colEditorOpts.implicitHeight + 8
                             ColumnLayout {
                                 id: colEditorOpts
                                 anchors.fill: parent
-                                anchors.margins: 14
+                                anchors.leftMargin: 4
+                                anchors.rightMargin: 4
+                                anchors.topMargin: 2
+                                anchors.bottomMargin: 6
                                 spacing: 12
 
                                 SchemaSwitchRow {
@@ -1511,11 +1515,14 @@ Item {
 
                         BentoCard {
                             visible: (typeof Sys !== "undefined" && Sys.hasQuickshellConfig)
-                            implicitHeight: syncRow.implicitHeight + 28
+                            implicitHeight: syncRow.implicitHeight + 8
                             RowLayout {
                                 id: syncRow
                                 anchors.fill: parent
-                                anchors.margins: 14
+                                anchors.leftMargin: 4
+                                anchors.rightMargin: 4
+                                anchors.topMargin: 2
+                                anchors.bottomMargin: 6
                                 spacing: 12
                                 Image {
                                     width: 22
@@ -1546,11 +1553,14 @@ Item {
 
                         BentoCard {
                             visible: (typeof Sys === "undefined" || !Sys.hasQuickshellConfig)
-                            implicitHeight: colThemeSource.implicitHeight + 28
+                            implicitHeight: colThemeSource.implicitHeight + 8
                             ColumnLayout {
                                 id: colThemeSource
                                 anchors.fill: parent
-                                anchors.margins: 14
+                                anchors.leftMargin: 4
+                                anchors.rightMargin: 4
+                                anchors.topMargin: 2
+                                anchors.bottomMargin: 6
                                 spacing: 14
 
                                 ColumnLayout {
@@ -1714,11 +1724,14 @@ Item {
                         }
 
                         BentoCard {
-                            implicitHeight: colAppearanceOpts.implicitHeight + 28
+                            implicitHeight: colAppearanceOpts.implicitHeight + 8
                             ColumnLayout {
                                 id: colAppearanceOpts
                                 anchors.fill: parent
-                                anchors.margins: 14
+                                anchors.leftMargin: 4
+                                anchors.rightMargin: 4
+                                anchors.topMargin: 2
+                                anchors.bottomMargin: 6
                                 spacing: 12
 
                                 SchemaSliderRow {
@@ -1785,11 +1798,14 @@ Item {
                         }
 
                         BentoCard {
-                            implicitHeight: colUiLang.implicitHeight + 28
+                            implicitHeight: colUiLang.implicitHeight + 8
                             ColumnLayout {
                                 id: colUiLang
                                 anchors.fill: parent
-                                anchors.margins: 14
+                                anchors.leftMargin: 4
+                                anchors.rightMargin: 4
+                                anchors.topMargin: 2
+                                anchors.bottomMargin: 6
                                 spacing: 10
 
                                 Text {
@@ -1889,11 +1905,14 @@ Item {
                         }
 
                         BentoCard {
-                            implicitHeight: colSpell.implicitHeight + 28
+                            implicitHeight: colSpell.implicitHeight + 8
                             ColumnLayout {
                                 id: colSpell
                                 anchors.fill: parent
-                                anchors.margins: 14
+                                anchors.leftMargin: 4
+                                anchors.rightMargin: 4
+                                anchors.topMargin: 2
+                                anchors.bottomMargin: 6
                                 spacing: 12
 
                                 SchemaSwitchRow {
@@ -2334,11 +2353,11 @@ Item {
                                             implicitHeight: 52
                                             radius: 10
                                             color: dictRowHov.hovered
-                                                ? root._hsva(Theme.text, 0, 0.06)
-                                                : root._hsva(Theme.text, 0, 0.03)
+                                                ? root._hsva(Theme.text, 0, 0.05)
+                                                : "transparent"
                                             border.color: dictRowHov.hovered
-                                                ? root._hsva(Theme.accent, 0, 0.30)
-                                                : root._hsva(Theme.text, 0, 0.08)
+                                                ? root._hsva(Theme.accent, 0, 0.25)
+                                                : "transparent"
                                             border.width: 1
 
                                             Behavior on color {
@@ -2621,11 +2640,14 @@ Item {
                         // Diccionario personal del usuario
                         BentoCard {
                             visible: SpellService.personalWords && SpellService.personalWords.length > 0
-                            implicitHeight: colPersonalWords.implicitHeight + 28
+                            implicitHeight: colPersonalWords.implicitHeight + 8
                             ColumnLayout {
                                 id: colPersonalWords
                                 anchors.fill: parent
-                                anchors.margins: 14
+                                anchors.leftMargin: 4
+                                anchors.rightMargin: 4
+                                anchors.topMargin: 2
+                                anchors.bottomMargin: 6
                                 spacing: 10
 
                                 RowLayout {
@@ -2730,11 +2752,14 @@ Item {
                         spacing: 14
 
                         BentoCard {
-                            implicitHeight: colAppInfo.implicitHeight + 36
+                            implicitHeight: colAppInfo.implicitHeight + 16
                             ColumnLayout {
                                 id: colAppInfo
                                 anchors.fill: parent
-                                anchors.margins: 18
+                                anchors.leftMargin: 4
+                                anchors.rightMargin: 4
+                                anchors.topMargin: 8
+                                anchors.bottomMargin: 8
                                 spacing: 12
 
                                 Image {
@@ -2764,39 +2789,112 @@ Item {
                                     color: Theme.muted
                                 }
 
-                                // Badge pill de Autor
-                                Rectangle {
+                                // Badge pills interactivos de Autor y Repositorio
+                                RowLayout {
                                     Layout.alignment: Qt.AlignHCenter
-                                    implicitWidth: authorRow.implicitWidth + 24
-                                    implicitHeight: 28
-                                    radius: 14
-                                    color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.12)
-                                    border.color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.3)
-                                    border.width: 1
+                                    spacing: 10
 
-                                    RowLayout {
-                                        id: authorRow
-                                        anchors.centerIn: parent
-                                        spacing: 6
+                                    Rectangle {
+                                        id: authorBadge
+                                        property bool hovered: authorMouse.containsMouse
+                                        implicitWidth: authorRow.implicitWidth + 24
+                                        implicitHeight: 28
+                                        radius: 14
+                                        color: hovered ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.22)
+                                                       : Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.12)
+                                        border.color: hovered ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.6)
+                                                              : Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.3)
+                                        border.width: 1
 
-                                        Image {
-                                            width: 13
-                                            height: 13
-                                            source: Theme.iconsPath + "edit.svg"
-                                            sourceSize: Qt.size(13, 13)
-                                            layer.enabled: !GamemodeService.gamemodeActive
-                                            layer.effect: MultiEffect {
-                                                colorization: 1.0
-                                                colorizationColor: Theme.accent
+                                        Behavior on color {
+                                            enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                                            ColorAnimation { duration: 150 }
+                                        }
+
+                                        RowLayout {
+                                            id: authorRow
+                                            anchors.centerIn: parent
+                                            spacing: 6
+
+                                            Image {
+                                                width: 13
+                                                height: 13
+                                                source: Theme.iconsPath + "link.svg"
+                                                sourceSize: Qt.size(13, 13)
+                                                layer.enabled: !GamemodeService.gamemodeActive
+                                                layer.effect: MultiEffect {
+                                                    colorization: 1.0
+                                                    colorizationColor: Theme.accent
+                                                }
+                                            }
+
+                                            Text {
+                                                text: "github.com/Criperto"
+                                                font.family: Theme.fontFamily
+                                                font.pixelSize: Theme.fontSizeSmall
+                                                font.bold: true
+                                                color: Theme.accent
                                             }
                                         }
 
-                                        Text {
-                                            text: "Creado por Criperto"
-                                            font.family: Theme.fontFamily
-                                            font.pixelSize: Theme.fontSizeSmall
-                                            font.bold: true
-                                            color: Theme.accent
+                                        MouseArea {
+                                            id: authorMouse
+                                            anchors.fill: parent
+                                            hoverEnabled: true
+                                            cursorShape: Qt.PointingHandCursor
+                                            onClicked: Qt.openUrlExternally("https://github.com/Criperto")
+                                        }
+                                    }
+
+                                    Rectangle {
+                                        id: repoBadge
+                                        property bool hovered: repoMouse.containsMouse
+                                        implicitWidth: repoRow.implicitWidth + 24
+                                        implicitHeight: 28
+                                        radius: 14
+                                        color: hovered ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.22)
+                                                       : Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.12)
+                                        border.color: hovered ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.6)
+                                                              : Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.3)
+                                        border.width: 1
+
+                                        Behavior on color {
+                                            enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                                            ColorAnimation { duration: 150 }
+                                        }
+
+                                        RowLayout {
+                                            id: repoRow
+                                            anchors.centerIn: parent
+                                            spacing: 6
+
+                                            Image {
+                                                width: 13
+                                                height: 13
+                                                source: Theme.iconsPath + "code.svg"
+                                                sourceSize: Qt.size(13, 13)
+                                                layer.enabled: !GamemodeService.gamemodeActive
+                                                layer.effect: MultiEffect {
+                                                    colorization: 1.0
+                                                    colorizationColor: Theme.accent
+                                                }
+                                            }
+
+                                            Text {
+                                                text: "Criperto/notes"
+                                                font.family: Theme.fontFamily
+                                                font.pixelSize: Theme.fontSizeSmall
+                                                font.bold: true
+                                                color: Theme.accent
+                                            }
+                                        }
+
+                                        MouseArea {
+                                            id: repoMouse
+                                            anchors.fill: parent
+                                            hoverEnabled: true
+                                            cursorShape: Qt.PointingHandCursor
+                                            onClicked: Qt.openUrlExternally("https://github.com/Criperto/notes")
                                         }
                                     }
                                 }
@@ -2825,11 +2923,14 @@ Item {
                         }
 
                         BentoCard {
-                            implicitHeight: colPaths.implicitHeight + 28
+                            implicitHeight: colPaths.implicitHeight + 8
                             ColumnLayout {
                                 id: colPaths
                                 anchors.fill: parent
-                                anchors.margins: 16
+                                anchors.leftMargin: 4
+                                anchors.rightMargin: 4
+                                anchors.topMargin: 2
+                                anchors.bottomMargin: 6
                                 spacing: 10
 
                                 RowLayout {
@@ -2871,16 +2972,51 @@ Item {
 
                                     Text { text: "Socket IPC:"; color: Theme.muted; font.family: Theme.fontFamily; font.pixelSize: Theme.fontSizeBodySecondary }
                                     Text { text: "$XDG_RUNTIME_DIR/notas.sock"; color: Theme.text; font.family: Theme.fontFamilyMonospace; font.pixelSize: Theme.fontSizeBodySecondary }
+
+                                    Text { text: "Perfil GitHub:"; color: Theme.muted; font.family: Theme.fontFamily; font.pixelSize: Theme.fontSizeBodySecondary }
+                                    Text {
+                                        text: "https://github.com/Criperto"
+                                        color: linkAuthorMouse.containsMouse ? Theme.accent : Theme.text
+                                        font.family: Theme.fontFamilyMonospace
+                                        font.pixelSize: Theme.fontSizeBodySecondary
+                                        font.underline: linkAuthorMouse.containsMouse
+                                        MouseArea {
+                                            id: linkAuthorMouse
+                                            anchors.fill: parent
+                                            hoverEnabled: true
+                                            cursorShape: Qt.PointingHandCursor
+                                            onClicked: Qt.openUrlExternally("https://github.com/Criperto")
+                                        }
+                                    }
+
+                                    Text { text: "Repositorio:"; color: Theme.muted; font.family: Theme.fontFamily; font.pixelSize: Theme.fontSizeBodySecondary }
+                                    Text {
+                                        text: "https://github.com/Criperto/notes"
+                                        color: linkRepoMouse.containsMouse ? Theme.accent : Theme.text
+                                        font.family: Theme.fontFamilyMonospace
+                                        font.pixelSize: Theme.fontSizeBodySecondary
+                                        font.underline: linkRepoMouse.containsMouse
+                                        MouseArea {
+                                            id: linkRepoMouse
+                                            anchors.fill: parent
+                                            hoverEnabled: true
+                                            cursorShape: Qt.PointingHandCursor
+                                            onClicked: Qt.openUrlExternally("https://github.com/Criperto/notes")
+                                        }
+                                    }
                                 }
                             }
                         }
 
                         BentoCard {
-                            implicitHeight: colShortcuts.implicitHeight + 28
+                            implicitHeight: colShortcuts.implicitHeight + 8
                             ColumnLayout {
                                 id: colShortcuts
                                 anchors.fill: parent
-                                anchors.margins: 16
+                                anchors.leftMargin: 4
+                                anchors.rightMargin: 4
+                                anchors.topMargin: 2
+                                anchors.bottomMargin: 6
                                 spacing: 10
 
                                 RowLayout {

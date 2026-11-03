@@ -3578,6 +3578,19 @@ runTest('F70: Opacidad configurable con límite mínimo 20% y persistencia perma
     assert.strictEqual(settingsModalQml.indexOf('noSync') === -1, true, "No debe existir toggle de noSync en el menú UI");
 });
 
+runTest('F71: Acerca de enlaces a GitHub / repositorio y eliminación de subfondos en menús de configuración', () => {
+    const settingsModalQml = fs.readFileSync(path.resolve(__dirname, '../qml/NotesSettingsModal.qml'), 'utf8');
+
+    // 1. Enlaces a GitHub personal y del proyecto
+    assert.ok(settingsModalQml.indexOf('https://github.com/Criperto') !== -1, "Debe incluir enlace al perfil de GitHub");
+    assert.ok(settingsModalQml.indexOf('https://github.com/Criperto/notes') !== -1, "Debe incluir enlace al repositorio de Notes");
+    assert.ok(settingsModalQml.indexOf('Qt.openUrlExternally("https://github.com/Criperto")') !== -1, "Debe abrir perfil externamente");
+    assert.ok(settingsModalQml.indexOf('Qt.openUrlExternally("https://github.com/Criperto/notes")') !== -1, "Debe abrir repositorio externamente");
+
+    // 2. Eliminación de subfondos y bordes de tarjetas intermedias en Settings
+    assert.ok(settingsModalQml.indexOf('component BentoCard: Rectangle {\n        Layout.fillWidth: true\n        color: "transparent"\n        border.width: 0') !== -1, "BentoCard debe ser transparente y sin borde");
+});
+
 console.log(`\n========================================`);
 console.log(`Resultados: ${passed} OK, ${failed} FAIL`);
 console.log(`========================================`);
