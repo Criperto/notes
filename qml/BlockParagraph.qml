@@ -3,6 +3,8 @@ import Notas
 import "."
 import "Inline.js" as Inline
 import "SpellLogic.js" as SpellLogic
+import "SlashLogic.js" as SlashLogic
+import "SlashCommands.js" as SlashCommands
 
 Item {
     id: root
@@ -289,6 +291,11 @@ Item {
     onIsEditingChanged: {
         if (root.isEditing) {
             _syncTextFromModel();
+        } else {
+            var cm = root.editor ? root.editor.contextMenu : null;
+            if (cm && cm.visible && cm.slashMode && cm.target === editInput) {
+                cm.close();
+            }
         }
     }
 
@@ -656,6 +663,19 @@ Item {
             if (root.isEditing && !root._syncingModel && root.liveFormattingEnabled) {
                 root._updateLiveFormatting();
             }
+            if (root.isEditing && root.editor && !root.editor.readOnly && !root._syncingModel) {
+                var cm = root.editor.contextMenu;
+                if (cm && cm.visible && cm.slashMode) {
+                    var rawClean = Inline.plainText(editInput);
+                    var trigger = SlashLogic.detectTrigger(rawClean, editInput.cursorPosition);
+                    if (trigger.triggered) {
+                        var cmds = SlashLogic.filterCommands(SlashCommands.getAllCommands(), trigger.query, I18n);
+                        cm.updateSlash(trigger, cmds);
+                    } else {
+                        cm.close();
+                    }
+                }
+            }
         }
 
         PointHandler {
@@ -704,13 +724,41 @@ Item {
                 if (root.spellActive) {
                     spellCheckTimer.restart();
                 }
+
+                // F78: Detección interactiva de slash commands estilo Notion
+                if (!editInput.inputMethodComposing) {
+                    var trigger = SlashLogic.detectTrigger(rawClean, editInput.cursorPosition);
+                    var cm = root.editor.contextMenu;
+                    if (trigger.triggered) {
+                        var cmds = SlashLogic.filterCommands(SlashCommands.getAllCommands(), trigger.query, I18n);
+                        if (cm) {
+                            if (cm.visible && cm.slashMode) {
+                                cm.updateSlash(trigger, cmds);
+                            } else {
+                                cm.openSlash(editInput, trigger, cmds);
+                            }
+                        }
+                    } else {
+                        if (cm && cm.visible && cm.slashMode) {
+                            cm.close();
+                        }
+                    }
+                }
             }
         }
+
 
         Keys.onTabPressed: (event) => {
             if (root.editor && root.editor.readOnly) {
                 event.accepted = true;
                 return;
+            }
+            var cm = root.editor ? root.editor.contextMenu : null;
+            if (cm && cm.visible && !cm.isClosing && cm.slashMode) {
+                if (cm.triggerSelectedItem()) {
+                    event.accepted = true;
+                    return;
+                }
             }
             var pos = editInput.cursorPosition;
             var isLineStart = (pos === 0 || editInput.text.charAt(pos - 1) === "\n");
@@ -773,7 +821,7 @@ Item {
                     event.accepted = true;
                     return;
                 }
-                if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+                if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || (event.key === Qt.Key_Tab && cm.slashMode)) {
                     if (cm.triggerSelectedItem()) {
                         event.accepted = true;
                         return;
@@ -783,6 +831,9 @@ Item {
                     return;
                 }
                 if (event.key === Qt.Key_Left || event.key === Qt.Key_Right) {
+                    if (cm.slashMode) {
+                        return;
+                    }
                     event.accepted = true;
                     return;
                 }

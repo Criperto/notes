@@ -224,6 +224,14 @@ Flickable {
 
 
     property var contextMenu: null
+
+    Connections {
+        target: root.contextMenu
+        ignoreUnknownSignals: true
+        function onSlashCommandSelected(cmd, triggerInfo) {
+            root.handleSlashCommandExecution(cmd, triggerInfo);
+        }
+    }
     property bool manualSpellActive: true
     readonly property bool spellActive: {
         if (root.readOnly) return false;
@@ -1916,6 +1924,198 @@ Flickable {
             root.activeBlockBid = next.bid;
             var pos = (targetPos !== undefined) ? targetPos : 0;
             root.safeFocusDelegate(next.bid, pos);
+        }
+    }
+
+    // ── F78: Ejecución e inserción de comandos '/' estilo Notion ─────────────────
+    function handleSlashCommandExecution(cmd, triggerInfo) {
+        if (!cmd || root.activeBlockBid === -1) return;
+        var textEdit = _getTextEditForBid(root.activeBlockBid);
+        var idx = _findBlockIndex(root.activeBlockBid);
+        if (idx === -1) return;
+
+        var curItem = blocksModel.get(idx);
+        var isBlockEmpty = true;
+        if (textEdit && triggerInfo && typeof triggerInfo.slashIndex === "number" && typeof triggerInfo.endIndex === "number") {
+            var s = Math.max(0, triggerInfo.slashIndex);
+            var e = Math.min(textEdit.length, triggerInfo.endIndex);
+            textEdit.remove(s, e);
+            var remaining = Inline.plainText(textEdit);
+            isBlockEmpty = (remaining.trim() === "");
+        } else if (curItem) {
+            isBlockEmpty = (!curItem.raw || curItem.raw.trim() === "" || curItem.raw.trim().startsWith("/"));
+        }
+
+        root.applySlashCommand(cmd.id, {
+            consumeEmptyBlock: isBlockEmpty,
+            calloutType: cmd.calloutType || "",
+            blockBid: root.activeBlockBid
+        });
+    }
+
+    function applySlashCommand(cmdId, opts) {
+        if (!cmdId || root.activeBlockBid === -1) return;
+        var idx = _findBlockIndex(root.activeBlockBid);
+        if (idx === -1) return;
+
+        var curItem = blocksModel.get(idx);
+        var consume = opts ? Boolean(opts.consumeEmptyBlock) : false;
+
+        // 1. Encabezados (h1, h2, h3)
+        if (cmdId === "h1" || cmdId === "h2" || cmdId === "h3") {
+            var lvl = parseInt(cmdId.charAt(1), 10);
+            var prefix = "#".repeat(lvl) + " ";
+            if (consume && curItem) {
+                blocksModel.setProperty(idx, "type", "heading");
+                blocksModel.setProperty(idx, "raw", prefix);
+                root.onBlockRawChanged(curItem.bid, prefix);
+                root.safeFocusDelegate(curItem.bid, prefix.length);
+            } else {
+                root.applyAction(cmdId);
+            }
+            _saveSnapshot();
+            root.updateFormatState();
+            return;
+        }
+
+        // 2. Listas (bullet, numbered, task)
+        if (cmdId === "bullet_list" || cmdId === "numbered_list" || cmdId === "task_list") {
+            if (consume && curItem) {
+                var listPfx = "- ";
+                if (cmdId === "numbered_list") listPfx = "1. ";
+                else if (cmdId === "task_list") listPfx = "- [ ] ";
+
+                blocksModel.setProperty(idx, "type", "list");
+                blocksModel.setProperty(idx, "raw", listPfx);
+                root.onBlockRawChanged(curItem.bid, listPfx);
+                var ldr = _getDelegateItemForBid(curItem.bid);
+                if (ldr && ldr.item && typeof ldr.item._reloadFromRaw === "function") {
+                    ldr.item._reloadFromRaw();
+                }
+                root.safeFocusDelegate(curItem.bid, listPfx.length);
+            } else {
+                root.applyAction(cmdId);
+            }
+            _saveSnapshot();
+            root.updateFormatState();
+            return;
+        }
+
+        // 3. Bloque de código
+        if (cmdId === "code_block") {
+            if (consume && curItem) {
+                var codeRaw = "```\n\n```";
+                blocksModel.setProperty(idx, "type", "code");
+                blocksModel.setProperty(idx, "raw", codeRaw);
+                root.onBlockRawChanged(curItem.bid, codeRaw);
+                _saveSnapshot();
+                root.safeFocusDelegate(curItem.bid, 4);
+            } else {
+                root.applyAction("code_block");
+            }
+            root.updateFormatState();
+            return;
+        }
+
+        // 4. Cita estándar
+        if (cmdId === "quote") {
+            if (consume && curItem) {
+                var qRaw = "> ";
+                blocksModel.setProperty(idx, "type", "quote");
+                blocksModel.setProperty(idx, "raw", qRaw);
+                root.onBlockRawChanged(curItem.bid, qRaw);
+                root.safeFocusDelegate(curItem.bid, 2);
+            } else {
+                root.applyAction("quote");
+            }
+            _saveSnapshot();
+            root.updateFormatState();
+            return;
+        }
+
+        // 5. Callouts estilo GitHub
+        if (cmdId.startsWith("callout_")) {
+            var cType = (opts && opts.calloutType) ? opts.calloutType : cmdId.substring(8).toUpperCase();
+            var cRaw = "> [!" + cType + "]\n> ";
+            if (consume && curItem) {
+                blocksModel.setProperty(idx, "type", "quote");
+                blocksModel.setProperty(idx, "raw", cRaw);
+                root.onBlockRawChanged(curItem.bid, cRaw);
+                root.safeFocusDelegate(curItem.bid, cRaw.length);
+            } else {
+                var qBid = BlockModel.getNextBid();
+                var insertPos = (idx !== -1) ? idx + 1 : blocksModel.count;
+                blocksModel.insert(insertPos, { bid: qBid, type: "quote", raw: cRaw, sep: "\n\n" });
+                root.activeBlockBid = qBid;
+                root.safeFocusDelegate(qBid, cRaw.length);
+            }
+            _saveSnapshot();
+            root.updateFormatState();
+            return;
+        }
+
+        // 6. Tabla
+        if (cmdId === "table") {
+            root.confirmActiveBlock();
+            var col1 = (typeof I18n !== "undefined" && typeof I18n.t === "function") ? I18n.t("notes.table_col1", "Columna 1") : "Columna 1";
+            var col2 = (typeof I18n !== "undefined" && typeof I18n.t === "function") ? I18n.t("notes.table_col2", "Columna 2") : "Columna 2";
+            var tblTpl = "| " + col1 + " | " + col2 + " |\n| :--- | :--- |\n|  |  |\n|  |  |";
+
+            if (consume && curItem) {
+                blocksModel.setProperty(idx, "type", "table");
+                blocksModel.setProperty(idx, "raw", tblTpl);
+                root.onBlockRawChanged(curItem.bid, tblTpl);
+                root.safeFocusDelegate(curItem.bid, 0);
+            } else {
+                var tblBid = BlockModel.getNextBid();
+                var insertPos = (idx !== -1) ? idx + 1 : blocksModel.count;
+                blocksModel.insert(insertPos, { bid: tblBid, type: "table", raw: tblTpl, sep: "\n\n" });
+                root.activeBlockBid = tblBid;
+                root.safeFocusDelegate(tblBid, 0);
+            }
+            _saveSnapshot();
+            root.updateFormatState();
+            return;
+        }
+
+        // 7. Diagrama Mermaid
+        if (cmdId === "mermaid") {
+            root.confirmActiveBlock();
+            var mermaidTpl = "```mermaid\nflowchart TD\n    A[Inicio] --> B[Fin]\n```";
+            if (consume && curItem) {
+                blocksModel.setProperty(idx, "type", "mermaid");
+                blocksModel.setProperty(idx, "raw", mermaidTpl);
+                root.onBlockRawChanged(curItem.bid, mermaidTpl);
+                root.safeFocusDelegate(curItem.bid, 0);
+            } else {
+                var mBid = BlockModel.getNextBid();
+                var insertPos = (idx !== -1) ? idx + 1 : blocksModel.count;
+                blocksModel.insert(insertPos, { bid: mBid, type: "mermaid", raw: mermaidTpl, sep: "\n\n" });
+                root.activeBlockBid = mBid;
+                root.safeFocusDelegate(mBid, 0);
+            }
+            _saveSnapshot();
+            root.updateFormatState();
+            return;
+        }
+
+        // 8. Línea divisoria (hr)
+        if (cmdId === "hr") {
+            root.confirmActiveBlock();
+            if (consume && curItem) {
+                blocksModel.setProperty(idx, "type", "hr");
+                blocksModel.setProperty(idx, "raw", "---");
+                root.onBlockRawChanged(curItem.bid, "---");
+                var nextP = { bid: BlockModel.getNextBid(), type: "paragraph", raw: "", sep: "\n\n" };
+                blocksModel.insert(idx + 1, nextP);
+                root.activeBlockBid = nextP.bid;
+                root.safeFocusDelegate(nextP.bid, 0);
+            } else {
+                root.applyAction("hr");
+            }
+            _saveSnapshot();
+            root.updateFormatState();
+            return;
         }
     }
 

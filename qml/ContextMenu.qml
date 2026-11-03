@@ -15,10 +15,18 @@ Window {
     property var extraItems: []
     signal extraItemTriggered(var item)
 
+    // F78: Modo paleta de comandos '/' estilo Notion
+    property bool slashMode: false
+    property string slashQuery: ""
+    property var slashTriggerInfo: null
+    signal slashCommandSelected(var cmd, var triggerInfo)
+
     readonly property real shadowPadding: 14
     readonly property real maxMenuHeight: Math.min(520, (Screen.desktopAvailableHeight > 0) ? (Screen.desktopAvailableHeight - 80) : 520)
-    readonly property real targetMenuWidth: 272
-    readonly property real targetMenuHeight: Math.min(maxMenuHeight, menuLayout.implicitHeight + 16)
+    readonly property real targetMenuWidth: slashMode ? 340 : 272
+    readonly property real targetMenuHeight: slashMode
+        ? Math.min(380, Math.max(64, (extraItems.length * 48) + (extraItems.length === 0 ? 56 : 12)))
+        : Math.min(maxMenuHeight, menuLayout.implicitHeight + 16)
 
     width: targetMenuWidth + shadowPadding * 2
     height: targetMenuHeight + shadowPadding * 2
@@ -29,10 +37,24 @@ Window {
 
     property int highlightedNavIndex: -1
 
+    onHighlightedNavIndexChanged: {
+        if (slashMode && highlightedNavIndex >= 0 && menuLayout) {
+            var itemY = highlightedNavIndex * 48;
+            if (itemY < menuFlickable.contentY) {
+                menuFlickable.contentY = itemY;
+            } else if (itemY + 48 > menuFlickable.contentY + menuFlickable.height) {
+                menuFlickable.contentY = (itemY + 48) - menuFlickable.height;
+            }
+        }
+    }
+
     function open(targetInput, customItems) {
         if (!targetInput) return;
         closeTimer.stop();
         isClosing = false;
+        slashMode = false;
+        slashQuery = "";
+        slashTriggerInfo = null;
         highlightedNavIndex = -1;
         target = targetInput;
         extraItems = (customItems && Array.isArray(customItems)) ? customItems : [];
@@ -49,6 +71,9 @@ Window {
         if (!targetInput) return;
         closeTimer.stop();
         isClosing = false;
+        slashMode = false;
+        slashQuery = "";
+        slashTriggerInfo = null;
         highlightedNavIndex = -1;
         target = targetInput;
         extraItems = (customItems && Array.isArray(customItems)) ? customItems : [];
@@ -64,6 +89,38 @@ Window {
             cy = pt.y;
         }
         _applyCoordinates(targetInput, cx, cy);
+    }
+
+    function openSlash(targetInput, triggerInfo, commands) {
+        if (!targetInput) return;
+        closeTimer.stop();
+        isClosing = false;
+        slashMode = true;
+        slashTriggerInfo = triggerInfo;
+        slashQuery = (triggerInfo && triggerInfo.query) ? triggerInfo.query : "";
+        extraItems = commands || [];
+        highlightedNavIndex = extraItems.length > 0 ? 0 : -1;
+        target = targetInput;
+        if (targetInput.Window && targetInput.Window.window) {
+            transientParent = targetInput.Window.window;
+        }
+
+        var curPos = (triggerInfo && typeof triggerInfo.slashIndex === "number") ? triggerInfo.slashIndex : (targetInput.cursorPosition || 0);
+        var rect = (typeof targetInput.positionToRectangle === "function") ? targetInput.positionToRectangle(curPos) : Qt.rect(0, 0, 0, 20);
+        var pt = targetInput.mapToItem(null, rect.x, rect.y + rect.height + 4);
+        _applyCoordinates(targetInput, pt.x, pt.y);
+    }
+
+    function updateSlash(triggerInfo, commands) {
+        if (!visible || !slashMode) return;
+        slashTriggerInfo = triggerInfo;
+        slashQuery = (triggerInfo && triggerInfo.query) ? triggerInfo.query : "";
+        extraItems = commands || [];
+        if (highlightedNavIndex >= extraItems.length) {
+            highlightedNavIndex = Math.max(0, extraItems.length - 1);
+        } else if (highlightedNavIndex < 0 && extraItems.length > 0) {
+            highlightedNavIndex = 0;
+        }
     }
 
     function getActionableItems() {
@@ -84,11 +141,17 @@ Window {
                                 itemObj.triggered();
                             }
                             menuWindow.extraItemTriggered(itemObj);
+                            if (menuWindow.slashMode) {
+                                menuWindow.slashCommandSelected(itemObj, menuWindow.slashTriggerInfo);
+                            }
                             menuWindow.close();
                         }
                     });
                 })(it, i);
             }
+        }
+        if (slashMode) {
+            return list;
         }
         if (target && !target.readOnly && target.canUndo) {
             list.push({ type: "standard", id: "undo", trigger: function() { if (target) target.undo(); menuWindow.close(); } });
@@ -212,6 +275,9 @@ Window {
         target = null;
         extraItems = [];
         highlightedNavIndex = -1;
+        slashMode = false;
+        slashQuery = "";
+        slashTriggerInfo = null;
     }
 
     Timer {
@@ -224,6 +290,9 @@ Window {
             menuWindow.isClosing = false;
             menuWindow.extraItems = [];
             menuWindow.highlightedNavIndex = -1;
+            menuWindow.slashMode = false;
+            menuWindow.slashQuery = "";
+            menuWindow.slashTriggerInfo = null;
         }
     }
 
@@ -349,7 +418,7 @@ Window {
                 id: menuLayout
                 width: parent.width
                 spacing: 0
-// Elementos adicionales dinámicos (sin iconos, sugerencias, etc.)
+// Elementos adicionales dinámicos (sin iconos, sugerencias o comandos slash)
                     Repeater {
                         model: menuWindow.extraItems
                         delegate: Item {
@@ -357,14 +426,14 @@ Window {
                             required property var modelData
                             required property int index
                             readonly property var itemData: modelData
-                            readonly property bool isSeparator: !!(itemData && itemData.kind === "separator")
-                            readonly property bool isHeader: !!(itemData && itemData.kind === "header")
+                            readonly property bool isSeparator: !menuWindow.slashMode && !!(itemData && itemData.kind === "separator")
+                            readonly property bool isHeader: !menuWindow.slashMode && !!(itemData && itemData.kind === "header")
                             readonly property bool isAction: !isSeparator && !isHeader
                             readonly property bool isEnabled: !!(itemData && itemData.enabled !== false)
                             readonly property bool isItemActive: (extraMA.containsMouse || menuWindow.isItemHighlighted("extra", index)) && isEnabled
 
                             Layout.fillWidth: true
-                            Layout.preferredHeight: isSeparator ? 9 : (isHeader ? 26 : 34)
+                            Layout.preferredHeight: isSeparator ? 9 : (isHeader ? 26 : (menuWindow.slashMode ? 48 : 34))
                             visible: true
 
                             // Separador
@@ -393,9 +462,9 @@ Window {
                                 visible: extraDelegate.isHeader
                             }
 
-                            // Ítem de acción
+                            // Ítem de acción fondo y borde
                             Rectangle {
-                                radius: 6
+                                radius: menuWindow.slashMode ? 8 : 6
                                 color: extraDelegate.isItemActive ? Qt.hsva(Theme.accent.hsvHue < 0 ? 0 : Theme.accent.hsvHue, Theme.accent.hsvSaturation, Theme.accent.hsvValue, 0.12) : "transparent"
                                 border.color: extraDelegate.isItemActive ? Qt.hsva(Theme.accent.hsvHue < 0 ? 0 : Theme.accent.hsvHue, Theme.accent.hsvSaturation, Theme.accent.hsvValue, 0.4) : "transparent"
                                 border.width: 1
@@ -419,12 +488,13 @@ Window {
                                 }
                             }
 
+                            // Contenido en modo estándar
                             RowLayout {
                                 anchors.fill: parent
                                 anchors.leftMargin: 16
                                 anchors.rightMargin: 16
                                 spacing: 8
-                                visible: extraDelegate.isAction
+                                visible: extraDelegate.isAction && !menuWindow.slashMode
 
                                 Text {
                                     Layout.fillWidth: true
@@ -446,6 +516,84 @@ Window {
                                 }
                             }
 
+                            // Contenido en slashMode (ícono + título/descripción + badge)
+                            RowLayout {
+                                anchors.fill: parent
+                                anchors.leftMargin: 12
+                                anchors.rightMargin: 12
+                                spacing: 10
+                                visible: extraDelegate.isAction && menuWindow.slashMode
+
+                                Item {
+                                    Layout.preferredWidth: 22
+                                    Layout.preferredHeight: 22
+                                    Layout.alignment: Qt.AlignVCenter
+
+                                    Image {
+                                        id: slashIconImg
+                                        anchors.fill: parent
+                                        source: (itemData && itemData.icon) ? (Theme.iconsPath + itemData.icon) : ""
+                                        sourceSize: Qt.size(22, 22)
+                                        visible: false
+                                    }
+
+                                    MultiEffect {
+                                        anchors.fill: slashIconImg
+                                        source: slashIconImg
+                                        colorization: 1.0
+                                        colorizationColor: extraDelegate.isItemActive ? Theme.accent : Theme.text
+                                        visible: slashIconImg.status === Image.Ready
+                                    }
+                                }
+
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    Layout.alignment: Qt.AlignVCenter
+                                    spacing: 1
+
+                                    Text {
+                                        Layout.fillWidth: true
+                                        text: (itemData && (itemData.title || itemData.text || itemData.label)) ? (itemData.title || itemData.text || itemData.label) : ""
+                                        font.family: Theme.fontFamily
+                                        font.pixelSize: 13
+                                        font.bold: true
+                                        color: extraDelegate.isItemActive ? Theme.accent : Theme.text
+                                        elide: Text.ElideRight
+                                        opacity: extraDelegate.isEnabled ? 1.0 : 0.4
+                                    }
+
+                                    Text {
+                                        Layout.fillWidth: true
+                                        visible: !!(itemData && itemData.description)
+                                        text: (itemData && itemData.description) ? itemData.description : ""
+                                        font.family: Theme.fontFamily
+                                        font.pixelSize: 11
+                                        color: extraDelegate.isItemActive ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.85) : Theme.muted
+                                        elide: Text.ElideRight
+                                        opacity: extraDelegate.isEnabled ? 1.0 : 0.4
+                                    }
+                                }
+
+                                Rectangle {
+                                    visible: !!(itemData && (itemData.badge || itemData.shortcut))
+                                    Layout.alignment: Qt.AlignVCenter
+                                    implicitWidth: slashBadgeTxt.implicitWidth + 8
+                                    implicitHeight: 18
+                                    radius: 4
+                                    color: extraDelegate.isItemActive ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.16) : (Theme.isDark ? "#22ffffff" : "#14000000")
+
+                                    Text {
+                                        id: slashBadgeTxt
+                                        anchors.centerIn: parent
+                                        text: (itemData && (itemData.badge || itemData.shortcut)) ? (itemData.badge || itemData.shortcut) : ""
+                                        color: extraDelegate.isItemActive ? Theme.accent : Theme.muted
+                                        font.family: Theme.fontFamilyMonospace || "Google Sans Code"
+                                        font.pixelSize: 10
+                                        font.bold: true
+                                    }
+                                }
+                            }
+
                             MouseArea {
                                 id: extraMA
                                 anchors.fill: parent
@@ -459,8 +607,40 @@ Window {
                                         itemData.triggered();
                                     }
                                     menuWindow.extraItemTriggered(itemData);
+                                    if (menuWindow.slashMode) {
+                                        menuWindow.slashCommandSelected(itemData, menuWindow.slashTriggerInfo);
+                                    }
                                     menuWindow.close();
                                 }
+                            }
+                        }
+                    }
+
+                    // Placeholder cuando no hay comandos que coincidan con la búsqueda
+                    Item {
+                        id: slashEmptyPlaceholder
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 52
+                        visible: menuWindow.slashMode && (!menuWindow.extraItems || menuWindow.extraItems.length === 0)
+
+                        ColumnLayout {
+                            anchors.centerIn: parent
+                            spacing: 2
+                            Text {
+                                Layout.alignment: Qt.AlignHCenter
+                                text: (typeof I18n !== "undefined" && typeof I18n.t === "function") ? I18n.t("notes.slash.no_results", "No se encontraron comandos") : "No se encontraron comandos"
+                                font.family: Theme.fontFamily
+                                font.pixelSize: 12
+                                font.bold: true
+                                color: Theme.muted
+                            }
+                            Text {
+                                Layout.alignment: Qt.AlignHCenter
+                                text: menuWindow.slashQuery ? ("'/" + menuWindow.slashQuery + "'") : ""
+                                font.family: Theme.fontFamilyMonospace || "Google Sans Code"
+                                font.pixelSize: 11
+                                color: Qt.rgba(Theme.muted.r, Theme.muted.g, Theme.muted.b, 0.7)
+                                visible: menuWindow.slashQuery !== ""
                             }
                         }
                     }
@@ -470,12 +650,18 @@ Window {
                         Layout.fillWidth: true
                         height: 1
                         color: Qt.hsva(Theme.text.hsvHue < 0 ? 0 : Theme.text.hsvHue, Theme.text.hsvSaturation, Theme.text.hsvValue, 0.08)
-                        visible: menuWindow.extraItems && menuWindow.extraItems.length > 0
+                        visible: !menuWindow.slashMode && menuWindow.extraItems && menuWindow.extraItems.length > 0
                         Layout.topMargin: 4
                         Layout.bottomMargin: 4
                         Layout.leftMargin: 12
                         Layout.rightMargin: 12
                     }
+
+                    ColumnLayout {
+                        id: standardOptionsCol
+                        visible: !menuWindow.slashMode
+                        Layout.fillWidth: true
+                        spacing: 0
 
                     // Deshacer
                     Item {
@@ -1268,7 +1454,8 @@ Window {
                             }
                         }
                     }
-                }
+                } // Cierre de standardOptionsCol
             }
         }
     }
+}

@@ -48,6 +48,8 @@ const MermaidShapes = loadModule('MermaidShapes.js');
 const MermaidLayout = loadModule('MermaidLayout.js');
 const MermaidTemplates = loadModule('MermaidTemplates.js');
 const Anchors = loadModule('Anchors.js');
+const SlashLogic = loadModule('SlashLogic.js');
+const SlashCommands = loadModule('SlashCommands.js');
 
 let passed = 0;
 let failed = 0;
@@ -3902,6 +3904,99 @@ runTest('F77: Callouts GitHub parseCallout, searchUnits, colores y altura', () =
     assert.ok(fs.existsSync(path.join(iconsDir, 'info.svg')), 'info.svg debe existir para NOTE');
     assert.ok(fs.existsSync(path.join(iconsDir, 'lightbulb.svg')), 'lightbulb.svg debe existir para TIP');
     assert.ok(fs.existsSync(path.join(iconsDir, 'error.svg')), 'error.svg debe existir para CAUTION');
+});
+
+runTest('F78: Slash Commands estilo Notion (detección de trigger, filtrado y catálogo)', () => {
+    // 1. Detección de trigger
+    // a. Barra al inicio del bloque o texto
+    const t1 = SlashLogic.detectTrigger('/', 1);
+    assert.strictEqual(t1.triggered, true);
+    assert.strictEqual(t1.slashIndex, 0);
+    assert.strictEqual(t1.query, '');
+
+    // b. Barra con query
+    const t2 = SlashLogic.detectTrigger('/tab', 4);
+    assert.strictEqual(t2.triggered, true);
+    assert.strictEqual(t2.slashIndex, 0);
+    assert.strictEqual(t2.query, 'tab');
+
+    // c. Barra precedida de espacio
+    const t3 = SlashLogic.detectTrigger('Hola /mer', 9);
+    assert.strictEqual(t3.triggered, true);
+    assert.strictEqual(t3.slashIndex, 5);
+    assert.strictEqual(t3.query, 'mer');
+
+    // d. URLs no disparan trigger
+    const tUrl = SlashLogic.detectTrigger('https://google.com', 8);
+    assert.strictEqual(tUrl.triggered, false);
+
+    // e. Paths Linux no disparan trigger
+    const tPath = SlashLogic.detectTrigger('/usr/bin/notas', 9);
+    assert.strictEqual(tPath.triggered, false);
+
+    // f. Fracciones o fechas no disparan trigger
+    const tFrac = SlashLogic.detectTrigger('1/2', 3);
+    assert.strictEqual(tFrac.triggered, false);
+
+    // g. Query con espacios o saltos de línea se descarta
+    const tSpace = SlashLogic.detectTrigger('/tabla con espacio', 18);
+    assert.strictEqual(tSpace.triggered, false);
+
+    // 2. Catálogo de comandos
+    const allCmds = SlashCommands.getAllCommands();
+    assert.ok(allCmds.length >= 16, `Debe haber al menos 16 comandos estándar (hay ${allCmds.length})`);
+    const ids = allCmds.map(c => c.id);
+    assert.ok(ids.includes('h1'));
+    assert.ok(ids.includes('h2'));
+    assert.ok(ids.includes('h3'));
+    assert.ok(ids.includes('table'));
+    assert.ok(ids.includes('mermaid'));
+    assert.ok(ids.includes('callout_note'));
+    assert.ok(ids.includes('callout_tip'));
+    assert.ok(ids.includes('callout_important'));
+    assert.ok(ids.includes('callout_warning'));
+    assert.ok(ids.includes('callout_caution'));
+    assert.ok(ids.includes('bullet_list'));
+    assert.ok(ids.includes('numbered_list'));
+    assert.ok(ids.includes('task_list'));
+    assert.ok(ids.includes('code_block'));
+    assert.ok(ids.includes('quote'));
+    assert.ok(ids.includes('hr'));
+
+    // 3. Filtrado inteligente
+    const mockI18n = {
+        t: (k, fb) => fb
+    };
+
+    // a. Query vacía devuelve todos
+    const fEmpty = SlashLogic.filterCommands(allCmds, '', mockI18n);
+    assert.strictEqual(fEmpty.length, allCmds.length);
+
+    // b. Búsqueda exacta de tabla
+    const fTab = SlashLogic.filterCommands(allCmds, 'tab', mockI18n);
+    assert.strictEqual(fTab[0].id, 'table');
+
+    // c. Búsqueda de callouts
+    const fCall = SlashLogic.filterCommands(allCmds, 'call', mockI18n);
+    assert.ok(fCall.some(c => c.id === 'callout_note'));
+    assert.ok(fCall.some(c => c.id === 'callout_tip'));
+
+    // d. Búsqueda de tareas
+    const fTask = SlashLogic.filterCommands(allCmds, 'tarea', mockI18n);
+    assert.strictEqual(fTask[0].id, 'task_list');
+
+    // e. Búsqueda insensible a mayúsculas y acentos
+    const fAcc = SlashLogic.filterCommands(allCmds, 'TÍTULO', mockI18n);
+    assert.ok(fAcc.some(c => c.id === 'h1'));
+
+    // f. Íconos requeridos en disco
+    const iconsDir = path.resolve(__dirname, '../assets/icons');
+    assert.ok(fs.existsSync(path.join(iconsDir, 'format-h1.svg')));
+    assert.ok(fs.existsSync(path.join(iconsDir, 'format-h2.svg')));
+    assert.ok(fs.existsSync(path.join(iconsDir, 'format-h3.svg')));
+    assert.ok(fs.existsSync(path.join(iconsDir, 'format-quote.svg')));
+    assert.ok(fs.existsSync(path.join(iconsDir, 'format-list-bulleted.svg')));
+    assert.ok(fs.existsSync(path.join(iconsDir, 'format-list-numbered.svg')));
 });
 
 console.log(`\n========================================`);
