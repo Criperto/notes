@@ -169,7 +169,7 @@ fn main() {
         return;
     }
 
-    if cli.no_sync {
+    if cli.no_sync || sync_cli::is_forced_no_sync() {
         std::env::set_var("NOTAS_NO_SYNC", "1");
     }
 

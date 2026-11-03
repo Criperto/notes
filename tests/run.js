@@ -3526,6 +3526,58 @@ runTest('F69: Sincronización automática de scrollbars, blur y animaciones con 
     assert.strictEqual(filteredWhenSynced.find(t => t.value === "appearance"), undefined, "No debe incluir 'appearance'");
 });
 
+runTest('F70: Opacidad configurable con límite mínimo 20% y persistencia permanente de no-sync por variable de configuración', () => {
+    const settingsModalQml = fs.readFileSync(path.resolve(__dirname, '../qml/NotesSettingsModal.qml'), 'utf8');
+    const themeQml = fs.readFileSync(path.resolve(__dirname, '../qml/Theme.qml'), 'utf8');
+    const nativeBridgeCpp = fs.readFileSync(path.resolve(__dirname, '../src/native/native_bridge.cpp'), 'utf8');
+    const syncCliRs = fs.readFileSync(path.resolve(__dirname, '../src/sync_cli.rs'), 'utf8');
+    const mainRs = fs.readFileSync(path.resolve(__dirname, '../src/main.rs'), 'utf8');
+
+    // 1. Verificación de límite de opacidad mínima al 20%
+    assert.ok(settingsModalQml.indexOf('minV: 20') !== -1, "Slider de opacidad en NotesSettingsModal debe permitir mínimo 20%");
+    assert.ok(themeQml.indexOf('Math.max(0.2,') !== -1, "Theme.panelOpacity debe tener clamp inferior en 0.2");
+    assert.ok(nativeBridgeCpp.indexOf('qBound(20, val, 100)') !== -1, "ConfigBackend::setPanelOpacity debe limitar con qBound(20, val, 100)");
+    assert.ok(nativeBridgeCpp.indexOf('qBound(20, v.toInt(), 100)') !== -1, "loadQuickshellConfig debe acotar opacidad en 20%");
+    assert.ok(nativeBridgeCpp.indexOf('qBound(20, obj["panelOpacity"].toInt(94), 100)') !== -1, "ConfigBackend::load debe acotar opacidad en 20%");
+
+    // 2. Verificación de forzado permanente de no-sync por variables en config (.json / .conf / .toml)
+    assert.ok(nativeBridgeCpp.indexOf('isForcedNoSyncConfigured()') !== -1, "native_bridge.cpp debe definir isForcedNoSyncConfigured()");
+    assert.ok(nativeBridgeCpp.indexOf('noSync') !== -1, "isForcedNoSyncConfigured debe verificar 'noSync'");
+    assert.ok(nativeBridgeCpp.indexOf('no_sync') !== -1, "isForcedNoSyncConfigured debe verificar 'no_sync'");
+    assert.ok(nativeBridgeCpp.indexOf('config.conf') !== -1, "isForcedNoSyncConfigured debe verificar archivos .conf");
+    assert.ok(nativeBridgeCpp.indexOf('config.toml') !== -1, "isForcedNoSyncConfigured debe verificar archivos .toml");
+
+    // 3. Verificación en sync_cli.rs y main.rs
+    assert.ok(syncCliRs.indexOf('pub fn is_forced_no_sync() -> bool') !== -1, "sync_cli.rs debe exportar is_forced_no_sync()");
+    assert.ok(mainRs.indexOf('sync_cli::is_forced_no_sync()') !== -1, "main.rs debe activar NOTAS_NO_SYNC si is_forced_no_sync() es true");
+
+    // 4. Test unitario de parseo de variables de no-sync en formato conf/toml/json
+    function checkConfNoSync(content) {
+        const lines = content.split('\n');
+        for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed || trimmed.startsWith('#') || trimmed.startsWith(';')) continue;
+            const eq = trimmed.indexOf('=');
+            if (eq !== -1) {
+                const k = trimmed.slice(0, eq).trim().toLowerCase();
+                const v = trimmed.slice(eq + 1).trim().toLowerCase();
+                if ((k === 'nosync' || k === 'no_sync') && (v === 'true' || v === '1')) return true;
+                if ((k === 'sync' || k === 'syncwithquickshell') && (v === 'false' || v === '0')) return true;
+            }
+        }
+        return false;
+    }
+
+    assert.strictEqual(checkConfNoSync("noSync = true"), true, "noSync = true debe detectar no-sync");
+    assert.strictEqual(checkConfNoSync("no_sync = 1"), true, "no_sync = 1 debe detectar no-sync");
+    assert.strictEqual(checkConfNoSync("sync = false"), true, "sync = false debe detectar no-sync");
+    assert.strictEqual(checkConfNoSync("syncWithQuickshell = false"), true, "syncWithQuickshell = false debe detectar no-sync");
+    assert.strictEqual(checkConfNoSync("noSync = false\nsync = true"), false, "noSync = false no debe activar forzado");
+
+    // 5. Garantía de que no hay toggle de noSync en el menú UI
+    assert.strictEqual(settingsModalQml.indexOf('noSync') === -1, true, "No debe existir toggle de noSync en el menú UI");
+});
+
 console.log(`\n========================================`);
 console.log(`Resultados: ${passed} OK, ${failed} FAIL`);
 console.log(`========================================`);

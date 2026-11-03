@@ -1726,7 +1726,7 @@ Item {
                                     label: I18n.t("config.general.panel_opacity", "Opacidad del fondo")
                                     comment: I18n.t("config.general.panel_opacity_comment", "Nivel de opacidad de la ventana principal de Notas.")
                                     val: ConfigBackend.panelOpacity
-                                    minV: 50
+                                    minV: 20
                                     maxV: 100
                                     stepSize: 1
                                     isInt: true

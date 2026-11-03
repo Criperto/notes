@@ -834,21 +834,72 @@ QString Sys::appExecutable() const {
     return QCoreApplication::applicationFilePath();
 }
 
-bool Sys::hasQuickshellConfig() const {
+static bool isForcedNoSyncConfigured() {
     if (qEnvironmentVariableIsSet("NOTAS_NO_SYNC") || qEnvironmentVariableIsSet("NOTAS_STANDALONE")) {
-        return false;
+        return true;
     }
     const QString home = QDir::homePath();
+    // 1. ~/.config/notas/config.json
     QFile cfgFile(home + QStringLiteral("/.config/notas/config.json"));
     if (cfgFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
         QJsonDocument doc = QJsonDocument::fromJson(cfgFile.readAll());
         if (doc.isObject()) {
             QJsonObject obj = doc.object();
+            if (obj.contains(QStringLiteral("noSync")) && obj[QStringLiteral("noSync")].toBool(false)) {
+                return true;
+            }
+            if (obj.contains(QStringLiteral("no_sync")) && obj[QStringLiteral("no_sync")].toBool(false)) {
+                return true;
+            }
+            if (obj.contains(QStringLiteral("sync")) && !obj[QStringLiteral("sync")].toBool(true)) {
+                return true;
+            }
             if (obj.contains(QStringLiteral("syncWithQuickshell")) && !obj[QStringLiteral("syncWithQuickshell")].toBool(true)) {
-                return false;
+                return true;
+            }
+        }
+        cfgFile.close();
+    }
+    // 2. Archivos adicionales de configuración (.conf, .toml)
+    const QStringList extraFiles = {
+        home + QStringLiteral("/.config/notas/config.conf"),
+        home + QStringLiteral("/.config/notas/notas.conf"),
+        home + QStringLiteral("/.config/notas/config.toml"),
+        home + QStringLiteral("/.config/notas/notas.toml"),
+        home + QStringLiteral("/.config/quickshell/config/notes.conf")
+    };
+    for (const QString &extraPath : extraFiles) {
+        if (QFile::exists(extraPath)) {
+            QFile ef(extraPath);
+            if (ef.open(QIODevice::ReadOnly | QIODevice::Text)) {
+                QTextStream in(&ef);
+                while (!in.atEnd()) {
+                    QString line = in.readLine().trimmed();
+                    if (line.isEmpty() || line.startsWith('#') || line.startsWith(';')) continue;
+                    int eq = line.indexOf('=');
+                    if (eq != -1) {
+                        QString k = line.left(eq).trimmed().toLower();
+                        QString v = line.mid(eq + 1).trimmed().toLower();
+                        if ((k == QStringLiteral("nosync") || k == QStringLiteral("no_sync")) && (v == QStringLiteral("true") || v == QStringLiteral("1"))) {
+                            return true;
+                        }
+                        if ((k == QStringLiteral("sync") || k == QStringLiteral("syncwithquickshell")) && (v == QStringLiteral("false") || v == QStringLiteral("0"))) {
+                            return true;
+                        }
+                    }
+                }
+                ef.close();
             }
         }
     }
+    return false;
+}
+
+bool Sys::hasQuickshellConfig() const {
+    if (isForcedNoSyncConfigured()) {
+        return false;
+    }
+    const QString home = QDir::homePath();
     return QFile::exists(home + QStringLiteral("/.config/quickshell/config/general.conf"))
         || QFile::exists(home + QStringLiteral("/.config/quickshell/config/theme.conf"));
 }
@@ -960,7 +1011,11 @@ void Sys::printStartupDiagnostics() const {
     const QString home = QDir::homePath();
     const QString configPath = home + QStringLiteral("/.config/notas/config.json");
     const QString qsPath = home + QStringLiteral("/.config/quickshell");
+    const bool forcedNoSync = isForcedNoSyncConfigured();
     const bool qsDetected = hasQuickshellConfig();
+    const QString qsStatus = qsDetected
+        ? QStringLiteral("Detectado e integrado (~/.config/quickshell)")
+        : (forcedNoSync ? QStringLiteral("Desactivado por config (noSync / standalone)") : QStringLiteral("No detectado (Modo Standalone)"));
     const QString fontBody = systemFontFamily();
     const QString fontDisplay = systemFontFamilyDisplay();
     const QString fontMono = systemMonospaceFontFamily();
@@ -972,7 +1027,7 @@ void Sys::printStartupDiagnostics() const {
     fprintf(stdout, "│    Editor nativo de notas en Markdown para Wayland                          │\n");
     fprintf(stdout, "├─────────────────────────────────────────────────────────────────────────────┤\n");
     fprintf(stdout, "│ • Configuración : %-57s │\n", configPath.toUtf8().constData());
-    fprintf(stdout, "│ • Quickshell    : %-57s │\n", qsDetected ? "Detectado e integrado (~/.config/quickshell)" : "No detectado (Modo Standalone)");
+    fprintf(stdout, "│ • Quickshell    : %-57s │\n", qsStatus.toUtf8().constData());
     fprintf(stdout, "│ • Fuente Texto  : %-57s │\n", fontBody.toUtf8().constData());
     fprintf(stdout, "│ • Fuente Display: %-57s │\n", fontDisplay.toUtf8().constData());
     fprintf(stdout, "│ • Fuente Mono   : %-57s │\n", fontMono.toUtf8().constData());
@@ -1234,7 +1289,7 @@ static bool extractLuaTableBool(const QString &filePath, const QString &tableNam
 }
 
 bool ConfigBackend::hasQuickshellConfig() const {
-    if (qEnvironmentVariableIsSet("NOTAS_NO_SYNC") || qEnvironmentVariableIsSet("NOTAS_STANDALONE")) {
+    if (isForcedNoSyncConfigured()) {
         return false;
     }
     if (!m_syncWithQuickshell) {
@@ -1293,7 +1348,7 @@ void ConfigBackend::loadQuickshellConfig() {
             QString k = line.left(eq).trimmed();
             QString v = line.mid(eq + 1).trimmed();
             if (k == QStringLiteral("panelOpacity")) {
-                int op = qBound(50, v.toInt(), 100);
+                int op = qBound(20, v.toInt(), 100);
                 if (m_panelOpacity != op) {
                     m_panelOpacity = op;
                     changedOpacity = true;
@@ -1662,7 +1717,7 @@ void ConfigBackend::setIgnoreWithDigits(bool val) {
 }
 
 void ConfigBackend::setPanelOpacity(int val) {
-    int clamped = qBound(50, val, 100);
+    int clamped = qBound(20, val, 100);
     if (m_panelOpacity == clamped) return;
     m_panelOpacity = clamped;
     emit panelOpacityChanged();
@@ -1726,12 +1781,13 @@ void ConfigBackend::load() {
                 if (obj.contains("primarySpellLanguage")) m_primarySpellLanguage = obj["primarySpellLanguage"].toString();
                 if (obj.contains("ignoreUppercase")) m_ignoreUppercase = obj["ignoreUppercase"].toBool(true);
                 if (obj.contains("ignoreWithDigits")) m_ignoreWithDigits = obj["ignoreWithDigits"].toBool(true);
-                if (obj.contains("panelOpacity")) m_panelOpacity = qBound(50, obj["panelOpacity"].toInt(94), 100);
+                if (obj.contains("panelOpacity")) m_panelOpacity = qBound(20, obj["panelOpacity"].toInt(94), 100);
                 if (obj.contains("animationsEnabled")) m_animationsEnabled = obj["animationsEnabled"].toBool(true);
                 if (obj.contains("fontSizeScale")) m_fontSizeScale = obj["fontSizeScale"].toDouble(1.0);
                 if (obj.contains("customThemeName")) m_customThemeName = obj["customThemeName"].toString("amarillo");
                 if (obj.contains("lightMode")) m_lightMode = obj["lightMode"].toBool(false);
                 if (obj.contains("syncWithQuickshell")) m_syncWithQuickshell = obj["syncWithQuickshell"].toBool(true);
+                if (isForcedNoSyncConfigured()) m_syncWithQuickshell = false;
 
                 // Migrar modos antiguos inexistentes ("dark", "light", "system")
                 bool migrated = false;
@@ -1790,6 +1846,16 @@ void ConfigBackend::load() {
 
 void ConfigBackend::save() {
     QJsonObject obj;
+    QString path = configFilePath();
+    QFile existingFile(path);
+    if (existingFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        QJsonDocument existingDoc = QJsonDocument::fromJson(existingFile.readAll());
+        if (existingDoc.isObject()) {
+            obj = existingDoc.object();
+        }
+        existingFile.close();
+    }
+
     obj[QStringLiteral("notasDir")] = m_notasDir;
     obj[QStringLiteral("editorFontSize")] = m_editorFontSize;
     obj[QStringLiteral("editorZoom")] = m_editorZoom;
@@ -1816,7 +1882,10 @@ void ConfigBackend::save() {
     obj[QStringLiteral("lightMode")] = m_lightMode;
     obj[QStringLiteral("syncWithQuickshell")] = m_syncWithQuickshell;
 
-    QString path = configFilePath();
+    if (isForcedNoSyncConfigured()) {
+        obj[QStringLiteral("syncWithQuickshell")] = false;
+    }
+
     QFileInfo fi(path);
     fi.dir().mkpath(QStringLiteral("."));
 

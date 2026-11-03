@@ -53,10 +53,59 @@ fn write_config_json(val: &serde_json::Value) -> Result<(), std::io::Error> {
     Ok(())
 }
 
-fn get_sync_state() -> bool {
+pub fn is_forced_no_sync() -> bool {
     if std::env::var("NOTAS_NO_SYNC").unwrap_or_default() == "1"
         || std::env::var("NOTAS_STANDALONE").unwrap_or_default() == "1"
     {
+        return true;
+    }
+    let root = read_config_json();
+    if let Some(v) = root.get("noSync").and_then(|v| v.as_bool()) {
+        if v { return true; }
+    }
+    if let Some(v) = root.get("no_sync").and_then(|v| v.as_bool()) {
+        if v { return true; }
+    }
+    if let Some(v) = root.get("sync").and_then(|v| v.as_bool()) {
+        if !v { return true; }
+    }
+    if let Some(v) = root.get("syncWithQuickshell").and_then(|v| v.as_bool()) {
+        if !v { return true; }
+    }
+
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    let extra_files = [
+        format!("{}/.config/notas/config.conf", home),
+        format!("{}/.config/notas/notas.conf", home),
+        format!("{}/.config/notas/config.toml", home),
+        format!("{}/.config/notas/notas.toml", home),
+        format!("{}/.config/quickshell/config/notes.conf", home),
+    ];
+    for ef in extra_files {
+        if let Ok(content) = fs::read_to_string(&ef) {
+            for line in content.lines() {
+                let trimmed = line.trim();
+                if trimmed.is_empty() || trimmed.starts_with('#') || trimmed.starts_with(';') {
+                    continue;
+                }
+                if let Some((k, v)) = trimmed.split_once('=') {
+                    let k = k.trim().to_lowercase();
+                    let v = v.trim().to_lowercase();
+                    if (k == "nosync" || k == "no_sync") && (v == "true" || v == "1") {
+                        return true;
+                    }
+                    if (k == "sync" || k == "syncwithquickshell") && (v == "false" || v == "0") {
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+    false
+}
+
+fn get_sync_state() -> bool {
+    if is_forced_no_sync() {
         return false;
     }
     let root = read_config_json();
@@ -71,6 +120,17 @@ fn set_sync_state(enabled: bool) {
         root = serde_json::json!({});
     }
     root["syncWithQuickshell"] = serde_json::Value::Bool(enabled);
+    if let Some(obj) = root.as_object_mut() {
+        if enabled {
+            obj.remove("noSync");
+            obj.remove("no_sync");
+            if let Some(s) = obj.get_mut("sync") {
+                *s = serde_json::Value::Bool(true);
+            }
+        } else {
+            obj.insert("noSync".to_string(), serde_json::Value::Bool(true));
+        }
+    }
 
     if let Err(e) = write_config_json(&root) {
         eprintln!("❌ Error al guardar configuración en {:?}: {}", get_config_path(), e);
@@ -99,16 +159,25 @@ pub fn run(args: &[String]) {
 
     match cmd {
         "status" => {
+            let forced = is_forced_no_sync();
             let active = get_sync_state();
             let qs_found = has_quickshell_installed();
             let config_path = get_config_path();
+
+            let sync_status_str = if active {
+                "ACTIVADA"
+            } else if forced {
+                "DESACTIVADA (Config noSync / .conf)"
+            } else {
+                "DESACTIVADA (Modo Standalone)"
+            };
 
             println!("\n╭─────────────────────────────────────────────────────────────────────────────╮");
             println!("│ 🔄 Estado de Sincronización con Quickshell (dev.criperto.Notas)             │");
             println!("├─────────────────────────────────────────────────────────────────────────────┤");
             println!(
                 "│ • Sincronización con Quickshell : {:<43} │",
-                if active { "ACTIVADA" } else { "DESACTIVADA (Modo Standalone)" }
+                sync_status_str
             );
             println!(
                 "│ • Pestaña 'Apariencia' en UI    : {:<43} │",

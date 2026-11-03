@@ -310,7 +310,7 @@ QtObject {
     // ── Ajustes generales ────────────────────────────────────────────────
     readonly property bool animationsEnabled: (typeof ConfigBackend !== "undefined") ? (ConfigBackend.animationsEnabled && !GamemodeService.gamemodeActive) : true
     readonly property real panelOpacity: (typeof ConfigBackend !== "undefined" && ConfigBackend.panelOpacity > 0)
-        ? Math.max(0.5, Math.min(1.0, ConfigBackend.panelOpacity / 100.0))
+        ? Math.max(0.2, Math.min(1.0, ConfigBackend.panelOpacity / 100.0))
         : 0.94
     readonly property bool hideScrollbars: (typeof ConfigBackend !== "undefined") ? ConfigBackend.hideScrollbars : false
     readonly property bool blurEnabled: (typeof ConfigBackend !== "undefined") ? ConfigBackend.blurEnabled : true
