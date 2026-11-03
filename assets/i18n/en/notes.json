@@ -157,5 +157,47 @@
   "notes.mermaid.template.journey": "User journey map",
   "notes.mermaid.template.xychart": "XY chart (Bars & Lines)",
   "_common_actions_cancel": "Cancel",
-  "_common_states_active": "Active"
+  "_common_states_active": "Active",
+  "callout": {
+    "note": "Note",
+    "tip": "Tip",
+    "important": "Important",
+    "warning": "Warning",
+    "caution": "Caution"
+  },
+  "config": {
+    "notes": {
+      "select_dir": "Select notes folder",
+      "storage_section": "Storage and Import",
+      "dir": "Notes folder",
+      "browse": "Browse",
+      "dir_comment": "Directory where Markdown (.md) notes will be stored. Supports $XDG_DOCUMENTS_DIR and $HOME.",
+      "import_mode": "When dragging a file",
+      "import_mode_copy": "Copy to notes folder",
+      "import_mode_move": "Move original file",
+      "import_mode_comment": "Whether dragged .md files are copied or moved to the notes folder.",
+      "external_open_mode": "When opening external files",
+      "external_mode_preview": "Preview (Read-only)",
+      "external_mode_edit": "Direct edit",
+      "external_open_mode_comment": "How to open notes located outside the notes folder.",
+      "preview_close_action": "When closing preview with 'X'",
+      "preview_close_exit": "Close application",
+      "preview_close_home": "Return to home",
+      "preview_close_action_comment": "Defines whether the 'X' button closes the app or returns to the Notes home view.",
+      "view_section": "View and Editor",
+      "show_image_previews": "Preview images on cards",
+      "show_image_previews_comment": "Show image thumbnails on note preview cards.",
+      "cycle_preview_images": "Cycle preview images",
+      "cycle_preview_images_comment": "Smoothly cycle every 3 seconds between images in the note.",
+      "cards_per_row": "Cards per row",
+      "cards_per_row_comment": "Preferred number of columns in notes grid.",
+      "editor_zoom": "Editor zoom",
+      "editor_zoom_comment": "Default zoom level for the note editor.",
+      "spellcheck_mode": "Editor spellcheck mode",
+      "spellcheck_off": "Disabled",
+      "spellcheck_manual": "Manual (F7 / Button)",
+      "spellcheck_auto": "Real-time automatic",
+      "spellcheck_mode_comment": "Spellcheck verification mode for the note editor."
+    }
+  }
 }

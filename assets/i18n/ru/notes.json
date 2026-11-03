@@ -157,5 +157,47 @@
   "notes.mermaid.template.journey": "Карта пути пользователя (Journey)",
   "notes.mermaid.template.xychart": "XY-диаграмма (Столбцы и линии)",
   "_common_actions_cancel": "Отмена",
-  "_common_states_active": "Активно"
+  "_common_states_active": "Активно",
+  "callout": {
+    "note": "Примечание",
+    "tip": "Совет",
+    "important": "Важно",
+    "warning": "Предупреждение",
+    "caution": "Осторожно"
+  },
+  "config": {
+    "notes": {
+      "select_dir": "Выбрать папку заметок",
+      "storage_section": "Хранение и импорт",
+      "dir": "Папка заметок",
+      "browse": "Обзор",
+      "dir_comment": "Каталог для хранения заметок Markdown (.md). Поддерживает $XDG_DOCUMENTS_DIR и $HOME.",
+      "import_mode": "При перетаскивании файла",
+      "import_mode_copy": "Копировать в папку заметок",
+      "import_mode_move": "Переместить исходный файл",
+      "import_mode_comment": "Копировать или перемещать перетаскиваемые файлы .md.",
+      "external_open_mode": "При открытии внешних файлов",
+      "external_mode_preview": "Предпросмотр (Только чтение)",
+      "external_mode_edit": "Прямое редактирование",
+      "external_open_mode_comment": "Как открывать заметки вне папки заметок.",
+      "preview_close_action": "При закрытии предпросмотра крестиком",
+      "preview_close_exit": "Закрыть приложение",
+      "preview_close_home": "Вернуться на главную",
+      "preview_close_action_comment": "Определяет, закрывает ли 'X' приложение или возвращает на главную.",
+      "view_section": "Вид и редактор",
+      "show_image_previews": "Миниатюры изображений на карточках",
+      "show_image_previews_comment": "Показывать миниатюры изображений на карточках заметок.",
+      "cycle_preview_images": "Сменять изображения предпросмотра",
+      "cycle_preview_images_comment": "Плавно переключать изображения заметки каждые 3 секунды.",
+      "cards_per_row": "Карточек в строке",
+      "cards_per_row_comment": "Предпочтительное число колонок в сетке.",
+      "editor_zoom": "Масштаб редактора",
+      "editor_zoom_comment": "Масштаб по умолчанию для редактора заметок.",
+      "spellcheck_mode": "Режим проверки орфографии",
+      "spellcheck_off": "Отключено",
+      "spellcheck_manual": "Вручную (F7 / Кнопка)",
+      "spellcheck_auto": "Автоматически в реальном времени",
+      "spellcheck_mode_comment": "Режим проверки орфографии в редакторе."
+    }
+  }
 }

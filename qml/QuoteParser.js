@@ -4,6 +4,7 @@
 // Soporta: `>>` sin espacio, `> >` con espacios, espacios variables,
 // profundidad máxima 6 (más allá se trata como texto), encabezados `##`,
 // listas dentro de citas y citas anidadas por recursión.
+// Callouts estilo GitHub (F77): [!NOTE], [!TIP], [!IMPORTANT], [!WARNING], [!CAUTION]
 //
 // parseQuote(raw) → { depth, children } donde cada hijo es:
 //   { kind: "paragraph", text }
@@ -12,6 +13,41 @@
 //   { kind: "quote", depth, children } (anidada)
 
 var MAX_DEPTH = 6;
+var CALLOUT_TYPES = ["NOTE", "TIP", "IMPORTANT", "WARNING", "CAUTION"];
+
+// Parsea un bloque de cita Markdown para determinar si es un callout estilo GitHub.
+// Formato GitHub:
+// > [!NOTE]
+// > Información adicional...
+// O con título personalizado:
+// > [!NOTE] Mi título personalizado
+// > Información adicional...
+// Devuelve { type: "NOTE"|"TIP"|"IMPORTANT"|"WARNING"|"CAUTION", title: string, bodyRaw: string } o null.
+function parseCallout(raw) {
+    if (!raw || typeof raw !== "string") return null;
+    var lines = raw.split("\n");
+    if (lines.length === 0) return null;
+
+    var firstLine = lines[0];
+    var firstInfo = lineDepthContent(firstLine);
+    if (firstInfo.depth === 0) return null;
+
+    var content = (firstInfo.content || "").trim();
+    var match = content.match(/^\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]([ \t]+(.*))?$/i);
+    if (!match) return null;
+
+    var type = match[1].toUpperCase();
+    var customTitle = (match[3] !== undefined && match[3] !== null) ? match[3].trim() : "";
+
+    var bodyLines = lines.slice(1);
+    var bodyRaw = bodyLines.join("\n");
+
+    return {
+        type: type,
+        title: customTitle,
+        bodyRaw: bodyRaw
+    };
+}
 
 // Cuenta los `>` iniciales tolerando espacios/tabs entre ellos.
 // "  > > texto" → { depth: 2, content: "texto" }
@@ -253,9 +289,36 @@ function flattenQuote(tree) {
 }
 
 // Unidades de búsqueda que espejan exactamente lo pintado (una por Text visible).
-// Cada unidad: { paintMd, isHeadingContent } — paintMd es lo que va a inlineToHtml
+// Cada unidad: { paintMd, isHeadingContent, isCalloutTitle?, segIndex } — paintMd es lo que va a inlineToHtml
 // (para heading, sin `##`; para listItem con `##`, sin `##` igual que BlockList).
+// Si es un callout (F77), excluye el marcador `[!TYPE]` y suma el título si es personalizado.
 function searchUnits(raw) {
+    var callout = parseCallout(raw);
+    if (callout) {
+        var units = [];
+        if (callout.title && callout.title.trim() !== "") {
+            units.push({ paintMd: callout.title.trim(), isCalloutTitle: true, segIndex: -1 });
+        }
+        if (callout.bodyRaw && callout.bodyRaw.trim() !== "") {
+            var bodyTree = parseQuote(callout.bodyRaw);
+            var bodyFlat = flattenQuote(bodyTree);
+            for (var bi = 0; bi < bodyFlat.length; bi++) {
+                var bs = bodyFlat[bi];
+                if (bs.kind === "paragraph") {
+                    units.push({ paintMd: bs.text, segIndex: bi });
+                } else if (bs.kind === "heading") {
+                    units.push({ paintMd: bs.text, segIndex: bi });
+                } else if (bs.kind === "listItem") {
+                    var bt = bs.text || "";
+                    var bhm = bt.match(/^(#{1,6})[ \t]+([\s\S]*)$/);
+                    if (bhm) units.push({ paintMd: bhm[2], segIndex: bi });
+                    else units.push({ paintMd: bt, segIndex: bi });
+                }
+            }
+        }
+        return units;
+    }
+
     var tree = parseQuote(raw);
     var flat = flattenQuote(tree);
     var units = [];

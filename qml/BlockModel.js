@@ -674,12 +674,15 @@ function estimateBlockHeight(type, raw, pageW) {
         }
         case "quote": {
             if (!str) return 38;
+            var isCallout = /^[ \t]*>[ \t]*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]/i.test(str);
             var qLines = str.split(/\r?\n/);
             var totalQVisualLines = 0;
             for (var k = 0; k < qLines.length; k++) {
                 totalQVisualLines += Math.max(1, Math.ceil(qLines[k].length / (charsPerLine - 6)));
             }
-            return Math.max(36, totalQVisualLines * 24 + 14);
+            var h = Math.max(36, totalQVisualLines * 24 + 14);
+            if (isCallout) h += 28; // Espacio extra para cabecera de callout (ícono + título + márgenes)
+            return h;
         }
         case "code": {
             if (!str) return 70;

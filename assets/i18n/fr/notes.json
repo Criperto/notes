@@ -157,5 +157,47 @@
   "notes.mermaid.template.journey": "Parcours utilisateur (Journey)",
   "notes.mermaid.template.xychart": "Graphique XY (Barres et lignes)",
   "_common_actions_cancel": "Annuler",
-  "_common_states_active": "Actif"
+  "_common_states_active": "Actif",
+  "callout": {
+    "note": "Note",
+    "tip": "Conseil",
+    "important": "Important",
+    "warning": "Avertissement",
+    "caution": "Attention"
+  },
+  "config": {
+    "notes": {
+      "select_dir": "Sélectionner le dossier de notes",
+      "storage_section": "Stockage et Importation",
+      "dir": "Dossier de notes",
+      "browse": "Parcourir",
+      "dir_comment": "Dossier où les notes Markdown (.md) seront enregistrées. Prend en charge $XDG_DOCUMENTS_DIR et $HOME.",
+      "import_mode": "Lors du glisser-déposer d'un fichier",
+      "import_mode_copy": "Copier dans le dossier de notes",
+      "import_mode_move": "Déplacer le fichier original",
+      "import_mode_comment": "Si les fichiers .md glissés sont copiés ou déplacés.",
+      "external_open_mode": "Lors de l'ouverture de fichiers externes",
+      "external_mode_preview": "Aperçu (Lecture seule)",
+      "external_mode_edit": "Édition directe",
+      "external_open_mode_comment": "Comment ouvrir les notes en dehors du dossier de notes.",
+      "preview_close_action": "Lors de la fermeture de l'aperçu avec 'X'",
+      "preview_close_exit": "Fermer l'application",
+      "preview_close_home": "Retourner à l'accueil",
+      "preview_close_action_comment": "Définit si 'X' ferme l'application ou revient à l'accueil des Notes.",
+      "view_section": "Affichage et Éditeur",
+      "show_image_previews": "Aperçu des images sur les cartes",
+      "show_image_previews_comment": "Affiche des miniatures d'images sur les cartes de notes.",
+      "cycle_preview_images": "Alterner les images d'aperçu",
+      "cycle_preview_images_comment": "Alterne doucement toutes les 3 secondes entre les images de la note.",
+      "cards_per_row": "Cartes par ligne",
+      "cards_per_row_comment": "Nombre préféré de colonnes dans la grille de notes.",
+      "editor_zoom": "Zoom de l'éditeur",
+      "editor_zoom_comment": "Niveau de zoom par défaut pour l'éditeur.",
+      "spellcheck_mode": "Mode du correcteur orthographique",
+      "spellcheck_off": "Désactivé",
+      "spellcheck_manual": "Manuel (F7 / Bouton)",
+      "spellcheck_auto": "Automatique en temps réel",
+      "spellcheck_mode_comment": "Mode de vérification orthographique pour l'éditeur."
+    }
+  }
 }

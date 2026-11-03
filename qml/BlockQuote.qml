@@ -4,6 +4,7 @@ import Notas
 import "."
 import "Inline.js" as Inline
 import "QuoteParser.js" as QP
+import "CalloutTypes.js" as CalloutTypes
 import "SpellLogic.js" as SpellLogic
 
 Item {
@@ -221,11 +222,45 @@ Item {
         spellCheckTimer.restart();
     }
 
-    // F25: segmentos aplanados para la vista (párrafo / encabezado / ítem de lista),
+    // F77: Detección y propiedades de Callouts estilo GitHub
+    readonly property var calloutInfo: QP.parseCallout(blockData ? blockData.raw : "")
+    readonly property bool isCallout: calloutInfo !== null
+    readonly property string calloutType: isCallout ? calloutInfo.type : ""
+    readonly property var calloutTypeDef: isCallout ? CalloutTypes.getType(calloutType) : null
+    readonly property color calloutColor: isCallout ? CalloutTypes.getColor(calloutType, Theme) : Theme.accent
+    readonly property bool hasCustomTitle: isCallout && calloutInfo.title && calloutInfo.title.trim() !== ""
+    readonly property string calloutTitleText: {
+        if (!isCallout || !calloutTypeDef) return "";
+        if (hasCustomTitle) return calloutInfo.title.trim();
+        return (typeof I18n !== "undefined" && typeof I18n.t === "function")
+            ? I18n.t(calloutTypeDef.nameKey, calloutTypeDef.fallbackName)
+            : calloutTypeDef.fallbackName;
+    }
+
+    function _headerHtml(titleText) {
+        var opts = {
+            zoom: EditorMetrics.zoom,
+            fontFamilyMonospace: Theme.fontFamilyMonospace || "Google Sans Code",
+            linkColor: "" + Theme.accent,
+            highlightBg: EditorMetrics.highlightBg,
+            searchQuery: root.editor ? root.editor.searchQuery : "",
+            searchHighlightBg: root.editor ? ("" + root.editor.searchHighlightColor) : "",
+            searchHighlightActiveBg: (root.editor && root.blockData) ? root.editor.searchActiveBg(root.blockData.bid, 0) : "",
+            searchActiveOrdinal: (root.editor && root.blockData) ? root.editor.searchActiveOrdinal(root.blockData.bid, 0) : -1,
+            searchHighlightActiveFg: (root.editor && root.blockData) ? root.editor.searchActiveFg(root.blockData.bid, 0) : ""
+        };
+        return Inline.inlineToHtml(titleText, opts);
+    }
+
+    // F25 / F77: segmentos aplanados para la vista (párrafo / encabezado / ítem de lista),
     // con profundidad visual para barras anidadas. Solo lectura; edición sin cambios.
     readonly property var quoteSegments: {
         if (!blockData || !blockData.raw) return [];
         try {
+            if (isCallout) {
+                if (!calloutInfo.bodyRaw || calloutInfo.bodyRaw.trim() === "") return [];
+                return QP.flattenQuote(QP.parseQuote(calloutInfo.bodyRaw));
+            }
             return QP.flattenQuote(QP.parseQuote(blockData.raw));
         } catch (e) {
             return [{ kind: "paragraph", depth: 1, text: cleanQuoteText }];
@@ -393,8 +428,13 @@ Item {
         return root.blockData ? (root.blockData.raw || "") : "";
     }
 
-    // F25: enlace bajo un punto de la vista segmentada (para viewMa).
+    // F25 / F77: enlace bajo un punto de la vista segmentada (para viewMa).
     function quoteLinkAt(mx, my) {
+        if (root.isCallout && calloutTitleLabel.visible && calloutTitleLabel.textFormat === Text.RichText) {
+            var pt0 = mapToItem(calloutTitleLabel, mx, my);
+            var l0 = calloutTitleLabel.linkAt(pt0.x, pt0.y);
+            if (l0 && l0 !== "") return l0;
+        }
         for (var i = 0; i < segmentsRepeater.count; i++) {
             var del = segmentsRepeater.itemAt(i);
             if (del && typeof del.linkAtGlobal === "function") {
@@ -444,102 +484,170 @@ Item {
         }
     }
 
+    // Fondo sutil del callout (F77)
+    Rectangle {
+        id: calloutBg
+        visible: root.isCallout && !root.isEditing && !root.isSelected
+        anchors.fill: parent
+        radius: 6
+        color: root.calloutColor
+        opacity: Theme.isDark ? 0.08 : 0.05
+    }
+
     // Barra de acento izquierda
     Rectangle {
         id: quoteBar
-        width: 3
+        width: root.isCallout ? 4 : 3
         height: parent.height - 4
         y: 2
-        radius: 1.5
-        color: Theme.accent
+        radius: root.isCallout ? 2 : 1.5
+        color: root.isCallout ? root.calloutColor : Theme.accent
     }
 
-    // Vista renderizada segmentada (F25: encabezado / anidado / lista).
+    // Vista renderizada segmentada (F25 / F77: encabezado / anidado / lista / callout).
     // Solo lectura; edición sin cambios y .md intacto (ver getRaw).
     Item {
         id: viewCol
         visible: !root.isEditing && !root.isSelected
         anchors.left: quoteBar.right
         anchors.right: parent.right
-        anchors.leftMargin: 12
-        implicitHeight: segmentsCol.implicitHeight
+        anchors.leftMargin: root.isCallout ? 14 : 12
+        anchors.rightMargin: root.isCallout ? 12 : 0
+        anchors.top: parent.top
+        anchors.topMargin: root.isCallout ? 8 : 0
+        implicitHeight: contentCol.implicitHeight + (root.isCallout ? 16 : 0)
 
         Column {
-            id: segmentsCol
+            id: contentCol
             width: parent.width
-            spacing: 4
+            spacing: root.isCallout ? 6 : 4
 
-            Repeater {
-                id: segmentsRepeater
-                model: root.quoteSegments
+            // Cabecera del Callout (ícono + título)
+            Row {
+                id: calloutHeader
+                visible: root.isCallout
+                width: parent.width
+                height: 20
+                spacing: 8
 
-                delegate: Item {
-                    id: segWrap
-                    width: segmentsCol.width
-                    implicitHeight: segRow.implicitHeight
+                Item {
+                    width: 18
+                    height: 18
+                    anchors.verticalCenter: parent.verticalCenter
 
-                    readonly property var seg: modelData
-                    readonly property int segIndex: index
-                    readonly property int segDepth: (seg && seg.depth) ? seg.depth : 1
-                    readonly property string segKind: (seg && seg.kind) ? seg.kind : "paragraph"
-                    readonly property string segText: (seg && seg.text) ? seg.text : ""
-                    readonly property int segLevel: (seg && seg.level) ? seg.level : 0
-
-                    function linkAtGlobal(mx, my) {
-                        var pt;
-                        if (segPara.visible) {
-                            pt = mapToItem(segPara, mx, my);
-                            var l1 = segPara.linkAt(pt.x, pt.y);
-                            if (l1 && l1 !== "") return l1;
-                        }
-                        if (segHead.visible) {
-                            pt = mapToItem(segHead, mx, my);
-                            var l2 = segHead.linkAt(pt.x, pt.y);
-                            if (l2 && l2 !== "") return l2;
-                        }
-                        if (segItemText.visible) {
-                            pt = mapToItem(segItemText, mx, my);
-                            var l3 = segItemText.linkAt(pt.x, pt.y);
-                            if (l3 && l3 !== "") return l3;
-                        }
-                        return "";
+                    Image {
+                        id: calloutIconImg
+                        anchors.fill: parent
+                        source: root.calloutTypeDef ? (Theme.iconsPath + root.calloutTypeDef.icon) : ""
+                        sourceSize: Qt.size(18, 18)
+                        visible: false
                     }
 
-                    function segHtml(rawMd, useHeading) {
-                        var opts = {
-                            zoom: EditorMetrics.zoom,
-                            fontFamilyMonospace: Theme.fontFamilyMonospace || "Google Sans Code",
-                            linkColor: "" + Theme.accent, highlightBg: EditorMetrics.highlightBg,
-                            baseFolder: root.editor ? root.editor.imgBaseFolder : "",
-                            imageSkipMissing: true,
-                            imageExists: root.editor ? root.editor.imageExistsFn : null,
-                            probeTick: NotesService.imageProbeSeq,
-                            searchQuery: root.editor ? root.editor.searchQuery : "",
-                            searchHighlightBg: root.editor ? ("" + root.editor.searchHighlightColor) : "",
-                            searchHighlightActiveBg: (root.editor && root.blockData) ? root.editor.searchActiveBg(root.blockData.bid, segWrap.segIndex) : "",
-                            searchActiveOrdinal: (root.editor && root.blockData) ? root.editor.searchActiveOrdinal(root.blockData.bid, segWrap.segIndex) : -1,
-                            searchHighlightActiveFg: (root.editor && root.blockData) ? root.editor.searchActiveFg(root.blockData.bid, segWrap.segIndex) : ""
-                        };
-                        if (useHeading) opts.headingSizes = root.headingSizes;
-                        return Inline.inlineToHtml(rawMd, opts);
+                    MultiEffect {
+                        anchors.fill: calloutIconImg
+                        source: calloutIconImg
+                        colorization: 1.0
+                        colorizationColor: root.calloutColor
+                        visible: calloutIconImg.status === Image.Ready
                     }
+                }
 
-                    Row {
-                        id: segRow
-                        width: parent.width
-                        spacing: 6
+                Text {
+                    id: calloutTitleLabel
+                    anchors.verticalCenter: parent.verticalCenter
+                    font.family: Theme.fontFamily
+                    font.weight: Font.DemiBold
+                    font.pixelSize: Theme.fontSizeBody
+                    color: root.calloutColor
+                    text: root.hasCustomTitle ? root._headerHtml(root.calloutTitleText) : root.calloutTitleText
+                    textFormat: root.hasCustomTitle ? Text.RichText : Text.PlainText
+                    onLinkActivated: (link) => {
+                        if (root.editor && typeof root.editor.handleLink === "function") root.editor.handleLink(link);
+                    }
+                    HoverHandler {
+                        enabled: parent.hoveredLink !== ""
+                        cursorShape: Qt.PointingHandCursor
+                    }
+                }
+            }
 
-                        // Barras extra para niveles anidados (la primera la da quoteBar).
-                        Repeater {
-                            model: Math.max(0, segWrap.segDepth - 1)
-                            delegate: Rectangle {
-                                width: 3
-                                height: segContent.implicitHeight > 0 ? segContent.implicitHeight : 18
-                                radius: 1.5
-                                color: Theme.accent
-                                opacity: 0.65
+            Column {
+                id: segmentsCol
+                width: parent.width
+                spacing: 4
+
+                Repeater {
+                    id: segmentsRepeater
+                    model: root.quoteSegments
+
+                    delegate: Item {
+                        id: segWrap
+                        width: segmentsCol.width
+                        implicitHeight: segRow.implicitHeight
+
+                        readonly property var seg: modelData
+                        readonly property int segIndex: index
+                        readonly property int effectiveSearchUnitIndex: root.hasCustomTitle ? (segWrap.segIndex + 1) : segWrap.segIndex
+                        readonly property int segDepth: (seg && seg.depth) ? seg.depth : 1
+                        readonly property string segKind: (seg && seg.kind) ? seg.kind : "paragraph"
+                        readonly property string segText: (seg && seg.text) ? seg.text : ""
+                        readonly property int segLevel: (seg && seg.level) ? seg.level : 0
+
+                        function linkAtGlobal(mx, my) {
+                            var pt;
+                            if (segPara.visible) {
+                                pt = mapToItem(segPara, mx, my);
+                                var l1 = segPara.linkAt(pt.x, pt.y);
+                                if (l1 && l1 !== "") return l1;
                             }
+                            if (segHead.visible) {
+                                pt = mapToItem(segHead, mx, my);
+                                var l2 = segHead.linkAt(pt.x, pt.y);
+                                if (l2 && l2 !== "") return l2;
+                            }
+                            if (segItemText.visible) {
+                                pt = mapToItem(segItemText, mx, my);
+                                var l3 = segItemText.linkAt(pt.x, pt.y);
+                                if (l3 && l3 !== "") return l3;
+                            }
+                            return "";
                         }
+
+                        function segHtml(rawMd, useHeading) {
+                            var opts = {
+                                zoom: EditorMetrics.zoom,
+                                fontFamilyMonospace: Theme.fontFamilyMonospace || "Google Sans Code",
+                                linkColor: "" + Theme.accent, highlightBg: EditorMetrics.highlightBg,
+                                baseFolder: root.editor ? root.editor.imgBaseFolder : "",
+                                imageSkipMissing: true,
+                                imageExists: root.editor ? root.editor.imageExistsFn : null,
+                                probeTick: NotesService.imageProbeSeq,
+                                searchQuery: root.editor ? root.editor.searchQuery : "",
+                                searchHighlightBg: root.editor ? ("" + root.editor.searchHighlightColor) : "",
+                                searchHighlightActiveBg: (root.editor && root.blockData) ? root.editor.searchActiveBg(root.blockData.bid, segWrap.effectiveSearchUnitIndex) : "",
+                                searchActiveOrdinal: (root.editor && root.blockData) ? root.editor.searchActiveOrdinal(root.blockData.bid, segWrap.effectiveSearchUnitIndex) : -1,
+                                searchHighlightActiveFg: (root.editor && root.blockData) ? root.editor.searchActiveFg(root.blockData.bid, segWrap.effectiveSearchUnitIndex) : ""
+                            };
+                            if (useHeading) opts.headingSizes = root.headingSizes;
+                            return Inline.inlineToHtml(rawMd, opts);
+                        }
+
+                        Row {
+                            id: segRow
+                            width: parent.width
+                            spacing: 6
+
+                            // Barras extra para niveles anidados (la primera la da quoteBar).
+                            Repeater {
+                                model: Math.max(0, segWrap.segDepth - 1)
+                                delegate: Rectangle {
+                                    width: 3
+                                    height: segContent.implicitHeight > 0 ? segContent.implicitHeight : 18
+                                    radius: 1.5
+                                    color: root.isCallout ? root.calloutColor : Theme.accent
+                                    opacity: 0.65
+                                }
+                            }
 
                         // Marcador de lista (solo lectura, mismos estilos que BlockList).
                         Item {
@@ -595,10 +703,10 @@ Item {
                                     width: parent.width
                                     textFormat: Text.RichText
                                     text: segWrap.visible ? segWrap.segHtml(Inline.stripImages(segWrap.segText), false) : ""
-                                    color: Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.88)
+                                    color: root.isCallout ? Theme.text : Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.88)
                                     font.family: Theme.fontFamily
                                     font.pixelSize: EditorMetrics.body
-                                    font.italic: true
+                                    font.italic: !root.isCallout
                                     wrapMode: Text.WrapAtWordBoundaryOrAnywhere
                                     lineHeight: EditorMetrics.lineHeight
                                     onLinkActivated: (link) => {
@@ -626,7 +734,7 @@ Item {
                                     font.family: Theme.fontFamily
                                     font.pixelSize: EditorMetrics.headingSize(segWrap.segLevel > 0 ? segWrap.segLevel : 2)
                                     font.bold: true
-                                    font.italic: true
+                                    font.italic: !root.isCallout
                                     wrapMode: Text.WrapAtWordBoundaryOrAnywhere
                                     lineHeight: EditorMetrics.lineHeight
                                     onLinkActivated: (link) => {
@@ -681,6 +789,7 @@ Item {
             }
         }
     }
+}
 
     // MouseArea para activación y selección por arrastre desde modo lectura
     MouseArea {
@@ -835,7 +944,7 @@ Item {
         color: Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.92)
         font.family: Theme.fontFamily
         font.pixelSize: EditorMetrics.body
-        font.italic: true
+        font.italic: !root.isCallout
         wrapMode: TextEdit.WrapAtWordBoundaryOrAnywhere
         selectByMouse: true
         activeFocusOnTab: false

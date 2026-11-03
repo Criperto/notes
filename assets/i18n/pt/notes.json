@@ -157,5 +157,47 @@
   "notes.mermaid.template.journey": "Jornada do usuário (Journey)",
   "notes.mermaid.template.xychart": "Gráfico XY (Barras e linhas)",
   "_common_actions_cancel": "Cancelar",
-  "_common_states_active": "Ativo"
+  "_common_states_active": "Ativo",
+  "callout": {
+    "note": "Nota",
+    "tip": "Dica",
+    "important": "Importante",
+    "warning": "Aviso",
+    "caution": "Cuidado"
+  },
+  "config": {
+    "notes": {
+      "select_dir": "Selecionar pasta de notas",
+      "storage_section": "Armazenamento e Importação",
+      "dir": "Pasta de notas",
+      "browse": "Procurar",
+      "dir_comment": "Diretório onde as notas Markdown (.md) serão armazenadas. Suporta $XDG_DOCUMENTS_DIR e $HOME.",
+      "import_mode": "Ao arrastar um arquivo",
+      "import_mode_copy": "Copiar para a pasta de notas",
+      "import_mode_move": "Mover arquivo original",
+      "import_mode_comment": "Se os arquivos .md arrastados são copiados ou movidos.",
+      "external_open_mode": "Ao abrir arquivos externos",
+      "external_mode_preview": "Visualização (Somente leitura)",
+      "external_mode_edit": "Edição direta",
+      "external_open_mode_comment": "Como abrir notas fora da pasta de notas.",
+      "preview_close_action": "Ao fechar a visualização com 'X'",
+      "preview_close_exit": "Fechar aplicativo",
+      "preview_close_home": "Voltar ao início",
+      "preview_close_action_comment": "Define se o 'X' fecha o app ou retorna ao início do Notas.",
+      "view_section": "Visualização e Editor",
+      "show_image_previews": "Visualizar imagens nos cartões",
+      "show_image_previews_comment": "Exibe miniaturas de imagens nos cartões de notas.",
+      "cycle_preview_images": "Alternar imagens de pré-visualização",
+      "cycle_preview_images_comment": "Alterna suavemente a cada 3 segundos entre as imagens da nota.",
+      "cards_per_row": "Cartões por linha",
+      "cards_per_row_comment": "Número preferido de colunas na grade de notas.",
+      "editor_zoom": "Zoom do editor",
+      "editor_zoom_comment": "Nível de zoom padrão para o editor.",
+      "spellcheck_mode": "Modo do corretor ortográfico",
+      "spellcheck_off": "Desativado",
+      "spellcheck_manual": "Manual (F7 / Botão)",
+      "spellcheck_auto": "Automático em tempo real",
+      "spellcheck_mode_comment": "Modo de verificação ortográfica no editor."
+    }
+  }
 }

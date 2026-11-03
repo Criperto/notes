@@ -157,5 +157,47 @@
   "notes.mermaid.template.journey": "User-Journey-Map",
   "notes.mermaid.template.xychart": "XY-Diagramm (Balken & Linien)",
   "_common_actions_cancel": "Abbrechen",
-  "_common_states_active": "Aktiv"
+  "_common_states_active": "Aktiv",
+  "callout": {
+    "note": "Hinweis",
+    "tip": "Tipp",
+    "important": "Wichtig",
+    "warning": "Warnung",
+    "caution": "Achtung"
+  },
+  "config": {
+    "notes": {
+      "select_dir": "Notizen-Ordner wählen",
+      "storage_section": "Speicher und Import",
+      "dir": "Notizen-Ordner",
+      "browse": "Durchsuchen",
+      "dir_comment": "Verzeichnis, in dem Notizen im Markdown-Format (.md) gespeichert werden. Unterstützt $XDG_DOCUMENTS_DIR und $HOME.",
+      "import_mode": "Beim Ziehen einer Datei",
+      "import_mode_copy": "In Notizen-Ordner kopieren",
+      "import_mode_move": "Originaldatei verschieben",
+      "import_mode_comment": "Ob gezogene .md-Dateien kopiert oder verschoben werden.",
+      "external_open_mode": "Beim Öffnen externer Dateien",
+      "external_mode_preview": "Vorschau (Nur Lesen)",
+      "external_mode_edit": "Direkt bearbeiten",
+      "external_open_mode_comment": "Wie Notizen außerhalb des Notizen-Ordners geöffnet werden.",
+      "preview_close_action": "Beim Schließen der Vorschau mit 'X'",
+      "preview_close_exit": "Anwendung schließen",
+      "preview_close_home": "Zurück zur Startseite",
+      "preview_close_action_comment": "Legt fest, ob 'X' die App schließt oder zur Notizen-Startseite zurückkehrt.",
+      "view_section": "Ansicht und Editor",
+      "show_image_previews": "Bildvorschau auf Karten",
+      "show_image_previews_comment": "Zeigt Bildminiaturen auf Notizkarten an.",
+      "cycle_preview_images": "Vorschaubilder wechseln",
+      "cycle_preview_images_comment": "Wechselt sanft alle 3 Sekunden zwischen Bildern der Notiz.",
+      "cards_per_row": "Karten pro Zeile",
+      "cards_per_row_comment": "Bevorzugte Anzahl von Spalten im Notizen-Raster.",
+      "editor_zoom": "Editor-Zoom",
+      "editor_zoom_comment": "Standard-Zoomstufe für den Editor.",
+      "spellcheck_mode": "Rechtschreibprüfung im Editor",
+      "spellcheck_off": "Deaktiviert",
+      "spellcheck_manual": "Manuell (F7 / Taste)",
+      "spellcheck_auto": "Echtzeit automatisch",
+      "spellcheck_mode_comment": "Rechtschreibprüfungsmodus für den Notiz-Editor."
+    }
+  }
 }

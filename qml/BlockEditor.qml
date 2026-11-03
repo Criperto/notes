@@ -40,8 +40,9 @@ Flickable {
     property var _measuredHeights: ({})
     property var _imageDimensions: ({})
     readonly property real overscanPx: 1200
-    property int visibleChunkStart: 0
-    property int visibleChunkEnd: 30
+    property point visibleChunk: Qt.point(0, 30)
+    readonly property int visibleChunkStart: visibleChunk.x
+    readonly property int visibleChunkEnd: visibleChunk.y
 
     function _storeImageDimension(src, w, h) {
         if (!src || w <= 0 || h <= 0) return;
@@ -177,13 +178,15 @@ Flickable {
     function _recalcChunkWindow() {
         var total = blocksModel.count;
         if (total === 0) {
-            if (root.visibleChunkStart !== 0) root.visibleChunkStart = 0;
-            if (root.visibleChunkEnd !== 0) root.visibleChunkEnd = 0;
+            if (root.visibleChunk.x !== 0 || root.visibleChunk.y !== 0) {
+                root.visibleChunk = Qt.point(0, 0);
+            }
             return;
         }
         if (total <= 35) {
-            if (root.visibleChunkStart !== 0) root.visibleChunkStart = 0;
-            if (root.visibleChunkEnd !== total - 1) root.visibleChunkEnd = total - 1;
+            if (root.visibleChunk.x !== 0 || root.visibleChunk.y !== total - 1) {
+                root.visibleChunk = Qt.point(0, total - 1);
+            }
             return;
         }
 
@@ -214,8 +217,9 @@ Flickable {
             endIdx = Math.min(total - 1, 30);
         }
 
-        if (root.visibleChunkStart !== startIdx) root.visibleChunkStart = startIdx;
-        if (root.visibleChunkEnd !== endIdx) root.visibleChunkEnd = endIdx;
+        if (root.visibleChunk.x !== startIdx || root.visibleChunk.y !== endIdx) {
+            root.visibleChunk = Qt.point(startIdx, endIdx);
+        }
     }
 
 
@@ -1245,8 +1249,7 @@ Flickable {
                 sep: "\n\n"
             });
         }
-        root.visibleChunkStart = 0;
-        root.visibleChunkEnd = Math.min(Math.max(0, blocksModel.count - 1), 30);
+        root.visibleChunk = Qt.point(0, Math.min(Math.max(0, blocksModel.count - 1), 30));
         if (blocksModel.count > 35) {
             chunkWindowTimer.restart();
         }
@@ -1292,8 +1295,7 @@ Flickable {
         blocksModel.clear();
         root._measuredHeights = ({});
         root._imageDimensions = ({});
-        root.visibleChunkStart = 0;
-        root.visibleChunkEnd = 30;
+        root.visibleChunk = Qt.point(0, 30);
         root.markdown = "";
         root.documentLead = "";
         root._frozenColumnWidth = 0;
@@ -2962,8 +2964,8 @@ Flickable {
                 readonly property bool isSelected: !!(root.selectedBids && root.selectedBids[model.bid] === true)
                 readonly property bool isSearchTarget: root.activeMatchBid === model.bid
 
-                // Intersección con la ventana visible por rango de índices desacoplado (sin binding loop)
-                readonly property bool inViewportChunk: (blocksModel.count <= 35) || (index >= root.visibleChunkStart && index <= root.visibleChunkEnd)
+                // Intersección con la ventana visible por rango atómico (evita binding loops)
+                readonly property bool inViewportChunk: (blocksModel.count <= 35) || (index >= root.visibleChunk.x && index <= root.visibleChunk.y)
 
                 property bool _everActivated: false
                 readonly property bool shouldBeActive: inViewportChunk ||
@@ -3075,6 +3077,7 @@ Flickable {
                     property: "inViewportChunk"
                     value: blockLoader.inViewportChunk
                     when: blockLoader.status === Loader.Ready
+                    restoreMode: Binding.RestoreNone
                 }
             }
         }

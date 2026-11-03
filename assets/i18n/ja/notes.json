@@ -157,5 +157,47 @@
   "notes.mermaid.template.journey": "ユーザージャーニーマップ",
   "notes.mermaid.template.xychart": "XYチャート (棒グラフと折れ線)",
   "_common_actions_cancel": "キャンセル",
-  "_common_states_active": "アクティブ"
+  "_common_states_active": "アクティブ",
+  "callout": {
+    "note": "ノート",
+    "tip": "ヒント",
+    "important": "重要",
+    "warning": "警告",
+    "caution": "注意"
+  },
+  "config": {
+    "notes": {
+      "select_dir": "ノートフォルダーを選択",
+      "storage_section": "ストレージとインポート",
+      "dir": "ノートフォルダー",
+      "browse": "参照",
+      "dir_comment": "Markdown (.md) ノートを保存するディレクトリ。$XDG_DOCUMENTS_DIR および $HOME をサポート。",
+      "import_mode": "ファイルをドラッグしたとき",
+      "import_mode_copy": "ノートフォルダーにコピー",
+      "import_mode_move": "元のファイルを移動",
+      "import_mode_comment": "ドラッグされた .md ファイルをコピーするか移動するか。",
+      "external_open_mode": "外部ファイルを開くとき",
+      "external_mode_preview": "プレビュー（読み取り専用）",
+      "external_mode_edit": "直接編集",
+      "external_open_mode_comment": "ノートフォルダー外にあるノートの開き方。",
+      "preview_close_action": "「×」でプレビューを閉じたとき",
+      "preview_close_exit": "アプリを終了",
+      "preview_close_home": "ホームに戻る",
+      "preview_close_action_comment": "「×」ボタンでアプリを閉じるか、ノートのホームに戻るかを設定。",
+      "view_section": "表示とエディター",
+      "show_image_previews": "カードに画像プレビューを表示",
+      "show_image_previews_comment": "ノートカードに画像のサムネイルを表示します。",
+      "cycle_preview_images": "プレビュー画像をローテーション",
+      "cycle_preview_images_comment": "ノート内の画像を3秒ごとにスムーズに切り替えます。",
+      "cards_per_row": "1行あたりのカード数",
+      "cards_per_row_comment": "グリッドの推奨列数。",
+      "editor_zoom": "エディターのズーム",
+      "editor_zoom_comment": "ノートエディターのデフォルトズームレベル。",
+      "spellcheck_mode": "スペルチェッカーのモード",
+      "spellcheck_off": "無効",
+      "spellcheck_manual": "手動 (F7 / ボタン)",
+      "spellcheck_auto": "リアルタイム自動",
+      "spellcheck_mode_comment": "ノートエディターのスペルチェック検証モード。"
+    }
+  }
 }

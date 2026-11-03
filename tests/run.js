@@ -3797,6 +3797,111 @@ runTest('F76: Espera de carga inicial en modo preview y acción configurable al 
     assert.ok(notesContentQml.indexOf('NotesConfig.previewCloseAction !== "home"') !== -1, "NotesContent debe consultar NotesConfig.previewCloseAction antes de cerrar la ventana");
 });
 
+// ── F77: Callouts estilo GitHub ───────────────────────────────────────────
+runTest('F77: Callouts GitHub parseCallout, searchUnits, colores y altura', () => {
+    const CalloutTypes = loadModule('CalloutTypes.js');
+
+    // 1. Detección y extracción de los 5 tipos estándar
+    const types = ['NOTE', 'TIP', 'IMPORTANT', 'WARNING', 'CAUTION'];
+    for (const t of types) {
+        const raw = `> [!${t}]\n> Contenido de prueba`;
+        const res = QP.parseCallout(raw);
+        assert.ok(res !== null, `Debe reconocer [!${t}]`);
+        assert.strictEqual(res.type, t);
+        assert.strictEqual(res.title, '');
+        assert.strictEqual(res.bodyRaw, '> Contenido de prueba');
+    }
+
+    // 2. Insensibilidad a mayúsculas/minúsculas y títulos personalizados
+    const case1 = QP.parseCallout('> [!note] Mi Título Personalizado\n> Línea 1\n> Línea 2');
+    assert.ok(case1 !== null);
+    assert.strictEqual(case1.type, 'NOTE');
+    assert.strictEqual(case1.title, 'Mi Título Personalizado');
+    assert.strictEqual(case1.bodyRaw, '> Línea 1\n> Línea 2');
+
+    const case2 = QP.parseCallout('> [!warning] Advertencia Crítica\n> Cuidado con esto');
+    assert.strictEqual(case2.type, 'WARNING');
+    assert.strictEqual(case2.title, 'Advertencia Crítica');
+
+    // 3. Tolerancia a espacios iniciales antes de `>`
+    const case3 = QP.parseCallout('   > [!tip]   Atajo rápido   \n> Usa Ctrl+S');
+    assert.ok(case3 !== null);
+    assert.strictEqual(case3.type, 'TIP');
+    assert.strictEqual(case3.title, 'Atajo rápido');
+
+    // 4. Casos negativos (no son callouts)
+    assert.strictEqual(QP.parseCallout('> Esto es una cita común'), null);
+    assert.strictEqual(QP.parseCallout('> [!UNKNOWN] Tipo desconocido'), null);
+    assert.strictEqual(QP.parseCallout('> [!NOTE Sin corchete de cierre'), null);
+    assert.strictEqual(QP.parseCallout('Texto normal sin prefijo quote'), null);
+    assert.strictEqual(QP.parseCallout(null), null);
+    assert.strictEqual(QP.parseCallout(''), null);
+
+    // 5. Callout con cuerpo vacío
+    const emptyBody = QP.parseCallout('> [!CAUTION]');
+    assert.ok(emptyBody !== null);
+    assert.strictEqual(emptyBody.type, 'CAUTION');
+    assert.strictEqual(emptyBody.title, '');
+    assert.strictEqual(emptyBody.bodyRaw, '');
+
+    // 6. searchUnits respeta el contrato "lo buscado == lo pintado"
+    // 6a. Sin título personalizado: no incluye el marcador [!NOTE] en las unidades
+    const unitsWithoutTitle = QP.searchUnits('> [!NOTE]\n> Información útil para el usuario');
+    assert.strictEqual(unitsWithoutTitle.length, 1);
+    assert.strictEqual(unitsWithoutTitle[0].paintMd, 'Información útil para el usuario');
+    assert.ok(!unitsWithoutTitle.some(u => u.paintMd && u.paintMd.includes('[!NOTE]')));
+
+    // 6b. Con título personalizado: la primera unidad es el título visible, seguida del cuerpo
+    const unitsWithTitle = QP.searchUnits('> [!TIP] Atajo Maestro\n> Usa Ctrl+N para crear nota');
+    assert.strictEqual(unitsWithTitle.length, 2);
+    assert.strictEqual(unitsWithTitle[0].paintMd, 'Atajo Maestro');
+    assert.strictEqual(unitsWithTitle[0].isCalloutTitle, true);
+    assert.strictEqual(unitsWithTitle[1].paintMd, 'Usa Ctrl+N para crear nota');
+
+    // 7. Invariante de serialización Markdown (joinBlocks(splitBlocks) === md)
+    const mdWithCallouts = '# Título\n\n> [!NOTE] Nota informativa\n> Contenido importante.\n\nTexto intermedio.\n\n> [!WARNING]\n> Peligro inminente.\n';
+    const splitRes = BlockModel.splitBlocks(mdWithCallouts);
+    const blocks = splitRes.blocks;
+    assert.strictEqual(BlockModel.joinBlocks(blocks), mdWithCallouts);
+    assert.strictEqual(blocks[1].type, 'quote');
+    assert.strictEqual(blocks[3].type, 'quote');
+
+    // 8. estimateBlockHeight suma espacio para la cabecera del callout
+    const normalHeight = BlockModel.estimateBlockHeight('quote', '> Un texto de cita común');
+    const calloutHeight = BlockModel.estimateBlockHeight('quote', '> [!NOTE]\n> Un texto de cita común');
+    assert.ok(calloutHeight > normalHeight, `La altura estimada del callout (${calloutHeight}) debe superar la de la cita simple (${normalHeight})`);
+
+    // 9. CalloutTypes metadatos y resolución de colores
+    for (const t of types) {
+        const def = CalloutTypes.getType(t);
+        assert.ok(def !== null, `Debe existir tipo para ${t}`);
+        assert.ok(def.icon && def.icon.endsWith('.svg'));
+        assert.ok(def.nameKey && def.nameKey.startsWith('notes.callout.'));
+    }
+
+    const mockTheme = {
+        accent: '#ff8800',
+        color4: '#58a6ff',
+        color2: '#3fb950',
+        color5: '#bc8cff',
+        color3: '#d29922',
+        red: '#ff4444'
+    };
+    assert.strictEqual(CalloutTypes.getColor('NOTE', mockTheme), '#58a6ff');
+    assert.strictEqual(CalloutTypes.getColor('TIP', mockTheme), '#3fb950');
+    assert.strictEqual(CalloutTypes.getColor('IMPORTANT', mockTheme), '#bc8cff');
+    assert.strictEqual(CalloutTypes.getColor('WARNING', mockTheme), '#d29922');
+    assert.strictEqual(CalloutTypes.getColor('CAUTION', mockTheme), '#ff4444');
+
+    // 10. Íconos vectoriales presentes en disco
+    const iconsDir = path.resolve(__dirname, '../assets/icons');
+    assert.ok(fs.existsSync(path.join(iconsDir, 'report.svg')), 'report.svg debe existir para IMPORTANT');
+    assert.ok(fs.existsSync(path.join(iconsDir, 'warning.svg')), 'warning.svg debe existir para WARNING');
+    assert.ok(fs.existsSync(path.join(iconsDir, 'info.svg')), 'info.svg debe existir para NOTE');
+    assert.ok(fs.existsSync(path.join(iconsDir, 'lightbulb.svg')), 'lightbulb.svg debe existir para TIP');
+    assert.ok(fs.existsSync(path.join(iconsDir, 'error.svg')), 'error.svg debe existir para CAUTION');
+});
+
 console.log(`\n========================================`);
 console.log(`Resultados: ${passed} OK, ${failed} FAIL`);
 console.log(`========================================`);

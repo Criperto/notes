@@ -157,5 +157,47 @@
   "notes.mermaid.template.journey": "用户旅程图",
   "notes.mermaid.template.xychart": "XY图表 (柱状与折线)",
   "_common_actions_cancel": "取消",
-  "_common_states_active": "活动"
+  "_common_states_active": "活动",
+  "callout": {
+    "note": "注意",
+    "tip": "提示",
+    "important": "重要",
+    "warning": "警告",
+    "caution": "小心"
+  },
+  "config": {
+    "notes": {
+      "select_dir": "选择笔记文件夹",
+      "storage_section": "存储与导入",
+      "dir": "笔记文件夹",
+      "browse": "浏览",
+      "dir_comment": "存储 Markdown (.md) 笔记的目录。支持 $XDG_DOCUMENTS_DIR 和 $HOME。",
+      "import_mode": "拖放文件时",
+      "import_mode_copy": "复制到笔记文件夹",
+      "import_mode_move": "移动原始文件",
+      "import_mode_comment": "拖放的 .md 文件是复制还是移动到笔记文件夹。",
+      "external_open_mode": "打开外部文件时",
+      "external_mode_preview": "预览（只读）",
+      "external_mode_edit": "直接编辑",
+      "external_open_mode_comment": "如何打开笔记文件夹之外的笔记。",
+      "preview_close_action": "点击「×」关闭预览时",
+      "preview_close_exit": "关闭应用程序",
+      "preview_close_home": "返回主页",
+      "preview_close_action_comment": "定义「×」是退出应用还是返回笔记的主页。",
+      "view_section": "视图与编辑器",
+      "show_image_previews": "卡片显示图片预览",
+      "show_image_previews_comment": "在笔记卡片上显示图片缩略图。",
+      "cycle_preview_images": "轮换预览图片",
+      "cycle_preview_images_comment": "每3秒平滑切换笔记中的不同图片。",
+      "cards_per_row": "每行卡片数",
+      "cards_per_row_comment": "笔记网格的首选列数。",
+      "editor_zoom": "编辑器缩放",
+      "editor_zoom_comment": "笔记编辑器的默认缩放级别。",
+      "spellcheck_mode": "拼写检查模式",
+      "spellcheck_off": "已禁用",
+      "spellcheck_manual": "手动 (F7 / 按钮)",
+      "spellcheck_auto": "实时自动检查",
+      "spellcheck_mode_comment": "笔记编辑器的拼写检查模式。"
+    }
+  }
 }

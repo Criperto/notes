@@ -157,5 +157,47 @@
   "notes.mermaid.template.journey": "Viaje de usuario (Journey)",
   "notes.mermaid.template.xychart": "Gráfico XY (Barras y líneas)",
   "_common_actions_cancel": "Cancelar",
-  "_common_states_active": "Activo"
+  "_common_states_active": "Activo",
+  "callout": {
+    "note": "Nota",
+    "tip": "Consejo",
+    "important": "Importante",
+    "warning": "Advertencia",
+    "caution": "Precaución"
+  },
+  "config": {
+    "notes": {
+      "select_dir": "Seleccionar carpeta de notas",
+      "storage_section": "Almacenamiento e Importación",
+      "dir": "Carpeta de notas",
+      "browse": "Examinar",
+      "dir_comment": "Directorio donde se almacenarán las notas en formato Markdown (.md). Soporta $XDG_DOCUMENTS_DIR y $HOME.",
+      "import_mode": "Al arrastrar un archivo",
+      "import_mode_copy": "Copiar a carpeta de notas",
+      "import_mode_move": "Mover archivo original",
+      "import_mode_comment": "Si los .md arrastrados se copian o se mueven a la carpeta de notas.",
+      "external_open_mode": "Al abrir archivos externos",
+      "external_mode_preview": "Vista previa (Solo lectura)",
+      "external_mode_edit": "Edición directa",
+      "external_open_mode_comment": "Cómo abrir notas ubicadas fuera de la carpeta de notas.",
+      "preview_close_action": "Al cerrar vista previa con 'X'",
+      "preview_close_exit": "Cerrar aplicación",
+      "preview_close_home": "Volver al inicio",
+      "preview_close_action_comment": "Define si la 'X' cierra la aplicación o vuelve al inicio normal de Notas.",
+      "view_section": "Vista y Editor",
+      "show_image_previews": "Previsualizar imágenes en tarjetas",
+      "show_image_previews_comment": "Muestra miniaturas de imágenes en las tarjetas de notas.",
+      "cycle_preview_images": "Alternar imágenes de vista previa",
+      "cycle_preview_images_comment": "Cambia suavemente cada 3 segundos entre las imágenes de la nota.",
+      "cards_per_row": "Tarjetas por fila",
+      "cards_per_row_comment": "Número preferido de columnas en la cuadrícula de notas.",
+      "editor_zoom": "Zoom del editor",
+      "editor_zoom_comment": "Nivel de zoom predeterminado para el editor de notas.",
+      "spellcheck_mode": "Modo de verificación en el editor",
+      "spellcheck_off": "Desactivado",
+      "spellcheck_manual": "Manual (F7 / Botón)",
+      "spellcheck_auto": "Automático en tiempo real",
+      "spellcheck_mode_comment": "Modo de verificación ortográfica para el editor de notas."
+    }
+  }
 }
