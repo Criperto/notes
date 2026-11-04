@@ -124,7 +124,8 @@ Item {
 
         Image {
             id: mathImage
-            anchors.centerIn: parent
+            x: root.renderedWidth < mathFlickable.width ? Math.round((mathFlickable.width - width) / 2) : 12
+            y: Math.max(0, Math.round((mathFlickable.contentHeight - height) / 2))
             source: root.svgDataUri
             cache: false
             asynchronous: false
@@ -137,6 +138,13 @@ Item {
             sourceSize.height: Math.max(1, Math.round(root._naturalHeight * (Screen.devicePixelRatio || 1.0) * root.zoomK))
             width: root.renderedWidth
             height: root.renderedHeight
+        }
+
+        WheelHandler {
+            target: mathFlickable
+            property: "contentX"
+            orientation: Qt.Horizontal
+            enabled: mathFlickable.interactive
         }
     }
 

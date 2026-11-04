@@ -4273,6 +4273,29 @@ runTest("F84: Cierre con botón X y atajo ESC sin trampa de foco ni conflicto de
     assert.ok(contentQml.includes('initialAction === "open" && initialTarget !== ""'), "launchedForExternal debe cubrir initialAction open");
 });
 
+runTest("F85: Preservación de sintaxis LaTeX con llaves {}, escape de dólares y desplazamiento de MathView", () => {
+    let capturedFormula = "";
+    const html = Inline.inlineToHtml(
+        "Einstein: $E = mc^2$, velocidad $c \\approx 3 \\times 10^8 \\text{ m/s}$ y confianza $\\mu \\pm 1.96 \\cdot \\frac{\\sigma}{\\sqrt{n}}$. Precio: \\$100.",
+        {
+            renderLatex: (formula) => {
+                capturedFormula = formula;
+                return `<svg><text>${formula}</text></svg>`;
+            }
+        }
+    );
+
+    // 1. Las llaves {} de LaTeX no deben ser corrompidas por tokens de escape de Markdown
+    assert.ok(!html.includes("\uE000ESC_"), "No deben quedar tokens de escape dentro del HTML");
+    assert.ok(html.includes("data:image/svg+xml"), "Las fórmulas inline deben generar imágenes SVG");
+    assert.ok(html.includes("$100"), "El dólar escapado \\$100 debe renderizarse como $100");
+
+    // 2. MathView mathImage no debe tener centerIn rígido que bloquee el scroll horizontal
+    const mathViewQml = fs.readFileSync(path.resolve(__dirname, '../qml/MathView.qml'), 'utf8');
+    assert.ok(!mathViewQml.includes('mathImage\n            anchors.centerIn: parent'), "mathImage no debe usar anchors.centerIn dentro de Flickable");
+    assert.ok(mathViewQml.includes('contentX') || mathViewQml.includes('interactive'), "MathView debe soportar scroll interactivo");
+});
+
 console.log(`\n========================================`);
 console.log(`Resultados: ${passed} OK, ${failed} FAIL`);
 console.log(`========================================`);

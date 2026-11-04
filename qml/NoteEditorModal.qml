@@ -459,9 +459,6 @@ Item {
     }
 
     function requestClose() {
-        if (root.isClosing) return;
-        root.isClosing = true;
-
         if (typeof NotesService !== "undefined" && NotesService.debug) {
             console.log("[NoteEditorModal] requestClose called, isPreviewMode=" + root.isPreviewMode);
         }
@@ -1542,6 +1539,8 @@ Item {
                 // Botón volver / cerrar
                 Rectangle {
                     id: backBtnRect
+                    implicitWidth: 34
+                    implicitHeight: 34
                     width: 34
                     height: 34
                     Layout.preferredWidth: 34
@@ -1584,8 +1583,8 @@ Item {
                         id: backBtnMa
                         anchors.fill: parent
                         hoverEnabled: true
-                        preventStealing: true
                         cursorShape: Qt.PointingHandCursor
+                        acceptedButtons: Qt.LeftButton
                         onEntered: tooltipLayer.showTooltip(parent, I18n.t("notes.editor.action.close", "Cerrar editor"), "Esc")
                         onExited: tooltipLayer.hideTooltip()
                         onClicked: {

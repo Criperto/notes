@@ -15,7 +15,7 @@ function renderLatexInline(formula, opts) {
     var defaultTextColor = _defaultTheme.lightMode ? "#1a1a1a" : (_defaultTheme.textColor || "#ffffff");
     var colorHex = (opts && opts.mathColor) ? opts.mathColor : ((opts && opts.textColor) ? opts.textColor : defaultTextColor);
     var zoomVal = (opts && typeof opts.zoom === "number") ? opts.zoom : _defaultZoom;
-    var defaultPt = Math.max(8.0, 13.5 * zoomVal);
+    var defaultPt = Math.max(10.0, 16.5 * zoomVal);
     var ptSize = (opts && opts.mathPtSize) ? opts.mathPtSize : defaultPt;
 
     var res = "";
@@ -195,7 +195,7 @@ function inlineToHtml(src, opts) {
     var textColor = options.textColor || defaultTextColor;
     var mathColor = options.mathColor || textColor;
     var zoomVal = (typeof options.zoom === "number") ? options.zoom : _defaultZoom;
-    var mathPtSize = options.mathPtSize || Math.max(8.0, 13.5 * zoomVal);
+    var mathPtSize = options.mathPtSize || Math.max(10.0, 16.5 * zoomVal);
     var codeBg = options.codeBg || "rgba(255, 255, 255, 0.08)";
     var codeColor = options.codeColor || "#f0f0f0";
     var kbdBg = options.kbdBg || "rgba(255, 255, 255, 0.10)";
@@ -214,6 +214,25 @@ function inlineToHtml(src, opts) {
             text = hm[2];
         }
     }
+
+    // 0. Proteger dólares escapados con barra (\$) para que no abran fórmulas matemáticas
+    var escapedDollars = [];
+    text = text.replace(/\\\$/g, function() {
+        var token = "\uE000ESCDOLLAR_" + escapedDollars.length + "\uE000";
+        escapedDollars.push("$");
+        return token;
+    });
+
+    // 0b. Extraer fórmulas matemáticas inline ($formula$) de forma íntegra antes de escapes de Markdown
+    var mathSpans = [];
+    text = text.replace(/(?:^|[^\$])\$([^\s\$](?:[^\$\r\n]*?[^\s\$])?)\$(?!\$)/g, function(match, formula) {
+        var pfx = match.startsWith("$") ? "" : match[0];
+        var token = "\uE000MATH_" + mathSpans.length + "\uE000";
+        var mathOpts = Object.assign({}, options, { mathColor: mathColor, mathPtSize: mathPtSize });
+        var rendered = renderLatexInline(formula, mathOpts);
+        mathSpans.push(rendered);
+        return pfx + token;
+    });
 
     // 1. Escapar caracteres con barra invertida
     var escapes = [];
@@ -243,17 +262,6 @@ function inlineToHtml(src, opts) {
         var html = '<img src="' + svgUri + '" align="middle"/>';
         kbds.push(html);
         return token;
-    });
-
-    // 2c. Extraer fórmulas matemáticas inline ($formula$)
-    var mathSpans = [];
-    text = text.replace(/(?:^|[^\$])\$([^\s\$](?:[^\$\r\n]*?[^\s\$])?)\$(?!\$)/g, function(match, formula) {
-        var pfx = match.startsWith("$") ? "" : match[0];
-        var token = "\uE000MATH_" + mathSpans.length + "\uE000";
-        var mathOpts = Object.assign({}, options, { mathColor: mathColor, mathPtSize: mathPtSize });
-        var rendered = renderLatexInline(formula, mathOpts);
-        mathSpans.push(rendered);
-        return pfx + token;
     });
 
     // 3. Extraer imágenes markdown antes que enlaces: ![alt](url)
@@ -433,6 +441,11 @@ function inlineToHtml(src, opts) {
     for (var e = 0; e < escapes.length; e++) {
         var escText = escapeHtml(escapes[e]);
         text = text.replace("\uE000ESC_" + e + "\uE000", function() { return escText; });
+    }
+
+    // 11b. Restaurar dólares escapados a texto plano ($)
+    for (var ed = 0; ed < escapedDollars.length; ed++) {
+        text = text.replace("\uE000ESCDOLLAR_" + ed + "\uE000", "$");
     }
 
     // 12. Resaltar coincidencias de búsqueda si se proveyó searchQuery
