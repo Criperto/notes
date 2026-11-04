@@ -39,7 +39,7 @@ Item {
     property string initialAction: ""
     property string initialTarget: ""
     property bool _initialActionHandled: false
-    property bool launchedForExternal: (initialAction === "previewFile" || initialAction === "openPath" || initialAction === "preview" || initialAction === "edit")
+    property bool launchedForExternal: (initialAction === "previewFile" || initialAction === "openPath" || initialAction === "preview" || initialAction === "edit" || (initialAction === "open" && initialTarget !== ""))
     property bool isReadyToShow: (initialAction === "" || initialAction === "raise" || initialAction === "toggle" || (initialAction === "open" && initialTarget === ""))
     property bool _previewCloseAnimActive: false
     property real _previewCloseDy: 0
@@ -2789,6 +2789,9 @@ Item {
     }
 
     function closeNoteWithMorph() {
+        if (root._previewCloseAnimActive && !previewCloseAnim.running) {
+            root._previewCloseAnimActive = false;
+        }
         if (root._deleteAnimActive || root._previewCloseAnimActive) return;
         if (NotesService.debug) console.log("[NotesContent - morph] Cerrando nota con contracción de morfismo");
 
@@ -2870,6 +2873,9 @@ Item {
     }
 
     function closeExternalPreview() {
+        if (root._previewCloseAnimActive && !previewCloseAnim.running) {
+            root._previewCloseAnimActive = false;
+        }
         if (root._previewCloseAnimActive) return;
         if (NotesService.debug) console.log("[NotesContent - preview] Cerrando preview con animación invertida hacia arriba");
         root.keyboardNavActive = false;

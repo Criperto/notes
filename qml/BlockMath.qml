@@ -486,7 +486,12 @@ Rectangle {
                     }
                     if (event.key === Qt.Key_Escape) {
                         event.accepted = true;
-                        if (root.editor) root.editor.confirmActiveBlock();
+                        if (root.editor) {
+                            root.editor.confirmActiveBlock();
+                            if (root.editor.editorModal) {
+                                root.editor.editorModal.requestClose();
+                            }
+                        }
                         return;
                     }
                 }

@@ -4248,8 +4248,29 @@ runTest("F83: SpellLogic ignora fórmulas matemáticas LaTeX, color blanco por d
     const modalQml = fs.readFileSync(path.resolve(__dirname, '../qml/NoteEditorModal.qml'), 'utf8');
     assert.ok(modalQml.includes('id: backBtnRect'), "NoteEditorModal debe tener backBtnRect");
     assert.ok(modalQml.includes('preventStealing: true'), "MouseArea de botón cerrar debe tener preventStealing: true");
-    assert.ok(modalQml.includes('TapHandler {'), "NoteEditorModal debe incluir TapHandler para el botón cerrar");
+    assert.ok(!modalQml.includes('id: backBtnTap'), "NoteEditorModal no debe incluir TapHandler en botón cerrar para evitar colisiones");
     assert.ok(!modalQml.includes('id: zoomWheelMouseArea'), "zoomWheelMouseArea con z: 99999 debe ser removido");
+});
+
+runTest("F84: Cierre con botón X y atajo ESC sin trampa de foco ni conflicto de puntero", () => {
+    const modalQml = fs.readFileSync(path.resolve(__dirname, '../qml/NoteEditorModal.qml'), 'utf8');
+    const contentQml = fs.readFileSync(path.resolve(__dirname, '../qml/NotesContent.qml'), 'utf8');
+    const mathQml = fs.readFileSync(path.resolve(__dirname, '../qml/BlockMath.qml'), 'utf8');
+
+    // 1. NoteEditorModal no debe tener TapHandler en el botón cerrar
+    assert.ok(!modalQml.includes('id: backBtnTap'), "No debe haber TapHandler en backBtnRect");
+    assert.ok(modalQml.includes('preventStealing: true'), "MouseArea de backBtn debe tener preventStealing");
+    assert.ok(modalQml.includes('focus: true'), "NoteEditorModal debe tener focus: true para recibir atajos");
+
+    // 2. ESC en NoteEditorModal debe llamar requestClose incluso si hay bloque activo
+    assert.ok(modalQml.includes('root.requestClose();'), "Escape debe invocar requestClose");
+    assert.ok(modalQml.includes('isClosing'), "NoteEditorModal debe tener guardia anti-reentrancia isClosing");
+
+    // 3. ESC en BlockMath debe propagar requestClose
+    assert.ok(mathQml.includes('root.editor.editorModal.requestClose()'), "BlockMath al presionar ESC debe invocar requestClose del modal");
+
+    // 4. NotesContent debe soportar initialAction open con initialTarget en launchedForExternal
+    assert.ok(contentQml.includes('initialAction === "open" && initialTarget !== ""'), "launchedForExternal debe cubrir initialAction open");
 });
 
 console.log(`\n========================================`);

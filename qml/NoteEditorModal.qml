@@ -18,6 +18,7 @@ import "MermaidTemplates.js" as MermaidTemplates
 
 Item {
     id: root
+    focus: true
 
     property var noteData: null
     readonly property bool isPreviewMode: Boolean(noteData && noteData.readOnly)
@@ -70,6 +71,7 @@ Item {
     property bool isLoading: false
     property bool isSaving: false
     property bool isExpanded: true
+    property bool isClosing: false
 
     property string _originalTitle: ""
     property string _originalBody: ""
@@ -172,6 +174,7 @@ Item {
     }
 
     function clearClosedNote() {
+        root.isClosing = false;
         root.loadedSlug = "";
         root._originalBody = "";
         root._originalTitle = "";
@@ -186,6 +189,7 @@ Item {
 
     // ── Sincronización al cambiar la nota activa ───────────────────────────
     onNoteDataChanged: {
+        root.isClosing = false;
         if (!root.noteData) {
             root.loadedSlug = "";
             return;
@@ -455,6 +459,9 @@ Item {
     }
 
     function requestClose() {
+        if (root.isClosing) return;
+        root.isClosing = true;
+
         if (typeof NotesService !== "undefined" && NotesService.debug) {
             console.log("[NoteEditorModal] requestClose called, isPreviewMode=" + root.isPreviewMode);
         }
@@ -1290,9 +1297,10 @@ Item {
                 mermaidMenuPopup.isOpen = false;
             } else if (root.isFindActive) {
                 root.closeFind();
-            } else if (!root.isSourceMode && blockEditor.activeBlockBid !== -1) {
-                blockEditor.confirmActiveBlock();
             } else {
+                if (!root.isSourceMode && blockEditor && blockEditor.activeBlockBid !== -1) {
+                    blockEditor.confirmActiveBlock();
+                }
                 root.requestClose();
             }
             return;
@@ -1541,7 +1549,7 @@ Item {
                     Layout.alignment: Qt.AlignVCenter
                     z: 100
                     radius: 10
-                    color: (backBtnMa.containsMouse || backBtnTap.pressed) ? Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.12) : "transparent"
+                    color: backBtnMa.containsMouse ? Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.12) : "transparent"
                     opacity: root.isExpanded ? 1.0 : 0.0
                     visible: opacity > 0.0
 
@@ -1564,7 +1572,7 @@ Item {
                         layer.enabled: true
                         layer.effect: MultiEffect {
                             colorization: 1.0
-                            colorizationColor: (backBtnMa.containsMouse || backBtnTap.pressed) ? Theme.text : Theme.muted
+                            colorizationColor: backBtnMa.containsMouse ? Theme.text : Theme.muted
                             Behavior on colorizationColor {
                                 enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
                                 ColorAnimation { duration: 140 }
@@ -1581,14 +1589,6 @@ Item {
                         onEntered: tooltipLayer.showTooltip(parent, I18n.t("notes.editor.action.close", "Cerrar editor"), "Esc")
                         onExited: tooltipLayer.hideTooltip()
                         onClicked: {
-                            tooltipLayer.hideTooltip();
-                            root.requestClose();
-                        }
-                    }
-
-                    TapHandler {
-                        id: backBtnTap
-                        onTapped: {
                             tooltipLayer.hideTooltip();
                             root.requestClose();
                         }
