@@ -439,13 +439,8 @@ Item {
             root.closeRequested();
             return;
         }
-        if (root.isSourceMode) {
-            root._currentBody = sourceCodeEditor ? sourceCodeEditor.text : root._currentBody;
-        } else {
-            if (blockEditor.activeBlockBid !== -1) {
-                blockEditor.confirmActiveBlock();
-            }
-            root._currentBody = blockEditor.getMarkdown();
+        if (!root.isSourceMode && blockEditor && blockEditor.activeBlockBid !== -1) {
+            blockEditor.confirmActiveBlock();
         }
         if (root.hasConflict) {
             root.resolveConflictKeepBoth(function() {
@@ -453,10 +448,7 @@ Item {
             });
             return;
         }
-        root.performSave(function() {
-            NotesService.flushPendingSave();
-            root.closeRequested();
-        });
+        root.closeRequested();
     }
 
     // ── Etiquetas del front matter ────────────────────────────────────

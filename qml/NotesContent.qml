@@ -2858,7 +2858,7 @@ Item {
                 root.closeRequested();
             } else {
                 root.launchedForExternal = false;
-                if (NotesService.notesList.length === 0 && !NotesService.loading) {
+                if ((!NotesService.notes || NotesService.notes.length === 0) && !NotesService.loading) {
                     NotesService.refresh();
                 }
             }
@@ -2890,7 +2890,7 @@ Item {
                 root.closeRequested();
             } else {
                 root.launchedForExternal = false;
-                if (NotesService.notesList.length === 0 && !NotesService.loading) {
+                if ((!NotesService.notes || NotesService.notes.length === 0) && !NotesService.loading) {
                     NotesService.refresh();
                 }
             }
@@ -3160,7 +3160,7 @@ Item {
                 root.closeRequested();
             } else {
                 root.launchedForExternal = false;
-                if (NotesService.notesList.length === 0 && !NotesService.loading) {
+                if ((!NotesService.notes || NotesService.notes.length === 0) && !NotesService.loading) {
                     NotesService.refresh();
                 }
             }
@@ -3237,7 +3237,7 @@ Item {
                 root.closeRequested();
             } else {
                 root.launchedForExternal = false;
-                if (NotesService.notesList.length === 0 && !NotesService.loading) {
+                if ((!NotesService.notes || NotesService.notes.length === 0) && !NotesService.loading) {
                     NotesService.refresh();
                 }
             }

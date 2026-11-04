@@ -275,8 +275,9 @@ Rectangle {
                     font.family: Theme.fontFamilyDisplay
                     font.pixelSize: Theme.fontSizeTitle - 1
                     font.bold: true
+                    wrapMode: Text.Wrap
                     elide: Text.ElideRight
-                    maximumLineCount: 1
+                    maximumLineCount: 2
                 }
 
                 Text {

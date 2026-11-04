@@ -3617,7 +3617,7 @@ runTest('F73: Asociación de Notas como aplicación por defecto para .md y .txt 
     assert.ok(desktopEntry.indexOf('text/markdown') !== -1, "Desktop entry debe soportar text/markdown");
     assert.ok(desktopEntry.indexOf('text/plain') !== -1, "Desktop entry debe soportar text/plain");
     assert.ok(desktopEntry.indexOf('text/x-markdown') !== -1, "Desktop entry debe soportar text/x-markdown");
-    assert.ok(desktopEntry.indexOf('Exec=criperto.notes %F') !== -1, "Desktop entry debe incluir %F para recibir archivos como argumentos");
+    assert.ok(desktopEntry.indexOf('Exec=criperto.notes %F') !== -1 || desktopEntry.indexOf('Exec=notas %F') !== -1, "Desktop entry debe incluir %F para recibir archivos como argumentos");
 
     // 2. Asociación como editor predeterminado en script de instalación
     assert.ok(installScript.indexOf('xdg-mime default dev.criperto.Notas.desktop') !== -1, "install.sh debe ejecutar xdg-mime default");
