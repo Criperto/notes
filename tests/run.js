@@ -4257,10 +4257,9 @@ runTest("F84: Cierre con botón X y atajo ESC sin trampa de foco ni conflicto de
     const contentQml = fs.readFileSync(path.resolve(__dirname, '../qml/NotesContent.qml'), 'utf8');
     const mathQml = fs.readFileSync(path.resolve(__dirname, '../qml/BlockMath.qml'), 'utf8');
 
-    // 1. NoteEditorModal no debe tener TapHandler en el botón cerrar y debe elevar backBtnRect
+    // 1. NoteEditorModal botón cerrar confiable
+    assert.ok(modalQml.includes('id: backBtnRect'), "NoteEditorModal debe tener backBtnRect");
     assert.ok(!modalQml.includes('id: backBtnTap'), "No debe haber TapHandler en backBtnRect");
-    assert.ok(modalQml.includes('id: backBtnSpacer'), "RowLayout debe tener backBtnSpacer para reservar el espacio");
-    assert.ok(modalQml.includes('z: 500'), "backBtnRect debe estar desacoplado con z: 500");
     assert.ok(modalQml.includes('preventStealing: true'), "MouseArea de backBtn debe tener preventStealing");
     assert.ok(modalQml.includes('focus: true'), "NoteEditorModal debe tener focus: true para recibir atajos");
 
@@ -4296,6 +4295,18 @@ runTest("F85: Preservación de sintaxis LaTeX con llaves {}, escape de dólares 
     const mathViewQml = fs.readFileSync(path.resolve(__dirname, '../qml/MathView.qml'), 'utf8');
     assert.ok(!mathViewQml.includes('mathImage\n            anchors.centerIn: parent'), "mathImage no debe usar anchors.centerIn dentro de Flickable");
     assert.ok(mathViewQml.includes('contentX') || mathViewQml.includes('interactive'), "MathView debe soportar scroll interactivo");
+});
+
+runTest("F86: SlashMenu no bloquea eventos de puntero cuando está cerrado", () => {
+    const slashQml = fs.readFileSync(path.resolve(__dirname, '../qml/SlashMenu.qml'), 'utf8');
+
+    // 1. SlashMenu root debe condicionar su enabled a isOpen y no depender de scale > 0.05
+    assert.ok(slashQml.includes('enabled: isOpen'), "SlashMenu root debe tener enabled: isOpen");
+    assert.ok(!slashQml.includes('menuBox.scale > 0.05'), "SlashMenu no debe usar menuBox.scale > 0.05 que siempre es true");
+    assert.ok(slashQml.includes('menuBox.opacity > 0.01'), "SlashMenu debe ocultarse cuando la opacidad llega a 0");
+
+    // 2. menuBox y su MouseArea deben estar deshabilitados cuando isOpen es false
+    assert.ok(slashQml.includes('enabled: root.isOpen'), "menuBox debe tener enabled: root.isOpen");
 });
 
 console.log(`\n========================================`);

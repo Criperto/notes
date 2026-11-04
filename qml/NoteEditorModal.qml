@@ -1533,74 +1533,6 @@ Item {
         id: modalContainer
         anchors.fill: parent
 
-        // Botón volver / cerrar desacoplado con elevación z: 500 para garantizar recepción de clics
-        Rectangle {
-            id: backBtnRect
-            anchors.left: mainColumn.left
-            anchors.top: mainColumn.top
-            width: 34
-            height: 34
-            z: 500
-            radius: 10
-            color: backBtnMa.containsMouse ? Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.12) : "transparent"
-            opacity: root.isExpanded ? 1.0 : 0.0
-            visible: opacity > 0.0
-
-            Behavior on opacity {
-                enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
-                NumberAnimation { duration: 180; easing.type: Easing.OutCubic }
-            }
-
-            Behavior on color {
-                enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
-                ColorAnimation { duration: 140 }
-            }
-
-            Image {
-                anchors.centerIn: parent
-                width: 18
-                height: 18
-                source: Theme.iconsPath + "close.svg"
-                sourceSize: Qt.size(18, 18)
-                layer.enabled: true
-                layer.effect: MultiEffect {
-                    colorization: 1.0
-                    colorizationColor: backBtnMa.containsMouse ? Theme.text : Theme.muted
-                    Behavior on colorizationColor {
-                        enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
-                        ColorAnimation { duration: 140 }
-                    }
-                }
-            }
-
-            MouseArea {
-                id: backBtnMa
-                anchors.fill: parent
-                hoverEnabled: true
-                preventStealing: true
-                cursorShape: Qt.PointingHandCursor
-                onEntered: {
-                    console.log("[Notas Click] Cursor SOBRE el botón X (onEntered)");
-                    tooltipLayer.showTooltip(parent, I18n.t("notes.editor.action.close", "Cerrar editor"), "Esc");
-                }
-                onExited: {
-                    console.log("[Notas Click] Cursor FUERA del botón X (onExited)");
-                    tooltipLayer.hideTooltip();
-                }
-                onPressed: (mouse) => {
-                    console.log("[Notas Click] PRESIONADO (onPressed) en botón X | mouse.button=" + mouse.button);
-                }
-                onReleased: (mouse) => {
-                    console.log("[Notas Click] SOLTADO (onReleased) en botón X");
-                }
-                onClicked: (mouse) => {
-                    console.log("[Notas Click] CLIC CONFIRMADO (onClicked) en botón X -> ejecutando root.requestClose()");
-                    tooltipLayer.hideTooltip();
-                    root.requestClose();
-                }
-            }
-        }
-
         ColumnLayout {
             id: mainColumn
             anchors.fill: parent
@@ -1612,13 +1544,69 @@ Item {
                 Layout.fillWidth: true
                 spacing: 12
 
-                // Espaciador para reservar los 34px del botón volver / cerrar
-                Item {
-                    id: backBtnSpacer
-                    implicitWidth: 34
-                    implicitHeight: 34
-                    Layout.preferredWidth: 34
-                    Layout.preferredHeight: 34
+                // Botón volver / cerrar
+                Rectangle {
+                    id: backBtnRect
+                    width: 34
+                    height: 34
+                    radius: 10
+                    color: backBtnMa.containsMouse ? Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.12) : "transparent"
+                    opacity: root.isExpanded ? 1.0 : 0.0
+                    visible: opacity > 0.0
+
+                    Behavior on opacity {
+                        enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                        NumberAnimation { duration: 180; easing.type: Easing.OutCubic }
+                    }
+
+                    Behavior on color {
+                        enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                        ColorAnimation { duration: 140 }
+                    }
+
+                    Image {
+                        anchors.centerIn: parent
+                        width: 18
+                        height: 18
+                        source: Theme.iconsPath + "close.svg"
+                        sourceSize: Qt.size(18, 18)
+                        layer.enabled: true
+                        layer.effect: MultiEffect {
+                            colorization: 1.0
+                            colorizationColor: backBtnMa.containsMouse ? Theme.text : Theme.muted
+                            Behavior on colorizationColor {
+                                enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                                ColorAnimation { duration: 140 }
+                            }
+                        }
+                    }
+
+                    MouseArea {
+                        id: backBtnMa
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        preventStealing: true
+                        cursorShape: Qt.PointingHandCursor
+                        onEntered: {
+                            console.log("[Notas Click] Cursor SOBRE el botón X (onEntered)");
+                            tooltipLayer.showTooltip(parent, I18n.t("notes.editor.action.close", "Cerrar editor"), "Esc");
+                        }
+                        onExited: {
+                            console.log("[Notas Click] Cursor FUERA del botón X (onExited)");
+                            tooltipLayer.hideTooltip();
+                        }
+                        onPressed: (mouse) => {
+                            console.log("[Notas Click] PRESIONADO (onPressed) en botón X | mouse.button=" + mouse.button);
+                        }
+                        onReleased: (mouse) => {
+                            console.log("[Notas Click] SOLTADO (onReleased) en botón X");
+                        }
+                        onClicked: (mouse) => {
+                            console.log("[Notas Click] CLIC CONFIRMADO (onClicked) en botón X -> ejecutando root.requestClose()");
+                            tooltipLayer.hideTooltip();
+                            root.requestClose();
+                        }
+                    }
                 }
 
                 // Título y nombre de archivo .md

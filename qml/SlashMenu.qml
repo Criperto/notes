@@ -18,7 +18,8 @@ Item {
 
     signal commandSelected(var cmd, var triggerInfo)
 
-    visible: isOpen || menuBox.scale > 0.05
+    visible: isOpen || menuBox.opacity > 0.01
+    enabled: isOpen
     anchors.fill: parent
     z: 99998
 
@@ -146,6 +147,8 @@ Item {
 
     Rectangle {
         id: menuBox
+        visible: root.isOpen || opacity > 0.01
+        enabled: root.isOpen
         width: root.menuWidth
         height: root.menuHeight
         radius: 12
@@ -184,6 +187,7 @@ Item {
         MouseArea {
             anchors.fill: parent
             z: -1
+            enabled: root.isOpen
             acceptedButtons: Qt.LeftButton | Qt.RightButton
             onPressed: (mouse) => mouse.accepted = true
         }
