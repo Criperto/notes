@@ -1299,26 +1299,22 @@ Flickable {
         if (!notePath || !root.docHistory) return;
         var serialized = History.serialize(root.docHistory, 2 * 1024 * 1024);
         if (!serialized) return;
-        saveUndoProc.command = [
-            (typeof Sys !== "undefined" && Sys.appExecutable) ? Sys.appExecutable : "notas",
-            "history",
-            "save-undo",
-            notePath,
-            serialized
-        ];
-        saveUndoProc.running = true;
+        if (typeof Sys !== "undefined" && typeof Sys.saveHistoryUndo === "function") {
+            Sys.saveHistoryUndo(notePath, serialized);
+        }
     }
 
     function loadPersistedUndoHistory(notePath, currentMd) {
-        if (!notePath) return;
-        loadUndoProc.targetMd = currentMd;
-        loadUndoProc.command = [
-            (typeof Sys !== "undefined" && Sys.appExecutable) ? Sys.appExecutable : "notas",
-            "history",
-            "load-undo",
-            notePath
-        ];
-        loadUndoProc.running = true;
+        if (!notePath || !root.docHistory) return;
+        if (typeof Sys !== "undefined" && typeof Sys.loadHistoryUndo === "function") {
+            var raw = Sys.loadHistoryUndo(notePath);
+            if (raw && raw.trim().length > 0) {
+                var ok = History.restore(root.docHistory, raw, currentMd);
+                if (ok && typeof NotesService !== "undefined" && NotesService.debug) {
+                    console.log("[BlockEditor] Pila de undo restaurada de forma síncrona para:", notePath);
+                }
+            }
+        }
     }
 
     function moveBlockUp(bid) {
@@ -3474,32 +3470,6 @@ Flickable {
                 } else if (emptyAreaMa.lastMouseY > viewBottom - 30) {
                     root.contentY = Math.min(Math.max(0, root.contentHeight - root.height), root.contentY + 14);
                     root.handleCrossBlockDrag(root.selAnchorBid, emptyAreaMa.lastMouseY, blocksColumn.x + blocksColumn.width / 2);
-                }
-            }
-        }
-    }
-
-    Process {
-        id: saveUndoProc
-        running: false
-    }
-
-    Process {
-        id: loadUndoProc
-        property string targetMd: ""
-        property string outJson: ""
-        running: false
-        stdout: SplitParser {
-            splitMarker: ""
-            onRead: chunk => { loadUndoProc.outJson += chunk; }
-        }
-        onExited: exitCode => {
-            var raw = loadUndoProc.outJson;
-            loadUndoProc.outJson = "";
-            if (exitCode === 0 && raw.trim().length > 0) {
-                var ok = History.restore(root.docHistory, raw, loadUndoProc.targetMd);
-                if (ok && typeof NotesService !== "undefined" && NotesService.debug) {
-                    console.log("[BlockEditor] Pila de undo restaurada exitosamente para la nota");
                 }
             }
         }

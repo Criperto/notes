@@ -64,8 +64,6 @@ fn main() {
         "qml/MermaidView.qml",
         "qml/BlockRaw.qml",
         "qml/SpellOverlay.qml",
-        "qml/DiffView.qml",
-        "qml/HistoryPanel.qml",
     ];
 
     let mut module = QmlModule::new("Notas");

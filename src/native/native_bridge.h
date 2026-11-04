@@ -258,6 +258,8 @@ public:
     Q_INVOKABLE bool clipboardHasImage() const;
     Q_INVOKABLE QString pasteClipboardImage(const QString &destDir, const QString &baseName, const QString &relPrefix = QStringLiteral("assets/"));
     Q_INVOKABLE QJsonObject indexNotes(const QString &notesDir) const;
+    Q_INVOKABLE QString loadHistoryUndo(const QString &notePath) const;
+    Q_INVOKABLE bool saveHistoryUndo(const QString &notePath, const QString &jsonData) const;
     Q_INVOKABLE QJsonObject readQtColors() const;
     Q_INVOKABLE void refreshQtColors();
 
@@ -322,6 +324,7 @@ class ConfigBackend : public QObject {
     Q_PROPERTY(bool syncWithQuickshell READ syncWithQuickshell WRITE setSyncWithQuickshell NOTIFY syncWithQuickshellChanged)
     Q_PROPERTY(bool versionHistoryEnabled READ versionHistoryEnabled WRITE setVersionHistoryEnabled NOTIFY versionHistoryEnabledChanged)
     Q_PROPERTY(int versionHistoryMax READ versionHistoryMax WRITE setVersionHistoryMax NOTIFY versionHistoryMaxChanged)
+    Q_PROPERTY(int versionHistoryMaxMb READ versionHistoryMaxMb WRITE setVersionHistoryMaxMb NOTIFY versionHistoryMaxMbChanged)
     Q_PROPERTY(bool persistUndo READ persistUndo WRITE setPersistUndo NOTIFY persistUndoChanged)
 
 public:
@@ -413,6 +416,9 @@ public:
     int versionHistoryMax() const { return m_versionHistoryMax; }
     void setVersionHistoryMax(int val);
 
+    int versionHistoryMaxMb() const { return m_versionHistoryMaxMb; }
+    void setVersionHistoryMaxMb(int val);
+
     bool persistUndo() const { return m_persistUndo; }
     void setPersistUndo(bool val);
 
@@ -450,6 +456,7 @@ signals:
     void syncWithQuickshellChanged();
     void versionHistoryEnabledChanged();
     void versionHistoryMaxChanged();
+    void versionHistoryMaxMbChanged();
     void persistUndoChanged();
 
 private:
@@ -489,6 +496,7 @@ private:
     bool m_lightMode = false;
     bool m_versionHistoryEnabled = true;
     int m_versionHistoryMax = 50;
+    int m_versionHistoryMaxMb = 5;
     bool m_persistUndo = true;
 
     QTimer *m_saveTimer = nullptr;

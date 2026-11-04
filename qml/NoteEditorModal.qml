@@ -41,6 +41,13 @@ Item {
         root._pendingBody = "";
         blockEditor.loadMarkdown(pb);
         blockEditor.contentY = 0;
+        var noteFilePath = (root.noteData && root.noteData.filePath) ? root.noteData.filePath : (root.noteData && root.noteData.fullPath ? root.noteData.fullPath : "");
+        if (noteFilePath && NotesConfig.persistUndo && blockEditor) {
+            blockEditor.loadPersistedUndoHistory(noteFilePath, pb);
+        }
+        if (noteFilePath && NotesConfig.versionHistoryEnabled) {
+            NotesService.checkAutoSnapshot(noteFilePath, pb, "open_base");
+        }
         if (root.isFindActive) findRecalcTimer.restart();
     }
 
@@ -456,6 +463,10 @@ Item {
         }
         if (!root.isSourceMode && blockEditor && blockEditor.activeBlockBid !== -1) {
             blockEditor.confirmActiveBlock();
+        }
+        var noteFilePath = (root.noteData && root.noteData.filePath) ? root.noteData.filePath : (root.noteData && root.noteData.fullPath ? root.noteData.fullPath : "");
+        if (noteFilePath && NotesConfig.persistUndo && blockEditor) {
+            blockEditor.persistUndoHistory(noteFilePath);
         }
         if (root.hasConflict) {
             root.resolveConflictKeepBoth(function() {
@@ -1254,9 +1265,7 @@ Item {
 
         if (event.key === Qt.Key_Escape) {
             event.accepted = true;
-            if (historyPanel.isOpen) {
-                historyPanel.close();
-            } else if (imageMenuPopup.isOpen) {
+            if (imageMenuPopup.isOpen) {
                 imageMenuPopup.isOpen = false;
             } else if (mermaidMenuPopup.isOpen) {
                 mermaidMenuPopup.isOpen = false;
@@ -1369,11 +1378,6 @@ Item {
             }
             if (event.key === Qt.Key_6) {
                 root.applyFormatOrAction("h6");
-                event.accepted = true;
-                return;
-            }
-            if (event.key === Qt.Key_H) {
-                historyPanel.toggle();
                 event.accepted = true;
                 return;
             }
@@ -2575,15 +2579,6 @@ Item {
                             active: blockEditor.spellActive
                             onClicked: blockEditor.toggleSpellCheck()
                         }
-
-                        // 21. Historial de versiones y cambios (Ctrl+Alt+H)
-                        ToolbarButton {
-                            actionId: "history"
-                            tooltipLayer: tooltipLayer
-                            iconSource: Theme.iconsPath + "recent.svg"
-                            active: historyPanel.isOpen
-                            onClicked: historyPanel.toggle()
-                        }
                     }
                 }
 
@@ -3567,22 +3562,6 @@ Item {
         id: slashMenu
         onCommandSelected: (cmd, triggerInfo) => {
             blockEditor.handleSlashCommandExecution(cmd, triggerInfo);
-        }
-    }
-
-    // Panel de Historial de Versiones y Diff (Fase 4)
-    HistoryPanel {
-        id: historyPanel
-        anchors.top: parent ? parent.top : undefined
-        anchors.bottom: parent ? parent.bottom : undefined
-        anchors.right: parent ? parent.right : undefined
-        notePath: (root.noteData && root.noteData.filePath) ? root.noteData.filePath : (root.noteData && root.noteData.fullPath ? root.noteData.fullPath : "")
-        currentText: root.isSourceMode ? (sourceCodeEditor ? sourceCodeEditor.text : "") : (blockEditor ? blockEditor.getMarkdown() : "")
-        onRestoreVersionRequested: (restoredContent) => {
-            root.restoreContentFromHistory(restoredContent);
-        }
-        onSnapshotCreated: {
-            importToast.showText("Punto de control guardado");
         }
     }
 

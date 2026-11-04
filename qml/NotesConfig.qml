@@ -113,6 +113,15 @@ QtObject {
             comment: I18n.t("config.notes.version_history_max_comment", "Cantidad máxima de snapshots automáticos conservados por nota antes de podar.")
         },
         {
+            key: "versionHistoryMaxMb",
+            type: "int",
+            min: 1,
+            max: 50,
+            default: 5,
+            label: I18n.t("config.notes.version_history_max_mb", "Límite de snapshots (MB)"),
+            comment: I18n.t("config.notes.version_history_max_mb_comment", "Espacio máximo en megabytes para snapshots automáticos por nota antes de podar.")
+        },
+        {
             key: "persistUndo",
             type: "bool",
             default: true,
@@ -176,6 +185,11 @@ QtObject {
         if (typeof ConfigBackend !== "undefined" && ConfigBackend.versionHistoryMax !== versionHistoryMax) ConfigBackend.versionHistoryMax = versionHistoryMax;
     }
 
+    property int versionHistoryMaxMb: (typeof ConfigBackend !== "undefined" && ConfigBackend.versionHistoryMaxMb !== undefined && ConfigBackend.versionHistoryMaxMb >= 1) ? ConfigBackend.versionHistoryMaxMb : 5
+    onVersionHistoryMaxMbChanged: {
+        if (typeof ConfigBackend !== "undefined" && ConfigBackend.versionHistoryMaxMb !== versionHistoryMaxMb) ConfigBackend.versionHistoryMaxMb = versionHistoryMaxMb;
+    }
+
     property bool persistUndo: (typeof ConfigBackend !== "undefined" && ConfigBackend.persistUndo !== undefined) ? ConfigBackend.persistUndo : true
     onPersistUndoChanged: {
         if (typeof ConfigBackend !== "undefined" && ConfigBackend.persistUndo !== persistUndo) ConfigBackend.persistUndo = persistUndo;
@@ -215,6 +229,9 @@ QtObject {
         }
         function onVersionHistoryMaxChanged() {
             if (root.versionHistoryMax !== ConfigBackend.versionHistoryMax) root.versionHistoryMax = ConfigBackend.versionHistoryMax;
+        }
+        function onVersionHistoryMaxMbChanged() {
+            if (root.versionHistoryMaxMb !== ConfigBackend.versionHistoryMaxMb) root.versionHistoryMaxMb = ConfigBackend.versionHistoryMaxMb;
         }
         function onPersistUndoChanged() {
             if (root.persistUndo !== ConfigBackend.persistUndo) root.persistUndo = ConfigBackend.persistUndo;

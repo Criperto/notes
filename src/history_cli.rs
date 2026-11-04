@@ -167,6 +167,7 @@ pub fn cmd_snapshot(
     label: Option<&str>,
     is_manual: bool,
     max_versions: usize,
+    max_mb: usize,
 ) -> Result<VersionMeta, String> {
     let note_path = Path::new(note_path_str);
     if !note_path.exists() {
@@ -230,8 +231,8 @@ pub fn cmd_snapshot(
 
     meta.versions.push(v_meta.clone());
 
-    // Poda automática
-    prune_meta(&mut meta, &v_dir, max_versions);
+    // Poda automática respetando cantidad de versiones y límite de MB
+    prune_meta(&mut meta, &v_dir, max_versions, max_mb);
 
     save_meta(&hist_dir, &meta).map_err(|e| format!("Error guardando metadata: {}", e))?;
 
@@ -239,24 +240,14 @@ pub fn cmd_snapshot(
 }
 
 // ── Poda de versiones ────────────────────────────────────────────────────────
-fn prune_meta(meta: &mut HistoryMeta, v_dir: &Path, max_versions: usize) {
-    if meta.versions.len() <= max_versions {
-        return;
-    }
+fn prune_meta(meta: &mut HistoryMeta, v_dir: &Path, max_versions: usize, max_mb: usize) {
+    let max_bytes = if max_mb > 0 { max_mb * 1024 * 1024 } else { 0 };
 
     // Separar manuales (nunca se podan) de automáticas
     let mut kept: Vec<VersionMeta> = Vec::new();
+    let mut autos: Vec<VersionMeta> = Vec::new();
     let mut to_delete_ids: Vec<String> = Vec::new();
 
-    let _now_secs = SystemTime::now()
-        .duration_since(SystemTime::UNIX_EPOCH)
-        .map(|d| d.as_secs())
-        .unwrap_or(0);
-
-    let _one_day = 86400;
-
-    // Dejar las manuales y clasificar automáticas
-    let mut autos: Vec<VersionMeta> = Vec::new();
     for v in meta.versions.drain(..) {
         if v.is_manual {
             kept.push(v);
@@ -265,18 +256,30 @@ fn prune_meta(meta: &mut HistoryMeta, v_dir: &Path, max_versions: usize) {
         }
     }
 
-    // Permitidas para automáticas
+    // Ordenar automáticas cronológicamente por id
+    autos.sort_by(|a, b| a.id.cmp(&b.id));
+
+    // 1. Podar por cantidad máxima de versiones automáticas
     let allowed_autos = max_versions.saturating_sub(kept.len());
     if autos.len() > allowed_autos {
         let prune_count = autos.len() - allowed_autos;
-        // Podar las más viejas
         for v in autos.drain(..prune_count) {
             to_delete_ids.push(v.id);
         }
     }
 
+    // 2. Podar por límite de almacenamiento en MB (max_bytes)
+    if max_bytes > 0 {
+        let manual_size: usize = kept.iter().map(|v| v.size).sum();
+        let mut auto_size: usize = autos.iter().map(|v| v.size).sum();
+        while !autos.is_empty() && (manual_size + auto_size) > max_bytes {
+            let removed = autos.remove(0);
+            auto_size = auto_size.saturating_sub(removed.size);
+            to_delete_ids.push(removed.id);
+        }
+    }
+
     kept.extend(autos);
-    // Ordenar cronológicamente por id
     kept.sort_by(|a, b| a.id.cmp(&b.id));
     meta.versions = kept;
 
@@ -344,7 +347,7 @@ pub fn cmd_restore(note_path_str: &str, version_id: &str) -> Result<String, Stri
     }
 
     // 1. Crear un snapshot del estado actual antes de sobrescribir
-    let _ = cmd_snapshot(note_path_str, Some("Antes de restaurar"), true, 50);
+    let _ = cmd_snapshot(note_path_str, Some("Antes de restaurar"), true, 50, 5);
 
     // 2. Sobrescribir nota con el snapshot elegido
     let version_content = fs::read_to_string(&snapshot_file)
@@ -411,14 +414,14 @@ pub fn handle_history_command(args: &[String]) -> Result<String, String> {
         return Ok(
             "Uso: notas history <snapshot|list|show|restore|purge|move|save-undo|load-undo> <archivo.md> [opciones]\n\
              Comandos:\n  \
-               snapshot <nota> [--label <etiqueta>] [--manual]  Crear un snapshot\n  \
-               list <nota> [--json]                            Listar versiones\n  \
-               show <nota> <version_id>                        Mostrar contenido de una versión\n  \
-               restore <nota> <version_id>                     Restaurar versión\n  \
-               purge <nota>                                    Eliminar historial\n  \
-               move <vieja_ruta> <nueva_ruta>                  Renombrar historial\n  \
-               save-undo <nota> <json_data>                    Guardar pila de undo\n  \
-               load-undo <nota>                                Cargar pila de undo"
+               snapshot <nota> [--label <etiqueta>] [--manual] [--max-mb <MB>]  Crear un snapshot\n  \
+               list <nota> [--json]                                             Listar versiones\n  \
+               show <nota> <version_id>                                         Mostrar contenido de una versión\n  \
+               restore <nota> <version_id>                                      Restaurar versión\n  \
+               purge <nota>                                                     Eliminar historial\n  \
+               move <vieja_ruta> <nueva_ruta>                                   Renombrar historial\n  \
+               save-undo <nota> <json_data>                                     Guardar pila de undo\n  \
+               load-undo <nota>                                                 Cargar pila de undo"
                 .to_string(),
         );
     }
@@ -432,6 +435,8 @@ pub fn handle_history_command(args: &[String]) -> Result<String, String> {
             let path = &args[1];
             let mut label = None;
             let mut is_manual = false;
+            let mut max_mb = 5;
+            let mut max_versions = 50;
             let mut i = 2;
             while i < args.len() {
                 if args[i] == "--label" && i + 1 < args.len() {
@@ -440,11 +445,21 @@ pub fn handle_history_command(args: &[String]) -> Result<String, String> {
                 } else if args[i] == "--manual" {
                     is_manual = true;
                     i += 1;
+                } else if args[i] == "--max-mb" && i + 1 < args.len() {
+                    if let Ok(v) = args[i + 1].parse::<usize>() {
+                        max_mb = v;
+                    }
+                    i += 2;
+                } else if args[i] == "--max-versions" && i + 1 < args.len() {
+                    if let Ok(v) = args[i + 1].parse::<usize>() {
+                        max_versions = v;
+                    }
+                    i += 2;
                 } else {
                     i += 1;
                 }
             }
-            let res = cmd_snapshot(path, label, is_manual, 50)?;
+            let res = cmd_snapshot(path, label, is_manual, max_versions, max_mb)?;
             serde_json::to_string_pretty(&res).map_err(|e| e.to_string())
         }
         "list" => {

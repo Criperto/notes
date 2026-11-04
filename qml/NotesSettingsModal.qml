@@ -1557,14 +1557,15 @@ Item {
 
                                 SchemaSliderRow {
                                     visible: ConfigBackend.versionHistoryEnabled
-                                    label: I18n.t("config.notes.version_history_max", "Máximo de versiones conservadas")
-                                    comment: I18n.t("config.notes.version_history_max_comment", "Cantidad máxima de snapshots automáticos conservados por nota antes de podar.")
-                                    val: ConfigBackend.versionHistoryMax
-                                    minV: 10
-                                    maxV: 200
-                                    stepSize: 5
+                                    label: I18n.t("config.notes.version_history_max_mb", "Límite de almacenamiento de snapshots")
+                                    comment: I18n.t("config.notes.version_history_max_mb_comment", "Espacio máximo en megabytes para snapshots automáticos por nota antes de podar los más antiguos.")
+                                    val: ConfigBackend.versionHistoryMaxMb
+                                    minV: 1
+                                    maxV: 50
+                                    stepSize: 1
                                     isInt: true
-                                    onMoved: (v) => { ConfigBackend.versionHistoryMax = Math.round(v); }
+                                    suffix: " MB"
+                                    onMoved: (v) => { ConfigBackend.versionHistoryMaxMb = Math.round(v); }
                                 }
 
                                 SchemaSwitchRow {

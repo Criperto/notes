@@ -3696,13 +3696,16 @@ Item {
             };
             var qsHelperBin = (typeof Sys !== "undefined" && Sys.appExecutable) ? Sys.appExecutable : "notas";
             var snapLabel = (reason === "open_base" ? "auto · base" : (reason === "auto_interval" ? "auto · intervalo" : "auto · guardado"));
+            var maxMb = (NotesConfig && NotesConfig.versionHistoryMaxMb) ? NotesConfig.versionHistoryMaxMb : 5;
             Quickshell.execDetached([
                 qsHelperBin,
                 "history",
                 "snapshot",
                 notePath,
                 "--label",
-                snapLabel
+                snapLabel,
+                "--max-mb",
+                String(maxMb)
             ]);
         }
     }

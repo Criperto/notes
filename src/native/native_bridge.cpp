@@ -1114,6 +1114,58 @@ QString Sys::pasteClipboardImage(const QString &destDir, const QString &baseName
     return QString();
 }
 
+static QString historyDirForNote(const QString &notePath) {
+    if (notePath.isEmpty()) return QString();
+    QFileInfo fi(notePath);
+    QString absPath = fi.absoluteFilePath();
+    QString stem = fi.baseName();
+    if (stem.isEmpty()) stem = QStringLiteral("note");
+    QString safeStem;
+    for (const QChar &c : stem) {
+        if (c.isLetterOrNumber() || c == QLatin1Char('_') || c == QLatin1Char('-')) {
+            safeStem.append(c);
+        } else {
+            safeStem.append(QLatin1Char('_'));
+        }
+    }
+    quint64 h = 0xcbf29ce484222325ULL;
+    QByteArray bytes = absPath.toUtf8();
+    for (int i = 0; i < bytes.size(); ++i) {
+        h ^= static_cast<quint8>(bytes.at(i));
+        h *= 0x100000001b3ULL;
+    }
+    quint32 folded = static_cast<quint32>((h >> 32) ^ (h & 0xffffffffULL));
+    QString hashStr = QStringLiteral("%1").arg(folded, 8, 16, QLatin1Char('0'));
+    QString folderName = safeStem + QLatin1Char('-') + hashStr;
+
+    QString stateHome = qEnvironmentVariable("XDG_STATE_HOME");
+    QString baseDir;
+    if (!stateHome.isEmpty()) {
+        baseDir = stateHome + QStringLiteral("/qs-notes/history");
+    } else {
+        baseDir = QDir::homePath() + QStringLiteral("/.local/state/qs-notes/history");
+    }
+    return baseDir + QLatin1Char('/') + folderName;
+}
+
+QString Sys::loadHistoryUndo(const QString &notePath) const {
+    QString dir = historyDirForNote(notePath);
+    if (dir.isEmpty()) return QString();
+    QFile f(dir + QStringLiteral("/undo.json"));
+    if (!f.open(QIODevice::ReadOnly)) return QString();
+    return QString::fromUtf8(f.readAll());
+}
+
+bool Sys::saveHistoryUndo(const QString &notePath, const QString &jsonData) const {
+    QString dir = historyDirForNote(notePath);
+    if (dir.isEmpty() || jsonData.isEmpty()) return false;
+    QDir().mkpath(dir);
+    QSaveFile sf(dir + QStringLiteral("/undo.json"));
+    if (!sf.open(QIODevice::WriteOnly)) return false;
+    sf.write(jsonData.toUtf8());
+    return sf.commit();
+}
+
 QJsonObject Sys::indexNotes(const QString &notesDirStr) const {
     QJsonObject root;
     QJsonArray notesArr;
@@ -1808,6 +1860,14 @@ void ConfigBackend::setVersionHistoryMax(int val) {
     scheduleSave();
 }
 
+void ConfigBackend::setVersionHistoryMaxMb(int val) {
+    int bounded = qBound(1, val, 100);
+    if (m_versionHistoryMaxMb == bounded) return;
+    m_versionHistoryMaxMb = bounded;
+    emit versionHistoryMaxMbChanged();
+    scheduleSave();
+}
+
 void ConfigBackend::setPersistUndo(bool val) {
     if (m_persistUndo == val) return;
     m_persistUndo = val;
@@ -1856,6 +1916,7 @@ void ConfigBackend::load() {
                 if (obj.contains("syncWithQuickshell")) m_syncWithQuickshell = obj["syncWithQuickshell"].toBool(true);
                 if (obj.contains("versionHistoryEnabled")) m_versionHistoryEnabled = obj["versionHistoryEnabled"].toBool(true);
                 if (obj.contains("versionHistoryMax")) m_versionHistoryMax = qBound(10, obj["versionHistoryMax"].toInt(50), 200);
+                if (obj.contains("versionHistoryMaxMb")) m_versionHistoryMaxMb = qBound(1, obj["versionHistoryMaxMb"].toInt(5), 100);
                 if (obj.contains("persistUndo")) m_persistUndo = obj["persistUndo"].toBool(true);
                 if (isForcedNoSyncConfigured()) m_syncWithQuickshell = false;
 
@@ -1955,6 +2016,7 @@ void ConfigBackend::save() {
     obj[QStringLiteral("syncWithQuickshell")] = m_syncWithQuickshell;
     obj[QStringLiteral("versionHistoryEnabled")] = m_versionHistoryEnabled;
     obj[QStringLiteral("versionHistoryMax")] = m_versionHistoryMax;
+    obj[QStringLiteral("versionHistoryMaxMb")] = m_versionHistoryMaxMb;
     obj[QStringLiteral("persistUndo")] = m_persistUndo;
 
     if (isForcedNoSyncConfigured()) {
