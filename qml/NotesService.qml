@@ -8,6 +8,7 @@ import "ImportLogic.js" as ImportLogic
 import "ImageProbe.js" as ImageProbe
 import "FolderNotes.js" as FolderNotes
 import "SortLogic.js" as SortLogic
+import "VersionPolicy.js" as VersionPolicy
 
 Item {
     id: root
@@ -740,6 +741,8 @@ Item {
 
             if (exitCode === 0) {
                 root.log("[NotesService - deleteNote] gio trash exitoso para:", tkey);
+                var qsHelperBin = (typeof Sys !== "undefined" && Sys.appExecutable) ? Sys.appExecutable : "notas";
+                if (path) Quickshell.execDetached([qsHelperBin, "history", "purge", path]);
                 root._finalizeDeletion(tkey);
                 root._isTrashing = false;
                 root._processTrashQueue();
@@ -3658,6 +3661,50 @@ Item {
         ];
         docxConvertProc.command = args;
         docxConvertProc.running = true;
+    }
+
+    // ── Snapshots automáticos de historial (Fase 4) ────────────────────────
+    property var _lastSnapshots: ({}) // { [notePath]: { hash, timestamp, length } }
+
+    Timer {
+        id: autoSnapIntervalTimer
+        interval: 5 * 60 * 1000 // 5 minutos
+        repeat: true
+        running: true
+        onTriggered: {
+            if (root.activeNote && NotesConfig.versionHistoryEnabled) {
+                var p = root.activeNote.filePath || root.activeNote.fullPath;
+                var curText = root.activeNote.body || root.activeNote.content || "";
+                if (p && curText) root.checkAutoSnapshot(p, curText, "auto_interval");
+            }
+        }
+    }
+
+    function checkAutoSnapshot(notePath, content, reason) {
+        if (!notePath || !NotesConfig.versionHistoryEnabled || typeof content !== "string") return;
+        var lastSnap = root._lastSnapshots[notePath] || null;
+        var shouldSnap = VersionPolicy.shouldCreateSnapshot(reason, lastSnap, content, {
+            minDeltaChars: 20,
+            intervalMs: 5 * 60 * 1000
+        });
+        if (shouldSnap) {
+            var curHash = VersionPolicy.fastHash(content);
+            root._lastSnapshots[notePath] = {
+                hash: curHash,
+                timestamp: new Date().toISOString(),
+                length: content.length
+            };
+            var qsHelperBin = (typeof Sys !== "undefined" && Sys.appExecutable) ? Sys.appExecutable : "notas";
+            var snapLabel = (reason === "open_base" ? "auto · base" : (reason === "auto_interval" ? "auto · intervalo" : "auto · guardado"));
+            Quickshell.execDetached([
+                qsHelperBin,
+                "history",
+                "snapshot",
+                notePath,
+                "--label",
+                snapLabel
+            ]);
+        }
     }
 
     // ── Conexión reactiva a configuración ─────────────────────────────────

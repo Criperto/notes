@@ -1547,6 +1547,32 @@ Item {
                                     suffix: " %"
                                     onMoved: (v) => { ConfigBackend.editorZoom = Math.round(v); }
                                 }
+
+                                SchemaToggleRow {
+                                    label: I18n.t("config.notes.version_history_enabled", "Historial de versiones y snapshots")
+                                    comment: I18n.t("config.notes.version_history_comment", "Guarda snapshots automáticos periódicos para comparar diferencias y restaurar versiones previas.")
+                                    checked: ConfigBackend.versionHistoryEnabled
+                                    onToggled: (v) => { ConfigBackend.versionHistoryEnabled = v; }
+                                }
+
+                                SchemaSliderRow {
+                                    visible: ConfigBackend.versionHistoryEnabled
+                                    label: I18n.t("config.notes.version_history_max", "Máximo de versiones conservadas")
+                                    comment: I18n.t("config.notes.version_history_max_comment", "Cantidad máxima de snapshots automáticos conservados por nota antes de podar.")
+                                    val: ConfigBackend.versionHistoryMax
+                                    minV: 10
+                                    maxV: 200
+                                    stepSize: 5
+                                    isInt: true
+                                    onMoved: (v) => { ConfigBackend.versionHistoryMax = Math.round(v); }
+                                }
+
+                                SchemaToggleRow {
+                                    label: I18n.t("config.notes.persist_undo", "Deshacer persistente (Ctrl+Z)")
+                                    comment: I18n.t("config.notes.persist_undo_comment", "Conserva la pila de deshacer/rehacer entre aperturas de la nota.")
+                                    checked: ConfigBackend.persistUndo
+                                    onToggled: (v) => { ConfigBackend.persistUndo = v; }
+                                }
                             }
                         }
                     }

@@ -3,6 +3,7 @@ mod notes_cli;
 mod spell_cli;
 mod file_picker_cli;
 mod sync_cli;
+mod history_cli;
 
 use clap::Parser;
 use cxx_qt_lib::{QGuiApplication, QQmlApplicationEngine, QUrl};
@@ -87,6 +88,10 @@ struct Cli {
     /// Imprimir la ruta absoluta del archivo Markdown de una nota
     #[arg(long = "path-of")]
     path_of: Option<String>,
+
+    /// Operaciones de historial de versiones (snapshot, list, show, restore, purge, move)
+    #[arg(long = "history", num_args = 1..)]
+    history: Option<Vec<String>>,
 
     /// Desactivar sincronización con Quickshell (modo standalone para testing)
     #[arg(long = "no-sync", alias = "standalone")]
@@ -190,6 +195,20 @@ fn main() {
                 sync_cli::run(&raw_args[2..]);
                 return;
             }
+            "history" => {
+                match history_cli::handle_history_command(&raw_args[2..]) {
+                    Ok(msg) => {
+                        if !msg.is_empty() {
+                            println!("{}", msg);
+                        }
+                        return;
+                    }
+                    Err(e) => {
+                        eprintln!("Error en historial: {}", e);
+                        std::process::exit(1);
+                    }
+                }
+            }
             _ => {}
         }
     }
@@ -216,6 +235,21 @@ fn main() {
     if cli.clip {
         cli_ops::cmd_clip(cli.to_note.as_deref(), cli.stamp);
         return;
+    }
+
+    if let Some(ref h_args) = cli.history {
+        match history_cli::handle_history_command(h_args) {
+            Ok(msg) => {
+                if !msg.is_empty() {
+                    println!("{}", msg);
+                }
+                return;
+            }
+            Err(e) => {
+                eprintln!("Error en historial: {}", e);
+                std::process::exit(1);
+            }
+        }
     }
 
     let (action, target) = if let Some(ref find_q) = cli.find {

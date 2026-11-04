@@ -1793,6 +1793,28 @@ void ConfigBackend::setLightMode(bool val) {
     scheduleSave();
 }
 
+void ConfigBackend::setVersionHistoryEnabled(bool val) {
+    if (m_versionHistoryEnabled == val) return;
+    m_versionHistoryEnabled = val;
+    emit versionHistoryEnabledChanged();
+    scheduleSave();
+}
+
+void ConfigBackend::setVersionHistoryMax(int val) {
+    int bounded = qBound(10, val, 200);
+    if (m_versionHistoryMax == bounded) return;
+    m_versionHistoryMax = bounded;
+    emit versionHistoryMaxChanged();
+    scheduleSave();
+}
+
+void ConfigBackend::setPersistUndo(bool val) {
+    if (m_persistUndo == val) return;
+    m_persistUndo = val;
+    emit persistUndoChanged();
+    scheduleSave();
+}
+
 void ConfigBackend::load() {
     const bool hasPywal = QFile::exists(QDir::homePath() + QStringLiteral("/.cache/wal/colors.json"));
     QString path = configFilePath();
@@ -1832,6 +1854,9 @@ void ConfigBackend::load() {
                 if (obj.contains("customThemeName")) m_customThemeName = obj["customThemeName"].toString("amarillo");
                 if (obj.contains("lightMode")) m_lightMode = obj["lightMode"].toBool(false);
                 if (obj.contains("syncWithQuickshell")) m_syncWithQuickshell = obj["syncWithQuickshell"].toBool(true);
+                if (obj.contains("versionHistoryEnabled")) m_versionHistoryEnabled = obj["versionHistoryEnabled"].toBool(true);
+                if (obj.contains("versionHistoryMax")) m_versionHistoryMax = qBound(10, obj["versionHistoryMax"].toInt(50), 200);
+                if (obj.contains("persistUndo")) m_persistUndo = obj["persistUndo"].toBool(true);
                 if (isForcedNoSyncConfigured()) m_syncWithQuickshell = false;
 
                 // Migrar modos antiguos inexistentes ("dark", "light", "system")
@@ -1928,6 +1953,9 @@ void ConfigBackend::save() {
     obj[QStringLiteral("customThemeName")] = m_customThemeName;
     obj[QStringLiteral("lightMode")] = m_lightMode;
     obj[QStringLiteral("syncWithQuickshell")] = m_syncWithQuickshell;
+    obj[QStringLiteral("versionHistoryEnabled")] = m_versionHistoryEnabled;
+    obj[QStringLiteral("versionHistoryMax")] = m_versionHistoryMax;
+    obj[QStringLiteral("persistUndo")] = m_persistUndo;
 
     if (isForcedNoSyncConfigured()) {
         obj[QStringLiteral("syncWithQuickshell")] = false;

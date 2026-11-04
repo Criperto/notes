@@ -95,6 +95,29 @@ QtObject {
             ],
             label: I18n.t("config.notes.spellcheck_mode", "Corrector ortográfico"),
             comment: I18n.t("config.notes.spellcheck_mode_comment", "Modo de verificación ortográfica para el editor de notas.")
+        },
+        {
+            key: "versionHistoryEnabled",
+            type: "bool",
+            default: true,
+            label: I18n.t("config.notes.version_history_enabled", "Historial de versiones"),
+            comment: I18n.t("config.notes.version_history_comment", "Guarda snapshots automáticos periódicos para comparar diferencias y restaurar versiones previas.")
+        },
+        {
+            key: "versionHistoryMax",
+            type: "int",
+            min: 10,
+            max: 200,
+            default: 50,
+            label: I18n.t("config.notes.version_history_max", "Máximo de versiones"),
+            comment: I18n.t("config.notes.version_history_max_comment", "Cantidad máxima de snapshots automáticos conservados por nota antes de podar.")
+        },
+        {
+            key: "persistUndo",
+            type: "bool",
+            default: true,
+            label: I18n.t("config.notes.persist_undo", "Deshacer persistente"),
+            comment: I18n.t("config.notes.persist_undo_comment", "Conserva la pila de deshacer/rehacer (Ctrl+Z) entre aperturas de la nota.")
         }
     ]
 
@@ -143,6 +166,21 @@ QtObject {
         if (ConfigBackend.spellcheckMode !== spellcheckMode) ConfigBackend.spellcheckMode = spellcheckMode;
     }
 
+    property bool versionHistoryEnabled: (typeof ConfigBackend !== "undefined" && ConfigBackend.versionHistoryEnabled !== undefined) ? ConfigBackend.versionHistoryEnabled : true
+    onVersionHistoryEnabledChanged: {
+        if (typeof ConfigBackend !== "undefined" && ConfigBackend.versionHistoryEnabled !== versionHistoryEnabled) ConfigBackend.versionHistoryEnabled = versionHistoryEnabled;
+    }
+
+    property int versionHistoryMax: (typeof ConfigBackend !== "undefined" && ConfigBackend.versionHistoryMax !== undefined && ConfigBackend.versionHistoryMax >= 10) ? ConfigBackend.versionHistoryMax : 50
+    onVersionHistoryMaxChanged: {
+        if (typeof ConfigBackend !== "undefined" && ConfigBackend.versionHistoryMax !== versionHistoryMax) ConfigBackend.versionHistoryMax = versionHistoryMax;
+    }
+
+    property bool persistUndo: (typeof ConfigBackend !== "undefined" && ConfigBackend.persistUndo !== undefined) ? ConfigBackend.persistUndo : true
+    onPersistUndoChanged: {
+        if (typeof ConfigBackend !== "undefined" && ConfigBackend.persistUndo !== persistUndo) ConfigBackend.persistUndo = persistUndo;
+    }
+
     property var _cfgSync: Connections {
         target: (typeof ConfigBackend !== "undefined") ? ConfigBackend : null
         function onNotasDirChanged() {
@@ -171,6 +209,15 @@ QtObject {
         }
         function onSpellcheckModeChanged() {
             if (root.spellcheckMode !== ConfigBackend.spellcheckMode) root.spellcheckMode = ConfigBackend.spellcheckMode;
+        }
+        function onVersionHistoryEnabledChanged() {
+            if (root.versionHistoryEnabled !== ConfigBackend.versionHistoryEnabled) root.versionHistoryEnabled = ConfigBackend.versionHistoryEnabled;
+        }
+        function onVersionHistoryMaxChanged() {
+            if (root.versionHistoryMax !== ConfigBackend.versionHistoryMax) root.versionHistoryMax = ConfigBackend.versionHistoryMax;
+        }
+        function onPersistUndoChanged() {
+            if (root.persistUndo !== ConfigBackend.persistUndo) root.persistUndo = ConfigBackend.persistUndo;
         }
     }
 

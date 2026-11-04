@@ -301,6 +301,13 @@ Item {
         } else {
             root._pendingBody = "";
             blockEditor.loadMarkdown(cleanBody);
+            var noteFilePath = (root.noteData && root.noteData.filePath) ? root.noteData.filePath : (root.noteData && root.noteData.fullPath ? root.noteData.fullPath : "");
+            if (noteFilePath && NotesConfig.persistUndo && blockEditor) {
+                blockEditor.loadPersistedUndoHistory(noteFilePath, cleanBody);
+            }
+            if (noteFilePath && NotesConfig.versionHistoryEnabled) {
+                NotesService.checkAutoSnapshot(noteFilePath, cleanBody, "open_base");
+            }
         }
     }
 
@@ -403,6 +410,14 @@ Item {
         if (NotesService.debug) console.log("[StateDebug:Editor] performSave enviando a NotesService:", root.loadedSlug, "caracteres:", bodyText.length);
         NotesService.queueSave(root.loadedSlug, currentData);
         NotesService.flushPendingSave();
+
+        var noteFilePath = (root.noteData && root.noteData.filePath) ? root.noteData.filePath : (root.noteData && root.noteData.fullPath ? root.noteData.fullPath : "");
+        if (noteFilePath && NotesConfig.persistUndo && blockEditor) {
+            blockEditor.persistUndoHistory(noteFilePath);
+        }
+        if (noteFilePath && NotesConfig.versionHistoryEnabled) {
+            NotesService.checkAutoSnapshot(noteFilePath, bodyText, "save");
+        }
 
         root._originalTitle = newTitle;
         root._originalBody = bodyText;
@@ -732,6 +747,18 @@ Item {
                 }
             });
         }
+    }
+
+    function restoreContentFromHistory(restoredContent) {
+        if (restoredContent === undefined || restoredContent === null) return;
+        if (root.isSourceMode && sourceCodeEditor) {
+            sourceCodeEditor.text = restoredContent;
+        } else if (blockEditor) {
+            blockEditor.restoreMarkdown(restoredContent);
+        }
+        root._currentBody = restoredContent;
+        root.markDirty();
+        importToast.showText("Versión restaurada (Ctrl+Z para deshacer)");
     }
 
     function _applySourceInlineFormat(marker) {
@@ -1227,7 +1254,9 @@ Item {
 
         if (event.key === Qt.Key_Escape) {
             event.accepted = true;
-            if (imageMenuPopup.isOpen) {
+            if (historyPanel.isOpen) {
+                historyPanel.close();
+            } else if (imageMenuPopup.isOpen) {
                 imageMenuPopup.isOpen = false;
             } else if (mermaidMenuPopup.isOpen) {
                 mermaidMenuPopup.isOpen = false;
@@ -1340,6 +1369,11 @@ Item {
             }
             if (event.key === Qt.Key_6) {
                 root.applyFormatOrAction("h6");
+                event.accepted = true;
+                return;
+            }
+            if (event.key === Qt.Key_H) {
+                historyPanel.toggle();
                 event.accepted = true;
                 return;
             }
@@ -2541,6 +2575,15 @@ Item {
                             active: blockEditor.spellActive
                             onClicked: blockEditor.toggleSpellCheck()
                         }
+
+                        // 21. Historial de versiones y cambios (Ctrl+Alt+H)
+                        ToolbarButton {
+                            actionId: "history"
+                            tooltipLayer: tooltipLayer
+                            iconSource: Theme.iconsPath + "recent.svg"
+                            active: historyPanel.isOpen
+                            onClicked: historyPanel.toggle()
+                        }
                     }
                 }
 
@@ -3524,6 +3567,22 @@ Item {
         id: slashMenu
         onCommandSelected: (cmd, triggerInfo) => {
             blockEditor.handleSlashCommandExecution(cmd, triggerInfo);
+        }
+    }
+
+    // Panel de Historial de Versiones y Diff (Fase 4)
+    HistoryPanel {
+        id: historyPanel
+        anchors.top: parent ? parent.top : undefined
+        anchors.bottom: parent ? parent.bottom : undefined
+        anchors.right: parent ? parent.right : undefined
+        notePath: (root.noteData && root.noteData.filePath) ? root.noteData.filePath : (root.noteData && root.noteData.fullPath ? root.noteData.fullPath : "")
+        currentText: root.isSourceMode ? (sourceCodeEditor ? sourceCodeEditor.text : "") : (blockEditor ? blockEditor.getMarkdown() : "")
+        onRestoreVersionRequested: (restoredContent) => {
+            root.restoreContentFromHistory(restoredContent);
+        }
+        onSnapshotCreated: {
+            importToast.showText("Punto de control guardado");
         }
     }
 

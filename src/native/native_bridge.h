@@ -320,6 +320,9 @@ class ConfigBackend : public QObject {
     Q_PROPERTY(bool lightMode READ lightMode WRITE setLightMode NOTIFY lightModeChanged)
     Q_PROPERTY(bool hasQuickshellConfig READ hasQuickshellConfig NOTIFY hasQuickshellConfigChanged)
     Q_PROPERTY(bool syncWithQuickshell READ syncWithQuickshell WRITE setSyncWithQuickshell NOTIFY syncWithQuickshellChanged)
+    Q_PROPERTY(bool versionHistoryEnabled READ versionHistoryEnabled WRITE setVersionHistoryEnabled NOTIFY versionHistoryEnabledChanged)
+    Q_PROPERTY(int versionHistoryMax READ versionHistoryMax WRITE setVersionHistoryMax NOTIFY versionHistoryMaxChanged)
+    Q_PROPERTY(bool persistUndo READ persistUndo WRITE setPersistUndo NOTIFY persistUndoChanged)
 
 public:
     explicit ConfigBackend(QObject *parent = nullptr);
@@ -404,6 +407,15 @@ public:
     bool lightMode() const { return m_lightMode; }
     void setLightMode(bool val);
 
+    bool versionHistoryEnabled() const { return m_versionHistoryEnabled; }
+    void setVersionHistoryEnabled(bool val);
+
+    int versionHistoryMax() const { return m_versionHistoryMax; }
+    void setVersionHistoryMax(int val);
+
+    bool persistUndo() const { return m_persistUndo; }
+    void setPersistUndo(bool val);
+
     Q_INVOKABLE void save();
     Q_INVOKABLE void reload();
 
@@ -436,6 +448,9 @@ signals:
     void lightModeChanged();
     void hasQuickshellConfigChanged();
     void syncWithQuickshellChanged();
+    void versionHistoryEnabledChanged();
+    void versionHistoryMaxChanged();
+    void persistUndoChanged();
 
 private:
     void load();
@@ -472,6 +487,9 @@ private:
     double m_fontSizeScale = 1.0;
     QString m_customThemeName = QStringLiteral("amarillo");
     bool m_lightMode = false;
+    bool m_versionHistoryEnabled = true;
+    int m_versionHistoryMax = 50;
+    bool m_persistUndo = true;
 
     QTimer *m_saveTimer = nullptr;
     QFileSystemWatcher *m_qsWatcher = nullptr;

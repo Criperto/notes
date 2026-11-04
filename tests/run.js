@@ -4064,6 +4064,77 @@ runTest('F79: Operaciones CLI y captura desde portapapeles', () => {
     assert.ok(catContent.includes('open_folder'));
 });
 
+runTest('F80: Diff.js (Myers O(ND) lines/words/hunks), VersionPolicy.js y History.js persistencia', () => {
+    const Diff = loadModule('Diff.js');
+    const VersionPolicy = loadModule('VersionPolicy.js');
+    const History = loadModule('History.js');
+
+    // ── 1. DiffLines ────────────────────────────────────────────────────────
+    const textA = "Línea 1\nLínea 2 común\nLínea 3 a borrar\nLínea 4 final";
+    const textB = "Línea 1\nLínea 2 común\nLínea 3 reemplazada\nLínea 3.5 nueva\nLínea 4 final";
+
+    const lineDiff = Diff.diffLines(textA, textB);
+    assert.ok(Array.isArray(lineDiff), "diffLines debe retornar un arreglo");
+    const st = Diff.stats(lineDiff);
+    assert.strictEqual(st.added, 2, "Debe registrar 2 líneas agregadas");
+    assert.strictEqual(st.removed, 1, "Debe registrar 1 línea eliminada");
+
+    // Hunks con contexto 1
+    const hunksRes = Diff.hunks(lineDiff, 1);
+    assert.ok(hunksRes.length > 0, "hunks debe retornar líneas agrupadas");
+
+    // ── 2. DiffWords ────────────────────────────────────────────────────────
+    const wordDiff = Diff.diffWords("El perro veloz duerme", "El perro marrón duerme");
+    const hasDel = wordDiff.some(w => w.type === 'del' && w.text.includes('veloz'));
+    const hasAdd = wordDiff.some(w => w.type === 'add' && w.text.includes('marrón'));
+    assert.ok(hasDel, "diffWords debe detectar palabra eliminada");
+    assert.ok(hasAdd, "diffWords debe detectar palabra agregada");
+
+    // ── 3. VersionPolicy ───────────────────────────────────────────────────
+    const h1 = VersionPolicy.fastHash("texto idéntico");
+    const h2 = VersionPolicy.fastHash("texto idéntico");
+    const h3 = VersionPolicy.fastHash("texto diferente");
+    assert.strictEqual(h1, h2, "Hashes deben coincidir para texto idéntico");
+    assert.notStrictEqual(h1, h3, "Hashes deben diferir para textos distintos");
+
+    // shouldCreateSnapshot deduplicación
+    const snapBase = { hash: h1, timestamp: new Date().toISOString(), length: 15 };
+    assert.strictEqual(VersionPolicy.shouldCreateSnapshot("auto_interval", snapBase, "texto idéntico"), false, "No debe crear snapshot si el hash coincide");
+    assert.strictEqual(VersionPolicy.shouldCreateSnapshot("manual", snapBase, "texto idéntico"), true, "Manual siempre crea snapshot");
+    assert.strictEqual(VersionPolicy.shouldCreateSnapshot("close_delta", snapBase, "texto idéntico con más de 20 caracteres añadidos extras"), true, "close_delta crea snapshot con delta >= 20");
+
+    // pruneVersions
+    const now = Date.now();
+    const testVersions = [
+        { id: "v1", timestamp: new Date(now - 1000).toISOString(), isManual: false },
+        { id: "v2-manual", timestamp: new Date(now - 2000).toISOString(), isManual: true },
+        { id: "v3", timestamp: new Date(now - 48 * 3600 * 1000).toISOString(), isManual: false }, // 2 días atrás
+        { id: "v4", timestamp: new Date(now - 48 * 3600 * 1000 - 60 * 1000).toISOString(), isManual: false }, // mismo día (1 min antes)
+    ];
+    const pruned = VersionPolicy.pruneVersions(testVersions, 50);
+    assert.ok(pruned.toKeep.some(v => v.id === "v2-manual"), "Manuales nunca se podan");
+    assert.ok(pruned.toKeep.some(v => v.id === "v1"), "Versiones de las últimas 24h se conservan");
+    assert.strictEqual(pruned.toDelete.length, 1, "Debe podar la versión redundante del mismo día");
+
+    // ── 4. History.js ──────────────────────────────────────────────────────
+    const hist = History.createHistory("Versión inicial");
+    History.pushState(hist, "Versión 2");
+    History.pushState(hist, "Versión 3");
+    assert.strictEqual(History.canUndo(hist), true);
+    assert.strictEqual(History.canRedo(hist), false);
+
+    const serialized = History.serialize(hist, 100000);
+    assert.ok(typeof serialized === "string" && serialized.length > 0);
+
+    const histRestored = History.createHistory("");
+    const okRestore = History.restore(histRestored, serialized, "Versión 3");
+    assert.strictEqual(okRestore, true, "restore debe aceptar cuando coincide currentMd");
+    assert.strictEqual(histRestored.stack.length, 3, "Debe restaurar los 3 estados");
+
+    const badRestore = History.restore(histRestored, serialized, "Versión que cambió por fuera");
+    assert.strictEqual(badRestore, false, "restore debe rechazar cuando difiere currentMd");
+});
+
 console.log(`\n========================================`);
 console.log(`Resultados: ${passed} OK, ${failed} FAIL`);
 console.log(`========================================`);
