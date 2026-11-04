@@ -1345,7 +1345,10 @@ Item {
                     NumberAnimation { duration: 220; easing.type: Easing.OutCubic }
                 }
 
-                onCloseRequested: root.closeNoteWithMorph()
+                onCloseRequested: {
+                    console.log("[Notas Close] NotesContent recibió señal onCloseRequested -> llamando closeNoteWithMorph()");
+                    root.closeNoteWithMorph();
+                }
                 onNoteKeyChanged: (oldKey, newKey) => {
                     root.activeMorphSlug = newKey;
                 }
@@ -2789,11 +2792,15 @@ Item {
     }
 
     function closeNoteWithMorph() {
+        console.log("[Notas Close] closeNoteWithMorph() INICIADO | _deleteAnimActive=" + root._deleteAnimActive + " | _previewCloseAnimActive=" + root._previewCloseAnimActive + " | morphContainer.isExpanded=" + morphContainer.isExpanded);
         if (root._previewCloseAnimActive && !previewCloseAnim.running) {
             root._previewCloseAnimActive = false;
         }
-        if (root._deleteAnimActive || root._previewCloseAnimActive) return;
-        if (NotesService.debug) console.log("[NotesContent - morph] Cerrando nota con contracción de morfismo");
+        if (root._deleteAnimActive || root._previewCloseAnimActive) {
+            console.log("[Notas Close] closeNoteWithMorph() CANCELADO: animación de borrado o preview activa");
+            return;
+        }
+        console.log("[Notas Close] Cerrando nota con contracción de morfismo | dirty=" + (editorModal ? editorModal.dirty : "null") + " | isSaving=" + (editorModal ? editorModal.isSaving : "null"));
 
         var curNote = NotesService.activeNote || root.morphingNoteData;
         var isExternalOrPreview = Boolean(
@@ -2803,6 +2810,7 @@ Item {
         );
 
         if (isExternalOrPreview) {
+            console.log("[Notas Close] Nota es preview o externa -> ejecutando closeExternalPreview()");
             root.closeExternalPreview();
             return;
         }
@@ -2814,15 +2822,21 @@ Item {
         }
         var curSlug = root.activeMorphSlug || (editorModal.loadedSlug || "");
         if (NotesService.isUntouchedDraft && NotesService.isUntouchedDraft(curSlug)) {
+            console.log("[Notas Close] Descartando borrador intocado:", curSlug);
             NotesService.deleteNote(curSlug);
             NotesService.clearDraft(curSlug);
         } else {
             if (editorModal.blockEditor && editorModal.blockEditor.activeBlockBid !== -1) {
+                console.log("[Notas Close] Confirmando bloque activo bid=" + editorModal.blockEditor.activeBlockBid);
                 editorModal.blockEditor.confirmActiveBlock();
             }
             if (!NotesService.isPendingDelete(curSlug)) {
+                var willSave = editorModal && (editorModal.dirty || editorModal._currentBody !== editorModal._originalBody);
+                console.log("[Notas Close] Estado de guardado para '" + curSlug + "': dirty=" + (editorModal ? editorModal.dirty : false) + " | willSave=" + willSave);
                 editorModal.performSave();
                 NotesService.flushPendingSave();
+            } else {
+                console.log("[Notas Close] Nota en estado pendiente de eliminación, omitiendo guardado");
             }
         }
 
