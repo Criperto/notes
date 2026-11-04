@@ -1478,6 +1478,8 @@ Item {
                 Rectangle {
                     width: 34
                     height: 34
+                    Layout.preferredWidth: 34
+                    Layout.preferredHeight: 34
                     radius: 10
                     color: backBtnMa.containsMouse ? Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.12) : "transparent"
                     opacity: root.isExpanded ? 1.0 : 0.0
