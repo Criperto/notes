@@ -25,7 +25,8 @@
   "fab": {
     "create_new": "Nouvelle note",
     "new_note": "Nouvelle note",
-    "import_notes": "Importer des notes"
+    "import_notes": "Importer des notes",
+    "from_clipboard": "Depuis le presse-papiers"
   },
   "editor": {
     "title_placeholder": "Titre de la note...",
@@ -117,7 +118,11 @@
     "kept_folder": "Folder kept: it contains other files",
     "deleted": "Note supprimée",
     "deleted_multi": "%1 notes supprimées",
-    "undo": "Annuler"
+    "undo": "Annuler",
+    "clipboard_empty": "Le presse-papiers est vide",
+    "note_from_clipboard": "Note créée depuis le presse-papiers",
+    "path_copied": "Chemin copié dans le presse-papiers",
+    "rel_path_copied": "Nom copié dans le presse-papiers"
   },
   "deps": {
     "missing_title": "Dépendances manquantes pour Notes",
@@ -234,5 +239,13 @@
     "callout_warning_desc": "Boîte jaune pour risques potentiels",
     "callout_caution": "Attention (Callout)",
     "callout_caution_desc": "Boîte rouge pour actions irréversibles"
+  },
+  "menu": {
+    "copy_abs_path": "Copier le chemin absolu",
+    "copy_rel_path": "Copier le nom / chemin relatif",
+    "open_folder": "Ouvrir le dossier conteneur",
+    "unpin": "Détacher la note",
+    "pin": "Épingler la note",
+    "delete": "Supprimer la note"
   }
 }

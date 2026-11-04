@@ -87,7 +87,8 @@ const catalogs = {
     "fab": {
       "create_new": "Nueva nota",
       "new_note": "Nueva nota",
-      "import_notes": "Importar notas"
+      "import_notes": "Importar notas",
+      "from_clipboard": "Desde portapapeles"
     },
     "editor": {
       "title_placeholder": "Título de la nota...",
@@ -179,7 +180,11 @@ const catalogs = {
       "kept_folder": "Carpeta conservada: tiene otros archivos",
       "deleted": "Nota eliminada",
       "deleted_multi": "%1 notas eliminadas",
-      "undo": "Deshacer"
+      "undo": "Deshacer",
+      "clipboard_empty": "El portapapeles está vacío",
+      "note_from_clipboard": "Nota creada desde portapapeles",
+      "path_copied": "Ruta copiada al portapapeles",
+      "rel_path_copied": "Nombre copiado al portapapeles"
     },
     "deps": {
       "missing_title": "Faltan dependencias para Notas",
@@ -296,6 +301,14 @@ const catalogs = {
       "callout_warning_desc": "Caja amarilla para alertar sobre riesgos",
       "callout_caution": "Precaución (Callout)",
       "callout_caution_desc": "Caja roja para acciones irreversibles"
+    },
+    "menu": {
+      "copy_abs_path": "Copiar ruta absoluta",
+      "copy_rel_path": "Copiar nombre / ruta relativa",
+      "open_folder": "Abrir carpeta contenedora",
+      "unpin": "Desfijar nota",
+      "pin": "Fijar nota",
+      "delete": "Eliminar nota"
     }
   },
   "es_ar": {
@@ -325,7 +338,8 @@ const catalogs = {
     "fab": {
       "create_new": "Nueva nota",
       "new_note": "Nueva nota",
-      "import_notes": "Importar notas"
+      "import_notes": "Importar notas",
+      "from_clipboard": "Desde portapapeles"
     },
     "editor": {
       "title_placeholder": "Título de la nota...",
@@ -417,7 +431,11 @@ const catalogs = {
       "kept_folder": "Carpeta conservada: tiene otros archivos",
       "deleted": "Nota eliminada",
       "deleted_multi": "%1 notas eliminadas",
-      "undo": "Deshacer"
+      "undo": "Deshacer",
+      "clipboard_empty": "El portapapeles está vacío",
+      "note_from_clipboard": "Nota creada desde portapapeles",
+      "path_copied": "Ruta copiada al portapapeles",
+      "rel_path_copied": "Nombre copiado al portapapeles"
     },
     "deps": {
       "missing_title": "Faltan dependencias para Notas",
@@ -534,6 +552,14 @@ const catalogs = {
       "callout_warning_desc": "Caja amarilla para alertar sobre riesgos",
       "callout_caution": "Precaución (Callout)",
       "callout_caution_desc": "Caja roja para acciones irreversibles"
+    },
+    "menu": {
+      "copy_abs_path": "Copiar ruta absoluta",
+      "copy_rel_path": "Copiar nombre / ruta relativa",
+      "open_folder": "Abrir carpeta contenedora",
+      "unpin": "Desfijar nota",
+      "pin": "Fijar nota",
+      "delete": "Eliminar nota"
     }
   },
   "en": {
@@ -563,7 +589,8 @@ const catalogs = {
     "fab": {
       "create_new": "New note",
       "new_note": "New note",
-      "import_notes": "Import notes"
+      "import_notes": "Import notes",
+      "from_clipboard": "From clipboard"
     },
     "editor": {
       "title_placeholder": "Note title...",
@@ -655,7 +682,11 @@ const catalogs = {
       "kept_folder": "Folder kept: it contains other files",
       "deleted": "Note deleted",
       "deleted_multi": "%1 notes deleted",
-      "undo": "Undo"
+      "undo": "Undo",
+      "clipboard_empty": "Clipboard is empty",
+      "note_from_clipboard": "Note created from clipboard",
+      "path_copied": "Path copied to clipboard",
+      "rel_path_copied": "Name copied to clipboard"
     },
     "deps": {
       "missing_title": "Missing dependencies for Notes",
@@ -772,6 +803,14 @@ const catalogs = {
       "callout_warning_desc": "Yellow box for potential risks",
       "callout_caution": "Caution (Callout)",
       "callout_caution_desc": "Red box for destructive consequences"
+    },
+    "menu": {
+      "copy_abs_path": "Copy absolute path",
+      "copy_rel_path": "Copy name / relative path",
+      "open_folder": "Open containing folder",
+      "unpin": "Unpin note",
+      "pin": "Pin note",
+      "delete": "Delete note"
     }
   },
   "pt": {
@@ -801,7 +840,8 @@ const catalogs = {
     "fab": {
       "create_new": "Nova nota",
       "new_note": "Nova nota",
-      "import_notes": "Importar notas"
+      "import_notes": "Importar notas",
+      "from_clipboard": "Da área de transferência"
     },
     "editor": {
       "title_placeholder": "Título da nota...",
@@ -893,7 +933,11 @@ const catalogs = {
       "kept_folder": "Folder kept: it contains other files",
       "deleted": "Nota eliminada",
       "deleted_multi": "%1 notas eliminadas",
-      "undo": "Desfazer"
+      "undo": "Desfazer",
+      "clipboard_empty": "Área de transferência vazia",
+      "note_from_clipboard": "Nota criada da área de transferência",
+      "path_copied": "Caminho copiado para a área de transferência",
+      "rel_path_copied": "Nome copiado para a área de transferência"
     },
     "deps": {
       "missing_title": "Dependências ausentes para Notas",
@@ -1010,6 +1054,14 @@ const catalogs = {
       "callout_warning_desc": "Caixa amarela para alertar sobre riscos",
       "callout_caution": "Cuidado (Callout)",
       "callout_caution_desc": "Caixa vermelha para ações irreversíveis"
+    },
+    "menu": {
+      "copy_abs_path": "Copiar caminho absoluto",
+      "copy_rel_path": "Copiar nome / caminho relativo",
+      "open_folder": "Abrir pasta de destino",
+      "unpin": "Desafixar nota",
+      "pin": "Fixar nota",
+      "delete": "Excluir nota"
     }
   },
   "ja": {
@@ -1039,7 +1091,8 @@ const catalogs = {
     "fab": {
       "create_new": "新しいメモ",
       "new_note": "新しいメモ",
-      "import_notes": "メモをインポート"
+      "import_notes": "メモをインポート",
+      "from_clipboard": "クリップボードから"
     },
     "editor": {
       "title_placeholder": "ノートのタイトル...",
@@ -1131,7 +1184,11 @@ const catalogs = {
       "kept_folder": "Folder kept: it contains other files",
       "deleted": "メモを削除しました",
       "deleted_multi": "%1 件のメモを削除しました",
-      "undo": "元に戻す"
+      "undo": "元に戻す",
+      "clipboard_empty": "クリップボードが空です",
+      "note_from_clipboard": "クリップボードからノートを作成しました",
+      "path_copied": "パスをクリップボードにコピーしました",
+      "rel_path_copied": "名前をクリップボードにコピーしました"
     },
     "deps": {
       "missing_title": "ノートの依存パッケージが不足しています",
@@ -1248,6 +1305,14 @@ const catalogs = {
       "callout_warning_desc": "リスク警告の黄色コールアウト",
       "callout_caution": "注意 (Callout)",
       "callout_caution_desc": "破壊的操作の赤コールアウト"
+    },
+    "menu": {
+      "copy_abs_path": "絶対パスをコピー",
+      "copy_rel_path": "名前 / 相対パスをコピー",
+      "open_folder": "含まれるフォルダを開く",
+      "unpin": "ピン留めを解除",
+      "pin": "ノートをピン留め",
+      "delete": "ノートを削除"
     }
   },
   "zh": {
@@ -1277,7 +1342,8 @@ const catalogs = {
     "fab": {
       "create_new": "新建笔记",
       "new_note": "新建笔记",
-      "import_notes": "导入笔记"
+      "import_notes": "导入笔记",
+      "from_clipboard": "从剪贴板创建"
     },
     "editor": {
       "title_placeholder": "便签标题...",
@@ -1369,7 +1435,11 @@ const catalogs = {
       "kept_folder": "Folder kept: it contains other files",
       "deleted": "笔记已删除",
       "deleted_multi": "已删除 %1 篇笔记",
-      "undo": "撤销"
+      "undo": "撤销",
+      "clipboard_empty": "剪贴板为空",
+      "note_from_clipboard": "已从剪贴板创建笔记",
+      "path_copied": "路径已复制到剪贴板",
+      "rel_path_copied": "名称已复制到剪贴板"
     },
     "deps": {
       "missing_title": "便签缺少依赖项",
@@ -1486,6 +1556,14 @@ const catalogs = {
       "callout_warning_desc": "黄色潜在风险警示框",
       "callout_caution": "注意 (Callout)",
       "callout_caution_desc": "红色破坏性操作警告框"
+    },
+    "menu": {
+      "copy_abs_path": "复制绝对路径",
+      "copy_rel_path": "复制名称 / 相对路径",
+      "open_folder": "打开所在文件夹",
+      "unpin": "取消固定笔记",
+      "pin": "固定笔记",
+      "delete": "删除笔记"
     }
   },
   "de": {
@@ -1515,7 +1593,8 @@ const catalogs = {
     "fab": {
       "create_new": "Neue Notiz",
       "new_note": "Neue Notiz",
-      "import_notes": "Notizen importieren"
+      "import_notes": "Notizen importieren",
+      "from_clipboard": "Aus Zwischenablage"
     },
     "editor": {
       "title_placeholder": "Titel der Notiz...",
@@ -1607,7 +1686,11 @@ const catalogs = {
       "kept_folder": "Folder kept: it contains other files",
       "deleted": "Notiz gelöscht",
       "deleted_multi": "%1 Notizen gelöscht",
-      "undo": "Rückgängig"
+      "undo": "Rückgängig",
+      "clipboard_empty": "Zwischenablage ist leer",
+      "note_from_clipboard": "Notiz aus Zwischenablage erstellt",
+      "path_copied": "Pfad in die Zwischenablage kopiert",
+      "rel_path_copied": "Name in die Zwischenablage kopiert"
     },
     "deps": {
       "missing_title": "Fehlende Abhängigkeiten für Notizen",
@@ -1724,6 +1807,14 @@ const catalogs = {
       "callout_warning_desc": "Gelbe Warnbox für Risiken",
       "callout_caution": "Achtung (Callout)",
       "callout_caution_desc": "Rote Box für irreversible Aktionen"
+    },
+    "menu": {
+      "copy_abs_path": "Absoluten Pfad kopieren",
+      "copy_rel_path": "Namen / relativen Pfad kopieren",
+      "open_folder": "Enthaltenden Ordner öffnen",
+      "unpin": "Notiz lösen",
+      "pin": "Notiz anheften",
+      "delete": "Notiz löschen"
     }
   },
   "fr": {
@@ -1753,7 +1844,8 @@ const catalogs = {
     "fab": {
       "create_new": "Nouvelle note",
       "new_note": "Nouvelle note",
-      "import_notes": "Importer des notes"
+      "import_notes": "Importer des notes",
+      "from_clipboard": "Depuis le presse-papiers"
     },
     "editor": {
       "title_placeholder": "Titre de la note...",
@@ -1845,7 +1937,11 @@ const catalogs = {
       "kept_folder": "Folder kept: it contains other files",
       "deleted": "Note supprimée",
       "deleted_multi": "%1 notes supprimées",
-      "undo": "Annuler"
+      "undo": "Annuler",
+      "clipboard_empty": "Le presse-papiers est vide",
+      "note_from_clipboard": "Note créée depuis le presse-papiers",
+      "path_copied": "Chemin copié dans le presse-papiers",
+      "rel_path_copied": "Nom copié dans le presse-papiers"
     },
     "deps": {
       "missing_title": "Dépendances manquantes pour Notes",
@@ -1962,6 +2058,14 @@ const catalogs = {
       "callout_warning_desc": "Boîte jaune pour risques potentiels",
       "callout_caution": "Attention (Callout)",
       "callout_caution_desc": "Boîte rouge pour actions irréversibles"
+    },
+    "menu": {
+      "copy_abs_path": "Copier le chemin absolu",
+      "copy_rel_path": "Copier le nom / chemin relatif",
+      "open_folder": "Ouvrir le dossier conteneur",
+      "unpin": "Détacher la note",
+      "pin": "Épingler la note",
+      "delete": "Supprimer la note"
     }
   },
   "ru": {
@@ -1991,7 +2095,8 @@ const catalogs = {
     "fab": {
       "create_new": "Новая заметка",
       "new_note": "Новая заметка",
-      "import_notes": "Импортировать заметки"
+      "import_notes": "Импортировать заметки",
+      "from_clipboard": "Из буфера обмена"
     },
     "editor": {
       "title_placeholder": "Заголовок заметки...",
@@ -2083,7 +2188,11 @@ const catalogs = {
       "kept_folder": "Folder kept: it contains other files",
       "deleted": "Заметка удалена",
       "deleted_multi": "Удалено заметок: %1",
-      "undo": "Отменить"
+      "undo": "Отменить",
+      "clipboard_empty": "Буфер обмена пуст",
+      "note_from_clipboard": "Заметка создана из буфера обмена",
+      "path_copied": "Путь скопирован в буфер обмена",
+      "rel_path_copied": "Имя скопировано в буфер обмена"
     },
     "deps": {
       "missing_title": "Отсутствуют зависимости для Заметок",
@@ -2200,6 +2309,14 @@ const catalogs = {
       "callout_warning_desc": "Желтый блок с предупреждением о рисках",
       "callout_caution": "Осторожно (Callout)",
       "callout_caution_desc": "Красный блок для необратимых действий"
+    },
+    "menu": {
+      "copy_abs_path": "Копировать абсолютный путь",
+      "copy_rel_path": "Копировать имя / относительный путь",
+      "open_folder": "Открыть содержащую папку",
+      "unpin": "Открепить заметку",
+      "pin": "Закрепить заметку",
+      "delete": "Удалить заметку"
     }
   }
 };

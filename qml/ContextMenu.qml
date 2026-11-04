@@ -423,8 +423,24 @@ Window {
                                 anchors.fill: parent
                                 anchors.leftMargin: 16
                                 anchors.rightMargin: 16
-                                spacing: 8
+                                spacing: 10
                                 visible: extraDelegate.isAction
+
+                                Image {
+                                    source: (itemData && itemData.icon) ? itemData.icon : ""
+                                    sourceSize: Qt.size(16, 16)
+                                    Layout.preferredWidth: 16
+                                    Layout.preferredHeight: 16
+                                    fillMode: Image.PreserveAspectFit
+                                    visible: !!(itemData && itemData.icon)
+                                    layer.enabled: menuWindow.visible && !GamemodeService.gamemodeActive
+                                    layer.effect: MultiEffect {
+                                        colorization: 1.0
+                                        colorizationColor: (itemData && itemData.danger)
+                                            ? Theme.error
+                                            : (extraDelegate.isItemActive ? Theme.accent : Theme.text)
+                                    }
+                                }
 
                                 Text {
                                     Layout.fillWidth: true
@@ -432,7 +448,9 @@ Window {
                                     font.family: Theme.fontFamily
                                     font.pixelSize: 13
                                     font.bold: !!(itemData && (itemData.bold || itemData.kind === "suggestion" || itemData.isSuggestion))
-                                    color: extraDelegate.isItemActive ? Theme.accent : Theme.text
+                                    color: (itemData && itemData.danger)
+                                        ? Theme.error
+                                        : (extraDelegate.isItemActive ? Theme.accent : Theme.text)
                                     elide: Text.ElideRight
                                     opacity: extraDelegate.isEnabled ? 1.0 : 0.4
                                 }
@@ -470,7 +488,8 @@ Window {
                         Layout.fillWidth: true
                         height: 1
                         color: Qt.hsva(Theme.text.hsvHue < 0 ? 0 : Theme.text.hsvHue, Theme.text.hsvSaturation, Theme.text.hsvValue, 0.08)
-                        visible: menuWindow.extraItems && menuWindow.extraItems.length > 0
+                        visible: (menuWindow.extraItems && menuWindow.extraItems.length > 0) &&
+                                 (undoItem.visible || redoItem.visible || cutItem.visible || copyItem.visible || pasteItem.visible || deleteItem.visible || selectAllItem.visible)
                         Layout.topMargin: 4
                         Layout.bottomMargin: 4
                         Layout.leftMargin: 12

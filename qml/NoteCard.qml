@@ -22,6 +22,7 @@ Rectangle {
     enabled: !isMorphing
 
     signal clicked(var cardItem)
+    signal contextMenuRequested(var cardItem, var mouse)
     signal deleteRequested
     signal pinToggled
 
@@ -236,8 +237,13 @@ Rectangle {
         id: cardMa
         anchors.fill: parent
         hoverEnabled: true
+        acceptedButtons: Qt.LeftButton | Qt.RightButton
         cursorShape: Qt.PointingHandCursor
-        onClicked: {
+        onClicked: (mouse) => {
+            if (mouse.button === Qt.RightButton) {
+                root.contextMenuRequested(root, mouse);
+                return;
+            }
             if (NotesService.debug) console.log("[NoteCard] Clic para abrir tarjeta:", root.noteData ? (root.noteData.slug || root.noteData.title) : "sin datos");
             root.clicked(root);
         }

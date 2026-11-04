@@ -51,6 +51,11 @@ ApplicationWindow {
     }
 
     Shortcut {
+        sequence: "Ctrl+Shift+V"
+        onActivated: content.createNoteFromClipboard()
+    }
+
+    Shortcut {
         sequence: "Ctrl+Q"
         onActivated: {
             NotesService.prepareToQuit();
@@ -79,6 +84,10 @@ ApplicationWindow {
                 content.handleIpcAction(action, target);
             } else if (action === "new") {
                 content.handleIpcAction("new", target);
+            } else if (action === "find") {
+                content.handleIpcAction("find", target);
+            } else if (action === "reload") {
+                content.handleIpcAction("reload", target);
             } else if (action === "sync") {
                 if (typeof ConfigBackend !== "undefined") {
                     ConfigBackend.syncWithQuickshell = (target === "true" || target === "1");

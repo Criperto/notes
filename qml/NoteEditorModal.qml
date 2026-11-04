@@ -1608,29 +1608,58 @@ Item {
                         }
                     }
 
-                    Text {
-                        id: fileNameLabel
+                    Item {
+                        id: fileNameContainer
                         Layout.fillWidth: true
-                        // Nombre real del archivo (con su extensión .md/.txt).
-                        // Se resuelve por clave: loadedSlug cambia en rename/convert.
-                        text: {
-                            if (root.isExternalNote) {
-                                var home = (Quickshell.env("HOME") || "");
-                                var fp = (root.noteData && root.noteData.filePath) ? root.noteData.filePath : "";
-                                return (home !== "" && fp.startsWith(home + "/")) ? "~/" + fp.substring(home.length + 1) : fp;
-                            }
-                            // Dependencia reactiva: promote/rename/convert mutan la
-                            // nota en el lugar (sin señal) y hay que repintar igual.
-                            NotesService.filesVersion;
-                            var n = NotesService.getNote(root.loadedSlug);
-                            return (n && n.fileName) ? n.fileName : "";
-                        }
-                        color: Theme.muted
-                        font.family: Theme.fontFamily
-                        font.pixelSize: Theme.fontSizeCaption
-                        elide: Text.ElideRight
+                        Layout.preferredHeight: fileNameLabel.implicitHeight
                         opacity: root.isExpanded ? 0.75 : 0.0
-                        visible: opacity > 0.0 && text.length > 0
+                        visible: opacity > 0.0 && fileNameLabel.text.length > 0
+
+                        Text {
+                            id: fileNameLabel
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
+                            // Nombre real del archivo (con su extensión .md/.txt).
+                            // Se resuelve por clave: loadedSlug cambia en rename/convert.
+                            text: {
+                                if (root.isExternalNote) {
+                                    var home = (Quickshell.env("HOME") || "");
+                                    var fp = (root.noteData && root.noteData.filePath) ? root.noteData.filePath : "";
+                                    return (home !== "" && fp.startsWith(home + "/")) ? "~/" + fp.substring(home.length + 1) : fp;
+                                }
+                                // Dependencia reactiva: promote/rename/convert mutan la
+                                // nota en el lugar (sin señal) y hay que repintar igual.
+                                NotesService.filesVersion;
+                                var n = NotesService.getNote(root.loadedSlug);
+                                return (n && n.fileName) ? n.fileName : "";
+                            }
+                            color: fileClickMa.containsMouse ? Theme.text : Theme.muted
+                            font.family: Theme.fontFamily
+                            font.pixelSize: Theme.fontSizeCaption
+                            font.underline: fileClickMa.containsMouse
+                            elide: Text.ElideRight
+
+                            Behavior on color {
+                                enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                                ColorAnimation { duration: 120 }
+                            }
+                        }
+
+                        MouseArea {
+                            id: fileClickMa
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                var n = NotesService.getNote(root.loadedSlug);
+                                var path = (n && n.filePath) ? n.filePath : ((root.noteData && root.noteData.filePath) ? root.noteData.filePath : "");
+                                if (path) {
+                                    Quickshell.clipboardText = path;
+                                    root.showToast(I18n.t("notes.toast.path_copied", "Ruta copiada al portapapeles"));
+                                }
+                            }
+                        }
                     }
                 }
 

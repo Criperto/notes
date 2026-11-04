@@ -25,7 +25,8 @@
   "fab": {
     "create_new": "新しいメモ",
     "new_note": "新しいメモ",
-    "import_notes": "メモをインポート"
+    "import_notes": "メモをインポート",
+    "from_clipboard": "クリップボードから"
   },
   "editor": {
     "title_placeholder": "ノートのタイトル...",
@@ -117,7 +118,11 @@
     "kept_folder": "Folder kept: it contains other files",
     "deleted": "メモを削除しました",
     "deleted_multi": "%1 件のメモを削除しました",
-    "undo": "元に戻す"
+    "undo": "元に戻す",
+    "clipboard_empty": "クリップボードが空です",
+    "note_from_clipboard": "クリップボードからノートを作成しました",
+    "path_copied": "パスをクリップボードにコピーしました",
+    "rel_path_copied": "名前をクリップボードにコピーしました"
   },
   "deps": {
     "missing_title": "ノートの依存パッケージが不足しています",
@@ -234,5 +239,13 @@
     "callout_warning_desc": "リスク警告の黄色コールアウト",
     "callout_caution": "注意 (Callout)",
     "callout_caution_desc": "破壊的操作の赤コールアウト"
+  },
+  "menu": {
+    "copy_abs_path": "絶対パスをコピー",
+    "copy_rel_path": "名前 / 相対パスをコピー",
+    "open_folder": "含まれるフォルダを開く",
+    "unpin": "ピン留めを解除",
+    "pin": "ノートをピン留め",
+    "delete": "ノートを削除"
   }
 }

@@ -25,7 +25,8 @@
   "fab": {
     "create_new": "Nova nota",
     "new_note": "Nova nota",
-    "import_notes": "Importar notas"
+    "import_notes": "Importar notas",
+    "from_clipboard": "Da área de transferência"
   },
   "editor": {
     "title_placeholder": "Título da nota...",
@@ -117,7 +118,11 @@
     "kept_folder": "Folder kept: it contains other files",
     "deleted": "Nota eliminada",
     "deleted_multi": "%1 notas eliminadas",
-    "undo": "Desfazer"
+    "undo": "Desfazer",
+    "clipboard_empty": "Área de transferência vazia",
+    "note_from_clipboard": "Nota criada da área de transferência",
+    "path_copied": "Caminho copiado para a área de transferência",
+    "rel_path_copied": "Nome copiado para a área de transferência"
   },
   "deps": {
     "missing_title": "Dependências ausentes para Notas",
@@ -234,5 +239,13 @@
     "callout_warning_desc": "Caixa amarela para alertar sobre riscos",
     "callout_caution": "Cuidado (Callout)",
     "callout_caution_desc": "Caixa vermelha para ações irreversíveis"
+  },
+  "menu": {
+    "copy_abs_path": "Copiar caminho absoluto",
+    "copy_rel_path": "Copiar nome / caminho relativo",
+    "open_folder": "Abrir pasta de destino",
+    "unpin": "Desafixar nota",
+    "pin": "Fixar nota",
+    "delete": "Excluir nota"
   }
 }

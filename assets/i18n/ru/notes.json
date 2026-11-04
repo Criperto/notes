@@ -25,7 +25,8 @@
   "fab": {
     "create_new": "Новая заметка",
     "new_note": "Новая заметка",
-    "import_notes": "Импортировать заметки"
+    "import_notes": "Импортировать заметки",
+    "from_clipboard": "Из буфера обмена"
   },
   "editor": {
     "title_placeholder": "Заголовок заметки...",
@@ -117,7 +118,11 @@
     "kept_folder": "Folder kept: it contains other files",
     "deleted": "Заметка удалена",
     "deleted_multi": "Удалено заметок: %1",
-    "undo": "Отменить"
+    "undo": "Отменить",
+    "clipboard_empty": "Буфер обмена пуст",
+    "note_from_clipboard": "Заметка создана из буфера обмена",
+    "path_copied": "Путь скопирован в буфер обмена",
+    "rel_path_copied": "Имя скопировано в буфер обмена"
   },
   "deps": {
     "missing_title": "Отсутствуют зависимости для Заметок",
@@ -234,5 +239,13 @@
     "callout_warning_desc": "Желтый блок с предупреждением о рисках",
     "callout_caution": "Осторожно (Callout)",
     "callout_caution_desc": "Красный блок для необратимых действий"
+  },
+  "menu": {
+    "copy_abs_path": "Копировать абсолютный путь",
+    "copy_rel_path": "Копировать имя / относительный путь",
+    "open_folder": "Открыть содержащую папку",
+    "unpin": "Открепить заметку",
+    "pin": "Закрепить заметку",
+    "delete": "Удалить заметку"
   }
 }

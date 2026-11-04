@@ -25,7 +25,8 @@
   "fab": {
     "create_new": "Neue Notiz",
     "new_note": "Neue Notiz",
-    "import_notes": "Notizen importieren"
+    "import_notes": "Notizen importieren",
+    "from_clipboard": "Aus Zwischenablage"
   },
   "editor": {
     "title_placeholder": "Titel der Notiz...",
@@ -117,7 +118,11 @@
     "kept_folder": "Folder kept: it contains other files",
     "deleted": "Notiz gelöscht",
     "deleted_multi": "%1 Notizen gelöscht",
-    "undo": "Rückgängig"
+    "undo": "Rückgängig",
+    "clipboard_empty": "Zwischenablage ist leer",
+    "note_from_clipboard": "Notiz aus Zwischenablage erstellt",
+    "path_copied": "Pfad in die Zwischenablage kopiert",
+    "rel_path_copied": "Name in die Zwischenablage kopiert"
   },
   "deps": {
     "missing_title": "Fehlende Abhängigkeiten für Notizen",
@@ -234,5 +239,13 @@
     "callout_warning_desc": "Gelbe Warnbox für Risiken",
     "callout_caution": "Achtung (Callout)",
     "callout_caution_desc": "Rote Box für irreversible Aktionen"
+  },
+  "menu": {
+    "copy_abs_path": "Absoluten Pfad kopieren",
+    "copy_rel_path": "Namen / relativen Pfad kopieren",
+    "open_folder": "Enthaltenden Ordner öffnen",
+    "unpin": "Notiz lösen",
+    "pin": "Notiz anheften",
+    "delete": "Notiz löschen"
   }
 }

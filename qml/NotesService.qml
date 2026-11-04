@@ -1647,12 +1647,12 @@ Item {
         return I18n.t(key, fallback);
     }
 
-    function createNote(type, initialTitle) {
+    function createNote(type, initialTitle, initialBody, onCreated) {
         var t = type || "text";
         var defaultTextTitle = root._t("notes.new_note", "Nueva nota");
         var title = initialTitle || defaultTextTitle;
         var subtitle = "";
-        var content = "";
+        var content = (typeof initialBody === "string") ? initialBody : "";
 
         var baseSlug = MD.slugify(title);
         var slug = _uniqueSlug(baseSlug, null, "md");
@@ -1686,7 +1686,11 @@ Item {
 
         saveNote(noteObj, function(saved) {
             root.log("[NotesService - createNote] Nota persistida, abriendo editor para:", slug);
-            openNote(saved || noteObj);
+            if (typeof onCreated === "function") {
+                onCreated(saved || noteObj);
+            } else {
+                openNote(saved || noteObj);
+            }
         });
     }
 

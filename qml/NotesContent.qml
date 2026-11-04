@@ -1130,6 +1130,7 @@ Item {
                                                 }
                                                 onDeleteRequested: root.requestCardDelete(cardKey, currentNoteData)
                                                 onPinToggled: NotesService.togglePin(currentNoteData)
+                                                onContextMenuRequested: (cardItem, mouse) => root.openCardContextMenu(cardItem, mouse, currentNoteData)
 
                                                 Component.onCompleted: {
                                                     if (cardKey && typeof root !== "undefined" && root._cardRegistry) root._cardRegistry[cardKey] = pinnedCardDelegate;
@@ -1202,6 +1203,7 @@ Item {
                                                 }
                                                 onDeleteRequested: root.requestCardDelete(cardKey, currentNoteData)
                                                 onPinToggled: NotesService.togglePin(currentNoteData)
+                                                onContextMenuRequested: (cardItem, mouse) => root.openCardContextMenu(cardItem, mouse, currentNoteData)
 
                                                 Component.onCompleted: {
                                                     if (cardKey && typeof root !== "undefined" && root._cardRegistry) root._cardRegistry[cardKey] = otherCardDelegate;
@@ -1238,6 +1240,7 @@ Item {
                         anchors.margins: 24
                         z: 10
                         onNewNoteRequested: root.requestNewNote()
+                        onClipNoteRequested: root.createNoteFromClipboard()
                         onImportNotesRequested: root.openImportFilePicker()
                     }
                 }
@@ -2463,7 +2466,7 @@ Item {
         });
     }
 
-    function createNoteWithMorph(type, origin) {
+    function createNoteWithMorph(type, origin, initialTitle, initialBody) {
         root.commitUndoToast();
         if (NotesService.debug) console.log("[NotesContent - morph] Creando nota con morfismo tipo:", type);
         var orig = origin || {
@@ -2491,13 +2494,100 @@ Item {
         morphContainer.startBorderWidth = 0;
         morphContainer.isVisible = true;
 
-        NotesService.createNote(type);
+        NotesService.createNote(type, initialTitle, initialBody);
 
         Qt.callLater(function() {
             morphContainer.springEnabled = true;
             morphContainer.isExpanded = true;
             root._morphTransitioning = false;
         });
+    }
+
+    function createNoteFromClipboard() {
+        if (root._morphTransitioning || morphContainer.isVisible || NotesService.isEditing) return;
+        var clip = (typeof Quickshell.clipboardText === "string") ? Quickshell.clipboardText : "";
+        if (!clip || clip.trim() === "") {
+            importToast.showText(I18n.t("notes.toast.clipboard_empty", "El portapapeles está vacío"));
+            return;
+        }
+
+        var lines = clip.trim().split("\n");
+        var firstLine = (lines[0] || "").trim();
+        var initialTitle = "";
+        var initialBody = "";
+
+        var isUrl = /^https?:\/\//i.test(firstLine);
+        if (isUrl) {
+            initialTitle = firstLine.length > 50 ? firstLine.substring(0, 47) + "..." : firstLine;
+            initialBody = "[" + firstLine + "](" + firstLine + ")\n";
+        } else {
+            if (firstLine.startsWith("# ")) {
+                initialTitle = firstLine.substring(2).trim();
+                initialBody = lines.slice(1).join("\n").trim();
+            } else {
+                initialTitle = firstLine.length > 45 ? firstLine.substring(0, 42) + "..." : firstLine;
+                initialBody = clip.trim();
+            }
+        }
+
+        var origin = fab.mapToItem(clippingRoot, 0, 0, fab.width, fab.height);
+        root.createNoteWithMorph("text", origin, initialTitle, initialBody);
+        importToast.showText(I18n.t("notes.toast.note_from_clipboard", "Nota creada desde portapapeles"));
+    }
+
+    function openCardContextMenu(cardItem, mouse, noteData) {
+        if (!cardItem || !noteData) return;
+        var filePath = noteData.filePath || "";
+        var slug = noteData.slug || "";
+        var fileName = noteData.fileName || (slug + ".md");
+        var baseDir = NotesService.resolveNoteBaseDir(noteData);
+        var isPinned = !!noteData.pinned;
+
+        var items = [
+            {
+                label: I18n.t("notes.menu.copy_abs_path", "Copiar ruta absoluta"),
+                icon: Theme.iconsPath + "content-copy.svg",
+                onTriggered: function() {
+                    Quickshell.clipboardText = filePath;
+                    importToast.showText(I18n.t("notes.toast.path_copied", "Ruta copiada al portapapeles"));
+                }
+            },
+            {
+                label: I18n.t("notes.menu.copy_rel_path", "Copiar nombre / ruta relativa"),
+                icon: Theme.iconsPath + "content-copy.svg",
+                onTriggered: function() {
+                    Quickshell.clipboardText = fileName;
+                    importToast.showText(I18n.t("notes.toast.rel_path_copied", "Nombre copiado al portapapeles"));
+                }
+            },
+            {
+                label: I18n.t("notes.menu.open_folder", "Abrir carpeta contenedora"),
+                icon: Theme.iconsPath + "folder.svg",
+                onTriggered: function() {
+                    Quickshell.execDetached(["xdg-open", baseDir]);
+                }
+            },
+            { kind: "separator" },
+            {
+                label: isPinned ? I18n.t("notes.menu.unpin", "Desfijar nota") : I18n.t("notes.menu.pin", "Fijar nota"),
+                icon: Theme.iconsPath + "push-pin.svg",
+                onTriggered: function() {
+                    NotesService.togglePin(noteData);
+                }
+            },
+            {
+                label: I18n.t("notes.menu.delete", "Eliminar nota"),
+                icon: Theme.iconsPath + "delete.svg",
+                danger: true,
+                onTriggered: function() {
+                    root.requestCardDelete(noteData.key || slug, noteData);
+                }
+            }
+        ];
+
+        var clickX = (mouse && typeof mouse.x === "number") ? mouse.x : (cardItem.width / 2);
+        var clickY = (mouse && typeof mouse.y === "number") ? mouse.y : (cardItem.height / 2);
+        sharedContextMenu.openAt(cardItem, clickX, clickY, items);
     }
 
     function openNoteImmediate(noteData) {
@@ -2611,6 +2701,28 @@ Item {
             Qt.callLater(function() {
                 root.isReadyToShow = true;
             });
+            return;
+        }
+        if (act === "find") {
+            if (morphContainer.isExpanded) {
+                root.closeNoteWithMorph();
+            }
+            if (searchInput) {
+                searchInput.text = tgt || "";
+                searchInput.forceActiveFocus();
+                if (typeof NotesService !== "undefined") {
+                    NotesService.searchQuery = tgt || "";
+                }
+            }
+            Qt.callLater(function() {
+                root.isReadyToShow = true;
+            });
+            return;
+        }
+        if (act === "reload") {
+            if (typeof NotesService !== "undefined") {
+                NotesService.reloadNotes();
+            }
             return;
         }
     }

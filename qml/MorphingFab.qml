@@ -9,18 +9,19 @@ ClippingRectangle {
     id: root
 
     signal newNoteRequested()
+    signal clipNoteRequested()
     signal importNotesRequested()
 
     property bool expanded: false
 
     // Ancho dinámico basado en las opciones de texto (+ márgenes e íconos)
     readonly property real dynamicExpandedWidth: {
-        var maxTextWidth = Math.max(importText.implicitWidth, newNoteText.implicitWidth);
-        return Math.max(170, Math.ceil(maxTextWidth + 64));
+        var maxTextWidth = Math.max(importText.implicitWidth, Math.max(clipText.implicitWidth, newNoteText.implicitWidth));
+        return Math.max(185, Math.ceil(maxTextWidth + 64));
     }
 
     width: expanded ? dynamicExpandedWidth : 56
-    height: expanded ? 148 : 56
+    height: expanded ? 190 : 56
     radius: expanded ? 18 : 16
 
     color: Theme.primary
@@ -133,7 +134,64 @@ ClippingRectangle {
             }
         }
 
-        // Opción 2: Nueva nota (texto/markdown)
+        // Opción 2: Desde portapapeles (crear nota con contenido copiado)
+        Rectangle {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 38
+            radius: 10
+            color: clipMa.containsMouse ? Qt.rgba(root.contentColor.r, root.contentColor.g, root.contentColor.b, 0.14) : "transparent"
+
+            Behavior on color {
+                enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                ColorAnimation { duration: 120 }
+            }
+
+            RowLayout {
+                anchors.fill: parent
+                anchors.leftMargin: 10
+                anchors.rightMargin: 10
+                spacing: 10
+
+                Image {
+                    Layout.preferredWidth: 22
+                    Layout.preferredHeight: 22
+                    source: Theme.iconsPath + "content-paste.svg"
+                    sourceSize: Qt.size(22, 22)
+                    smooth: true
+                    mipmap: true
+                    layer.enabled: true
+                    layer.effect: MultiEffect {
+                        colorization: 1.0
+                        colorizationColor: root.contentColor
+                    }
+                }
+
+                Text {
+                    id: clipText
+                    Layout.fillWidth: true
+                    text: I18n.t("notes.fab.from_clipboard", "Desde portapapeles")
+                    color: root.contentColor
+                    font.family: Theme.fontFamilyDisplay
+                    font.pixelSize: Theme.fontSizeTitle - 1
+                    font.bold: true
+                    elide: Text.ElideRight
+                }
+            }
+
+            MouseArea {
+                id: clipMa
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: {
+                    if (NotesService.debug) console.log("[MorphingFab] Creando nota desde portapapeles");
+                    root.expanded = false;
+                    root.clipNoteRequested();
+                }
+            }
+        }
+
+        // Opción 3: Nueva nota (texto/markdown)
         Rectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: 38

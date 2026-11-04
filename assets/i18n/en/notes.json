@@ -25,7 +25,8 @@
   "fab": {
     "create_new": "New note",
     "new_note": "New note",
-    "import_notes": "Import notes"
+    "import_notes": "Import notes",
+    "from_clipboard": "From clipboard"
   },
   "editor": {
     "title_placeholder": "Note title...",
@@ -117,7 +118,11 @@
     "kept_folder": "Folder kept: it contains other files",
     "deleted": "Note deleted",
     "deleted_multi": "%1 notes deleted",
-    "undo": "Undo"
+    "undo": "Undo",
+    "clipboard_empty": "Clipboard is empty",
+    "note_from_clipboard": "Note created from clipboard",
+    "path_copied": "Path copied to clipboard",
+    "rel_path_copied": "Name copied to clipboard"
   },
   "deps": {
     "missing_title": "Missing dependencies for Notes",
@@ -234,5 +239,13 @@
     "callout_warning_desc": "Yellow box for potential risks",
     "callout_caution": "Caution (Callout)",
     "callout_caution_desc": "Red box for destructive consequences"
+  },
+  "menu": {
+    "copy_abs_path": "Copy absolute path",
+    "copy_rel_path": "Copy name / relative path",
+    "open_folder": "Open containing folder",
+    "unpin": "Unpin note",
+    "pin": "Pin note",
+    "delete": "Delete note"
   }
 }

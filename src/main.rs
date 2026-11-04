@@ -1,3 +1,4 @@
+mod cli_ops;
 mod notes_cli;
 mod spell_cli;
 mod file_picker_cli;
@@ -42,6 +43,50 @@ struct Cli {
     /// Forzar apertura en modo edición directa
     #[arg(short = 'e', long = "edit")]
     edit: bool,
+
+    /// Buscar notas por texto (modo headless sin abrir GUI)
+    #[arg(short = 's', long = "search")]
+    search: Option<String>,
+
+    /// Filtrar búsqueda por etiqueta (usado con --search)
+    #[arg(long = "tag")]
+    tag: Option<String>,
+
+    /// Límite de resultados de búsqueda
+    #[arg(long = "limit", default_value = "20")]
+    limit: usize,
+
+    /// Mostrar solo rutas de archivos en búsqueda
+    #[arg(long = "paths")]
+    paths: bool,
+
+    /// Salida en formato JSON estructurado
+    #[arg(long = "json")]
+    json: bool,
+
+    /// Abrir la aplicación con el buscador del inicio relleno
+    #[arg(short = 'f', long = "find")]
+    find: Option<String>,
+
+    /// Agregar texto al final de una nota (usar '-' para leer de stdin)
+    #[arg(short = 'a', long = "append")]
+    append: Option<String>,
+
+    /// Nota de destino para --append o --clip (por defecto: 'inbox')
+    #[arg(long = "to")]
+    to_note: Option<String>,
+
+    /// Anteponer encabezado con fecha y hora al agregar
+    #[arg(long = "stamp")]
+    stamp: bool,
+
+    /// Crear nota o agregar a --to desde el contenido del portapapeles
+    #[arg(long = "clip")]
+    clip: bool,
+
+    /// Imprimir la ruta absoluta del archivo Markdown de una nota
+    #[arg(long = "path-of")]
+    path_of: Option<String>,
 
     /// Desactivar sincronización con Quickshell (modo standalone para testing)
     #[arg(long = "no-sync", alias = "standalone")]
@@ -110,7 +155,7 @@ fn resolve_target_path(path_str: &str) -> String {
     }
 }
 
-fn try_send_ipc(action: &str, target: &str) -> bool {
+pub fn try_send_ipc(action: &str, target: &str) -> bool {
     let runtime_dir = std::env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/tmp".to_string());
     let sock_path = format!("{}/notas.sock", runtime_dir);
 
@@ -151,7 +196,31 @@ fn main() {
 
     let cli = Cli::parse();
 
-    let (action, target) = if cli.close {
+    // ── Despacho de operaciones headless en Rust puro (sin inicializar Qt) ───
+    if let Some(ref q) = cli.search {
+        cli_ops::cmd_search(q, cli.tag.as_deref(), cli.limit, cli.paths, cli.json);
+        return;
+    }
+
+    if let Some(ref note_q) = cli.path_of {
+        cli_ops::cmd_path_of(note_q);
+        return;
+    }
+
+    if let Some(ref text) = cli.append {
+        let to = cli.to_note.as_deref().unwrap_or("inbox");
+        cli_ops::cmd_append(text, to, cli.stamp);
+        return;
+    }
+
+    if cli.clip {
+        cli_ops::cmd_clip(cli.to_note.as_deref(), cli.stamp);
+        return;
+    }
+
+    let (action, target) = if let Some(ref find_q) = cli.find {
+        ("find".to_string(), find_q.clone())
+    } else if cli.close {
         ("close".to_string(), String::new())
     } else if cli.toggle {
         ("toggle".to_string(), String::new())

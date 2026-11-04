@@ -42,7 +42,7 @@ MimeType=text/markdown;text/x-markdown;
 StartupWMClass=dev.criperto.Notas
 DBusActivatable=true
 Keywords=notas;notes;markdown;md;apuntes;editor;texto;checklist;tareas;mermaid;
-Actions=new-note;toggle;
+Actions=new-note;clip-note;toggle;
 
 [Desktop Action new-note]
 Name=Nueva nota
@@ -57,6 +57,18 @@ Name[pt]=Nova nota
 Name[ru]=Новая заметка
 Name[zh]=新建笔记
 Exec=notas --new
+
+[Desktop Action clip-note]
+Name=Nota desde portapapeles
+Name[es]=Nota desde portapapeles
+Name[en]=Note from clipboard
+Name[de]=Notiz aus der Zwischenablage
+Name[fr]=Note depuis le presse-papiers
+Name[ja]=クリップボードからノート
+Name[pt]=Nota da área de transferência
+Name[ru]=Заметка из буфера обмена
+Name[zh]=从剪贴板创建笔记
+Exec=notas --clip
 
 [Desktop Action toggle]
 Name=Alternar ventana

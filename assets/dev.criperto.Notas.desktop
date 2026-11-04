@@ -1,15 +1,77 @@
 [Desktop Entry]
+Type=Application
+Version=1.5
 Name=Notas
 Name[es]=Notas
-GenericName=Markdown Note Editor
-GenericName[es]=Editor de Notas en Markdown
-Comment=Modern native markdown note-taking app with Mermaid diagrams
-Comment[es]=Editor moderno e independiente de notas en Markdown con soporte de diagramas Mermaid
-Exec=criperto.notes %F
+Name[es_AR]=Notas
+Name[es_ES]=Notas
+Name[en]=Notes
+Name[de]=Notizen
+Name[fr]=Notes
+Name[ja]=ノート
+Name[pt]=Notas
+Name[ru]=Заметки
+Name[zh]=笔记
+GenericName=Editor de notas en Markdown
+GenericName[es]=Editor de notas en Markdown
+GenericName[es_AR]=Editor de notas en Markdown
+GenericName[es_ES]=Editor de notas en Markdown
+GenericName[en]=Markdown Notes Editor
+GenericName[de]=Markdown-Notizeneditor
+GenericName[fr]=Éditeur de notes Markdown
+GenericName[ja]=Markdownノートエディタ
+GenericName[pt]=Editor de notas Markdown
+GenericName[ru]=Редактор заметок Markdown
+GenericName[zh]=Markdown 笔记编辑器
+Comment=Aplicación de notas en Markdown con tarjetas interactivas
+Comment[es]=Aplicación de notas en Markdown con tarjetas interactivas
+Comment[es_AR]=Aplicación de notas en Markdown con tarjetas interactivas
+Comment[es_ES]=Aplicación de notas en Markdown con tarjetas interactivas
+Comment[en]=Markdown notes application with interactive cards
+Comment[de]=Markdown-Notizanwendung mit interaktiven Karten
+Comment[fr]=Application de notes Markdown avec cartes interactives
+Comment[ja]=インタラクティブカードを備えたMarkdownノートアプリ
+Comment[pt]=Aplicativo de notas Markdown com cartões interativos
+Comment[ru]=Приложение для заметок в Markdown с интерактивными карточками
+Comment[zh]=带有交互式卡片的 Markdown 笔记应用
 Icon=dev.criperto.Notas
+Exec=notas %U
 Terminal=false
-Type=Application
 Categories=Office;Utility;TextEditor;
-MimeType=text/markdown;text/plain;text/x-markdown;
+MimeType=text/markdown;text/x-markdown;
 StartupWMClass=dev.criperto.Notas
-Keywords=notes;markdown;mermaid;editor;text;notas;
+DBusActivatable=true
+Keywords=notas;notes;markdown;md;apuntes;editor;texto;checklist;tareas;mermaid;
+Actions=new-note;clip-note;toggle;
+
+[Desktop Action new-note]
+Name=Nueva nota
+Name[es]=Nueva nota
+Name[es_AR]=Nueva nota
+Name[es_ES]=Nueva nota
+Name[en]=New note
+Name[de]=Neue Notiz
+Name[fr]=Nouvelle note
+Name[ja]=新規ノート
+Name[pt]=Nova nota
+Name[ru]=Новая заметка
+Name[zh]=新建笔记
+Exec=notas --new
+
+[Desktop Action clip-note]
+Name=Nota desde portapapeles
+Name[es]=Nota desde portapapeles
+Name[en]=Note from clipboard
+Name[de]=Notiz aus der Zwischenablage
+Name[fr]=Note depuis le presse-papiers
+Name[ja]=クリップボードからノート
+Name[pt]=Nota da área de transferência
+Name[ru]=Заметка из буфера обмена
+Name[zh]=从剪贴板创建笔记
+Exec=notas --clip
+
+[Desktop Action toggle]
+Name=Alternar ventana
+Name[es]=Alternar ventana
+Name[en]=Toggle window
+Exec=notas toggle

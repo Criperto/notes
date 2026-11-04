@@ -3999,6 +3999,71 @@ runTest('F78: Slash Commands estilo Notion (detección de trigger, filtrado y ca
     assert.ok(fs.existsSync(path.join(iconsDir, 'format-list-numbered.svg')));
 });
 
+runTest('F79: Operaciones CLI y captura desde portapapeles', () => {
+    // 1. Detección de títulos desde texto de portapapeles
+    function extractClipNoteInfo(clip) {
+        if (!clip || !clip.trim()) return null;
+        const lines = clip.trim().split('\n');
+        const firstLine = (lines[0] || '').trim();
+        let initialTitle = '';
+        let initialBody = '';
+
+        const isUrl = /^https?:\/\//i.test(firstLine);
+        if (isUrl) {
+            initialTitle = firstLine.length > 50 ? firstLine.substring(0, 47) + '...' : firstLine;
+            initialBody = `[${firstLine}](${firstLine})\n`;
+        } else {
+            if (firstLine.startsWith('# ')) {
+                initialTitle = firstLine.substring(2).trim();
+                initialBody = lines.slice(1).join('\n').trim();
+            } else {
+                initialTitle = firstLine.length > 45 ? firstLine.substring(0, 42) + '...' : firstLine;
+                initialBody = clip.trim();
+            }
+        }
+        return { initialTitle, initialBody, isUrl };
+    }
+
+    // URL capture
+    const urlRes = extractClipNoteInfo('https://github.com/criperto/notas');
+    assert.strictEqual(urlRes.isUrl, true);
+    assert.strictEqual(urlRes.initialTitle, 'https://github.com/criperto/notas');
+    assert.strictEqual(urlRes.initialBody, '[https://github.com/criperto/notas](https://github.com/criperto/notas)\n');
+
+    // Markdown heading capture
+    const mdRes = extractClipNoteInfo('# Mi lista de compras\n- Manzanas\n- Leche');
+    assert.strictEqual(mdRes.isUrl, false);
+    assert.strictEqual(mdRes.initialTitle, 'Mi lista de compras');
+    assert.strictEqual(mdRes.initialBody, '- Manzanas\n- Leche');
+
+    // Plain text capture
+    const plainRes = extractClipNoteInfo('Texto simple copiado para una nota rápida');
+    assert.strictEqual(plainRes.isUrl, false);
+    assert.strictEqual(plainRes.initialTitle, 'Texto simple copiado para una nota rápida');
+    assert.strictEqual(plainRes.initialBody, 'Texto simple copiado para una nota rápida');
+
+    // 2. Verificación de archivo .desktop con acción clip-note
+    const desktopPath = path.resolve(__dirname, '../data/dev.criperto.Notas.desktop');
+    assert.ok(fs.existsSync(desktopPath));
+    const desktopContent = fs.readFileSync(desktopPath, 'utf8');
+    assert.ok(desktopContent.includes('Actions=new-note;clip-note;toggle;'));
+    assert.ok(desktopContent.includes('[Desktop Action clip-note]'));
+    assert.ok(desktopContent.includes('Exec=notas --clip'));
+
+    // 3. Verificación de ícono content-paste.svg
+    const iconsDir = path.resolve(__dirname, '../assets/icons');
+    assert.ok(fs.existsSync(path.join(iconsDir, 'content-paste.svg')));
+    assert.ok(fs.existsSync(path.join(iconsDir, 'content-copy.svg')));
+
+    // 4. Verificación de traducciones en I18nCatalogs.js
+    const catalogsPath = path.resolve(__dirname, '../qml/I18nCatalogs.js');
+    assert.ok(fs.existsSync(catalogsPath));
+    const catContent = fs.readFileSync(catalogsPath, 'utf8');
+    assert.ok(catContent.includes('from_clipboard'));
+    assert.ok(catContent.includes('copy_abs_path'));
+    assert.ok(catContent.includes('open_folder'));
+});
+
 console.log(`\n========================================`);
 console.log(`Resultados: ${passed} OK, ${failed} FAIL`);
 console.log(`========================================`);

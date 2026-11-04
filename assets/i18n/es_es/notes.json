@@ -25,7 +25,8 @@
   "fab": {
     "create_new": "Nueva nota",
     "new_note": "Nueva nota",
-    "import_notes": "Importar notas"
+    "import_notes": "Importar notas",
+    "from_clipboard": "Desde portapapeles"
   },
   "editor": {
     "title_placeholder": "Título de la nota...",
@@ -117,7 +118,11 @@
     "kept_folder": "Carpeta conservada: tiene otros archivos",
     "deleted": "Nota eliminada",
     "deleted_multi": "%1 notas eliminadas",
-    "undo": "Deshacer"
+    "undo": "Deshacer",
+    "clipboard_empty": "El portapapeles está vacío",
+    "note_from_clipboard": "Nota creada desde portapapeles",
+    "path_copied": "Ruta copiada al portapapeles",
+    "rel_path_copied": "Nombre copiado al portapapeles"
   },
   "deps": {
     "missing_title": "Faltan dependencias para Notas",
@@ -234,5 +239,13 @@
     "callout_warning_desc": "Caja amarilla para alertar sobre riesgos",
     "callout_caution": "Precaución (Callout)",
     "callout_caution_desc": "Caja roja para acciones irreversibles"
+  },
+  "menu": {
+    "copy_abs_path": "Copiar ruta absoluta",
+    "copy_rel_path": "Copiar nombre / ruta relativa",
+    "open_folder": "Abrir carpeta contenedora",
+    "unpin": "Desfijar nota",
+    "pin": "Fijar nota",
+    "delete": "Eliminar nota"
   }
 }
