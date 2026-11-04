@@ -4257,8 +4257,10 @@ runTest("F84: Cierre con botón X y atajo ESC sin trampa de foco ni conflicto de
     const contentQml = fs.readFileSync(path.resolve(__dirname, '../qml/NotesContent.qml'), 'utf8');
     const mathQml = fs.readFileSync(path.resolve(__dirname, '../qml/BlockMath.qml'), 'utf8');
 
-    // 1. NoteEditorModal no debe tener TapHandler en el botón cerrar
+    // 1. NoteEditorModal no debe tener TapHandler en el botón cerrar y debe elevar backBtnRect
     assert.ok(!modalQml.includes('id: backBtnTap'), "No debe haber TapHandler en backBtnRect");
+    assert.ok(modalQml.includes('id: backBtnSpacer'), "RowLayout debe tener backBtnSpacer para reservar el espacio");
+    assert.ok(modalQml.includes('z: 500'), "backBtnRect debe estar desacoplado con z: 500");
     assert.ok(modalQml.includes('preventStealing: true'), "MouseArea de backBtn debe tener preventStealing");
     assert.ok(modalQml.includes('focus: true'), "NoteEditorModal debe tener focus: true para recibir atajos");
 
