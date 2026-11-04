@@ -276,9 +276,14 @@ Item {
 
                                 Text {
                                     Layout.fillWidth: true
-                                    text: (typeof I18n !== "undefined" && typeof I18n.t === "function")
-                                        ? I18n.t(modelData.titleKey, modelData.fallbackTitle)
-                                        : modelData.fallbackTitle
+                                    text: {
+                                        if (!modelData) return "";
+                                        if (modelData.title) return modelData.title;
+                                        if (typeof I18n !== "undefined" && typeof I18n.t === "function" && modelData.titleKey) {
+                                            return I18n.t(modelData.titleKey, modelData.fallbackTitle || "");
+                                        }
+                                        return modelData.fallbackTitle || "";
+                                    }
                                     font.family: Theme.fontFamily
                                     font.pixelSize: 13
                                     font.bold: true
@@ -288,12 +293,18 @@ Item {
 
                                 Text {
                                     Layout.fillWidth: true
-                                    text: (typeof I18n !== "undefined" && typeof I18n.t === "function")
-                                        ? I18n.t(modelData.descKey, modelData.fallbackDesc)
-                                        : modelData.fallbackDesc
+                                    text: {
+                                        if (!modelData) return "";
+                                        if (modelData.description) return modelData.description;
+                                        if (modelData.desc) return modelData.desc;
+                                        if (typeof I18n !== "undefined" && typeof I18n.t === "function" && modelData.descKey) {
+                                            return I18n.t(modelData.descKey, modelData.fallbackDesc || "");
+                                        }
+                                        return modelData.fallbackDesc || "";
+                                    }
                                     font.family: Theme.fontFamily
                                     font.pixelSize: 11
-                                    color: Theme.muted
+                                    color: itemDelegate.isHighlighted ? Qt.hsva(Theme.accent.hsvHue < 0 ? 0 : Theme.accent.hsvHue, Theme.accent.hsvSaturation * 0.7, Theme.accent.hsvValue, 0.85) : Theme.muted
                                     elide: Text.ElideRight
                                 }
                             }

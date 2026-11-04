@@ -964,6 +964,12 @@ Item {
         }
 
         Keys.onUpPressed: (event) => {
+            var sm = root.editor ? root.editor.slashMenu : null;
+            if (sm && sm.isOpen) {
+                sm.selectPreviousItem();
+                event.accepted = true;
+                return;
+            }
             if (event.modifiers & Qt.AltModifier) {
                 if (root.editor && root.blockData && typeof root.editor.moveBlockUp === "function") {
                     root.editor.moveBlockUp(root.blockData.bid);
@@ -1017,6 +1023,12 @@ Item {
         }
 
         Keys.onDownPressed: (event) => {
+            var sm = root.editor ? root.editor.slashMenu : null;
+            if (sm && sm.isOpen) {
+                sm.selectNextItem();
+                event.accepted = true;
+                return;
+            }
             if (event.modifiers & Qt.AltModifier) {
                 if (root.editor && root.blockData && typeof root.editor.moveBlockDown === "function") {
                     root.editor.moveBlockDown(root.blockData.bid);
@@ -1110,6 +1122,12 @@ Item {
         }
 
         Keys.onEscapePressed: (event) => {
+            var sm = root.editor ? root.editor.slashMenu : null;
+            if (sm && sm.isOpen) {
+                sm.close();
+                event.accepted = true;
+                return;
+            }
             if (root.editor) {
                 root.editor.confirmActiveBlock();
                 event.accepted = true;

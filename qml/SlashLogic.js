@@ -109,6 +109,10 @@ function _formatCommandItem(cmd, I18n) {
         calloutType: cmd.calloutType || "",
         title: title,
         description: desc,
-        badge: cmd.badge
+        badge: cmd.badge,
+        titleKey: cmd.titleKey,
+        descKey: cmd.descKey,
+        fallbackTitle: cmd.fallbackTitle,
+        fallbackDesc: cmd.fallbackDesc
     };
 }
