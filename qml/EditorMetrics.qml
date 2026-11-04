@@ -36,6 +36,11 @@ Item {
         Inline.setHighlightBg(highlightBg);
         Inline.setZoom(root.zoom);
         root.syncThemeToInline();
+        if (typeof Sys !== "undefined" && Sys && typeof Sys.renderLatexSvg === "function") {
+            Inline.setLatexRenderer(function(latex, display, color, ptSize) {
+                return Sys.renderLatexSvg(latex, display, color, ptSize);
+            });
+        }
     }
 
     Connections {

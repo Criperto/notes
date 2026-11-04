@@ -41,5 +41,7 @@ BlockTable         1.0 BlockTable.qml
 BlockImage         1.0 BlockImage.qml
 BlockMermaid       1.0 BlockMermaid.qml
 MermaidView        1.0 MermaidView.qml
+BlockMath          1.0 BlockMath.qml
+MathView           1.0 MathView.qml
 BlockRaw           1.0 BlockRaw.qml
 SpellOverlay       1.0 SpellOverlay.qml

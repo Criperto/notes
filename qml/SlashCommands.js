@@ -95,6 +95,17 @@ var COMMANDS = [
         keywords: ["mermaid", "diagrama", "flujo", "flowchart", "grafico", "chart", "secuencia"]
     },
     {
+        id: "math",
+        category: "advanced",
+        icon: "math.svg",
+        titleKey: "notes.slash.math",
+        fallbackTitle: "Fórmula LaTeX",
+        descKey: "notes.slash.math_desc",
+        fallbackDesc: "Ecuación matemática con renderizado TeX",
+        badge: "/math",
+        keywords: ["math", "latex", "formula", "ecuacion", "tex", "integral", "fraccion", "matematica", "calcular"]
+    },
+    {
         id: "code_block",
         category: "advanced",
         icon: "code-blocks.svg",

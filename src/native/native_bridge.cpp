@@ -1166,6 +1166,50 @@ bool Sys::saveHistoryUndo(const QString &notePath, const QString &jsonData) cons
     return sf.commit();
 }
 
+extern "C" {
+    char *notas_render_latex_svg(const char *latex, bool display, const char *color, double pt_size);
+    void notas_free_string(char *ptr);
+}
+
+QString Sys::renderLatexSvg(const QString &latex, bool display, const QString &colorHex, double ptSize) const {
+    if (latex.trimmed().isEmpty()) return QString();
+
+    static QHash<QString, QString> s_latexCache;
+    static QStringList s_cacheKeys;
+    const int MAX_CACHE_SIZE = 256;
+
+    QString cacheKey = QStringLiteral("%1|%2|%3|%4")
+        .arg(latex)
+        .arg(display ? 1 : 0)
+        .arg(colorHex)
+        .arg(QString::number(ptSize, 'f', 1));
+
+    if (s_latexCache.contains(cacheKey)) {
+        return s_latexCache.value(cacheKey);
+    }
+
+    QByteArray latexBytes = latex.toUtf8();
+    QByteArray colorBytes = colorHex.toUtf8();
+    const char *colPtr = colorHex.isEmpty() ? nullptr : colorBytes.constData();
+
+    char *resPtr = notas_render_latex_svg(latexBytes.constData(), display, colPtr, ptSize);
+    if (!resPtr) {
+        return QStringLiteral("ERROR:Error desconocido al renderizar fórmula LaTeX");
+    }
+
+    QString svgResult = QString::fromUtf8(resPtr);
+    notas_free_string(resPtr);
+
+    if (s_cacheKeys.size() >= MAX_CACHE_SIZE) {
+        QString oldKey = s_cacheKeys.takeFirst();
+        s_latexCache.remove(oldKey);
+    }
+    s_cacheKeys.append(cacheKey);
+    s_latexCache.insert(cacheKey, svgResult);
+
+    return svgResult;
+}
+
 QJsonObject Sys::indexNotes(const QString &notesDirStr) const {
     QJsonObject root;
     QJsonArray notesArr;

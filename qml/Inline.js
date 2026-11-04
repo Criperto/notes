@@ -4,6 +4,33 @@
 var _defaultHighlightBg = "rgba(240, 198, 116, 0.35)";
 function setHighlightBg(c) { if (typeof c === "string" && c !== "" && _defaultHighlightBg !== c) _defaultHighlightBg = c; }
 
+// Renderizador LaTeX reactivo para fórmulas matemáticas inline ($...$)
+var _latexRenderer = null;
+function setLatexRenderer(fn) {
+    if (typeof fn === "function" || fn === null) _latexRenderer = fn;
+}
+
+function renderLatexInline(formula, opts) {
+    var fn = (opts && typeof opts.renderLatex === "function") ? opts.renderLatex : _latexRenderer;
+    var colorHex = (opts && opts.mathColor) ? opts.mathColor : "";
+    var ptSize = (opts && opts.mathPtSize) ? opts.mathPtSize : 12.0;
+
+    var res = "";
+    if (typeof fn === "function") {
+        res = fn(formula, false, colorHex, ptSize);
+    } else if (typeof Sys !== "undefined" && Sys && typeof Sys.renderLatexSvg === "function") {
+        res = Sys.renderLatexSvg(formula, false, colorHex, ptSize);
+    }
+
+    if (res && res.indexOf("ERROR:") !== 0 && res.indexOf("<svg") !== -1) {
+        var uri = "data:image/svg+xml;utf8," + encodeURIComponent(res);
+        return '<img src="' + uri + '" align="middle"/>';
+    }
+
+    // Fallback: visualización legible con fuente mono/cursiva
+    return '<span style="font-style: italic; font-family: monospace;">$' + escapeHtml(formula) + '$</span>';
+}
+
 // Inline.js — Formateo y renderizado inline enriquecido para bloques Markdown
 // Soporta: negrita, cursiva, subrayado, tachado, resaltado, código inline, enlaces, escapes.
 
@@ -179,7 +206,7 @@ function inlineToHtml(src, opts) {
 
     // 1. Escapar caracteres con barra invertida
     var escapes = [];
-    text = text.replace(/\\([*_[\]~=\\`#\-!().|{}+>])/g, function(match, char) {
+    text = text.replace(/\\([*_[\]~=\\`#\-!().|{}+>$])/g, function(match, char) {
         var token = "\uE000ESC_" + escapes.length + "\uE000";
         escapes.push(char);
         return token;
@@ -205,6 +232,16 @@ function inlineToHtml(src, opts) {
         var html = '<img src="' + svgUri + '" align="middle"/>';
         kbds.push(html);
         return token;
+    });
+
+    // 2c. Extraer fórmulas matemáticas inline ($formula$)
+    var mathSpans = [];
+    text = text.replace(/(?:^|[^\$])\$([^\s\$](?:[^\$\r\n]*?[^\s\$])?)\$(?!\$)/g, function(match, formula) {
+        var pfx = match.startsWith("$") ? "" : match[0];
+        var token = "\uE000MATH_" + mathSpans.length + "\uE000";
+        var rendered = renderLatexInline(formula, options);
+        mathSpans.push(rendered);
+        return pfx + token;
     });
 
     // 3. Extraer imágenes markdown antes que enlaces: ![alt](url)
@@ -372,6 +409,12 @@ function inlineToHtml(src, opts) {
     for (var k = 0; k < kbds.length; k++) {
         var kbdHtml = kbds[k];
         text = text.replace("\uE000KBD_" + k + "\uE000", function() { return kbdHtml; });
+    }
+
+    // 10c. Restaurar fórmulas matemáticas inline
+    for (var m = 0; m < mathSpans.length; m++) {
+        var mathHtml = mathSpans[m];
+        text = text.replace("\uE000MATH_" + m + "\uE000", function() { return mathHtml; });
     }
 
     // 11. Restaurar caracteres escapados a texto plano seguro
@@ -710,7 +753,7 @@ function _collectInlineSpans(src) {
     if (!src || typeof src !== "string") return spans;
 
     // Enmascarar caracteres escapados con barra invertida para que no activen delimitadores falsos
-    var maskedSrc = src.replace(/\\([*_[\]~=\\`!#])/g, "\uE000\uE000");
+    var maskedSrc = src.replace(/\\([*_[\]~=\\`!#$])/g, "\uE000\uE000");
 
     // 1. Código inline: `...`
     var codeRegex = /`([^`\r\n]+)`/g;
@@ -834,6 +877,23 @@ function _collectInlineSpans(src) {
         spans.push({ type: "highlight", start: m.index, end: m.index + m[0].length, openDelim: "==", closeDelim: "==", inner: src.substring(m.index + 2, m.index + m[0].length - 2) });
     }
 
+    // 11. Fórmulas matemáticas inline: $formula$
+    var mathRegex = /(?:^|[^\$])\$([^\s\$](?:[^\$\r\n]*?[^\s\$])?)\$(?!\$)/g;
+    while ((m = mathRegex.exec(maskedSrc)) !== null) {
+        var pfxLen = m[0].startsWith("$") ? 0 : 1;
+        var s = m.index + pfxLen;
+        var inner = m[1];
+        var totalLen = inner.length + 2;
+        spans.push({
+            type: "math",
+            start: s,
+            end: s + totalLen,
+            openDelim: "$",
+            closeDelim: "$",
+            inner: inner
+        });
+    }
+
     // Ordenar spans por start ascendente, y los más largos primero
     spans.sort(function(a, b) {
         if (a.start !== b.start) return a.start - b.start;
@@ -933,7 +993,7 @@ function formatForLiveEditing(src, opts) {
             : (hideSyntax ? "" : ('<span style="font-size: 1px; color: transparent;">' + escapeHtml(sp.closeDelim) + '</span>'));
 
         var innerHtml = "";
-        if (sp.type === "code" || sp.type === "kbd" || sp.type === "link" || sp.type === "image" || sp.type === "wikilink") {
+        if (sp.type === "code" || sp.type === "kbd" || sp.type === "math" || sp.type === "link" || sp.type === "image" || sp.type === "wikilink") {
             innerHtml = escapeHtml(sp.inner);
         } else {
             // Formatear recursivamente el contenido interno (soporta formatos anidados como **negrita *cursiva***)
@@ -971,6 +1031,9 @@ function formatForLiveEditing(src, opts) {
                 break;
             case "kbd":
                 out += '<span style="font-family: monospace; font-size: 0.9em; background-color: ' + kbdBg + '; color: ' + kbdColor + '; border: 1px solid ' + kbdBorder + '; border-radius: 4px; padding: 1px 5px;">' + openHtml + innerHtml + closeHtml + '</span>';
+                break;
+            case "math":
+                out += '<span style="font-family: monospace; font-style: italic; background-color: ' + (options.mathBg || codeBg) + '; color: ' + (options.mathColor || codeColor) + '; border-radius: 4px; padding: 1px 4px;">' + openHtml + innerHtml + closeHtml + '</span>';
                 break;
             case "link":
                 out += '<span style="color: ' + linkColor + '; text-decoration: underline;">' + openHtml + innerHtml + closeHtml + '</span>';

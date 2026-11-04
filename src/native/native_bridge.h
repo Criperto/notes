@@ -260,6 +260,7 @@ public:
     Q_INVOKABLE QJsonObject indexNotes(const QString &notesDir) const;
     Q_INVOKABLE QString loadHistoryUndo(const QString &notePath) const;
     Q_INVOKABLE bool saveHistoryUndo(const QString &notePath, const QString &jsonData) const;
+    Q_INVOKABLE QString renderLatexSvg(const QString &latex, bool display = false, const QString &colorHex = QString(), double ptSize = 12.0) const;
     Q_INVOKABLE QJsonObject readQtColors() const;
     Q_INVOKABLE void refreshQtColors();
 

@@ -228,7 +228,8 @@ function formatRelative(dateVal, nowMs) {
 function cleanCardText(md) {
     if (!md || typeof md !== "string") return "";
     return md
-        .replace(/^[ \t]*(`{3,}|~{3,})[ \t]*mermaid[\s\S]*?\1[ \t]*$/gmi, "📊 Diagrama")
+        .replace(/^[ \t]*(`{3,}|~{3,})[ \t]*(?:mermaid|math|latex)[\s\S]*?\1[ \t]*$/gmi, "📊 Diagrama")
+        .replace(/^[ \t]*\$\$[\s\S]*?\$\$[ \t]*$/gm, "∑ Fórmula")
         .replace(/!\[([^\]]*)\]\((?:[^()\s]+|\([^()\s]*\))(?:\s+"[^"]*")?\)/g, "")
         .replace(/\[\[([^\]|]+)\|([^\]]+)\]\]/g, "$2")
         .replace(/\[\[([^\]]+)\]\]/g, "$1")

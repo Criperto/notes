@@ -4148,6 +4148,75 @@ runTest('F81: build.rs registra todos los archivos QML en el módulo Notas', () 
     }
 });
 
+runTest('F82: Soporte nativo de LaTeX y fórmulas matemáticas (BlockModel, Inline y SlashCommands)', () => {
+    // 1. Detección y parsing de bloques matemáticos con delimitadores $$
+    const docMath1 = '# Título\n\n$$\nx = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}\n$$\n\nPárrafo siguiente.';
+    const split1 = BlockModel.splitBlocks(docMath1);
+    assert.strictEqual(split1.blocks.length, 3, "Debe dividir en 3 bloques (heading, math, paragraph)");
+    assert.strictEqual(split1.blocks[1].type, "math", "El bloque con $$ multilínea debe ser de tipo 'math'");
+    assert.strictEqual(BlockModel.joinBlocks(split1), docMath1, "Invariante estricta: joinBlocks === splitBlocks en multilínea");
+
+    // 2. Bloque matemático single-line $$ ... $$
+    const docMath2 = '$$e^{i\\pi} + 1 = 0$$\n\nTexto adicional.';
+    const split2 = BlockModel.splitBlocks(docMath2);
+    assert.strictEqual(split2.blocks[0].type, "math", "Bloque matemático single-line debe ser de tipo 'math'");
+    assert.strictEqual(BlockModel.joinBlocks(split2), docMath2, "Invariante estricta en single-line");
+
+    // 3. Bloque con fence ```math
+    const docMath3 = '```math\n\\int_{-\\infty}^{\\infty} e^{-x^2} \\, dx = \\sqrt{\\pi}\n```';
+    const split3 = BlockModel.splitBlocks(docMath3);
+    assert.strictEqual(split3.blocks[0].type, "math", "Fence ```math debe clasificarse como 'math'");
+    assert.strictEqual(BlockModel.joinBlocks(split3), docMath3, "Invariante estricta en fence math");
+
+    // 4. Extracción de código LaTeX puro
+    const rawMultiline = '$$\n\\sum_{n=1}^\\infty \\frac{1}{n^2} = \\frac{\\pi^2}{6}\n$$';
+    assert.strictEqual(
+        BlockModel.extractLatex(rawMultiline),
+        '\\sum_{n=1}^\\infty \\frac{1}{n^2} = \\frac{\\pi^2}{6}',
+        "extractLatex debe extraer la fórmula sin los $$"
+    );
+
+    const rawFence = '```math\nE = mc^2\n```';
+    assert.strictEqual(
+        BlockModel.extractLatex(rawFence),
+        'E = mc^2',
+        "extractLatex debe extraer la fórmula sin los ```math"
+    );
+
+    // 5. Invariante de documento complejo con fórmulas combinadas
+    const showcaseMd = `# Física\n\n$$\n\\nabla \\cdot \\mathbf{E} = \\frac{\\rho}{\\varepsilon_0}\n$$\n\nLa ecuación $E = mc^2$ es fundamental.\n\n$$\n|x| = \\begin{cases} x & \\text{si } x \\ge 0 \\\\ -x & \\text{si } x < 0 \\end{cases}\n$$\n`;
+    const splitShowcase = BlockModel.splitBlocks(showcaseMd);
+    assert.strictEqual(BlockModel.joinBlocks(splitShowcase), showcaseMd, "Invariante estricta en showcase complejo");
+
+    // 6. Inline.js: renderizado inline con $formula$
+    let mockRenderedCount = 0;
+    const testRenderer = (formula, display, color, ptSize) => {
+        mockRenderedCount++;
+        return `<svg xmlns="http://www.w3.org/2000/svg" width="50" height="20" viewBox="0 0 50 20"><text>${formula}</text></svg>`;
+    };
+
+    const inlineHtml = Inline.inlineToHtml('La fórmula $a^2 + b^2 = c^2$ pitagórica y precio \\$100 no math.', {
+        renderLatex: testRenderer
+    });
+    assert.ok(inlineHtml.includes('<img src="data:image/svg+xml;utf8,'), "Debe generar <img> SVG para la fórmula $a^2 + b^2 = c^2$");
+    assert.ok(inlineHtml.includes('$100'), "El símbolo de dólar escapado \\$100 no debe tratarse como fórmula");
+
+    // 7. Typora Live Editing reveal al tocar con cursor
+    const rawFormulaText = 'Texto con $x = 2$ formula.';
+    const revealed = Inline.formatForLiveEditing(rawFormulaText, {
+        cursorPos: 12 // Dentro de $x = 2$
+    });
+    assert.ok(revealed.includes('$x = 2$') || revealed.includes('font color='), "Debe revelar los delimitadores al tocar con el cursor");
+
+    // 8. SlashCommands catálogo
+    const allCmds = SlashCommands.getAllCommands();
+    const mathCmd = allCmds.find(c => c.id === "math");
+    assert.ok(mathCmd, "Comando /math debe existir en SlashCommands");
+    assert.strictEqual(mathCmd.icon, "math.svg");
+    assert.ok(mathCmd.keywords.includes("latex"), "Keywords deben incluir 'latex'");
+    assert.ok(mathCmd.keywords.includes("formula"), "Keywords deben incluir 'formula'");
+});
+
 console.log(`\n========================================`);
 console.log(`Resultados: ${passed} OK, ${failed} FAIL`);
 console.log(`========================================`);

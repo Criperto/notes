@@ -4,6 +4,7 @@ mod spell_cli;
 mod file_picker_cli;
 mod sync_cli;
 mod history_cli;
+mod math_cli;
 
 use clap::Parser;
 use cxx_qt_lib::{QGuiApplication, QQmlApplicationEngine, QUrl};
@@ -92,6 +93,10 @@ struct Cli {
     /// Operaciones de historial de versiones (snapshot, list, show, restore, purge, move)
     #[arg(long = "history", num_args = 1..)]
     history: Option<Vec<String>>,
+
+    /// Renderizar fórmula LaTeX a SVG (modo headless)
+    #[arg(long = "math", num_args = 1..)]
+    math: Option<Vec<String>>,
 
     /// Desactivar sincronización con Quickshell (modo standalone para testing)
     #[arg(long = "no-sync", alias = "standalone")]
@@ -209,6 +214,10 @@ fn main() {
                     }
                 }
             }
+            "math" => {
+                math_cli::run(&raw_args[2..]);
+                return;
+            }
             _ => {}
         }
     }
@@ -250,6 +259,11 @@ fn main() {
                 std::process::exit(1);
             }
         }
+    }
+
+    if let Some(ref m_args) = cli.math {
+        math_cli::run(m_args);
+        return;
     }
 
     let (action, target) = if let Some(ref find_q) = cli.find {

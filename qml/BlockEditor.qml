@@ -1412,7 +1412,7 @@ Flickable {
             var bIdx = _findBlockIndex(bid);
             if (bIdx !== -1) {
                 var blk = blocksModel.get(bIdx);
-                if (blk && (blk.type === "hr" || blk.type === "image" || blk.type === "table" || blk.type === "mermaid" || blk.type === "code")) {
+                if (blk && (blk.type === "hr" || blk.type === "image" || blk.type === "table" || blk.type === "mermaid" || blk.type === "math" || blk.type === "code")) {
                     return;
                 }
             }
@@ -1635,19 +1635,31 @@ Flickable {
             }
         }
 
-        // Detección de creación de bloque de código o mermaid: ``` o ```lang + Enter
+        // Detección de creación de bloque de código, mermaid o math: ``` o ```lang + Enter
         var codeAuto = BlockModel.detectAutoformat(trimmedLine);
         if (item.type === "paragraph" && codeAuto.matched && codeAuto.type === "code") {
             var fence = codeAuto.fence || "```";
             var lang = codeAuto.lang || "";
             var isMermaid = lang.toLowerCase() === "mermaid";
-            var codeRaw = isMermaid ? (fence + "mermaid\nflowchart TD\n    A[Inicio] --> B[Fin]\n" + fence) : (fence + lang + "\n\n" + fence);
-            blocksModel.setProperty(idx, "type", isMermaid ? "mermaid" : "code");
+            var isMath = lang.toLowerCase() === "math" || lang.toLowerCase() === "latex";
+            var codeRaw = isMermaid ? (fence + "mermaid\nflowchart TD\n    A[Inicio] --> B[Fin]\n" + fence)
+                        : (isMath ? (fence + lang + "\n\\frac{a}{b}\n" + fence) : (fence + lang + "\n\n" + fence));
+            blocksModel.setProperty(idx, "type", isMermaid ? "mermaid" : (isMath ? "math" : "code"));
             blocksModel.setProperty(idx, "raw", codeRaw);
             root.activeBlockBid = item.bid;
             _saveSnapshot();
-            var innerPos = isMermaid ? 0 : (fence + lang + "\n").length;
+            var innerPos = (isMermaid || isMath) ? 0 : (fence + lang + "\n").length;
             root.safeFocusDelegate(item.bid, innerPos);
+            return;
+        }
+
+        if (item.type === "paragraph" && codeAuto.matched && codeAuto.type === "math") {
+            var mathRaw = "$$\n\\frac{a}{b}\n$$";
+            blocksModel.setProperty(idx, "type", "math");
+            blocksModel.setProperty(idx, "raw", mathRaw);
+            root.activeBlockBid = item.bid;
+            _saveSnapshot();
+            root.safeFocusDelegate(item.bid, 0);
             return;
         }
 
@@ -2140,6 +2152,27 @@ Flickable {
                 blocksModel.insert(insertPos, { bid: mBid, type: "mermaid", raw: mermaidTpl, sep: "\n\n" });
                 root.activeBlockBid = mBid;
                 root.safeFocusDelegate(mBid, 0);
+            }
+            _saveSnapshot();
+            root.updateFormatState();
+            return;
+        }
+
+        // 7b. Fórmula Matemática LaTeX
+        if (cmdId === "math" || cmdId === "latex") {
+            root.confirmActiveBlock();
+            var mathTpl = "$$\n\\frac{a}{b}\n$$";
+            if (consume && curItem) {
+                blocksModel.setProperty(idx, "type", "math");
+                blocksModel.setProperty(idx, "raw", mathTpl);
+                root.onBlockRawChanged(curItem.bid, mathTpl);
+                root.safeFocusDelegate(curItem.bid, 0);
+            } else {
+                var mathBid = BlockModel.getNextBid();
+                var mathInsertPos = (idx !== -1) ? idx + 1 : blocksModel.count;
+                blocksModel.insert(mathInsertPos, { bid: mathBid, type: "math", raw: mathTpl, sep: "\n\n" });
+                root.activeBlockBid = mathBid;
+                root.safeFocusDelegate(mathBid, 0);
             }
             _saveSnapshot();
             root.updateFormatState();
@@ -2670,6 +2703,16 @@ Flickable {
             root.safeFocusDelegate(mBid, 0);
             _saveSnapshot();
             root.updateFormatState();
+        } else if (actionId === "math") {
+            root.confirmActiveBlock();
+            var mathTpl = "$$\n\\frac{a}{b}\n$$";
+            var mathBid = BlockModel.getNextBid();
+            var insertPos = (idx !== -1) ? idx + 1 : blocksModel.count;
+            blocksModel.insert(insertPos, { bid: mathBid, type: "math", raw: mathTpl, sep: "\n\n" });
+            root.activeBlockBid = mathBid;
+            root.safeFocusDelegate(mathBid, 0);
+            _saveSnapshot();
+            root.updateFormatState();
         } else if (actionId === "hr") {
             root.confirmActiveBlock();
             var curIdx = _findBlockIndex(root.activeBlockBid);
@@ -2769,6 +2812,7 @@ Flickable {
                         if (actionId === "quote" && bItem.type !== "quote") { allMatch = false; break; }
                         if (actionId === "code_block" && bItem.type !== "code") { allMatch = false; break; }
                         if (actionId === "mermaid" && bItem.type !== "mermaid") { allMatch = false; break; }
+                        if (actionId === "math" && bItem.type !== "math") { allMatch = false; break; }
                         if (actionId === "table" && bItem.type !== "table") { allMatch = false; break; }
                         if (actionId === "task_list") {
                             if (bItem.type !== "list") { allMatch = false; break; }
@@ -2850,6 +2894,7 @@ Flickable {
             if (actionId === "quote") return b.type === "quote";
             if (actionId === "code_block") return b.type === "code";
             if (actionId === "mermaid") return b.type === "mermaid";
+            if (actionId === "math") return b.type === "math";
             if (actionId === "table") return b.type === "table";
 
             if (actionId === "task_list" || actionId === "bullet_list" || actionId === "ordered_list") {
@@ -3287,6 +3332,7 @@ Flickable {
                         case "hr": return hrComp;
                         case "code": return codeComp;
                         case "mermaid": return mermaidComp;
+                        case "math": return mathComp;
                         default: return rawComp;
                     }
                 }
@@ -3339,6 +3385,7 @@ Flickable {
     Component { id: hrComp; BlockHr {} }
     Component { id: codeComp; BlockCode {} }
     Component { id: mermaidComp; BlockMermaid {} }
+    Component { id: mathComp; BlockMath {} }
     Component { id: rawComp; BlockRaw {} }
 
     function _findBlockNearY(y) {
@@ -3376,7 +3423,7 @@ Flickable {
             // Click debajo de todo el contenido
             var needsNewParagraph = (last.type === "table" || last.type === "code" || last.type === "image"
                                   || last.type === "hr"    || last.type === "html" || last.type === "raw"
-                                  || last.type === "mermaid");
+                                  || last.type === "mermaid" || last.type === "math");
             if (needsNewParagraph) root.insertParagraphAfter(last.bid);
             else root.requestEditBlock(last.bid);
             return;
@@ -3388,7 +3435,7 @@ Flickable {
         var loader = (idx !== -1) ? blocksRepeater.itemAt(idx) : null;
         if (loader) {
             var bType = blocksModel.get(idx).type;
-            if (bType === "list" || bType === "table" || bType === "image" || bType === "hr" || bType === "mermaid") {
+            if (bType === "list" || bType === "table" || bType === "image" || bType === "hr" || bType === "mermaid" || bType === "math") {
                 root.requestEditBlock(bid);
             } else {
                 var lx = Math.max(0, Math.min(loader.width - 1, cx - blocksColumn.x));

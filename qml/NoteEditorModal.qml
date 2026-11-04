@@ -2516,6 +2516,17 @@ Item {
                             onClicked: mermaidMenuPopup.isOpen = !mermaidMenuPopup.isOpen
                         }
 
+                        // 14c. LaTeX Math Formula
+                        ToolbarButton {
+                            id: mathToolbarBtn
+                            actionId: "math"
+                            disabled: root.isTxt
+                            tooltipLayer: tooltipLayer
+                            iconSource: Theme.iconsPath + "math.svg"
+                            active: root.isFormatActive("math")
+                            onClicked: root.applyFormatOrAction("math")
+                        }
+
                         // 15. HR
                         ToolbarButton {
                             actionId: "hr"

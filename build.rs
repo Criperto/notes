@@ -62,6 +62,8 @@ fn main() {
         "qml/BlockImage.qml",
         "qml/BlockMermaid.qml",
         "qml/MermaidView.qml",
+        "qml/BlockMath.qml",
+        "qml/MathView.qml",
         "qml/BlockRaw.qml",
         "qml/SpellOverlay.qml",
     ];

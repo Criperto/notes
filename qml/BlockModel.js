@@ -204,6 +204,17 @@ function detectAutoformat(raw) {
         };
     }
 
+    // Bloque matemático ($$ )
+    var mathMatch = raw.match(/^[ \t]*\$\$(.*)$/);
+    if (mathMatch) {
+        return {
+            matched: true,
+            type: "math",
+            prefix: "$$",
+            content: mathMatch[1].trim()
+        };
+    }
+
     return { matched: false };
 }
 
@@ -217,6 +228,11 @@ function _parseNextBlock(lines, startIdx) {
     var fenceMatch = line.match(/^[ \t]*(`{3,}|~{3,})(.*)$/);
     if (fenceMatch) {
         return _consumeFenceBlock(lines, startIdx, fenceMatch[1]);
+    }
+
+    // 1b. Bloque matemático con delimitadores $$ ($$ ... $$ o multilínea $$)
+    if (_isMathDollarStart(line)) {
+        return _consumeMathDollarBlock(lines, startIdx);
     }
 
     // 2. Encabezado (# a ######)
@@ -311,13 +327,94 @@ function _consumeFenceBlock(lines, startIdx, openFence) {
     }
 
     var isMermaid = /^[ \t]*(`{3,}|~{3,})[ \t]*mermaid\b/i.test(lines[startIdx].content);
+    var isMathFence = /^[ \t]*(`{3,}|~{3,})[ \t]*(math|latex)\b/i.test(lines[startIdx].content);
 
     return {
         nextIndex: i,
         block: {
             bid: getNextBid(),
-            type: isMermaid ? "mermaid" : "code",
+            type: isMermaid ? "mermaid" : (isMathFence ? "math" : "code"),
             raw: _joinLinesPreservingEols(lines, startIdx, (closed ? i - 1 : i - 1), rawParts),
+            sep: sep
+        }
+    };
+}
+
+function _isMathDollarStart(str) {
+    return /^[ \t]*\$\$/.test(str);
+}
+
+function _consumeMathDollarBlock(lines, startIdx) {
+    var rawParts = [];
+    var i = startIdx;
+    var firstLine = lines[startIdx].content;
+    var trimmed = firstLine.trim();
+
+    // Caso 1: $$...$$ cerrado en la misma línea
+    var secondDollarIdx = trimmed.indexOf("$$", 2);
+    if (secondDollarIdx !== -1 && trimmed.endsWith("$$")) {
+        rawParts.push(lines[i].content);
+        var lastEol = lines[i].eol;
+        i++;
+        var sep = lastEol;
+        while (i < lines.length && lines[i].content.trim() === "") {
+            sep += lines[i].content + lines[i].eol;
+            i++;
+        }
+        return {
+            nextIndex: i,
+            block: {
+                bid: getNextBid(),
+                type: "math",
+                raw: rawParts[0],
+                sep: sep
+            }
+        };
+    }
+
+    // Caso 2: Multilínea delimitada por $$
+    var hasClosingDollar = false;
+    for (var j = startIdx + 1; j < lines.length; j++) {
+        if (lines[j].content.trim().indexOf("$$") !== -1) {
+            hasClosingDollar = true;
+            break;
+        }
+    }
+
+    rawParts.push(lines[i].content);
+    var lastEol = lines[i].eol;
+    var closed = false;
+    i++;
+
+    while (i < lines.length) {
+        var cur = lines[i];
+        if (cur.content.trim().indexOf("$$") !== -1) {
+            rawParts.push(cur.content);
+            lastEol = cur.eol;
+            closed = true;
+            i++;
+            break;
+        }
+        if (!hasClosingDollar && cur.content.trim() === "") {
+            break;
+        }
+        rawParts.push(cur.content);
+        lastEol = cur.eol;
+        i++;
+    }
+
+    var sep = lastEol;
+    while (i < lines.length && lines[i].content.trim() === "") {
+        sep += lines[i].content + lines[i].eol;
+        i++;
+    }
+
+    return {
+        nextIndex: i,
+        block: {
+            bid: getNextBid(),
+            type: "math",
+            raw: _joinLinesPreservingEols(lines, startIdx, i - 1, rawParts),
             sep: sep
         }
     };
@@ -692,6 +789,9 @@ function estimateBlockHeight(type, raw, pageW) {
         case "mermaid": {
             return 260;
         }
+        case "math": {
+            return 110;
+        }
         case "table": {
             if (!str) return 90;
             var tRows = str.split(/\r?\n/).length;
@@ -735,5 +835,24 @@ function fenceExit(text, cursor) {
     var open = /^[ \t]*(`{3,}|~{3,})/.test(lines[0]);
     var close = /^[ \t]*(`{3,}|~{3,})[ \t]*$/.test(lines[lines.length - 1]);
     return { exit: open && close && cursor >= trimmed.length, raw: trimmed };
+}
+
+// Extrae el código LaTeX puro de un bloque eliminando los delimitadores ($$ o ```math)
+function extractLatex(raw) {
+    if (!raw || typeof raw !== "string") return "";
+    var str = raw.trim();
+
+    // 1. ```math ... ``` o ```latex ... ```
+    var fenceMatch = str.match(/^[ \t]*(`{3,}|~{3,})[ \t]*(?:math|latex)?[ \t]*\r?\n([\s\S]*?)\r?\n[ \t]*\1[ \t]*$/i);
+    if (fenceMatch) {
+        return fenceMatch[2].trim();
+    }
+
+    // 2. $$ ... $$ (en una sola línea o multilínea)
+    if (str.startsWith("$$") && str.endsWith("$$") && str.length >= 4) {
+        return str.substring(2, str.length - 2).trim();
+    }
+
+    return str;
 }
 
