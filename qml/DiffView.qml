@@ -1,3 +1,5 @@
+import "."
+import Notas
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -150,7 +152,7 @@ Item {
                 Layout.preferredHeight: 24
                 Layout.preferredWidth: modeText.implicitWidth + 16
                 radius: 6
-                color: modeHover.hovered ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.18) : Qt.rgba(Theme.cardBackground.r, Theme.cardBackground.g, Theme.cardBackground.b, 0.4)
+                color: modeHover.hovered ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.18) : Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, 0.4)
                 border.width: 1
                 border.color: root.onlyHunks ? Theme.accent : Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.15)
 
@@ -288,7 +290,7 @@ Item {
                             font.family: Theme.fontFamily
                             font.pixelSize: 13
                             font.weight: Font.DemiBold
-                            color: Theme.textSecondary
+                            color: Theme.muted
                         }
 
                         Text {

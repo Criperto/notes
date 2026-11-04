@@ -1548,7 +1548,7 @@ Item {
                                     onMoved: (v) => { ConfigBackend.editorZoom = Math.round(v); }
                                 }
 
-                                SchemaToggleRow {
+                                SchemaSwitchRow {
                                     label: I18n.t("config.notes.version_history_enabled", "Historial de versiones y snapshots")
                                     comment: I18n.t("config.notes.version_history_comment", "Guarda snapshots automáticos periódicos para comparar diferencias y restaurar versiones previas.")
                                     checked: ConfigBackend.versionHistoryEnabled
@@ -1567,7 +1567,7 @@ Item {
                                     onMoved: (v) => { ConfigBackend.versionHistoryMax = Math.round(v); }
                                 }
 
-                                SchemaToggleRow {
+                                SchemaSwitchRow {
                                     label: I18n.t("config.notes.persist_undo", "Deshacer persistente (Ctrl+Z)")
                                     comment: I18n.t("config.notes.persist_undo_comment", "Conserva la pila de deshacer/rehacer entre aperturas de la nota.")
                                     checked: ConfigBackend.persistUndo

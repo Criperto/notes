@@ -1,3 +1,5 @@
+import "."
+import Notas
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -404,7 +406,7 @@ Rectangle {
                         if (vCardHover.hovered) {
                             return Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.08);
                         }
-                        return Qt.rgba(Theme.cardBackground.r, Theme.cardBackground.g, Theme.cardBackground.b, 0.3);
+                        return Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, 0.3);
                     }
                     border.width: 1
                     border.color: root.selectedIndex === index ? Theme.accent : Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.08)
@@ -440,7 +442,7 @@ Rectangle {
                                     font.family: Theme.fontFamily
                                     font.pixelSize: 10
                                     font.weight: Font.DemiBold
-                                    color: modelData.is_manual ? Theme.accent : Theme.textSecondary
+                                    color: modelData.is_manual ? Theme.accent : Theme.muted
                                 }
                             }
 
@@ -539,7 +541,8 @@ Rectangle {
                         Image {
                             Layout.preferredWidth: 10
                             Layout.preferredHeight: 10
-                            source: Theme.iconsPath + "chevron-left.svg"
+                            source: Theme.iconsPath + "chevron-down.svg"
+                            rotation: 90
                             sourceSize: Qt.size(20, 20)
                         }
 
@@ -571,7 +574,7 @@ Rectangle {
                         text: "Copiar versión"
                         font.family: Theme.fontFamily
                         font.pixelSize: 11
-                        color: Theme.textSecondary
+                        color: Theme.muted
                     }
 
                     HoverHandler { id: copyHover; cursorShape: Qt.PointingHandCursor }

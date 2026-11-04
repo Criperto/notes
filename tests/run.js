@@ -4135,6 +4135,19 @@ runTest('F80: Diff.js (Myers O(ND) lines/words/hunks), VersionPolicy.js y Histor
     assert.strictEqual(badRestore, false, "restore debe rechazar cuando difiere currentMd");
 });
 
+runTest('F81: build.rs registra todos los archivos QML en el módulo Notas', () => {
+    const buildRs = fs.readFileSync(path.resolve(__dirname, '../build.rs'), 'utf8');
+    const qmlDir = path.resolve(__dirname, '../qml');
+    const files = fs.readdirSync(qmlDir).filter(f => f.endsWith('.qml') && f !== 'shell.qml');
+
+    for (const f of files) {
+        assert.ok(
+            buildRs.includes(`"qml/${f}"`),
+            `El archivo QML ${f} debe estar registrado en build.rs`
+        );
+    }
+});
+
 console.log(`\n========================================`);
 console.log(`Resultados: ${passed} OK, ${failed} FAIL`);
 console.log(`========================================`);
