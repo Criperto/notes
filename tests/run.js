@@ -4217,6 +4217,41 @@ runTest('F82: Soporte nativo de LaTeX y fórmulas matemáticas (BlockModel, Inli
     assert.ok(mathCmd.keywords.includes("formula"), "Keywords deben incluir 'formula'");
 });
 
+runTest("F83: SpellLogic ignora fórmulas matemáticas LaTeX, color blanco por defecto y botón cerrar", () => {
+    // 1. SpellLogic.tokenize debe ignorar fórmulas LaTeX inline y bloque
+    const sampleText = "En estadística, el intervalo al $95\\%$ es $\\mu \\pm 1.96 \\cdot \\frac{\\sigma}{\\sqrt{n}}$ y el texto sigue.";
+    const tokens = SpellLogic.tokenize(sampleText, { minWordLength: 2 });
+    const words = tokens.map(t => t.word);
+
+    // No debe contener palabras internas de LaTeX como 'mu', 'pm', 'cdot', 'frac', 'sigma', 'sqrt'
+    assert.ok(!words.includes("mu"), "SpellLogic no debe tokenizar \\mu como palabra");
+    assert.ok(!words.includes("pm"), "SpellLogic no debe tokenizar \\pm como palabra");
+    assert.ok(!words.includes("cdot"), "SpellLogic no debe tokenizar \\cdot como palabra");
+    assert.ok(!words.includes("frac"), "SpellLogic no debe tokenizar \\frac como palabra");
+    assert.ok(!words.includes("sigma"), "SpellLogic no debe tokenizar \\sigma como palabra");
+    assert.ok(!words.includes("sqrt"), "SpellLogic no debe tokenizar \\sqrt como palabra");
+    assert.ok(words.includes("estadística"), "SpellLogic debe conservar palabras normales fuera de LaTeX");
+    assert.ok(words.includes("intervalo"), "SpellLogic debe conservar palabras normales");
+
+    // 2. Inline.js: color blanco en tema oscuro cuando no se especifica color
+    let capturedColor = null;
+    Inline.setThemeConfig({ lightMode: false, textColor: "#ffffff" });
+    Inline.inlineToHtml("Prueba $x = y$ color", {
+        renderLatex: (formula, display, color, ptSize) => {
+            capturedColor = color;
+            return `<svg><text fill="${color}">${formula}</text></svg>`;
+        }
+    });
+    assert.strictEqual(capturedColor, "#ffffff", "En modo oscuro el color de math debe ser blanco (#ffffff)");
+
+    // 3. Verificación de archivos QML de cierre de modal
+    const modalQml = fs.readFileSync(path.resolve(__dirname, '../qml/NoteEditorModal.qml'), 'utf8');
+    assert.ok(modalQml.includes('id: backBtnRect'), "NoteEditorModal debe tener backBtnRect");
+    assert.ok(modalQml.includes('preventStealing: true'), "MouseArea de botón cerrar debe tener preventStealing: true");
+    assert.ok(modalQml.includes('TapHandler {'), "NoteEditorModal debe incluir TapHandler para el botón cerrar");
+    assert.ok(!modalQml.includes('id: zoomWheelMouseArea'), "zoomWheelMouseArea con z: 99999 debe ser removido");
+});
+
 console.log(`\n========================================`);
 console.log(`Resultados: ${passed} OK, ${failed} FAIL`);
 console.log(`========================================`);

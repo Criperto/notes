@@ -455,19 +455,38 @@ Item {
     }
 
     function requestClose() {
-        EditorMetrics.flushZoom();
-        autoSaveTimer.stop();
+        if (typeof NotesService !== "undefined" && NotesService.debug) {
+            console.log("[NoteEditorModal] requestClose called, isPreviewMode=" + root.isPreviewMode);
+        }
+        try {
+            EditorMetrics.flushZoom();
+            autoSaveTimer.stop();
+        } catch(e) {
+            console.warn("[NoteEditorModal] Error flushing zoom/timer:", e);
+        }
+
         if (root.isPreviewMode) {
             root.closeRequested();
             return;
         }
-        if (!root.isSourceMode && blockEditor && blockEditor.activeBlockBid !== -1) {
-            blockEditor.confirmActiveBlock();
+
+        try {
+            if (!root.isSourceMode && blockEditor && blockEditor.activeBlockBid !== -1) {
+                blockEditor.confirmActiveBlock();
+            }
+        } catch(e) {
+            console.warn("[NoteEditorModal] Error confirming active block:", e);
         }
-        var noteFilePath = (root.noteData && root.noteData.filePath) ? root.noteData.filePath : (root.noteData && root.noteData.fullPath ? root.noteData.fullPath : "");
-        if (noteFilePath && NotesConfig.persistUndo && blockEditor) {
-            blockEditor.persistUndoHistory(noteFilePath);
+
+        try {
+            var noteFilePath = (root.noteData && root.noteData.filePath) ? root.noteData.filePath : (root.noteData && root.noteData.fullPath ? root.noteData.fullPath : "");
+            if (noteFilePath && NotesConfig.persistUndo && blockEditor) {
+                blockEditor.persistUndoHistory(noteFilePath);
+            }
+        } catch(e) {
+            console.warn("[NoteEditorModal] Error persisting undo history:", e);
         }
+
         if (root.hasConflict) {
             root.resolveConflictKeepBoth(function() {
                 root.closeRequested();
@@ -1514,12 +1533,15 @@ Item {
 
                 // Botón volver / cerrar
                 Rectangle {
+                    id: backBtnRect
                     width: 34
                     height: 34
                     Layout.preferredWidth: 34
                     Layout.preferredHeight: 34
+                    Layout.alignment: Qt.AlignVCenter
+                    z: 100
                     radius: 10
-                    color: backBtnMa.containsMouse ? Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.12) : "transparent"
+                    color: (backBtnMa.containsMouse || backBtnTap.pressed) ? Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.12) : "transparent"
                     opacity: root.isExpanded ? 1.0 : 0.0
                     visible: opacity > 0.0
 
@@ -1542,7 +1564,7 @@ Item {
                         layer.enabled: true
                         layer.effect: MultiEffect {
                             colorization: 1.0
-                            colorizationColor: backBtnMa.containsMouse ? Theme.text : Theme.muted
+                            colorizationColor: (backBtnMa.containsMouse || backBtnTap.pressed) ? Theme.text : Theme.muted
                             Behavior on colorizationColor {
                                 enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
                                 ColorAnimation { duration: 140 }
@@ -1554,10 +1576,19 @@ Item {
                         id: backBtnMa
                         anchors.fill: parent
                         hoverEnabled: true
+                        preventStealing: true
                         cursorShape: Qt.PointingHandCursor
                         onEntered: tooltipLayer.showTooltip(parent, I18n.t("notes.editor.action.close", "Cerrar editor"), "Esc")
                         onExited: tooltipLayer.hideTooltip()
                         onClicked: {
+                            tooltipLayer.hideTooltip();
+                            root.requestClose();
+                        }
+                    }
+
+                    TapHandler {
+                        id: backBtnTap
+                        onTapped: {
                             tooltipLayer.hideTooltip();
                             root.requestClose();
                         }
@@ -1730,6 +1761,7 @@ Item {
                         id: pinBtnMa
                         anchors.fill: parent
                         hoverEnabled: true
+                        preventStealing: true
                         cursorShape: Qt.PointingHandCursor
                         onEntered: tooltipLayer.showTooltip(parent, root.isPinned ? I18n.t("notes.editor.action.unpin", "Desfijar nota") : I18n.t("notes.editor.action.pin", "Fijar nota"), "")
                         onExited: tooltipLayer.hideTooltip()
@@ -1772,6 +1804,7 @@ Item {
                         id: delBtnMa
                         anchors.fill: parent
                         hoverEnabled: true
+                        preventStealing: true
                         cursorShape: Qt.PointingHandCursor
                         onEntered: tooltipLayer.showTooltip(parent, I18n.t("notes.editor.action.delete", "Eliminar nota"), "")
                         onExited: tooltipLayer.hideTooltip()
@@ -3785,34 +3818,11 @@ Item {
         id: tooltipLayer
     }
 
-    // Atajo global de zoom en todo el modal con Ctrl + Rueda del ratón (MouseArea universal sin captura de clics)
-    MouseArea {
-        id: zoomWheelMouseArea
-        anchors.fill: parent
-        z: 99999
-        acceptedButtons: Qt.NoButton
-        onWheel: (wheel) => {
-            if (wheel.modifiers & Qt.ControlModifier) {
-                var delta = wheel.angleDelta ? wheel.angleDelta.y : 0;
-                if (delta > 0) {
-                    EditorMetrics.zoomIn();
-                    wheel.accepted = true;
-                } else if (delta < 0) {
-                    EditorMetrics.zoomOut();
-                    wheel.accepted = true;
-                }
-            } else {
-                wheel.accepted = false;
-            }
-        }
-    }
-
-    // WheelHandler complementario para dispositivos con soporte nativo de pointer handler
+    // Atajo global de zoom en todo el modal con Ctrl + Rueda del ratón
     WheelHandler {
         target: null
         acceptedDevices: PointerDevice.AllDevices
         acceptedModifiers: Qt.ControlModifier
-        grabPermissions: PointerHandler.CanTakeOverFromItems | PointerHandler.CanTakeOverFromHandlersOfDifferentType | PointerHandler.ApprovesTakeOverByAnything
         onWheel: (event) => {
             if (event.modifiers & Qt.ControlModifier) {
                 var delta = event.angleDelta ? event.angleDelta.y : 0;

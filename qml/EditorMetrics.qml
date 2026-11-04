@@ -24,6 +24,8 @@ Item {
         if (typeof Theme !== "undefined" && Theme) {
             Inline.setThemeConfig({
                 accent: "" + Theme.accent,
+                textColor: "" + Theme.text,
+                text: "" + Theme.text,
                 lightMode: Boolean(Theme.lightMode),
                 surface: "" + Theme.surface,
                 color15: "" + Theme.color15,
@@ -46,6 +48,7 @@ Item {
     Connections {
         target: (typeof Theme !== "undefined") ? Theme : null
         function onAccentChanged() { root.syncThemeToInline(); }
+        function onTextChanged() { root.syncThemeToInline(); }
         function onLightModeChanged() { root.syncThemeToInline(); }
         function onSurfaceChanged() { root.syncThemeToInline(); }
         function onFontFamilyMonospaceChanged() { root.syncThemeToInline(); }

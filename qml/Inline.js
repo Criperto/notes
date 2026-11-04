@@ -12,8 +12,11 @@ function setLatexRenderer(fn) {
 
 function renderLatexInline(formula, opts) {
     var fn = (opts && typeof opts.renderLatex === "function") ? opts.renderLatex : _latexRenderer;
-    var colorHex = (opts && opts.mathColor) ? opts.mathColor : "";
-    var ptSize = (opts && opts.mathPtSize) ? opts.mathPtSize : 12.0;
+    var defaultTextColor = _defaultTheme.lightMode ? "#1a1a1a" : (_defaultTheme.textColor || "#ffffff");
+    var colorHex = (opts && opts.mathColor) ? opts.mathColor : ((opts && opts.textColor) ? opts.textColor : defaultTextColor);
+    var zoomVal = (opts && typeof opts.zoom === "number") ? opts.zoom : _defaultZoom;
+    var defaultPt = Math.max(8.0, 13.5 * zoomVal);
+    var ptSize = (opts && opts.mathPtSize) ? opts.mathPtSize : defaultPt;
 
     var res = "";
     if (typeof fn === "function") {
@@ -83,12 +86,15 @@ var _defaultTheme = {
     accent: "#e56018",
     lightMode: false,
     surface: "#1c1815",
+    textColor: "#ffffff",
     color15: "#ffffff",
     fontFamilyMonospace: "Google Sans Code, monospace"
 };
 function setThemeConfig(cfg) {
     if (!cfg || typeof cfg !== "object") return;
     if (cfg.accent) _defaultTheme.accent = String(cfg.accent);
+    if (cfg.textColor) _defaultTheme.textColor = String(cfg.textColor);
+    if (cfg.text) _defaultTheme.textColor = String(cfg.text);
     if (cfg.lightMode !== undefined) _defaultTheme.lightMode = Boolean(cfg.lightMode);
     if (cfg.surface) _defaultTheme.surface = String(cfg.surface);
     if (cfg.color15) _defaultTheme.color15 = String(cfg.color15);
@@ -185,6 +191,11 @@ function inlineToHtml(src, opts) {
     if (!src || typeof src !== "string") return "";
     var options = opts || {};
     var linkColor = options.linkColor || "#5294e2";
+    var defaultTextColor = _defaultTheme.lightMode ? "#1a1a1a" : (_defaultTheme.textColor || "#ffffff");
+    var textColor = options.textColor || defaultTextColor;
+    var mathColor = options.mathColor || textColor;
+    var zoomVal = (typeof options.zoom === "number") ? options.zoom : _defaultZoom;
+    var mathPtSize = options.mathPtSize || Math.max(8.0, 13.5 * zoomVal);
     var codeBg = options.codeBg || "rgba(255, 255, 255, 0.08)";
     var codeColor = options.codeColor || "#f0f0f0";
     var kbdBg = options.kbdBg || "rgba(255, 255, 255, 0.10)";
@@ -239,7 +250,8 @@ function inlineToHtml(src, opts) {
     text = text.replace(/(?:^|[^\$])\$([^\s\$](?:[^\$\r\n]*?[^\s\$])?)\$(?!\$)/g, function(match, formula) {
         var pfx = match.startsWith("$") ? "" : match[0];
         var token = "\uE000MATH_" + mathSpans.length + "\uE000";
-        var rendered = renderLatexInline(formula, options);
+        var mathOpts = Object.assign({}, options, { mathColor: mathColor, mathPtSize: mathPtSize });
+        var rendered = renderLatexInline(formula, mathOpts);
         mathSpans.push(rendered);
         return pfx + token;
     });

@@ -1178,10 +1178,15 @@ QString Sys::renderLatexSvg(const QString &latex, bool display, const QString &c
     static QStringList s_cacheKeys;
     const int MAX_CACHE_SIZE = 256;
 
+    QString effectiveColor = colorHex.trimmed();
+    if (effectiveColor.isEmpty()) {
+        effectiveColor = QStringLiteral("#ffffff");
+    }
+
     QString cacheKey = QStringLiteral("%1|%2|%3|%4")
         .arg(latex)
         .arg(display ? 1 : 0)
-        .arg(colorHex)
+        .arg(effectiveColor)
         .arg(QString::number(ptSize, 'f', 1));
 
     if (s_latexCache.contains(cacheKey)) {
@@ -1189,8 +1194,8 @@ QString Sys::renderLatexSvg(const QString &latex, bool display, const QString &c
     }
 
     QByteArray latexBytes = latex.toUtf8();
-    QByteArray colorBytes = colorHex.toUtf8();
-    const char *colPtr = colorHex.isEmpty() ? nullptr : colorBytes.constData();
+    QByteArray colorBytes = effectiveColor.toUtf8();
+    const char *colPtr = colorBytes.constData();
 
     char *resPtr = notas_render_latex_svg(latexBytes.constData(), display, colPtr, ptSize);
     if (!resPtr) {

@@ -46,11 +46,10 @@ pub fn render_latex_to_svg(
         }
     }
 
-    if let Some(hex) = color_hex {
-        if let Some(col) = parse_hex_color(hex) {
-            options.color = col;
-        }
-    }
+    let col = color_hex
+        .and_then(parse_hex_color)
+        .unwrap_or(Color::rgb(255, 255, 255));
+    options.color = col;
 
     latex_to_svg(latex, font, &options)
         .map_err(|e| format!("{:?}", e))

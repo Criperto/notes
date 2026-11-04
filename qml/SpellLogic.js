@@ -155,6 +155,12 @@ function tokenize(text, options) {
         ignoredRanges.push({ start: match.index, end: match.index + match[0].length });
     }
 
+    // 6. Fórmulas matemáticas en bloque ($$...$$) e inline ($...$)
+    var mathRegex = /\$\$[\s\S]*?\$\$|\$(?:\\\$|[^\$])+\$/g;
+    while ((match = mathRegex.exec(text)) !== null) {
+        ignoredRanges.push({ start: match.index, end: match.index + match[0].length });
+    }
+
     // Regex para palabras con apóstrofes internos compatible con Qt Quick QJSEngine/V4 y Node.js
     var wordRegex = /[a-zA-Z\u00C0-\u024F\u0400-\u04FF]+(?:['’][a-zA-Z\u00C0-\u024F\u0400-\u04FF]+)*/g;
     var tokens = [];

@@ -924,6 +924,9 @@ Item {
                                         anchors.verticalCenter: parent.verticalCenter
                                         text: Inline.inlineToHtml(modelData, {
                                             zoom: EditorMetrics.zoom,
+                                            textColor: "" + Theme.text,
+                                            mathColor: "" + Theme.text,
+                                            mathPtSize: Math.max(8.0, EditorMetrics.body * 0.75),
                                             linkColor: "" + Theme.accent, highlightBg: EditorMetrics.highlightBg,
                                             codeBg: Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.08),
                                             codeColor: Theme.text,
@@ -1341,6 +1344,9 @@ Item {
                                     anchors.verticalCenter: parent.verticalCenter
                                     text: Inline.inlineToHtml(modelData, {
                                         zoom: EditorMetrics.zoom,
+                                        textColor: "" + Theme.text,
+                                        mathColor: "" + Theme.text,
+                                        mathPtSize: Math.max(8.0, EditorMetrics.body * 0.75),
                                         linkColor: "" + Theme.accent, highlightBg: EditorMetrics.highlightBg,
                                         codeBg: Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.08),
                                         codeColor: Theme.text,

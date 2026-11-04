@@ -1327,6 +1327,9 @@ Item {
                         textFormat: Text.RichText
                         text: Inline.inlineToHtml(Inline.stripImages(itemRow.text), {
                             zoom: EditorMetrics.zoom,
+                            textColor: "" + Theme.text,
+                            mathColor: "" + Theme.text,
+                            mathPtSize: Math.max(8.0, EditorMetrics.body * 0.75),
                             fontFamilyMonospace: Theme.fontFamilyMonospace || "Google Sans Code",
                             headingSizes: root.headingSizes,
                             linkColor: "" + Theme.accent, highlightBg: EditorMetrics.highlightBg,
