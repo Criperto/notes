@@ -3108,6 +3108,7 @@ Item {
                 activeMatchOrdinal: (root.isFindActive && !root.isSourceMode && root._findMatchesList.length > 0 && root._findMatchesList[root.findMatchIndex])
                     ? root._findMatchesList[root.findMatchIndex].local : -1
                 contextMenu: editorContextMenu
+                slashMenu: slashMenu
                 tooltipLayer: tooltipLayer
                 editorModal: root
                 onContentYChanged: tooltipLayer.hideTooltip()
@@ -3492,6 +3493,14 @@ Item {
                     }
                 }
             }
+        }
+    }
+
+    // Menú flotante de comandos '/' estilo Notion (F78)
+    SlashMenu {
+        id: slashMenu
+        onCommandSelected: (cmd, triggerInfo) => {
+            blockEditor.handleSlashCommandExecution(cmd, triggerInfo);
         }
     }
 

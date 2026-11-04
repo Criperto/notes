@@ -50,6 +50,7 @@ fn main() {
         "qml/CustomScrollBar.qml",
         "qml/ClippingRectangle.qml",
         "qml/SettingsTextField.qml",
+        "qml/SlashMenu.qml",
         "qml/BlockEditor.qml",
         "qml/BlockParagraph.qml",
         "qml/BlockHeading.qml",

@@ -148,6 +148,9 @@ Flickable {
     }
 
     onContentYChanged: {
+        if (slashMenu && slashMenu.isOpen) {
+            slashMenu.close();
+        }
         if (blocksModel.count > 35) {
             if (!chunkWindowTimer.running) {
                 chunkWindowTimer.start();
@@ -224,14 +227,7 @@ Flickable {
 
 
     property var contextMenu: null
-
-    Connections {
-        target: root.contextMenu
-        ignoreUnknownSignals: true
-        function onSlashCommandSelected(cmd, triggerInfo) {
-            root.handleSlashCommandExecution(cmd, triggerInfo);
-        }
-    }
+    property var slashMenu: null
     property bool manualSpellActive: true
     readonly property bool spellActive: {
         if (root.readOnly) return false;

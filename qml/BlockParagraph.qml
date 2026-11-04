@@ -292,9 +292,9 @@ Item {
         if (root.isEditing) {
             _syncTextFromModel();
         } else {
-            var cm = root.editor ? root.editor.contextMenu : null;
-            if (cm && cm.visible && cm.slashMode && cm.target === editInput) {
-                cm.close();
+            var sm = root.editor ? root.editor.slashMenu : null;
+            if (sm && sm.isOpen && sm.targetInput === editInput) {
+                sm.close();
             }
         }
     }
@@ -664,15 +664,15 @@ Item {
                 root._updateLiveFormatting();
             }
             if (root.isEditing && root.editor && !root.editor.readOnly && !root._syncingModel) {
-                var cm = root.editor.contextMenu;
-                if (cm && cm.visible && cm.slashMode) {
+                var sm = root.editor.slashMenu;
+                if (sm && sm.isOpen) {
                     var rawClean = Inline.plainText(editInput);
                     var trigger = SlashLogic.detectTrigger(rawClean, editInput.cursorPosition);
                     if (trigger.triggered) {
                         var cmds = SlashLogic.filterCommands(SlashCommands.getAllCommands(), trigger.query, I18n);
-                        cm.updateSlash(trigger, cmds);
+                        sm.update(trigger, cmds);
                     } else {
-                        cm.close();
+                        sm.close();
                     }
                 }
             }
@@ -728,19 +728,19 @@ Item {
                 // F78: Detección interactiva de slash commands estilo Notion
                 if (!editInput.inputMethodComposing) {
                     var trigger = SlashLogic.detectTrigger(rawClean, editInput.cursorPosition);
-                    var cm = root.editor.contextMenu;
+                    var sm = root.editor ? root.editor.slashMenu : null;
                     if (trigger.triggered) {
                         var cmds = SlashLogic.filterCommands(SlashCommands.getAllCommands(), trigger.query, I18n);
-                        if (cm) {
-                            if (cm.visible && cm.slashMode) {
-                                cm.updateSlash(trigger, cmds);
+                        if (sm) {
+                            if (sm.isOpen) {
+                                sm.update(trigger, cmds);
                             } else {
-                                cm.openSlash(editInput, trigger, cmds);
+                                sm.open(editInput, trigger, cmds);
                             }
                         }
                     } else {
-                        if (cm && cm.visible && cm.slashMode) {
-                            cm.close();
+                        if (sm && sm.isOpen) {
+                            sm.close();
                         }
                     }
                 }
@@ -753,9 +753,9 @@ Item {
                 event.accepted = true;
                 return;
             }
-            var cm = root.editor ? root.editor.contextMenu : null;
-            if (cm && cm.visible && !cm.isClosing && cm.slashMode) {
-                if (cm.triggerSelectedItem()) {
+            var sm = root.editor ? root.editor.slashMenu : null;
+            if (sm && sm.isOpen) {
+                if (sm.triggerSelectedItem()) {
                     event.accepted = true;
                     return;
                 }
@@ -775,6 +775,16 @@ Item {
 
         Keys.onReturnPressed: (event) => {
             if (root.editor && root.editor.readOnly) {
+                event.accepted = true;
+                return;
+            }
+            var sm = root.editor ? root.editor.slashMenu : null;
+            if (sm && sm.isOpen) {
+                if (sm.triggerSelectedItem()) {
+                    event.accepted = true;
+                    return;
+                }
+                sm.close();
                 event.accepted = true;
                 return;
             }
@@ -804,6 +814,34 @@ Item {
         }
 
         Keys.onPressed: (event) => {
+            var sm = root.editor ? root.editor.slashMenu : null;
+            if (sm && sm.isOpen) {
+                if (event.key === Qt.Key_Escape) {
+                    sm.close();
+                    event.accepted = true;
+                    return;
+                }
+                if (event.key === Qt.Key_Up) {
+                    sm.selectPreviousItem();
+                    event.accepted = true;
+                    return;
+                }
+                if (event.key === Qt.Key_Down) {
+                    sm.selectNextItem();
+                    event.accepted = true;
+                    return;
+                }
+                if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Tab) {
+                    if (sm.triggerSelectedItem()) {
+                        event.accepted = true;
+                        return;
+                    }
+                    sm.close();
+                    event.accepted = true;
+                    return;
+                }
+            }
+
             var cm = root.editor ? root.editor.contextMenu : null;
             if (cm && cm.visible && !cm.isClosing) {
                 if (event.key === Qt.Key_Menu || event.nativeScanCode === 135 || event.key === Qt.Key_Escape) {
@@ -821,7 +859,7 @@ Item {
                     event.accepted = true;
                     return;
                 }
-                if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || (event.key === Qt.Key_Tab && cm.slashMode)) {
+                if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
                     if (cm.triggerSelectedItem()) {
                         event.accepted = true;
                         return;
@@ -831,9 +869,6 @@ Item {
                     return;
                 }
                 if (event.key === Qt.Key_Left || event.key === Qt.Key_Right) {
-                    if (cm.slashMode) {
-                        return;
-                    }
                     event.accepted = true;
                     return;
                 }
