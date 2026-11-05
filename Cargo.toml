@@ -26,6 +26,11 @@ walkdir = "2.5"
 arboard = { version = "3.7", features = ["wayland-data-control"] }
 ashpd = "0.13"
 latex-rust = "3.0"
+ureq = "3.5.1"
+dom_smoothie = "0.19.0"
+htmd = "0.5.6"
+encoding_rs = "0.8.44"
+url = "2.5.8"
 
 [build-dependencies]
 cxx-qt-build = { version = "0.10", features = ["link_qt_object_files"] }

@@ -26,7 +26,8 @@
     "create_new": "新建笔记",
     "new_note": "新建笔记",
     "import_notes": "导入笔记",
-    "from_clipboard": "从剪贴板创建"
+    "from_clipboard": "从剪贴板创建",
+    "web_clip": "网页剪藏"
   },
   "editor": {
     "title_placeholder": "便签标题...",
@@ -122,7 +123,8 @@
     "clipboard_empty": "剪贴板为空",
     "note_from_clipboard": "已从剪贴板创建笔记",
     "path_copied": "路径已复制到剪贴板",
-    "rel_path_copied": "名称已复制到剪贴板"
+    "rel_path_copied": "名称已复制到剪贴板",
+    "clipped_success": "网页文章已保存至笔记"
   },
   "deps": {
     "missing_title": "便签缺少依赖项",
@@ -247,5 +249,17 @@
     "unpin": "取消固定笔记",
     "pin": "固定笔记",
     "delete": "删除笔记"
+  },
+  "clip": {
+    "title": "网页剪藏",
+    "subtitle": "下载并清理文章保存为离线Markdown",
+    "url_label": "网址 (URL)",
+    "placeholder": "https://example.com/article",
+    "opt_images": "下载图片至笔记文件夹（离线）",
+    "opt_readability": "仅提取正文（阅读模式）",
+    "loading": "正在下载并处理网页内容...",
+    "cancel": "取消",
+    "action": "剪藏",
+    "error_generic": "无法剪藏网页。"
   }
 }

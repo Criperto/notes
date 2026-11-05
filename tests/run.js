@@ -4309,6 +4309,59 @@ runTest("F86: SlashMenu no bloquea eventos de puntero cuando está cerrado", () 
     assert.ok(slashQml.includes('enabled: root.isOpen'), "menuBox debe tener enabled: root.isOpen");
 });
 
+runTest("F87: Web clipper nativo, contratos CLI JSON, modal y FAB", () => {
+    const fabQml = fs.readFileSync(path.resolve(__dirname, '../qml/MorphingFab.qml'), 'utf8');
+    const contentQml = fs.readFileSync(path.resolve(__dirname, '../qml/NotesContent.qml'), 'utf8');
+    const serviceQml = fs.readFileSync(path.resolve(__dirname, '../qml/NotesService.qml'), 'utf8');
+    const modalQml = fs.readFileSync(path.resolve(__dirname, '../qml/WebClipModal.qml'), 'utf8');
+    const qmldir = fs.readFileSync(path.resolve(__dirname, '../qml/qmldir'), 'utf8');
+    const buildRs = fs.readFileSync(path.resolve(__dirname, '../build.rs'), 'utf8');
+
+    // 1. FAB debe tener señal webClipRequested, opción 3 y altura expandida a 232
+    assert.ok(fabQml.includes('signal webClipRequested()'), "MorphingFab debe emitir webClipRequested");
+    assert.ok(fabQml.includes('web-clip.svg'), "MorphingFab debe usar web-clip.svg");
+    assert.ok(fabQml.includes('height: expanded ? 232 : 56'), "MorphingFab debe expandirse a 232 para 4 opciones");
+
+    // 2. NotesContent debe conectar webClipRequested y contener WebClipModal
+    assert.ok(contentQml.includes('onWebClipRequested: webClipModal.open()'), "NotesContent debe conectar onWebClipRequested");
+    assert.ok(contentQml.includes('WebClipModal {'), "NotesContent debe instanciar WebClipModal");
+    assert.ok(contentQml.includes('openWebClipper'), "NotesContent debe exponer openWebClipper");
+
+    // 3. NotesService debe exponer clipWebUrl con proceso seguro
+    assert.ok(serviceQml.includes('function clipWebUrl(url, opts, callback)'), "NotesService debe implementar clipWebUrl");
+    assert.ok(serviceQml.includes('id: webClipProc'), "NotesService debe tener webClipProc");
+
+    // 4. WebClipModal debe implementar animación segura y opciones
+    assert.ok(modalQml.includes('NumberAnimation on rotation'), "WebClipModal debe usar NumberAnimation on rotation");
+    assert.ok(!modalQml.includes('RotationAnimator'), "WebClipModal no debe usar RotationAnimator");
+    assert.ok(modalQml.includes('downloadImages'), "WebClipModal debe soportar downloadImages");
+    assert.ok(modalQml.includes('mainContentOnly'), "WebClipModal debe soportar mainContentOnly");
+
+    // 5. Registros en qmldir y build.rs
+    assert.ok(qmldir.includes('WebClipModal       1.0 WebClipModal.qml'), "qmldir debe registrar WebClipModal");
+    assert.ok(buildRs.includes('"qml/WebClipModal.qml"'), "build.rs debe incluir WebClipModal.qml");
+
+    // 6. Verificación CLI con ejecutable debug si existe
+    const targetDebugBin = path.resolve(__dirname, '../target/debug/criperto-notes');
+    if (fs.existsSync(targetDebugBin)) {
+        const { execFileSync } = require('child_process');
+        try {
+            const outHelp = execFileSync(targetDebugBin, ['clip', '--help'], { encoding: 'utf8' });
+            assert.ok(outHelp.includes('notas clip <URL>'), "CLI clip --help debe mostrar uso");
+        } catch (e) {
+            assert.fail("Fallo al ejecutar criperto-notes clip --help: " + e.message);
+        }
+
+        try {
+            execFileSync(targetDebugBin, ['clip', 'bad-url', '--json'], { encoding: 'utf8' });
+            assert.fail("clip con bad-url debió retornar error exit code");
+        } catch (err) {
+            const outErr = err.stdout ? err.stdout.toString() : "";
+            assert.ok(outErr.includes('"ok":false'), "clip con bad-url debe retornar JSON con ok:false");
+        }
+    }
+});
+
 console.log(`\n========================================`);
 console.log(`Resultados: ${passed} OK, ${failed} FAIL`);
 console.log(`========================================`);

@@ -2013,6 +2013,9 @@ Item {
         if (noteWriter.waitForJob) {
             noteWriter.waitForJob();
         }
+        if (webClipProc.running) {
+            webClipProc.running = false;
+        }
     }
 
     function togglePin(note) {
@@ -3708,6 +3711,66 @@ Item {
                 String(maxMb)
             ]);
         }
+    }
+
+    // ── Web Clipper (Fase P6) ─────────────────────────────────────────
+    property bool webClipRunning: false
+    property string webClipError: ""
+    property var _webClipCallback: null
+    signal webClipFinished(bool success, var data)
+
+    Process {
+        id: webClipProc
+        running: false
+        property string outJson: ""
+        stdout: SplitParser {
+            onRead: (line) => {
+                var l = line.trim();
+                if (l.startsWith("{") && l.endsWith("}")) {
+                    webClipProc.outJson = l;
+                }
+            }
+        }
+        onExited: (exitCode) => {
+            root.webClipRunning = false;
+            var parsed = null;
+            try {
+                if (webClipProc.outJson) parsed = JSON.parse(webClipProc.outJson);
+            } catch(e) {}
+
+            var cb = root._webClipCallback;
+            root._webClipCallback = null;
+
+            if (exitCode === 0 && parsed && parsed.ok) {
+                root.webClipError = "";
+                if (!fileScannerProc.running) fileScannerProc.running = true;
+                root.webClipFinished(true, parsed);
+                if (typeof cb === "function") cb(true, parsed);
+            } else {
+                var errMsg = (parsed && parsed.error) ? parsed.error : ("Error al recortar página (código " + exitCode + ")");
+                root.webClipError = errMsg;
+                root.webClipFinished(false, { error: errMsg });
+                if (typeof cb === "function") cb(false, { error: errMsg });
+            }
+        }
+        Component.onDestruction: { running = false; }
+    }
+
+    function clipWebUrl(url, opts, callback) {
+        if (root.webClipRunning) return;
+        root.webClipRunning = true;
+        root.webClipError = "";
+        webClipProc.outJson = "";
+        root._webClipCallback = callback || null;
+
+        var bin = (typeof Sys !== "undefined" && Sys.appExecutable) ? Sys.appExecutable : "notas";
+        var cmd = [bin, "clip", url, "--json"];
+        if (opts && opts.downloadImages) cmd.push("--images");
+        if (opts && opts.fullMode) cmd.push("--full");
+        if (opts && opts.toNote) { cmd.push("--to"); cmd.push(opts.toNote); }
+
+        webClipProc.command = cmd;
+        webClipProc.running = true;
     }
 
     // ── Conexión reactiva a configuración ─────────────────────────────────

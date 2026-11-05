@@ -26,7 +26,8 @@
     "create_new": "Neue Notiz",
     "new_note": "Neue Notiz",
     "import_notes": "Notizen importieren",
-    "from_clipboard": "Aus Zwischenablage"
+    "from_clipboard": "Aus Zwischenablage",
+    "web_clip": "Web-Clipper"
   },
   "editor": {
     "title_placeholder": "Titel der Notiz...",
@@ -122,7 +123,8 @@
     "clipboard_empty": "Zwischenablage ist leer",
     "note_from_clipboard": "Notiz aus Zwischenablage erstellt",
     "path_copied": "Pfad in die Zwischenablage kopiert",
-    "rel_path_copied": "Name in die Zwischenablage kopiert"
+    "rel_path_copied": "Name in die Zwischenablage kopiert",
+    "clipped_success": "Webartikel in Notizen gespeichert"
   },
   "deps": {
     "missing_title": "Fehlende Abhängigkeiten für Notizen",
@@ -247,5 +249,17 @@
     "unpin": "Notiz lösen",
     "pin": "Notiz anheften",
     "delete": "Notiz löschen"
+  },
+  "clip": {
+    "title": "Web-Clipper",
+    "subtitle": "Artikel herunterladen und als Offline-Markdown speichern",
+    "url_label": "Webadresse (URL)",
+    "placeholder": "https://beispiel.de/artikel",
+    "opt_images": "Bilder in den Notizordner herunterladen (offline)",
+    "opt_readability": "Nur Hauptartikel extrahieren (Lesemodus)",
+    "loading": "Webinhalt wird heruntergeladen und verarbeitet...",
+    "cancel": "Abbrechen",
+    "action": "Clippen",
+    "error_generic": "Webseite konnte nicht geclippt werden."
   }
 }

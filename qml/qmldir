@@ -28,6 +28,7 @@ CustomScrollBar    1.0 CustomScrollBar.qml
 ClippingRectangle  1.0 ClippingRectangle.qml
 SettingsTextField  1.0 SettingsTextField.qml
 SlashMenu          1.0 SlashMenu.qml
+WebClipModal       1.0 WebClipModal.qml
 
 # Bloques del editor
 BlockEditor        1.0 BlockEditor.qml

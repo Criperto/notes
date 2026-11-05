@@ -26,7 +26,8 @@
     "create_new": "New note",
     "new_note": "New note",
     "import_notes": "Import notes",
-    "from_clipboard": "From clipboard"
+    "from_clipboard": "From clipboard",
+    "web_clip": "Web clipper"
   },
   "editor": {
     "title_placeholder": "Note title...",
@@ -122,7 +123,8 @@
     "clipboard_empty": "Clipboard is empty",
     "note_from_clipboard": "Note created from clipboard",
     "path_copied": "Path copied to clipboard",
-    "rel_path_copied": "Name copied to clipboard"
+    "rel_path_copied": "Name copied to clipboard",
+    "clipped_success": "Web article saved to notes"
   },
   "deps": {
     "missing_title": "Missing dependencies for Notes",
@@ -247,5 +249,17 @@
     "unpin": "Unpin note",
     "pin": "Pin note",
     "delete": "Delete note"
+  },
+  "clip": {
+    "title": "Web clipper",
+    "subtitle": "Download and clean articles to offline Markdown",
+    "url_label": "Web address (URL)",
+    "placeholder": "https://example.com/article",
+    "opt_images": "Download images to note folder (offline)",
+    "opt_readability": "Extract main article only (reader mode)",
+    "loading": "Downloading and processing web content...",
+    "cancel": "Cancel",
+    "action": "Clip",
+    "error_generic": "Failed to clip web page."
   }
 }

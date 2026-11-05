@@ -26,7 +26,8 @@
     "create_new": "新しいメモ",
     "new_note": "新しいメモ",
     "import_notes": "メモをインポート",
-    "from_clipboard": "クリップボードから"
+    "from_clipboard": "クリップボードから",
+    "web_clip": "ウェブクリッパー"
   },
   "editor": {
     "title_placeholder": "ノートのタイトル...",
@@ -122,7 +123,8 @@
     "clipboard_empty": "クリップボードが空です",
     "note_from_clipboard": "クリップボードからノートを作成しました",
     "path_copied": "パスをクリップボードにコピーしました",
-    "rel_path_copied": "名前をクリップボードにコピーしました"
+    "rel_path_copied": "名前をクリップボードにコピーしました",
+    "clipped_success": "ウェブ記事をノートに保存しました"
   },
   "deps": {
     "missing_title": "ノートの依存パッケージが不足しています",
@@ -247,5 +249,17 @@
     "unpin": "ピン留めを解除",
     "pin": "ノートをピン留め",
     "delete": "ノートを削除"
+  },
+  "clip": {
+    "title": "ウェブクリッパー",
+    "subtitle": "記事をオフラインMarkdownとして保存",
+    "url_label": "ウェブアドレス (URL)",
+    "placeholder": "https://example.com/article",
+    "opt_images": "画像をノートフォルダにダウンロード（オフライン）",
+    "opt_readability": "本文のみを抽出（リーダーモード）",
+    "loading": "ウェブコンテンツをダウンロードおよび処理中...",
+    "cancel": "キャンセル",
+    "action": "クリップ",
+    "error_generic": "ウェブページをクリップできませんでした。"
   }
 }

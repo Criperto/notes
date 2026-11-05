@@ -26,7 +26,8 @@
     "create_new": "Nova nota",
     "new_note": "Nova nota",
     "import_notes": "Importar notas",
-    "from_clipboard": "Da área de transferência"
+    "from_clipboard": "Da área de transferência",
+    "web_clip": "Web clipper"
   },
   "editor": {
     "title_placeholder": "Título da nota...",
@@ -122,7 +123,8 @@
     "clipboard_empty": "Área de transferência vazia",
     "note_from_clipboard": "Nota criada da área de transferência",
     "path_copied": "Caminho copiado para a área de transferência",
-    "rel_path_copied": "Nome copiado para a área de transferência"
+    "rel_path_copied": "Nome copiado para a área de transferência",
+    "clipped_success": "Artigo web salvo nas notas"
   },
   "deps": {
     "missing_title": "Dependências ausentes para Notas",
@@ -247,5 +249,17 @@
     "unpin": "Desafixar nota",
     "pin": "Fixar nota",
     "delete": "Excluir nota"
+  },
+  "clip": {
+    "title": "Web clipper",
+    "subtitle": "Baixe e limpe artigos para Markdown offline",
+    "url_label": "Endereço web (URL)",
+    "placeholder": "https://exemplo.com/artigo",
+    "opt_images": "Baixar imagens para a pasta da nota (offline)",
+    "opt_readability": "Extrair apenas o artigo principal (modo leitor)",
+    "loading": "Baixando e processando conteúdo web...",
+    "cancel": "Cancelar",
+    "action": "Recortar",
+    "error_generic": "Não foi possível recortar a página web."
   }
 }

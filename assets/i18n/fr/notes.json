@@ -26,7 +26,8 @@
     "create_new": "Nouvelle note",
     "new_note": "Nouvelle note",
     "import_notes": "Importer des notes",
-    "from_clipboard": "Depuis le presse-papiers"
+    "from_clipboard": "Depuis le presse-papiers",
+    "web_clip": "Web clipper"
   },
   "editor": {
     "title_placeholder": "Titre de la note...",
@@ -122,7 +123,8 @@
     "clipboard_empty": "Le presse-papiers est vide",
     "note_from_clipboard": "Note créée depuis le presse-papiers",
     "path_copied": "Chemin copié dans le presse-papiers",
-    "rel_path_copied": "Nom copié dans le presse-papiers"
+    "rel_path_copied": "Nom copié dans le presse-papiers",
+    "clipped_success": "Article web enregistré dans les notes"
   },
   "deps": {
     "missing_title": "Dépendances manquantes pour Notes",
@@ -247,5 +249,17 @@
     "unpin": "Détacher la note",
     "pin": "Épingler la note",
     "delete": "Supprimer la note"
+  },
+  "clip": {
+    "title": "Web clipper",
+    "subtitle": "Télécharger et nettoyer des articles en Markdown hors ligne",
+    "url_label": "Adresse web (URL)",
+    "placeholder": "https://exemple.fr/article",
+    "opt_images": "Télécharger les images dans le dossier de la note (hors ligne)",
+    "opt_readability": "Extraire uniquement l'article principal (mode lecture)",
+    "loading": "Téléchargement et traitement du contenu web...",
+    "cancel": "Annuler",
+    "action": "Capturer",
+    "error_generic": "Impossible de capturer la page web."
   }
 }

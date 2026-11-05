@@ -1241,6 +1241,7 @@ Item {
                         z: 10
                         onNewNoteRequested: root.requestNewNote()
                         onClipNoteRequested: root.createNoteFromClipboard()
+                        onWebClipRequested: webClipModal.open()
                         onImportNotesRequested: root.openImportFilePicker()
                     }
                 }
@@ -2400,6 +2401,32 @@ Item {
                 }
                 importToast.showText(I18n.t("notes.deps.install_error", "No se pudieron instalar las dependencias"));
             }
+        }
+    }
+
+    WebClipModal {
+        id: webClipModal
+        anchors.fill: parent
+        onNoteClipped: (res) => {
+            if (!res || !res.slug) return;
+            var origin = fab.mapToItem(clippingRoot, 0, 0, fab.width, fab.height);
+            var note = NotesService.getNote(res.slug) || {
+                slug: res.slug,
+                key: res.slug + ".md",
+                title: res.title || res.slug,
+                filePath: res.path,
+                fullPath: res.path,
+                tags: ["web"],
+                body: ""
+            };
+            root.openNoteWithMorph(note, origin);
+            importToast.showText(I18n.t("notes.toast.clipped_success", "Artículo web guardado en notas"));
+        }
+    }
+
+    function openWebClipper(initialUrl) {
+        if (webClipModal) {
+            webClipModal.open(initialUrl);
         }
     }
 

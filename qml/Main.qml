@@ -56,6 +56,11 @@ ApplicationWindow {
     }
 
     Shortcut {
+        sequence: "Ctrl+Alt+W"
+        onActivated: content.openWebClipper()
+    }
+
+    Shortcut {
         sequence: "Ctrl+Q"
         onActivated: {
             NotesService.prepareToQuit();

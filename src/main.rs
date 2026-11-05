@@ -5,6 +5,7 @@ mod file_picker_cli;
 mod sync_cli;
 mod history_cli;
 mod math_cli;
+mod clipper_cli;
 
 use clap::Parser;
 use cxx_qt_lib::{QGuiApplication, QQmlApplicationEngine, QUrl};
@@ -216,6 +217,10 @@ fn main() {
             }
             "math" => {
                 math_cli::run(&raw_args[2..]);
+                return;
+            }
+            "clip" | "webclip" => {
+                clipper_cli::run(&raw_args[2..]);
                 return;
             }
             _ => {}
