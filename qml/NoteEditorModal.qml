@@ -462,8 +462,6 @@ Item {
         if (root.isClosing) return;
         root.isClosing = true;
 
-        console.log("[Notas Close] requestClose() invocado | isPreviewMode=" + root.isPreviewMode + " | dirty=" + root.dirty + " | isSaving=" + root.isSaving + " | loadedSlug=" + root.loadedSlug);
-
         try {
             EditorMetrics.flushZoom();
             autoSaveTimer.stop();
@@ -472,14 +470,12 @@ Item {
         }
 
         if (root.isPreviewMode) {
-            console.log("[Notas Close] Modo preview activo -> despachando closeRequested()");
             root.closeRequested();
             return;
         }
 
         try {
             if (!root.isSourceMode && blockEditor && blockEditor.activeBlockBid !== -1) {
-                console.log("[Notas Close] Confirmando bloque activo bid=" + blockEditor.activeBlockBid);
                 blockEditor.confirmActiveBlock();
             }
         } catch(e) {
@@ -496,15 +492,12 @@ Item {
         }
 
         if (root.hasConflict) {
-            console.log("[Notas Close] Conflicto pendiente -> resolviendo antes de cerrar");
             root.resolveConflictKeepBoth(function() {
-                console.log("[Notas Close] Conflicto resuelto -> despachando closeRequested()");
                 root.closeRequested();
             });
             return;
         }
 
-        console.log("[Notas Close] Despachando root.closeRequested() a NotesContent");
         root.closeRequested();
     }
 
@@ -1587,22 +1580,9 @@ Item {
                         hoverEnabled: true
                         preventStealing: true
                         cursorShape: Qt.PointingHandCursor
-                        onEntered: {
-                            console.log("[Notas Click] Cursor SOBRE el botón X (onEntered)");
-                            tooltipLayer.showTooltip(parent, I18n.t("notes.editor.action.close", "Cerrar editor"), "Esc");
-                        }
-                        onExited: {
-                            console.log("[Notas Click] Cursor FUERA del botón X (onExited)");
-                            tooltipLayer.hideTooltip();
-                        }
-                        onPressed: (mouse) => {
-                            console.log("[Notas Click] PRESIONADO (onPressed) en botón X | mouse.button=" + mouse.button);
-                        }
-                        onReleased: (mouse) => {
-                            console.log("[Notas Click] SOLTADO (onReleased) en botón X");
-                        }
-                        onClicked: (mouse) => {
-                            console.log("[Notas Click] CLIC CONFIRMADO (onClicked) en botón X -> ejecutando root.requestClose()");
+                        onEntered: tooltipLayer.showTooltip(parent, I18n.t("notes.editor.action.close", "Cerrar editor"), "Esc")
+                        onExited: tooltipLayer.hideTooltip()
+                        onClicked: {
                             tooltipLayer.hideTooltip();
                             root.requestClose();
                         }
