@@ -286,9 +286,7 @@ Item {
                             clip: true
                             enabled: !root.isClipping
 
-                            CustomTextCursor {
-                                targetInput: urlInput
-                            }
+                            CustomTextCursor {}
 
                             Text {
                                 anchors.fill: parent
