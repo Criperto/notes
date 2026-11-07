@@ -1052,7 +1052,13 @@ QString Sys::env(const QString &name, const QString &fallback) const {
 
 bool Sys::execDetached(const QStringList &args) const {
     if (args.isEmpty()) return false;
-    return QProcess::startDetached(args.first(), args.mid(1));
+    QProcess proc;
+    proc.setProgram(args.first());
+    proc.setArguments(args.mid(1));
+    proc.setStandardInputFile(QProcess::nullDevice());
+    proc.setStandardOutputFile(QProcess::nullDevice());
+    proc.setStandardErrorFile(QProcess::nullDevice());
+    return proc.startDetached();
 }
 
 bool Sys::clipboardHasImage() const {
@@ -1939,6 +1945,13 @@ void ConfigBackend::setPersistUndo(bool val) {
     scheduleSave();
 }
 
+void ConfigBackend::setShowSourceModeButton(bool val) {
+    if (m_showSourceModeButton == val) return;
+    m_showSourceModeButton = val;
+    emit showSourceModeButtonChanged();
+    scheduleSave();
+}
+
 void ConfigBackend::load() {
     const bool hasPywal = QFile::exists(QDir::homePath() + QStringLiteral("/.cache/wal/colors.json"));
     QString path = configFilePath();
@@ -1984,6 +1997,7 @@ void ConfigBackend::load() {
                 if (obj.contains("versionHistoryMax")) m_versionHistoryMax = qBound(10, obj["versionHistoryMax"].toInt(50), 200);
                 if (obj.contains("versionHistoryMaxMb")) m_versionHistoryMaxMb = qBound(1, obj["versionHistoryMaxMb"].toInt(5), 100);
                 if (obj.contains("persistUndo")) m_persistUndo = obj["persistUndo"].toBool(true);
+                if (obj.contains("showSourceModeButton")) m_showSourceModeButton = obj["showSourceModeButton"].toBool(false);
                 if (isForcedNoSyncConfigured()) m_syncWithQuickshell = false;
 
                 // Migrar modos antiguos inexistentes ("dark", "light", "system")
@@ -2086,6 +2100,7 @@ void ConfigBackend::save() {
     obj[QStringLiteral("versionHistoryMax")] = m_versionHistoryMax;
     obj[QStringLiteral("versionHistoryMaxMb")] = m_versionHistoryMaxMb;
     obj[QStringLiteral("persistUndo")] = m_persistUndo;
+    obj[QStringLiteral("showSourceModeButton")] = m_showSourceModeButton;
 
     if (isForcedNoSyncConfigured()) {
         obj[QStringLiteral("syncWithQuickshell")] = false;

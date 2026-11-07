@@ -1393,7 +1393,7 @@ Item {
                     activeFocusOnTab: false
 
                     onSelectionStartChanged: {
-                        if (root.editor && !root.editor._syncingSelection) {
+                        if (root.editor && !root.editor._syncingSelection && !root.editor.hasBlockSelection && !root.editor.isDraggingSelection && !root.hasMultiItemSelection) {
                             if (lineEdit.selectionStart !== lineEdit.selectionEnd) {
                                 root.clearOtherItemsSelection(itemRow.index);
                                 if (root.blockData && typeof root.editor.notifySingleInputSelection === "function") {
@@ -1407,7 +1407,7 @@ Item {
                         }
                     }
                     onSelectionEndChanged: {
-                        if (root.editor && !root.editor._syncingSelection) {
+                        if (root.editor && !root.editor._syncingSelection && !root.editor.hasBlockSelection && !root.editor.isDraggingSelection && !root.hasMultiItemSelection) {
                             if (lineEdit.selectionStart !== lineEdit.selectionEnd) {
                                 root.clearOtherItemsSelection(itemRow.index);
                                 if (root.blockData && typeof root.editor.notifySingleInputSelection === "function") {
@@ -1421,7 +1421,7 @@ Item {
                         }
                     }
                     onCursorPositionChanged: {
-                        if (root.editor && !root.editor._syncingSelection) {
+                        if (root.editor && !root.editor._syncingSelection && !root.editor.hasBlockSelection && !root.editor.isDraggingSelection && !root.hasMultiItemSelection) {
                             if (lineEdit.selectionStart === lineEdit.selectionEnd) {
                                 root.clearOtherItemsSelection(itemRow.index);
                                 if (root.blockData && typeof root.editor.notifySingleInputSelection === "function") {
@@ -1765,6 +1765,54 @@ Item {
                                 rEditor.resetPreferredCursorX();
                             }
                         }
+                        if (root.editor && root.editor.hasBlockSelection) {
+                            var isCtrlB = !!(event.modifiers & Qt.ControlModifier);
+                            var isShiftB = !!(event.modifiers & Qt.ShiftModifier);
+                            var isAltB = !!(event.modifiers & Qt.AltModifier);
+
+                            if (isCtrlB && !isShiftB && !isAltB && event.key === Qt.Key_C) {
+                                root.editor.copySelectedText();
+                                event.accepted = true;
+                                return;
+                            }
+                            if (isCtrlB && !isShiftB && !isAltB && event.key === Qt.Key_X) {
+                                root.editor.copySelectedText();
+                                if (!root.editor.readOnly && typeof root.editor.replaceSelectedRange === "function") {
+                                    root.editor.replaceSelectedRange("");
+                                }
+                                event.accepted = true;
+                                return;
+                            }
+                            if ((isCtrlB && !isShiftB && !isAltB && event.key === Qt.Key_V) ||
+                                (isShiftB && !isCtrlB && !isAltB && event.key === Qt.Key_Insert)) {
+                                if (!root.editor.readOnly && typeof root.editor.replaceSelectedRange === "function") {
+                                    var pasteTxtB = (typeof Quickshell.clipboardText === "string") ? Quickshell.clipboardText : "";
+                                    root.editor.replaceSelectedRange(pasteTxtB);
+                                }
+                                event.accepted = true;
+                                return;
+                            }
+                            if (event.key === Qt.Key_Delete || event.key === Qt.Key_Backspace) {
+                                if (!root.editor.readOnly && typeof root.editor.replaceSelectedRange === "function") {
+                                    root.editor.replaceSelectedRange("");
+                                }
+                                event.accepted = true;
+                                return;
+                            }
+                            if (event.key === Qt.Key_Escape) {
+                                root.editor.clearBlockSelection();
+                                event.accepted = true;
+                                return;
+                            }
+                            if (!isCtrlB && !isAltB && event.text && event.text.length > 0 && event.key !== Qt.Key_Return && event.key !== Qt.Key_Enter) {
+                                if (!root.editor.readOnly && typeof root.editor.replaceSelectedRange === "function") {
+                                    root.editor.replaceSelectedRange(event.text);
+                                }
+                                event.accepted = true;
+                                return;
+                            }
+                        }
+
                         if (root.hasMultiItemSelection) {
                             if (event.key === Qt.Key_Backspace || event.key === Qt.Key_Delete) {
                                 root.deleteMultiItemSelection();

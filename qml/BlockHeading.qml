@@ -347,11 +347,13 @@ Item {
 
     function getCharPosAt(lx, ly) {
         if (!editInput) return 0;
+        if (editInput.text === "") _syncTextFromModel();
         return editInput.positionAt(lx, ly);
     }
 
     function getTextLength() {
         if (!editInput) return 0;
+        if (editInput.text === "") _syncTextFromModel();
         return editInput.length;
     }
 
@@ -464,6 +466,7 @@ Item {
             isCrossDragging = false;
             startX = mouse.x;
             startY = mouse.y;
+            if (editInput.text === "") _syncTextFromModel();
             var ptEdit = mapToItem(editInput, mouse.x, mouse.y);
             if (root.isEditing) {
                 editInput.forceActiveFocus();
@@ -658,7 +661,7 @@ Item {
         }
 
         onSelectionStartChanged: {
-            if (root.editor && !root.editor._syncingSelection) {
+            if (root.editor && !root.editor._syncingSelection && !root.editor.hasBlockSelection && !root.editor.isDraggingSelection) {
                 if (editInput.selectionStart !== editInput.selectionEnd && root.blockData && typeof root.editor.notifySingleInputSelection === "function") {
                     root.editor.notifySingleInputSelection(root.blockData.bid);
                 }
@@ -669,7 +672,7 @@ Item {
             }
         }
         onSelectionEndChanged: {
-            if (root.editor && !root.editor._syncingSelection) {
+            if (root.editor && !root.editor._syncingSelection && !root.editor.hasBlockSelection && !root.editor.isDraggingSelection) {
                 if (editInput.selectionStart !== editInput.selectionEnd && root.blockData && typeof root.editor.notifySingleInputSelection === "function") {
                     root.editor.notifySingleInputSelection(root.blockData.bid);
                 }
@@ -680,7 +683,7 @@ Item {
             }
         }
         onCursorPositionChanged: {
-            if (root.editor && !root.editor._syncingSelection) {
+            if (root.editor && !root.editor._syncingSelection && !root.editor.hasBlockSelection && !root.editor.isDraggingSelection) {
                 if (editInput.selectionStart === editInput.selectionEnd && root.blockData && typeof root.editor.notifySingleInputSelection === "function") {
                     root.editor.notifySingleInputSelection(root.blockData.bid);
                 }
@@ -784,6 +787,54 @@ Item {
         }
 
         Keys.onPressed: (event) => {
+            if (root.editor && root.editor.hasBlockSelection) {
+                var isCtrl = !!(event.modifiers & Qt.ControlModifier);
+                var isShift = !!(event.modifiers & Qt.ShiftModifier);
+                var isAlt = !!(event.modifiers & Qt.AltModifier);
+
+                if (isCtrl && !isShift && !isAlt && event.key === Qt.Key_C) {
+                    root.editor.copySelectedText();
+                    event.accepted = true;
+                    return;
+                }
+                if (isCtrl && !isShift && !isAlt && event.key === Qt.Key_X) {
+                    root.editor.copySelectedText();
+                    if (!root.editor.readOnly && typeof root.editor.replaceSelectedRange === "function") {
+                        root.editor.replaceSelectedRange("");
+                    }
+                    event.accepted = true;
+                    return;
+                }
+                if ((isCtrl && !isShift && !isAlt && event.key === Qt.Key_V) ||
+                    (isShift && !isCtrl && !isAlt && event.key === Qt.Key_Insert)) {
+                    if (!root.editor.readOnly && typeof root.editor.replaceSelectedRange === "function") {
+                        var pasteText = (typeof Quickshell.clipboardText === "string") ? Quickshell.clipboardText : "";
+                        root.editor.replaceSelectedRange(pasteText);
+                    }
+                    event.accepted = true;
+                    return;
+                }
+                if (event.key === Qt.Key_Delete || event.key === Qt.Key_Backspace) {
+                    if (!root.editor.readOnly && typeof root.editor.replaceSelectedRange === "function") {
+                        root.editor.replaceSelectedRange("");
+                    }
+                    event.accepted = true;
+                    return;
+                }
+                if (event.key === Qt.Key_Escape) {
+                    root.editor.clearBlockSelection();
+                    event.accepted = true;
+                    return;
+                }
+                if (!isCtrl && !isAlt && event.text && event.text.length > 0 && event.key !== Qt.Key_Return && event.key !== Qt.Key_Enter) {
+                    if (!root.editor.readOnly && typeof root.editor.replaceSelectedRange === "function") {
+                        root.editor.replaceSelectedRange(event.text);
+                    }
+                    event.accepted = true;
+                    return;
+                }
+            }
+
             var cm = root.editor ? root.editor.contextMenu : null;
             if (cm && cm.visible && !cm.isClosing) {
                 if (event.key === Qt.Key_Menu || event.nativeScanCode === 135 || event.key === Qt.Key_Escape) {

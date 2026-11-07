@@ -357,11 +357,13 @@ Item {
 
     function getCharPosAt(lx, ly) {
         if (!editInput) return 0;
+        if (editInput.text === "") _syncTextFromModel();
         return editInput.positionAt(lx, ly);
     }
 
     function getTextLength() {
         if (!editInput) return 0;
+        if (editInput.text === "") _syncTextFromModel();
         return editInput.length;
     }
 
@@ -448,6 +450,7 @@ Item {
             isCrossDragging = false;
             startX = mouse.x;
             startY = mouse.y;
+            if (editInput.text === "") _syncTextFromModel();
             var ptEdit = mapToItem(editInput, mouse.x, mouse.y);
             if (root.isEditing) {
                 editInput.forceActiveFocus();
@@ -537,13 +540,122 @@ Item {
                 var ptView = mapToItem(viewText, mouse.x, mouse.y);
                 var link = viewText.linkAt(ptView.x, ptView.y);
                 if (link && link !== "") {
-                    viewText.isLinkActive = true;
-                    linkTimer.restart();
+                    triggerLinkEffect(ptView.x, ptView.y, link);
                     if (root.editor && typeof root.editor.handleLink === "function") {
                         root.editor.handleLink(link);
                     }
                 }
             }
+        }
+    }
+
+    function _findLinkBoundingBox(viewItem, clickX, clickY, linkUrl) {
+        if (!viewItem || !linkUrl) return null;
+        var x = clickX;
+        var y = clickY;
+        if (viewItem.linkAt(x, y) !== linkUrl) {
+            var offsets = [[0, 1], [0, -1], [1, 0], [-1, 0], [0, 2], [0, -2]];
+            var found = false;
+            for (var o = 0; o < offsets.length; o++) {
+                if (viewItem.linkAt(x + offsets[o][0], y + offsets[o][1]) === linkUrl) {
+                    x += offsets[o][0];
+                    y += offsets[o][1];
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) return null;
+        }
+
+        var leftX = x;
+        while (leftX > 4 && viewItem.linkAt(leftX - 4, y) === linkUrl) leftX -= 4;
+        while (leftX > 0 && viewItem.linkAt(leftX - 1, y) === linkUrl) leftX -= 1;
+
+        var rightX = x;
+        var maxW = viewItem.width;
+        while (rightX + 4 < maxW && viewItem.linkAt(rightX + 4, y) === linkUrl) rightX += 4;
+        while (rightX + 1 < maxW && viewItem.linkAt(rightX + 1, y) === linkUrl) rightX += 1;
+
+        var topY = y;
+        while (topY > 2 && viewItem.linkAt(x, topY - 2) === linkUrl) topY -= 2;
+        while (topY > 0 && viewItem.linkAt(x, topY - 1) === linkUrl) topY -= 1;
+
+        var bottomY = y;
+        var maxH = viewItem.height;
+        while (bottomY + 2 < maxH && viewItem.linkAt(x, bottomY + 2) === linkUrl) bottomY += 2;
+        while (bottomY + 1 < maxH && viewItem.linkAt(x, bottomY + 1) === linkUrl) bottomY += 1;
+
+        var w = Math.max(8, rightX - leftX + 1);
+        var h = Math.max(12, bottomY - topY + 1);
+        return { x: leftX, y: topY, width: w, height: h };
+    }
+
+    function triggerLinkEffect(clickX, clickY, linkUrl) {
+        var box = _findLinkBoundingBox(viewText, clickX, clickY, linkUrl);
+        if (box) {
+            linkPressOverlay.targetX = box.x;
+            linkPressOverlay.targetY = box.y;
+            linkPressOverlay.targetW = box.width;
+            linkPressOverlay.targetH = box.height;
+            linkPressOverlay.active = true;
+            linkTimer.restart();
+        }
+    }
+
+    Rectangle {
+        id: linkPressMask
+        visible: linkPressOverlay.active
+        x: linkPressOverlay.targetX - 2
+        y: linkPressOverlay.targetY - 1
+        width: linkPressOverlay.targetW + 4
+        height: linkPressOverlay.targetH + 2
+        radius: 3
+        color: (root.editor && root.editor.backgroundColor) ? root.editor.backgroundColor : Theme.surface
+    }
+
+    Item {
+        id: linkPressOverlay
+        visible: active
+        z: 10
+        property bool active: false
+        property real targetX: 0
+        property real targetY: 0
+        property real targetW: 0
+        property real targetH: 0
+
+        x: targetX - 3
+        y: targetY - 2
+        width: targetW + 6
+        height: targetH + 4
+
+        scale: active ? 0.91 : 1.0
+        transformOrigin: Item.Center
+
+        Behavior on scale {
+            enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+            SpringAnimation {
+                spring: 8.5
+                damping: 0.88
+                mass: 0.45
+                epsilon: 0.05
+            }
+        }
+
+        Rectangle {
+            anchors.fill: parent
+            radius: 4
+            color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.16)
+            border.color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.35)
+            border.width: 1
+        }
+
+        ShaderEffectSource {
+            anchors.centerIn: parent
+            width: linkPressOverlay.targetW
+            height: linkPressOverlay.targetH
+            sourceItem: viewText
+            sourceRect: Qt.rect(linkPressOverlay.targetX, linkPressOverlay.targetY, linkPressOverlay.targetW, linkPressOverlay.targetH)
+            live: false
         }
     }
 
@@ -576,20 +688,7 @@ Item {
         wrapMode: Text.WrapAtWordBoundaryOrAnywhere
         lineHeight: EditorMetrics.lineHeight
 
-        property bool isLinkActive: false
-        scale: isLinkActive ? 0.96 : 1.0
-        Behavior on scale {
-            enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
-            SpringAnimation {
-                spring: 4.0
-                damping: 0.28
-                epsilon: 0.005
-            }
-        }
-
         onLinkActivated: (link) => {
-            viewText.isLinkActive = true;
-            linkTimer.restart();
             if (root.editor && typeof root.editor.handleLink === "function") {
                 root.editor.handleLink(link);
             }
@@ -599,7 +698,9 @@ Item {
             id: linkTimer
             interval: 160
             repeat: false
-            onTriggered: viewText.isLinkActive = false
+            onTriggered: {
+                linkPressOverlay.active = false;
+            }
         }
 
         HoverHandler {
@@ -635,7 +736,7 @@ Item {
         }
 
         onSelectionStartChanged: {
-            if (root.editor && !root.editor._syncingSelection) {
+            if (root.editor && !root.editor._syncingSelection && !root.editor.hasBlockSelection && !root.editor.isDraggingSelection) {
                 if (editInput.selectionStart !== editInput.selectionEnd && root.blockData && typeof root.editor.notifySingleInputSelection === "function") {
                     root.editor.notifySingleInputSelection(root.blockData.bid);
                 }
@@ -646,7 +747,7 @@ Item {
             }
         }
         onSelectionEndChanged: {
-            if (root.editor && !root.editor._syncingSelection) {
+            if (root.editor && !root.editor._syncingSelection && !root.editor.hasBlockSelection && !root.editor.isDraggingSelection) {
                 if (editInput.selectionStart !== editInput.selectionEnd && root.blockData && typeof root.editor.notifySingleInputSelection === "function") {
                     root.editor.notifySingleInputSelection(root.blockData.bid);
                 }
@@ -657,7 +758,7 @@ Item {
             }
         }
         onCursorPositionChanged: {
-            if (root.editor && !root.editor._syncingSelection) {
+            if (root.editor && !root.editor._syncingSelection && !root.editor.hasBlockSelection && !root.editor.isDraggingSelection) {
                 if (editInput.selectionStart === editInput.selectionEnd && root.blockData && typeof root.editor.notifySingleInputSelection === "function") {
                     root.editor.notifySingleInputSelection(root.blockData.bid);
                 }
@@ -817,6 +918,54 @@ Item {
         }
 
         Keys.onPressed: (event) => {
+            if (root.editor && root.editor.hasBlockSelection) {
+                var isCtrl = !!(event.modifiers & Qt.ControlModifier);
+                var isShift = !!(event.modifiers & Qt.ShiftModifier);
+                var isAlt = !!(event.modifiers & Qt.AltModifier);
+
+                if (isCtrl && !isShift && !isAlt && event.key === Qt.Key_C) {
+                    root.editor.copySelectedText();
+                    event.accepted = true;
+                    return;
+                }
+                if (isCtrl && !isShift && !isAlt && event.key === Qt.Key_X) {
+                    root.editor.copySelectedText();
+                    if (!root.editor.readOnly && typeof root.editor.replaceSelectedRange === "function") {
+                        root.editor.replaceSelectedRange("");
+                    }
+                    event.accepted = true;
+                    return;
+                }
+                if ((isCtrl && !isShift && !isAlt && event.key === Qt.Key_V) ||
+                    (isShift && !isCtrl && !isAlt && event.key === Qt.Key_Insert)) {
+                    if (!root.editor.readOnly && typeof root.editor.replaceSelectedRange === "function") {
+                        var pasteText = (typeof Quickshell.clipboardText === "string") ? Quickshell.clipboardText : "";
+                        root.editor.replaceSelectedRange(pasteText);
+                    }
+                    event.accepted = true;
+                    return;
+                }
+                if (event.key === Qt.Key_Delete || event.key === Qt.Key_Backspace) {
+                    if (!root.editor.readOnly && typeof root.editor.replaceSelectedRange === "function") {
+                        root.editor.replaceSelectedRange("");
+                    }
+                    event.accepted = true;
+                    return;
+                }
+                if (event.key === Qt.Key_Escape) {
+                    root.editor.clearBlockSelection();
+                    event.accepted = true;
+                    return;
+                }
+                if (!isCtrl && !isAlt && event.text && event.text.length > 0 && event.key !== Qt.Key_Return && event.key !== Qt.Key_Enter) {
+                    if (!root.editor.readOnly && typeof root.editor.replaceSelectedRange === "function") {
+                        root.editor.replaceSelectedRange(event.text);
+                    }
+                    event.accepted = true;
+                    return;
+                }
+            }
+
             var sm = root.editor ? root.editor.slashMenu : null;
             if (sm && sm.isOpen) {
                 if (event.key === Qt.Key_Escape) {

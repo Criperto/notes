@@ -1643,6 +1643,13 @@ Item {
                                     checked: ConfigBackend.persistUndo
                                     onToggled: (v) => { ConfigBackend.persistUndo = v; }
                                 }
+
+                                SchemaSwitchRow {
+                                    label: I18n.t("config.notes.show_source_mode_button", "Mostrar botón de código fuente")
+                                    comment: I18n.t("config.notes.show_source_mode_button_comment", "Muestra el botón '</>' en la barra de herramientas del editor para alternar al modo de código fuente Markdown.")
+                                    checked: ConfigBackend.showSourceModeButton
+                                    onToggled: (v) => { ConfigBackend.showSourceModeButton = v; }
+                                }
                             }
                         }
                     }

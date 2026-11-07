@@ -144,7 +144,7 @@ var ACTIONS = {
         id: "source_mode",
         labelKey: "notes.editor.action.source_mode",
         fallbackLabel: "Modo código fuente",
-        shortcut: "Ctrl+/"
+        shortcut: ""
     },
     "convert_to_md": {
         id: "convert_to_md",

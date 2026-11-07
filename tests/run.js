@@ -139,6 +139,28 @@ runTest('Selection: extractSelectedText continuo entre bloques', () => {
     assert.strictEqual(txtSame, "Primer");
 });
 
+runTest('Selection: replaceSelectedRange fusiona prefijo y sufijo entre bloques', () => {
+    const blocks = [
+        { bid: 10, type: "paragraph", raw: "Hola mundo cruel" },
+        { bid: 20, type: "paragraph", raw: "Intermedio" },
+        { bid: 30, type: "paragraph", raw: "Que lindo dia" }
+    ];
+
+    // Borrado desde "mundo" (pos 5) en bloque 10 hasta "lindo" (pos 10) en bloque 30
+    const resDel = Selection.replaceSelectedRange(blocks, 10, 5, 30, 10, "");
+    assert.strictEqual(resDel.blocks.length, 1);
+    assert.strictEqual(resDel.blocks[0].bid, 10);
+    assert.strictEqual(resDel.blocks[0].raw, "Hola dia");
+    assert.strictEqual(resDel.cursorBid, 10);
+    assert.strictEqual(resDel.cursorPos, 5);
+
+    // Pegado / Reemplazo con texto "hermoso "
+    const resPaste = Selection.replaceSelectedRange(blocks, 10, 5, 30, 10, "hermoso ");
+    assert.strictEqual(resPaste.blocks.length, 1);
+    assert.strictEqual(resPaste.blocks[0].raw, "Hola hermoso dia");
+    assert.strictEqual(resPaste.cursorPos, 13);
+});
+
 // ── Tests de T1 (estos pueden fallar antes de aplicar T1) ────────────────────
 runTest('T1: "- " detecta viñeta como list bullet', () => {
     const auto = BlockModel.detectAutoformat("- Hola");

@@ -388,7 +388,7 @@ Flickable {
     }
 
     function notifySingleInputSelection(bid, subIdx) {
-        if (root._syncingSelection) return;
+        if (root._syncingSelection || root.isDraggingSelection || root.hasBlockSelection) return;
         clearSelectionExcept(bid, subIdx);
     }
 
@@ -720,30 +720,184 @@ Flickable {
             }
             return "";
         }
-        var list = _getBlockListSnapshot();
-        if (root.selAnchorBid !== -1 && root.selCurrentBid !== -1 && root.selAnchorPos !== -1 && root.selCurrentPos !== -1) {
-            var extracted = Sel.extractSelectedText(list, root.selAnchorBid, root.selAnchorPos, root.selCurrentBid, root.selCurrentPos);
-            if (extracted !== "") {
-                return extracted;
+
+        var anchorIdx = _findBlockIndex(root.selAnchorBid);
+        var curIdx = _findBlockIndex(root.selCurrentBid);
+        if (anchorIdx === -1 || curIdx === -1) {
+            var partsFallback = [];
+            for (var i = 0; i < blocksModel.count; i++) {
+                var b = blocksModel.get(i);
+                if (root.selectedBids && root.selectedBids[b.bid] === true) {
+                    var ldr = _getDelegateItemForBid(b.bid);
+                    var t = (ldr && ldr.item && typeof ldr.item.getSelectedText === "function") ? ldr.item.getSelectedText() : "";
+                    if (t === "" && ldr && ldr.item && typeof ldr.item.getTextContent === "function") t = ldr.item.getTextContent();
+                    if (t === "") t = b.raw || "";
+                    partsFallback.push(t);
+                }
             }
+            return partsFallback.join("\n\n");
         }
+
+        var startIdx = Math.min(anchorIdx, curIdx);
+        var endIdx = Math.max(anchorIdx, curIdx);
+        var startPos = (anchorIdx <= curIdx) ? root.selAnchorPos : root.selCurrentPos;
+        var endPos = (anchorIdx <= curIdx) ? root.selCurrentPos : root.selAnchorPos;
+
+        if (startIdx === endIdx) {
+            var singleLdr = blocksRepeater.itemAt(startIdx);
+            if (singleLdr && singleLdr.item && typeof singleLdr.item.getSelectedText === "function") {
+                var st = singleLdr.item.getSelectedText();
+                if (st !== "") return st;
+            }
+            var singleB = blocksModel.get(startIdx);
+            var singleRaw = singleB ? (singleB.raw || "") : "";
+            var p1 = Math.max(0, Math.min(singleRaw.length, Math.min(startPos, endPos)));
+            var p2 = Math.max(0, Math.min(singleRaw.length, Math.max(startPos, endPos)));
+            return singleRaw.substring(p1, p2);
+        }
+
         var parts = [];
-        for (var i = 0; i < blocksModel.count; i++) {
-            var b = blocksModel.get(i);
-            if (root.selectedBids && root.selectedBids[b.bid] === true) {
-                var loader = _getDelegateItemForBid(b.bid);
-                var txt = "";
-                if (loader && loader.item && typeof loader.item.getSelectedText === "function") {
-                    txt = loader.item.getSelectedText();
+        for (var k = startIdx; k <= endIdx; k++) {
+            var bK = blocksModel.get(k);
+            if (!bK) continue;
+            var ldrK = blocksRepeater.itemAt(k);
+            var blockText = "";
+
+            if (k === startIdx) {
+                if (ldrK && ldrK.item && typeof ldrK.item.getSelectedText === "function") {
+                    blockText = ldrK.item.getSelectedText();
                 }
-                if (txt === "" && loader && loader.item && typeof loader.item.getTextContent === "function") {
-                    txt = loader.item.getTextContent();
+                if (blockText === "") {
+                    var rawS = bK.raw || "";
+                    blockText = rawS.substring(Math.max(0, Math.min(rawS.length, startPos)));
                 }
-                if (txt === "") txt = b.raw || "";
-                parts.push(txt);
+            } else if (k === endIdx) {
+                if (ldrK && ldrK.item && typeof ldrK.item.getSelectedText === "function") {
+                    blockText = ldrK.item.getSelectedText();
+                }
+                if (blockText === "") {
+                    var rawE = bK.raw || "";
+                    blockText = rawE.substring(0, Math.max(0, Math.min(rawE.length, endPos)));
+                }
+            } else {
+                if (ldrK && ldrK.item && typeof ldrK.item.getTextContent === "function") {
+                    blockText = ldrK.item.getTextContent();
+                }
+                if (blockText === "") blockText = bK.raw || "";
             }
+
+            parts.push(blockText);
         }
+
         return parts.join("\n\n");
+    }
+
+    function deleteSelectedRange() {
+        replaceSelectedRange("");
+    }
+
+    function replaceSelectedRange(replacementText) {
+        if (!hasBlockSelection) {
+            if (root.activeBlockBid !== -1) {
+                var curLoader = _getDelegateItemForBid(root.activeBlockBid);
+                if (curLoader && curLoader.item) {
+                    if (replacementText === "") {
+                        if (typeof curLoader.item.deleteSelectedText === "function") {
+                            curLoader.item.deleteSelectedText();
+                        }
+                    } else if (typeof curLoader.item.replaceSelectedText === "function") {
+                        curLoader.item.replaceSelectedText(replacementText);
+                    }
+                }
+            }
+            return;
+        }
+
+        _saveSnapshot();
+
+        var anchorIdx = _findBlockIndex(root.selAnchorBid);
+        var curIdx = _findBlockIndex(root.selCurrentBid);
+
+        if (anchorIdx === -1 || curIdx === -1) {
+            deleteSelectedBlocks(replacementText);
+            return;
+        }
+
+        var startIdx = Math.min(anchorIdx, curIdx);
+        var endIdx = Math.max(anchorIdx, curIdx);
+        var startPos = (anchorIdx <= curIdx) ? root.selAnchorPos : root.selCurrentPos;
+        var endPos = (anchorIdx <= curIdx) ? root.selCurrentPos : root.selAnchorPos;
+
+        if (startIdx === endIdx) {
+            var bSame = blocksModel.get(startIdx);
+            var ldrSame = blocksRepeater.itemAt(startIdx);
+            if (ldrSame && ldrSame.item && typeof ldrSame.item.hasMultiItemSelection !== "undefined" && ldrSame.item.hasMultiItemSelection) {
+                ldrSame.item.deleteMultiItemSelection(replacementText);
+                clearBlockSelection();
+                contentModified();
+                debouncedMarkdownTimer.restart();
+                return;
+            }
+            var rawSame = bSame ? (bSame.raw || "") : "";
+            var p1 = Math.max(0, Math.min(rawSame.length, Math.min(startPos, endPos)));
+            var p2 = Math.max(0, Math.min(rawSame.length, Math.max(startPos, endPos)));
+            var newRawSame = rawSame.substring(0, p1) + (replacementText || "") + rawSame.substring(p2);
+            onBlockRawChanged(bSame.bid, newRawSame);
+            clearBlockSelection();
+            contentModified();
+            debouncedMarkdownTimer.restart();
+            safeFocusDelegate(bSame.bid, p1 + (replacementText ? replacementText.length : 0));
+            return;
+        }
+
+        var startB = blocksModel.get(startIdx);
+        var endB = blocksModel.get(endIdx);
+        var startRaw = startB ? (startB.raw || "") : "";
+        var endRaw = endB ? (endB.raw || "") : "";
+
+        var prefix = startRaw.substring(0, Math.max(0, Math.min(startRaw.length, startPos)));
+        var suffix = endRaw.substring(Math.max(0, Math.min(endRaw.length, endPos)));
+        var merged = prefix + (replacementText || "") + suffix;
+
+        var newBlocks = [];
+        if (merged.indexOf("\n\n") !== -1 || /^(#{1,6}\s|```|>\s|[-*+]\s|\d+\.\s|\|)/m.test(merged)) {
+            newBlocks = MD.parseToBlocks(merged);
+        }
+
+        if (newBlocks.length > 1) {
+            for (var rm = endIdx; rm >= startIdx; rm--) {
+                blocksModel.remove(rm);
+            }
+            var firstNewBid = -1;
+            for (var ins = 0; ins < newBlocks.length; ins++) {
+                var nb = newBlocks[ins];
+                var bidToUse = (ins === 0) ? startB.bid : BlockModel.getNextBid();
+                if (ins === 0) firstNewBid = bidToUse;
+                blocksModel.insert(startIdx + ins, {
+                    bid: bidToUse,
+                    type: nb.type,
+                    raw: nb.raw || "",
+                    sep: nb.sep || "\n\n"
+                });
+            }
+            clearBlockSelection();
+            contentModified();
+            debouncedMarkdownTimer.restart();
+            if (firstNewBid !== -1) {
+                safeFocusDelegate(firstNewBid, prefix.length + (replacementText ? replacementText.length : 0));
+            }
+            return;
+        }
+
+        onBlockRawChanged(startB.bid, merged);
+        for (var d = endIdx; d > startIdx; d--) {
+            blocksModel.remove(d);
+        }
+
+        clearBlockSelection();
+        contentModified();
+        debouncedMarkdownTimer.restart();
+        safeFocusDelegate(startB.bid, prefix.length + (replacementText ? replacementText.length : 0));
     }
 
     function copySelectedText() {
@@ -1140,8 +1294,8 @@ Flickable {
                 return;
             }
             var pasteText = (typeof Quickshell.clipboardText === "string") ? Quickshell.clipboardText : "";
-            if (pasteText && typeof root.deleteSelectedBlocks === "function") {
-                root.deleteSelectedBlocks(pasteText);
+            if (typeof root.replaceSelectedRange === "function") {
+                root.replaceSelectedRange(pasteText);
                 event.accepted = true;
                 return;
             }
@@ -1155,8 +1309,8 @@ Flickable {
 
         if (isCtrl && !isShift && !isAlt && event.key === Qt.Key_X) {
             root.copySelectedText();
-            if (!root.readOnly) {
-                root.deleteSelectedBlocks();
+            if (!root.readOnly && typeof root.replaceSelectedRange === "function") {
+                root.replaceSelectedRange("");
             }
             event.accepted = true;
             return;
@@ -1167,13 +1321,23 @@ Flickable {
                 event.accepted = true;
                 return;
             }
-            root.deleteSelectedBlocks();
+            if (typeof root.replaceSelectedRange === "function") {
+                root.replaceSelectedRange("");
+            }
             event.accepted = true;
             return;
         }
 
         if (event.key === Qt.Key_Escape) {
             root.clearBlockSelection();
+            event.accepted = true;
+            return;
+        }
+
+        if (!isCtrl && !isAlt && event.text && event.text.length > 0 && event.key !== Qt.Key_Return && event.key !== Qt.Key_Enter) {
+            if (!root.readOnly && typeof root.replaceSelectedRange === "function") {
+                root.replaceSelectedRange(event.text);
+            }
             event.accepted = true;
             return;
         }

@@ -127,6 +127,13 @@ QtObject {
             default: true,
             label: I18n.t("config.notes.persist_undo", "Deshacer persistente"),
             comment: I18n.t("config.notes.persist_undo_comment", "Conserva la pila de deshacer/rehacer (Ctrl+Z) entre aperturas de la nota.")
+        },
+        {
+            key: "showSourceModeButton",
+            type: "bool",
+            default: false,
+            label: I18n.t("config.notes.show_source_mode_button", "Mostrar botón de código fuente"),
+            comment: I18n.t("config.notes.show_source_mode_button_comment", "Muestra el botón '</>' en la barra de herramientas del editor para alternar al modo de código fuente Markdown.")
         }
     ]
 
@@ -195,6 +202,11 @@ QtObject {
         if (typeof ConfigBackend !== "undefined" && ConfigBackend.persistUndo !== persistUndo) ConfigBackend.persistUndo = persistUndo;
     }
 
+    property bool showSourceModeButton: (typeof ConfigBackend !== "undefined" && ConfigBackend.showSourceModeButton !== undefined) ? ConfigBackend.showSourceModeButton : false
+    onShowSourceModeButtonChanged: {
+        if (typeof ConfigBackend !== "undefined" && ConfigBackend.showSourceModeButton !== showSourceModeButton) ConfigBackend.showSourceModeButton = showSourceModeButton;
+    }
+
     property real uiScale: (typeof ConfigBackend !== "undefined" && ConfigBackend.uiScale !== undefined) ? ConfigBackend.uiScale : 1.0
     onUiScaleChanged: {
         if (typeof ConfigBackend !== "undefined" && ConfigBackend.uiScale !== uiScale) ConfigBackend.uiScale = uiScale;
@@ -240,6 +252,9 @@ QtObject {
         }
         function onPersistUndoChanged() {
             if (root.persistUndo !== ConfigBackend.persistUndo) root.persistUndo = ConfigBackend.persistUndo;
+        }
+        function onShowSourceModeButtonChanged() {
+            if (root.showSourceModeButton !== ConfigBackend.showSourceModeButton) root.showSourceModeButton = ConfigBackend.showSourceModeButton;
         }
         function onUiScaleChanged() {
             if (root.uiScale !== ConfigBackend.uiScale) root.uiScale = ConfigBackend.uiScale;

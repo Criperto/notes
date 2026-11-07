@@ -1466,11 +1466,6 @@ Item {
                 root.openFind();
                 return;
             }
-            if (event.key === Qt.Key_Slash || event.key === Qt.Key_Question || event.text === "/") {
-                event.accepted = true;
-                root.toggleSourceMode();
-                return;
-            }
             if (event.key === Qt.Key_Z) {
                 if (root.isSourceMode && sourceCodeEditor) sourceCodeEditor.undo();
                 else blockEditor.undo();
@@ -2405,7 +2400,7 @@ Item {
                             var btns = [];
                             for (var i = 0; i < toolbarRow.children.length; i++) {
                                 var c = toolbarRow.children[i];
-                                if (c && c.activeFocusOnTab && !c.disabled) btns.push(c);
+                                if (c && c.visible && c.activeFocusOnTab && !c.disabled) btns.push(c);
                             }
                             for (var j = 0; j < btns.length; j++) {
                                 if (btns[j].activeFocus) {
@@ -2423,7 +2418,7 @@ Item {
                             var btns = [];
                             for (var i = 0; i < toolbarRow.children.length; i++) {
                                 var c = toolbarRow.children[i];
-                                if (c && c.activeFocusOnTab && !c.disabled) btns.push(c);
+                                if (c && c.visible && c.activeFocusOnTab && !c.disabled) btns.push(c);
                             }
                             for (var j = 0; j < btns.length; j++) {
                                 if (btns[j].activeFocus) {
@@ -2670,6 +2665,7 @@ Item {
                         // 19. Modo código fuente — último de la fila scrollable
                         ToolbarButton {
                             actionId: "source_mode"
+                            visible: !root.isTxt && (typeof NotesConfig !== "undefined" && NotesConfig.showSourceModeButton)
                             disabled: root.isTxt
                             tooltipLayer: tooltipLayer
                             textLabel: "</>"
