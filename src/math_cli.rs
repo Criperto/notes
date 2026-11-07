@@ -109,14 +109,14 @@ pub extern "C" fn notas_free_string(ptr: *mut c_char) {
 pub fn run(args: &[String]) {
     if args.is_empty() || args[0] == "-h" || args[0] == "--help" || args[0] == "help" {
         println!(
-            "Uso: notas math \"<formula_latex>\" [opciones]\n\n\
+            "Uso: criperto.notes math \"<formula_latex>\" [opciones]\n\n\
              Opciones:\n  \
                --display              Renderizar como bloque centrado (display style)\n  \
                --color <#hex>         Color de primer plano (ej: #ffffff o #e56018)\n  \
                --size <pt>            Tamaño de fuente en puntos (por defecto 12pt)\n\n\
              Ejemplos:\n  \
-               notas math \"\\frac{{-b \\pm \\sqrt{{b^2 - 4ac}}}}{{2a}}\" --display\n  \
-               notas math \"E = mc^2\" --color \"#ffffff\""
+               criperto.notes math \"\\frac{{-b \\pm \\sqrt{{b^2 - 4ac}}}}{{2a}}\" --display\n  \
+               criperto.notes math \"E = mc^2\" --color \"#ffffff\""
         );
         return;
     }

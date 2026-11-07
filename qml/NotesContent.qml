@@ -2834,7 +2834,7 @@ Item {
     property var _pickedImportPaths: []
 
     function _resolvePortalPickerPath() {
-        return (typeof Sys !== "undefined" && Sys.appExecutable) ? Sys.appExecutable : "notas";
+        return (typeof Sys !== "undefined" && Sys.appExecutable) ? Sys.appExecutable : "criperto.notes";
     }
 
     function openImportFilePicker() {

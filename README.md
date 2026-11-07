@@ -123,7 +123,7 @@ Una vez instalado, la aplicación estará disponible en tu lanzador de aplicacio
 ## 💻 Uso de la Línea de Comandos (CLI)
 
 ```text
-notas [OPTIONS] [PATH]
+criperto.notes [OPTIONS] [PATH]
 
 Argumentos:
   [PATH]                  Ruta a un archivo Markdown (.md) para abrir o previsualizar

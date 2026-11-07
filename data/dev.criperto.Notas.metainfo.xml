@@ -14,7 +14,7 @@
   </description>
   <launchable type="desktop-id">dev.criperto.Notas.desktop</launchable>
   <provides>
-    <binary>notas</binary>
+    <binary>criperto.notes</binary>
     <dbus type="user">dev.criperto.Notas</dbus>
   </provides>
   <url type="homepage">https://github.com/Criperto/notes</url>

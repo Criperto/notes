@@ -71,7 +71,7 @@ pub fn run(args: &[String]) {
     if opts.url.trim().is_empty() {
         emit_result(
             &opts,
-            Err("Debe especificar una URL válida para recortar (ej: notas clip https://ejemplo.com)".into()),
+            Err("Debe especificar una URL válida para recortar (ej: criperto.notes clip https://ejemplo.com)".into()),
         );
         return;
     }
@@ -82,7 +82,7 @@ pub fn run(args: &[String]) {
 
 fn print_help() {
     println!(
-        "Uso: notas clip <URL> [OPCIONES]\n\n\
+        "Uso: criperto.notes clip <URL> [OPCIONES]\n\n\
         Descarga una página web o artículo, limpia el contenido y lo guarda como nota Markdown.\n\n\
         Opciones:\n  \
         -i, --images    Descarga las imágenes a la carpeta local assets/ de la nota\n  \

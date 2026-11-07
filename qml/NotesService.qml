@@ -419,12 +419,12 @@ Item {
 
     property var _cachedImageDimensions: ({})
 
-    // Proceso de indexación nativa ultrarrápida vía Rust notas (<5ms)
+    // Proceso de indexación nativa ultrarrápida vía Rust criperto.notes (<5ms)
     Process {
         id: qsIndexProc
         property string outJson: ""
         command: [
-            (typeof Sys !== "undefined" && Sys.appExecutable) ? Sys.appExecutable : "notas",
+            (typeof Sys !== "undefined" && Sys.appExecutable) ? Sys.appExecutable : "criperto.notes",
             "notes",
             "index",
             root.notesDir
@@ -741,7 +741,7 @@ Item {
 
             if (exitCode === 0) {
                 root.log("[NotesService - deleteNote] gio trash exitoso para:", tkey);
-                var qsHelperBin = (typeof Sys !== "undefined" && Sys.appExecutable) ? Sys.appExecutable : "notas";
+                var qsHelperBin = (typeof Sys !== "undefined" && Sys.appExecutable) ? Sys.appExecutable : "criperto.notes";
                 if (path) Quickshell.execDetached([qsHelperBin, "history", "purge", path]);
                 root._finalizeDeletion(tkey);
                 root._isTrashing = false;
@@ -996,7 +996,7 @@ Item {
         root.log("[NotesService - refresh] Refrescando directorio de notas:", root.notesDir);
         if (root.notesDir) {
             qsIndexProc.command = [
-                (typeof Sys !== "undefined" && Sys.appExecutable) ? Sys.appExecutable : "notas",
+                (typeof Sys !== "undefined" && Sys.appExecutable) ? Sys.appExecutable : "criperto.notes",
                 "notes",
                 "index",
                 root.notesDir
@@ -2111,7 +2111,7 @@ Item {
         pasteImgProc.pendingBase = baseDir;
         pasteImgProc.pendingKey = key;
         pasteImgProc.savedRelTag = "";
-        var qsHelperBin = (typeof Sys !== "undefined" && Sys.appExecutable) ? Sys.appExecutable : "notas";
+        var qsHelperBin = (typeof Sys !== "undefined" && Sys.appExecutable) ? Sys.appExecutable : "criperto.notes";
         var pasteArgs = [
             qsHelperBin,
             "notes",
@@ -3697,7 +3697,7 @@ Item {
                 timestamp: new Date().toISOString(),
                 length: content.length
             };
-            var qsHelperBin = (typeof Sys !== "undefined" && Sys.appExecutable) ? Sys.appExecutable : "notas";
+            var qsHelperBin = (typeof Sys !== "undefined" && Sys.appExecutable) ? Sys.appExecutable : "criperto.notes";
             var snapLabel = (reason === "open_base" ? "auto · base" : (reason === "auto_interval" ? "auto · intervalo" : "auto · guardado"));
             var maxMb = (NotesConfig && NotesConfig.versionHistoryMaxMb) ? NotesConfig.versionHistoryMaxMb : 5;
             Quickshell.execDetached([
@@ -3763,7 +3763,7 @@ Item {
         webClipProc.outJson = "";
         root._webClipCallback = callback || null;
 
-        var bin = (typeof Sys !== "undefined" && Sys.appExecutable) ? Sys.appExecutable : "notas";
+        var bin = (typeof Sys !== "undefined" && Sys.appExecutable) ? Sys.appExecutable : "criperto.notes";
         var cmd = [bin, "clip", url, "--json"];
         if (opts && opts.downloadImages) cmd.push("--images");
         if (opts && opts.fullMode) cmd.push("--full");

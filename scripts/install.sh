@@ -55,10 +55,11 @@ else
     BIN_SRC="$SCRIPT_DIR/target/release/criperto-notes"
 fi
 
+# Limpiar alias antiguos si existían
+rm -f "$HOME/.local/bin/notas" "$HOME/.local/bin/criperto-notes"
+
 ln -sf "$BIN_SRC" "$HOME/.local/bin/criperto.notes"
-ln -sf "$BIN_SRC" "$HOME/.local/bin/criperto-notes"
-ln -sf "$BIN_SRC" "$HOME/.local/bin/notas"
-echo "✓ Binarios enlazados en $HOME/.local/bin/criperto.notes y $HOME/.local/bin/notas"
+echo "✓ Binario enlazado en $HOME/.local/bin/criperto.notes"
 
 # 3. Icono
 ln -sf "$SCRIPT_DIR/assets/icons/dev.criperto.Notas.svg" "$HOME/.local/share/icons/hicolor/scalable/apps/dev.criperto.Notas.svg"
@@ -100,4 +101,4 @@ if [[ -f "$MIMEAPPS" ]]; then
 fi
 echo "✓ Configurada como aplicación predeterminada para .md y .txt (text/markdown, text/plain, text/x-markdown)"
 
-echo "==> ¡Instalación completada exitosamente! Puedes ejecutar 'notas' desde cualquier terminal o lanzador."
+echo "==> ¡Instalación completada exitosamente! Puedes ejecutar 'criperto.notes' desde cualquier terminal o lanzador."

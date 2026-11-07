@@ -19,7 +19,7 @@ extern "C" {
 
 #[derive(Parser, Debug)]
 #[command(
-    name = "notas",
+    name = "criperto.notes",
     version = env!("CARGO_PKG_VERSION"),
     about = "Aplicación nativa de notas en Markdown con editor de bloques y diagramas Mermaid"
 )]

@@ -33,12 +33,11 @@ else
     exit 1
 fi
 
-# 2. Instalar binario principal y symlink
+# 2. Instalar binario principal
 install -d "${BIN_DIR}"
-install -m 755 "${BIN_SRC}" "${BIN_DIR}/notas"
-ln -sf "notas" "${BIN_DIR}/criperto-notes"
-ln -sf "notas" "${BIN_DIR}/criperto.notes"
-echo "✓ Binarios instalados en ${BIN_DIR}/notas"
+install -m 755 "${BIN_SRC}" "${BIN_DIR}/criperto.notes"
+rm -f "${BIN_DIR}/notas" "${BIN_DIR}/criperto-notes"
+echo "✓ Binario instalado en ${BIN_DIR}/criperto.notes"
 
 # 3. Acceso directo de escritorio (.desktop)
 install -d "${APPS_DIR}"

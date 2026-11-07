@@ -3297,9 +3297,11 @@ runTest("F65: Rust qs-helper notes index y contratos de metadatos instantáneos"
     let helperBin = process.env.QS_HELPER_BIN;
     if (!helperBin || !fs.existsSync(helperBin)) {
         const candidates = [
-            path.join(__dirname, "../target/release/notas"),
-            path.join(__dirname, "../target/debug/notas"),
-            path.join(process.env.HOME || "", ".local/bin/notas"),
+            path.join(__dirname, "../target/release/criperto.notes"),
+            path.join(__dirname, "../target/release/criperto-notes"),
+            path.join(__dirname, "../target/debug/criperto.notes"),
+            path.join(__dirname, "../target/debug/criperto-notes"),
+            path.join(process.env.HOME || "", ".local/bin/criperto.notes"),
             path.join(__dirname, "../bin/qs-helper"),
             path.join(__dirname, "../../bin/qs-helper")
         ];
@@ -3641,7 +3643,7 @@ runTest('F73: Asociación de Notas como aplicación por defecto para .md y .txt 
     assert.ok(desktopEntry.indexOf('text/markdown') !== -1, "Desktop entry debe soportar text/markdown");
     assert.ok(desktopEntry.indexOf('text/plain') !== -1, "Desktop entry debe soportar text/plain");
     assert.ok(desktopEntry.indexOf('text/x-markdown') !== -1, "Desktop entry debe soportar text/x-markdown");
-    assert.ok(desktopEntry.indexOf('Exec=criperto.notes %F') !== -1 || desktopEntry.indexOf('Exec=notas %F') !== -1, "Desktop entry debe incluir %F para recibir archivos como argumentos");
+    assert.ok(desktopEntry.indexOf('Exec=criperto.notes %F') !== -1, "Desktop entry debe incluir %F para recibir archivos como argumentos");
 
     // 2. Asociación como editor predeterminado en script de instalación
     assert.ok(installScript.indexOf('xdg-mime default dev.criperto.Notas.desktop') !== -1, "install.sh debe ejecutar xdg-mime default");
@@ -4072,7 +4074,7 @@ runTest('F79: Operaciones CLI y captura desde portapapeles', () => {
     const desktopContent = fs.readFileSync(desktopPath, 'utf8');
     assert.ok(desktopContent.includes('Actions=new-note;clip-note;toggle;'));
     assert.ok(desktopContent.includes('[Desktop Action clip-note]'));
-    assert.ok(desktopContent.includes('Exec=notas --clip'));
+    assert.ok(desktopContent.includes('Exec=criperto.notes --clip'));
 
     // 3. Verificación de ícono content-paste.svg
     const iconsDir = path.resolve(__dirname, '../assets/icons');
@@ -4371,7 +4373,7 @@ runTest("F87: Web clipper nativo, contratos CLI JSON, modal y FAB", () => {
         const { execFileSync } = require('child_process');
         try {
             const outHelp = execFileSync(targetDebugBin, ['clip', '--help'], { encoding: 'utf8' });
-            assert.ok(outHelp.includes('notas clip <URL>'), "CLI clip --help debe mostrar uso");
+            assert.ok(outHelp.includes('criperto.notes clip <URL>'), "CLI clip --help debe mostrar uso");
         } catch (e) {
             assert.fail("Fallo al ejecutar criperto-notes clip --help: " + e.message);
         }

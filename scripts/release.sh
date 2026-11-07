@@ -57,7 +57,7 @@ ${BOLD}USO:${NC}
 ${BOLD}COMPORTAMIENTO POR DEFECTO (Sin flags):${NC}
   • Ejecuta pruebas lógicas rápidas.
   • Compila binario optimizado en modo Release (cargo build --release).
-  • Enlaza e instala en ~/.local/bin/notas, iconos, desktop y asociaciones mime.
+  • Enlaza e instala en ~/.local/bin/criperto.notes, iconos, desktop y asociaciones mime.
   • ${GREEN}CERO incremento de versión, CERO commits/tags, CERO spam en GitHub.${NC}
   • Diseñado para uso diario rápido y sin consumo de tokens de IA.
 
@@ -227,7 +227,7 @@ else
 fi
 echo -e "${CYAN}│${NC} • Tests previos    : $([[ "${RUN_TESTS}" == true ]] && echo -e "${GREEN}Habilitados${NC}" || echo -e "${DIM}Omitidos${NC}")"
 echo -e "${CYAN}│${NC} • Compilación      : ${GREEN}Release optimizado (cargo build --release)${NC}"
-echo -e "${CYAN}│${NC} • Instalación local: $([[ "${DO_INSTALL}" == true ]] && echo -e "${GREEN}Habilitada (~/.local/bin/notas)${NC}" || echo -e "${DIM}Omitida${NC}")"
+echo -e "${CYAN}│${NC} • Instalación local: $([[ "${DO_INSTALL}" == true ]] && echo -e "${GREEN}Habilitada (~/.local/bin/criperto.notes)${NC}" || echo -e "${DIM}Omitida${NC}")"
 echo -e "${CYAN}│${NC} • Publicar GitHub  : $([[ "${PUBLISH_GITHUB}" == true ]] && echo -e "${YELLOW}${BOLD}SÍ (git commit + tag v${NEW_VER} + push)${NC}" || echo -e "${DIM}NO (estrictamente local)${NC}")"
 if [[ "${DRY_RUN}" == true ]]; then
     echo -e "${CYAN}│${NC} • Modo             : ${YELLOW}${BOLD}DRY-RUN (Simulación sin cambios en disco)${NC}"
@@ -357,12 +357,12 @@ cargo build --release
 # Asegurar symlinks canónicos en target/release/
 mkdir -p "${ROOT_DIR}/target/release"
 ln -sf criperto-notes "${ROOT_DIR}/target/release/criperto.notes"
-ln -sf criperto-notes "${ROOT_DIR}/target/release/notas"
-echo "   ✓ Binario generado en target/release/criperto-notes (versión ${NEW_VER})"
+rm -f "${ROOT_DIR}/target/release/notas"
+echo "   ✓ Binario generado en target/release/criperto.notes (versión ${NEW_VER})"
 
 # 6. Instalación local en el sistema del usuario
 if [[ "${DO_INSTALL}" == true ]]; then
-    echo -e "\n${BLUE}💻 [4/6] Instalando en el entorno local (~/.local/bin/notas)...${NC}"
+    echo -e "\n${BLUE}💻 [4/6] Instalando en el entorno local (~/.local/bin/criperto.notes)...${NC}"
     "${ROOT_DIR}/scripts/install.sh"
 else
     echo -e "\n${DIM}💻 [4/6] Instalación local omitida (--no-install)${NC}"
@@ -454,7 +454,7 @@ fi
 echo -e "\n${GREEN}${BOLD}===============================================================================${NC}"
 echo -e "${GREEN}${BOLD}🎉 ¡Operación completada exitosamente!${NC}"
 echo -e "   • Versión activa : ${BOLD}v${NEW_VER}${NC}"
-echo -e "   • Binario local  : ~/.local/bin/notas"
+echo -e "   • Binario local  : ~/.local/bin/criperto.notes"
 if [[ -d "${ROOT_DIR}/dist" ]] && ls "${ROOT_DIR}/dist"/*.tar.gz 1>/dev/null 2>&1; then
     echo -e "   • Paquetes dist/ : ${ROOT_DIR}/dist/"
 fi

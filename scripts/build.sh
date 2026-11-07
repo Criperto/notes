@@ -20,7 +20,7 @@ case "${CMD}" in
         export NOTAS_DEV=1
         cargo build --bin criperto-notes
         ln -sf criperto-notes "${ROOT_DIR}/target/debug/criperto.notes"
-        ln -sf criperto-notes "${ROOT_DIR}/target/debug/notas"
+        rm -f "${ROOT_DIR}/target/debug/notas"
         echo "✓ Binario listo en target/debug/criperto.notes. Lanzando..."
         exec "${ROOT_DIR}/target/debug/criperto.notes" "$@"
         ;;
@@ -31,7 +31,7 @@ case "${CMD}" in
         echo "📦 [build.sh] Compilando e instalando en ~/.local/bin/..."
         cargo build --release
         ln -sf criperto-notes "${ROOT_DIR}/target/release/criperto.notes"
-        ln -sf criperto-notes "${ROOT_DIR}/target/release/notas"
+        rm -f "${ROOT_DIR}/target/release/notas"
         "${ROOT_DIR}/scripts/install.sh"
         echo "✓ Instalación finalizada."
         ;;

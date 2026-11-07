@@ -3786,7 +3786,7 @@ Item {
     }
 
     function _resolvePortalPickerPath() {
-        return (typeof Sys !== "undefined" && Sys.appExecutable) ? Sys.appExecutable : "notas";
+        return (typeof Sys !== "undefined" && Sys.appExecutable) ? Sys.appExecutable : "criperto.notes";
     }
 
     // Proceso para seleccionar imagen vía xdg-desktop-portal

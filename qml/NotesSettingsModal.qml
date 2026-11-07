@@ -30,7 +30,7 @@ Item {
         }
     }
 
-    readonly property string notasBin: (typeof Sys !== "undefined" && Sys.appExecutable) ? Sys.appExecutable : "notas"
+    readonly property string notasBin: (typeof Sys !== "undefined" && Sys.appExecutable) ? Sys.appExecutable : "criperto.notes"
 
     // Estado del gestor de diccionarios (portado de LanguageManager.qml)
     property string spellInstallingCode: ""

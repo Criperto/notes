@@ -412,7 +412,7 @@ pub fn load_undo_stack(note_path_str: &str) -> Result<String, String> {
 pub fn handle_history_command(args: &[String]) -> Result<String, String> {
     if args.is_empty() || args[0] == "-h" || args[0] == "--help" || args[0] == "help" {
         return Ok(
-            "Uso: notas history <snapshot|list|show|restore|purge|move|save-undo|load-undo> <archivo.md> [opciones]\n\
+            "Uso: criperto.notes history <snapshot|list|show|restore|purge|move|save-undo|load-undo> <archivo.md> [opciones]\n\
              Comandos:\n  \
                snapshot <nota> [--label <etiqueta>] [--manual] [--max-mb <MB>]  Crear un snapshot\n  \
                list <nota> [--json]                                             Listar versiones\n  \
@@ -430,7 +430,7 @@ pub fn handle_history_command(args: &[String]) -> Result<String, String> {
     match subcmd {
         "snapshot" => {
             if args.len() < 2 {
-                return Err("Falta la ruta del archivo. Uso: notas history snapshot <nota.md>".to_string());
+                return Err("Falta la ruta del archivo. Uso: criperto.notes history snapshot <nota.md>".to_string());
             }
             let path = &args[1];
             let mut label = None;
@@ -464,7 +464,7 @@ pub fn handle_history_command(args: &[String]) -> Result<String, String> {
         }
         "list" => {
             if args.len() < 2 {
-                return Err("Falta la ruta del archivo. Uso: notas history list <nota.md> [--json]".to_string());
+                return Err("Falta la ruta del archivo. Uso: criperto.notes history list <nota.md> [--json]".to_string());
             }
             let path = &args[1];
             let as_json = args.iter().any(|a| a == "--json");
@@ -472,40 +472,40 @@ pub fn handle_history_command(args: &[String]) -> Result<String, String> {
         }
         "show" => {
             if args.len() < 3 {
-                return Err("Falta ID de versión. Uso: notas history show <nota.md> <version_id>".to_string());
+                return Err("Falta ID de versión. Uso: criperto.notes history show <nota.md> <version_id>".to_string());
             }
             cmd_show(&args[1], &args[2])
         }
         "restore" => {
             if args.len() < 3 {
-                return Err("Falta ID de versión. Uso: notas history restore <nota.md> <version_id>".to_string());
+                return Err("Falta ID de versión. Uso: criperto.notes history restore <nota.md> <version_id>".to_string());
             }
             cmd_restore(&args[1], &args[2])
         }
         "purge" => {
             if args.len() < 2 {
-                return Err("Falta la ruta del archivo. Uso: notas history purge <nota.md>".to_string());
+                return Err("Falta la ruta del archivo. Uso: criperto.notes history purge <nota.md>".to_string());
             }
             cmd_purge(&args[1])?;
             Ok(format!("Historial purgado para: {}", args[1]))
         }
         "move" => {
             if args.len() < 3 {
-                return Err("Faltan rutas. Uso: notas history move <origen.md> <destino.md>".to_string());
+                return Err("Faltan rutas. Uso: criperto.notes history move <origen.md> <destino.md>".to_string());
             }
             cmd_move(&args[1], &args[2])?;
             Ok(format!("Historial movido de {} a {}", args[1], args[2]))
         }
         "save-undo" => {
             if args.len() < 3 {
-                return Err("Uso: notas history save-undo <nota.md> <json_data>".to_string());
+                return Err("Uso: criperto.notes history save-undo <nota.md> <json_data>".to_string());
             }
             save_undo_stack(&args[1], &args[2])?;
             Ok("ok".to_string())
         }
         "load-undo" => {
             if args.len() < 2 {
-                return Err("Uso: notas history load-undo <nota.md>".to_string());
+                return Err("Uso: criperto.notes history load-undo <nota.md>".to_string());
             }
             load_undo_stack(&args[1])
         }
