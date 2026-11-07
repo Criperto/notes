@@ -572,6 +572,19 @@ Flickable {
     function endCrossBlockDrag() {
         root.isDraggingSelection = false;
         root.interactive = true;
+        var anchorIdx = root._findBlockIndex(root.selAnchorBid);
+        var curIdx = root._findBlockIndex(root.selCurrentBid);
+        if (anchorIdx !== -1 && curIdx !== -1 && anchorIdx === curIdx) {
+            var sLoader = blocksRepeater.itemAt(anchorIdx);
+            var isMultiItem = (sLoader && sLoader.item && typeof sLoader.item.hasMultipleItemsSelected === "function")
+                ? sLoader.item.hasMultipleItemsSelected() : false;
+            if (isMultiItem) {
+                var newSel = {};
+                var bCur = blocksModel.get(anchorIdx);
+                if (bCur) newSel[bCur.bid] = true;
+                root.selectedBids = newSel;
+            }
+        }
         if (root.hasBlockSelection) {
             root._syncingSelection = true;
             root._activeBlockDirty = false;

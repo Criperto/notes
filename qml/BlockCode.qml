@@ -314,6 +314,7 @@ Rectangle {
 
         TextEdit {
             id: editInput
+            persistentSelection: true
             width: Math.max(editFlickable.width, paintedWidth + 20)
             readOnly: !root.isEditing || (root.editor && root.editor.readOnly)
             cursorVisible: activeFocus && root.isEditing && (!root.editor || !root.editor.readOnly)
@@ -354,7 +355,7 @@ Rectangle {
         }
         onCursorPositionChanged: {
             if (root.editor && !root.editor._syncingSelection && !root.editor.hasBlockSelection && !root.editor.isDraggingSelection) {
-                if (editInput.selectionStart === editInput.selectionEnd && root.blockData && typeof root.editor.notifySingleInputSelection === "function") {
+                if (editInput.activeFocus && editInput.selectionStart === editInput.selectionEnd && root.blockData && typeof root.editor.notifySingleInputSelection === "function") {
                     root.editor.notifySingleInputSelection(root.blockData.bid);
                 }
                 if (typeof root.editor.updateFormatState === "function") root.editor.updateFormatState();

@@ -1004,6 +1004,7 @@ Item {
 
                                         TextEdit {
                                             id: hInput
+                                            persistentSelection: true
                                             Layout.fillWidth: true
                                             Layout.alignment: Qt.AlignVCenter
                                             wrapMode: TextEdit.WrapAtWordBoundaryOrAnywhere
@@ -1416,6 +1417,7 @@ Item {
                                 // Modo edición: TextEdit interactivo con wrap multilínea
                                 TextEdit {
                                     id: cellInput
+                                    persistentSelection: true
                                     visible: dataCell.isCurrentCell
                                     anchors.left: parent.left
                                     anchors.right: parent.right
@@ -1635,6 +1637,7 @@ Item {
     // Modo de edición cruda como respaldo si la tabla no se puede parsear
     TextEdit {
         id: rawEditor
+        persistentSelection: true
         visible: root.parsedTable === null
         width: parent.width
         textFormat: TextEdit.PlainText

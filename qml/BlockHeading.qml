@@ -652,6 +652,7 @@ Item {
     // Vista de edición limpia estilo Typora: sin prefijo '#' visible en el editor
     TextEdit {
         id: editInput
+        persistentSelection: true
         visible: root.isEditing || root.isSelected
         readOnly: !root.isEditing || (root.editor && root.editor.readOnly)
         cursorVisible: activeFocus && root.isEditing && (!root.editor || !root.editor.readOnly)
@@ -700,7 +701,7 @@ Item {
         }
         onCursorPositionChanged: {
             if (root.editor && !root.editor._syncingSelection && !root.editor.hasBlockSelection && !root.editor.isDraggingSelection) {
-                if (editInput.selectionStart === editInput.selectionEnd && root.blockData && typeof root.editor.notifySingleInputSelection === "function") {
+                if (editInput.activeFocus && editInput.selectionStart === editInput.selectionEnd && root.blockData && typeof root.editor.notifySingleInputSelection === "function") {
                     root.editor.notifySingleInputSelection(root.blockData.bid);
                 }
                 if (typeof root.editor.updateFormatState === "function") root.editor.updateFormatState();

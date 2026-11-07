@@ -1407,6 +1407,7 @@ Item {
                     TextEdit {
                         id: lineEdit
                         property string _lastAppliedHtml: itemRow.baseDisplayText(itemRow.text)
+                        persistentSelection: true
                         visible: root.isEditing || itemRow.isSelected || (root.spellActive && itemRow.spellRanges && itemRow.spellRanges.length > 0 && lineEdit.length > 0)
                         readOnly: !root.isEditing || (root.editor && root.editor.readOnly)
                         cursorVisible: activeFocus && root.isEditing && (!root.editor || !root.editor.readOnly)
@@ -1435,7 +1436,7 @@ Item {
 
                     onSelectionStartChanged: {
                         root.updateMultiItemSelectionState();
-                        if (root.editor && !root.editor._syncingSelection && !root.editor.hasBlockSelection && !root.editor.isDraggingSelection && !root.hasMultipleItemsSelected()) {
+                        if (root.editor && !root.editor._syncingSelection && !root.editor.hasBlockSelection && !root.editor.isDraggingSelection && !root.hasMultiItemSelection && !root.hasMultipleItemsSelected()) {
                             if (lineEdit.selectionStart !== lineEdit.selectionEnd) {
                                 root.clearOtherItemsSelection(itemRow.index);
                                 if (root.blockData && typeof root.editor.notifySingleInputSelection === "function") {
@@ -1450,7 +1451,7 @@ Item {
                     }
                     onSelectionEndChanged: {
                         root.updateMultiItemSelectionState();
-                        if (root.editor && !root.editor._syncingSelection && !root.editor.hasBlockSelection && !root.editor.isDraggingSelection && !root.hasMultipleItemsSelected()) {
+                        if (root.editor && !root.editor._syncingSelection && !root.editor.hasBlockSelection && !root.editor.isDraggingSelection && !root.hasMultiItemSelection && !root.hasMultipleItemsSelected()) {
                             if (lineEdit.selectionStart !== lineEdit.selectionEnd) {
                                 root.clearOtherItemsSelection(itemRow.index);
                                 if (root.blockData && typeof root.editor.notifySingleInputSelection === "function") {
@@ -1464,8 +1465,8 @@ Item {
                         }
                     }
                     onCursorPositionChanged: {
-                        if (root.editor && !root.editor._syncingSelection && !root.editor.hasBlockSelection && !root.editor.isDraggingSelection && !root.hasMultipleItemsSelected()) {
-                            if (lineEdit.selectionStart === lineEdit.selectionEnd) {
+                        if (root.editor && !root.editor._syncingSelection && !root.editor.hasBlockSelection && !root.editor.isDraggingSelection && !root.hasMultiItemSelection && !root.hasMultipleItemsSelected()) {
+                            if (lineEdit.activeFocus && lineEdit.selectionStart === lineEdit.selectionEnd) {
                                 root.clearOtherItemsSelection(itemRow.index);
                                 if (root.blockData && typeof root.editor.notifySingleInputSelection === "function") {
                                     root.editor.notifySingleInputSelection(root.blockData.bid, itemRow.index);

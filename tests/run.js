@@ -4573,6 +4573,36 @@ runTest("F92: Multi-line and multi-block drag selection release preservation con
     assert.ok(blockQuoteQml.includes('editInput.select(Math.min(editInput.length, oldSelStart), Math.min(editInput.length, oldSelEnd))'), "BlockQuote debe preservar selección en _syncTextFromModel");
 });
 
+runTest("F93: Persistent multi-line & sub-line selection retention contracts across delegates (Typora benchmark)", () => {
+    const blockListQml = fs.readFileSync(path.resolve(__dirname, '../qml/BlockList.qml'), 'utf8');
+    assert.ok(blockListQml.includes('persistentSelection: true'), "BlockList lineEdit debe tener persistentSelection: true");
+    assert.ok(blockListQml.includes('!root.hasMultiItemSelection && !root.hasMultipleItemsSelected()'), "BlockList no debe limpiar selección de hermanos si hay selección multi-ítem");
+    assert.ok(blockListQml.includes('lineEdit.activeFocus && lineEdit.selectionStart === lineEdit.selectionEnd'), "BlockList onCursorPositionChanged debe chequear activeFocus");
+
+    const blockParagraphQml = fs.readFileSync(path.resolve(__dirname, '../qml/BlockParagraph.qml'), 'utf8');
+    assert.ok(blockParagraphQml.includes('persistentSelection: true'), "BlockParagraph editInput debe tener persistentSelection: true");
+    assert.ok(blockParagraphQml.includes('editInput.activeFocus && editInput.selectionStart === editInput.selectionEnd'), "BlockParagraph onCursorPositionChanged debe chequear activeFocus");
+
+    const blockHeadingQml = fs.readFileSync(path.resolve(__dirname, '../qml/BlockHeading.qml'), 'utf8');
+    assert.ok(blockHeadingQml.includes('persistentSelection: true'), "BlockHeading editInput debe tener persistentSelection: true");
+    assert.ok(blockHeadingQml.includes('editInput.activeFocus && editInput.selectionStart === editInput.selectionEnd'), "BlockHeading onCursorPositionChanged debe chequear activeFocus");
+
+    const blockQuoteQml = fs.readFileSync(path.resolve(__dirname, '../qml/BlockQuote.qml'), 'utf8');
+    assert.ok(blockQuoteQml.includes('persistentSelection: true'), "BlockQuote editInput debe tener persistentSelection: true");
+    assert.ok(blockQuoteQml.includes('editInput.activeFocus && editInput.selectionStart === editInput.selectionEnd'), "BlockQuote onCursorPositionChanged debe chequear activeFocus");
+
+    const blockCodeQml = fs.readFileSync(path.resolve(__dirname, '../qml/BlockCode.qml'), 'utf8');
+    assert.ok(blockCodeQml.includes('persistentSelection: true'), "BlockCode editInput debe tener persistentSelection: true");
+
+    const blockTableQml = fs.readFileSync(path.resolve(__dirname, '../qml/BlockTable.qml'), 'utf8');
+    assert.ok(blockTableQml.includes('id: hInput') && blockTableQml.includes('persistentSelection: true'), "BlockTable hInput debe tener persistentSelection: true");
+    assert.ok(blockTableQml.includes('id: cellInput') && blockTableQml.includes('persistentSelection: true'), "BlockTable cellInput debe tener persistentSelection: true");
+    assert.ok(blockTableQml.includes('id: rawEditor') && blockTableQml.includes('persistentSelection: true'), "BlockTable rawEditor debe tener persistentSelection: true");
+
+    const blockEditorQml = fs.readFileSync(path.resolve(__dirname, '../qml/BlockEditor.qml'), 'utf8');
+    assert.ok(blockEditorQml.includes('isMultiItem'), "BlockEditor endCrossBlockDrag debe retener selectedBids si isMultiItem");
+});
+
 console.log(`\n========================================`);
 console.log(`Resultados: ${passed} OK, ${failed} FAIL`);
 console.log(`========================================`);
