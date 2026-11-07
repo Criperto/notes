@@ -40,6 +40,7 @@ Rectangle {
     property double _lastTextChangeMs: 0
     property string _pendingDeadKeyGlyph: ""
     readonly property bool hasNativePlaceholder: root.targetInput !== null && ("placeholderText" in root.targetInput)
+    readonly property bool isOverwrite: root.targetInput !== null && root.targetInput.overwriteMode === true
 
     Timer {
         id: deadKeyDelayTimer
@@ -210,8 +211,9 @@ Rectangle {
     Component {
         id: cursorComp
         Rectangle {
-            width: root.cursorWidth
-            radius: root.cursorRadius
+            width: (root.isOverwrite && !root.hasSelection) ? root.deadKeySlotWidth : root.cursorWidth
+            radius: root.isOverwrite ? 2 : root.cursorRadius
+            opacity: (root.isOverwrite && !root.hasSelection) ? 0.65 : 1.0
             color: root.cursorColor
             visible: parent
                 ? (((parent.activeFocus || (root.multiSelectionMode && root.hasSelection))

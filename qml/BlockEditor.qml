@@ -26,6 +26,11 @@ Flickable {
     onContentModified: root.isDirty = true
     onMarkdownEdited: (newMd) => root.isDirty = true
 
+    property bool overwriteMode: false
+    function toggleOverwriteMode() {
+        root.overwriteMode = !root.overwriteMode;
+    }
+
     // ── Congelamiento de layout para cierre fluido ──────────────
     property bool freezeLayout: false
     property real _frozenColumnWidth: 0
@@ -1330,6 +1335,12 @@ Flickable {
             return;
         }
 
+        if (!isCtrl && !isShift && !isAlt && event.key === Qt.Key_Insert) {
+            root.toggleOverwriteMode();
+            event.accepted = true;
+            return;
+        }
+
         if (!root.hasBlockSelection) return;
 
         if (isShift && !isCtrl && !isAlt && event.key === Qt.Key_Down) {
@@ -1358,13 +1369,15 @@ Flickable {
             }
         }
 
-        if (isCtrl && !isShift && !isAlt && event.key === Qt.Key_C) {
+        if ((isCtrl && !isShift && !isAlt && event.key === Qt.Key_C) ||
+            (isCtrl && !isShift && !isAlt && event.key === Qt.Key_Insert)) {
             root.copySelectedText();
             event.accepted = true;
             return;
         }
 
-        if (isCtrl && !isShift && !isAlt && event.key === Qt.Key_X) {
+        if ((isCtrl && !isShift && !isAlt && event.key === Qt.Key_X) ||
+            (isShift && !isCtrl && !isAlt && event.key === Qt.Key_Delete)) {
             root.copySelectedText();
             if (!root.readOnly && typeof root.replaceSelectedRange === "function") {
                 root.replaceSelectedRange("");

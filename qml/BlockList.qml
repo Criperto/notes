@@ -1432,6 +1432,7 @@ Item {
                         id: lineEdit
                         property string _lastAppliedHtml: itemRow.baseDisplayText(itemRow.text)
                         persistentSelection: true
+                        overwriteMode: root.editor ? root.editor.overwriteMode : false
                         visible: root.isEditing || itemRow.isSelected || (root.spellActive && itemRow.spellRanges && itemRow.spellRanges.length > 0 && lineEdit.length > 0)
                         readOnly: !root.isEditing || (root.editor && root.editor.readOnly)
                         cursorVisible: activeFocus && root.isEditing && (!root.editor || !root.editor.readOnly)
@@ -1668,7 +1669,12 @@ Item {
                             event.accepted = true;
                             return;
                         }
-                        if (lineEdit.cursorPosition === lineEdit.length && lineEdit.selectionStart === lineEdit.selectionEnd) {
+                        if (lineEdit.selectionStart !== lineEdit.selectionEnd) {
+                            lineEdit.remove(lineEdit.selectionStart, lineEdit.selectionEnd);
+                            event.accepted = true;
+                            return;
+                        }
+                        if (lineEdit.cursorPosition === lineEdit.length) {
                             if (itemRow.index < itemsModel.count - 1) {
                                 var nextItem = root._itemsRawArray[itemRow.index + 1];
                                 var curItem = root._itemsRawArray[itemRow.index];
@@ -1678,14 +1684,15 @@ Item {
                                 root._notifyRawChanged();
                                 event.accepted = true;
                                 return;
-                            } else if (itemRow.index === itemsModel.count - 1) {
-                                if (root.editor && typeof root.editor.handleBlockDeleteAtEnd === "function") {
+                            } else if (itemRow.index === itemsModel.count - 1 && root.editor) {
+                                if (typeof root.editor.handleBlockDeleteAtEnd === "function") {
                                     root.editor.handleBlockDeleteAtEnd(root.blockData.bid);
                                     event.accepted = true;
                                     return;
                                 }
                             }
                         }
+                        event.accepted = false;
                     }
 
                     Keys.onTabPressed: (event) => {
@@ -1834,8 +1841,9 @@ Item {
                             if (lineEdit.selectionStart !== lineEdit.selectionEnd) {
                                 lineEdit.remove(lineEdit.selectionStart, lineEdit.selectionEnd);
                             } else if (lineEdit.cursorPosition < lineEdit.length) {
-                                var nextW = Inline.findNextWordEnd(lineEdit.text, lineEdit.cursorPosition);
-                                lineEdit.remove(lineEdit.cursorPosition, nextW);
+                                var pTextD = Inline.plainText(lineEdit);
+                                var nextWD = Inline.findNextWordEnd(pTextD, lineEdit.cursorPosition);
+                                lineEdit.remove(lineEdit.cursorPosition, nextWD);
                             } else if (lineEdit.cursorPosition === lineEdit.length) {
                                 if (itemRow.index < itemsModel.count - 1) {
                                     var nextItem = root._itemsRawArray[itemRow.index + 1];
@@ -1847,6 +1855,16 @@ Item {
                                 } else if (itemRow.index === itemsModel.count - 1 && rEditor) {
                                     rEditor.handleBlockDeleteAtEnd(root.blockData.bid);
                                 }
+                            }
+                            event.accepted = true;
+                            return;
+                        }
+
+                        if (!isCtrlKey && !isShiftKey && !isAltKey && event.key === Qt.Key_Insert) {
+                            if (rEditor && typeof rEditor.toggleOverwriteMode === "function") {
+                                rEditor.toggleOverwriteMode();
+                            } else {
+                                lineEdit.overwriteMode = !lineEdit.overwriteMode;
                             }
                             event.accepted = true;
                             return;
@@ -1867,12 +1885,14 @@ Item {
                             var isShiftB = !!(event.modifiers & Qt.ShiftModifier);
                             var isAltB = !!(event.modifiers & Qt.AltModifier);
 
-                            if (isCtrlB && !isShiftB && !isAltB && event.key === Qt.Key_C) {
+                            if ((isCtrlB && !isShiftB && !isAltB && event.key === Qt.Key_C) ||
+                                (isCtrlB && !isShiftB && !isAltB && event.key === Qt.Key_Insert)) {
                                 root.editor.copySelectedText();
                                 event.accepted = true;
                                 return;
                             }
-                            if (isCtrlB && !isShiftB && !isAltB && event.key === Qt.Key_X) {
+                            if ((isCtrlB && !isShiftB && !isAltB && event.key === Qt.Key_X) ||
+                                (isShiftB && !isCtrlB && !isAltB && event.key === Qt.Key_Delete)) {
                                 root.editor.copySelectedText();
                                 if (!root.editor.readOnly && typeof root.editor.replaceSelectedRange === "function") {
                                     root.editor.replaceSelectedRange("");
@@ -1916,7 +1936,8 @@ Item {
                             var isShiftM = !!(event.modifiers & Qt.ShiftModifier);
                             var isAltM = !!(event.modifiers & Qt.AltModifier);
 
-                            if (isCtrlM && !isShiftM && !isAltM && event.key === Qt.Key_C) {
+                            if ((isCtrlM && !isShiftM && !isAltM && event.key === Qt.Key_C) ||
+                                (isCtrlM && !isShiftM && !isAltM && event.key === Qt.Key_Insert)) {
                                 var fullSelTxtC = root.getSelectedText();
                                 if (rEditor && typeof rEditor.copyText === "function") {
                                     rEditor.copyText(fullSelTxtC);
@@ -1926,7 +1947,8 @@ Item {
                                 event.accepted = true;
                                 return;
                             }
-                            if (isCtrlM && !isShiftM && !isAltM && event.key === Qt.Key_X) {
+                            if ((isCtrlM && !isShiftM && !isAltM && event.key === Qt.Key_X) ||
+                                (isShiftM && !isCtrlM && !isAltM && event.key === Qt.Key_Delete)) {
                                 var fullSelTxtX = root.getSelectedText();
                                 if (rEditor && typeof rEditor.copyText === "function") {
                                     rEditor.copyText(fullSelTxtX);

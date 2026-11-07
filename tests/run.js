@@ -4664,6 +4664,48 @@ runTest("F94: Keyboard ergonomics contracts: forward word delete (Ctrl+Supr), sm
     assert.ok(blockTableQml.includes('goToDocumentStart'), "BlockTable debe delegar Ctrl+Home");
 });
 
+runTest("F95: Delete key forward, Ctrl+Delete with plain text, Insert overwriteMode and CUA shortcuts contracts", () => {
+    // 1. CustomTextCursor.qml debe detectar isOverwrite y adaptar geometría
+    const customCursorQml = fs.readFileSync(path.resolve(__dirname, '../qml/CustomTextCursor.qml'), 'utf8');
+    assert.ok(customCursorQml.includes('isOverwrite'), "CustomTextCursor debe definir propiedad isOverwrite");
+    assert.ok(customCursorQml.includes('root.isOverwrite && !root.hasSelection'), "CustomTextCursor debe ensanchar el cursor en modo sobreescritura");
+
+    // 2. BlockEditor.qml debe exponer overwriteMode y toggleOverwriteMode, y manejar atajos CUA
+    const blockEditorQml = fs.readFileSync(path.resolve(__dirname, '../qml/BlockEditor.qml'), 'utf8');
+    assert.ok(blockEditorQml.includes('property bool overwriteMode: false'), "BlockEditor debe declarar overwriteMode");
+    assert.ok(blockEditorQml.includes('toggleOverwriteMode'), "BlockEditor debe implementar toggleOverwriteMode()");
+    assert.ok(blockEditorQml.includes('Qt.Key_Insert'), "BlockEditor debe capturar tecla Insert");
+
+    // 3. BlockList.qml debe tener event.accepted = false en onDeletePressed y usar plainText en Ctrl+Delete
+    const blockListQml = fs.readFileSync(path.resolve(__dirname, '../qml/BlockList.qml'), 'utf8');
+    assert.ok(blockListQml.includes('event.accepted = false;'), "BlockList onDeletePressed debe tener fallthrough con event.accepted = false");
+    assert.ok(blockListQml.includes('Inline.plainText(lineEdit)'), "BlockList debe alimentar findNextWordEnd con texto plano");
+    assert.ok(blockListQml.includes('overwriteMode: root.editor ? root.editor.overwriteMode : false'), "BlockList debe sincronizar overwriteMode");
+
+    // 4. BlockParagraph.qml debe tener fallthrough en onDeletePressed y usar plainText
+    const blockParagraphQml = fs.readFileSync(path.resolve(__dirname, '../qml/BlockParagraph.qml'), 'utf8');
+    assert.ok(blockParagraphQml.includes('event.accepted = false;'), "BlockParagraph onDeletePressed debe tener fallthrough con event.accepted = false");
+    assert.ok(blockParagraphQml.includes('Inline.plainText(editInput)'), "BlockParagraph debe alimentar findNextWordEnd con texto plano");
+    assert.ok(blockParagraphQml.includes('overwriteMode: root.editor ? root.editor.overwriteMode : false'), "BlockParagraph debe sincronizar overwriteMode");
+
+    // 5. BlockHeading.qml, BlockQuote.qml, BlockCode.qml, BlockTable.qml
+    const blockHeadingQml = fs.readFileSync(path.resolve(__dirname, '../qml/BlockHeading.qml'), 'utf8');
+    assert.ok(blockHeadingQml.includes('event.accepted = false;'), "BlockHeading onDeletePressed debe tener fallthrough");
+    assert.ok(blockHeadingQml.includes('Inline.plainText(editInput)'), "BlockHeading debe usar plainText en Ctrl+Delete");
+
+    const blockQuoteQml = fs.readFileSync(path.resolve(__dirname, '../qml/BlockQuote.qml'), 'utf8');
+    assert.ok(blockQuoteQml.includes('event.accepted = false;'), "BlockQuote onDeletePressed debe tener fallthrough");
+    assert.ok(blockQuoteQml.includes('Inline.plainText(editInput)'), "BlockQuote debe usar plainText en Ctrl+Delete");
+
+    const blockCodeQml = fs.readFileSync(path.resolve(__dirname, '../qml/BlockCode.qml'), 'utf8');
+    assert.ok(blockCodeQml.includes('event.accepted = false;'), "BlockCode onDeletePressed debe existir con fallthrough");
+    assert.ok(blockCodeQml.includes('Inline.plainText(editInput)'), "BlockCode debe usar plainText en Ctrl+Delete");
+
+    const blockTableQml = fs.readFileSync(path.resolve(__dirname, '../qml/BlockTable.qml'), 'utf8');
+    assert.ok(blockTableQml.includes('Inline.plainText(cellInputD)'), "BlockTable debe usar plainText en Ctrl+Delete de celdas");
+    assert.ok(blockTableQml.includes('Inline.plainText(rawEditor)'), "BlockTable debe usar plainText en Ctrl+Delete de rawEditor");
+});
+
 console.log(`\n========================================`);
 console.log(`Resultados: ${passed} OK, ${failed} FAIL`);
 console.log(`========================================`);

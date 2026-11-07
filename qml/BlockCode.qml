@@ -315,6 +315,7 @@ Rectangle {
         TextEdit {
             id: editInput
             persistentSelection: true
+            overwriteMode: root.editor ? root.editor.overwriteMode : false
             width: Math.max(editFlickable.width, paintedWidth + 20)
             readOnly: !root.isEditing || (root.editor && root.editor.readOnly)
             cursorVisible: activeFocus && root.isEditing && (!root.editor || !root.editor.readOnly)
@@ -513,7 +514,8 @@ Rectangle {
                 if (editInput.selectionStart !== editInput.selectionEnd) {
                     editInput.remove(editInput.selectionStart, editInput.selectionEnd);
                 } else if (editInput.cursorPosition < editInput.length) {
-                    var nextW = Inline.findNextWordEnd(editInput.text, editInput.cursorPosition);
+                    var pText = Inline.plainText(editInput);
+                    var nextW = Inline.findNextWordEnd(pText, editInput.cursorPosition);
                     editInput.remove(editInput.cursorPosition, nextW);
                 } else if (editInput.cursorPosition === editInput.length) {
                     if (root.editor && typeof root.editor.handleBlockDeleteAtEnd === "function") {
@@ -524,14 +526,26 @@ Rectangle {
                 return;
             }
 
+            if (!isCtrl && !isShift && !isAlt && event.key === Qt.Key_Insert) {
+                if (root.editor && typeof root.editor.toggleOverwriteMode === "function") {
+                    root.editor.toggleOverwriteMode();
+                } else {
+                    editInput.overwriteMode = !editInput.overwriteMode;
+                }
+                event.accepted = true;
+                return;
+            }
+
             if (root.editor && root.editor.hasBlockSelection) {
 
-                if (isCtrl && !isShift && !isAlt && event.key === Qt.Key_C) {
+                if ((isCtrl && !isShift && !isAlt && event.key === Qt.Key_C) ||
+                    (isCtrl && !isShift && !isAlt && event.key === Qt.Key_Insert)) {
                     root.editor.copySelectedText();
                     event.accepted = true;
                     return;
                 }
-                if (isCtrl && !isShift && !isAlt && event.key === Qt.Key_X) {
+                if ((isCtrl && !isShift && !isAlt && event.key === Qt.Key_X) ||
+                    (isShift && !isCtrl && !isAlt && event.key === Qt.Key_Delete)) {
                     root.editor.copySelectedText();
                     if (!root.editor.readOnly && typeof root.editor.replaceSelectedRange === "function") {
                         root.editor.replaceSelectedRange("");
@@ -670,6 +684,26 @@ Rectangle {
                     }
                 }
             }
+        }
+
+        Keys.onDeletePressed: (event) => {
+            if (root.editor && root.editor.readOnly) {
+                event.accepted = true;
+                return;
+            }
+            if (editInput.selectionStart !== editInput.selectionEnd) {
+                editInput.remove(editInput.selectionStart, editInput.selectionEnd);
+                event.accepted = true;
+                return;
+            }
+            if (editInput.cursorPosition === editInput.length) {
+                if (root.editor && typeof root.editor.handleBlockDeleteAtEnd === "function") {
+                    root.editor.handleBlockDeleteAtEnd(root.blockData.bid);
+                    event.accepted = true;
+                    return;
+                }
+            }
+            event.accepted = false;
         }
 
         Keys.onUpPressed: (event) => {

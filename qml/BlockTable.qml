@@ -611,12 +611,21 @@ Item {
                 if (cellInputD.selectionStart !== cellInputD.selectionEnd) {
                     cellInputD.remove(cellInputD.selectionStart, cellInputD.selectionEnd);
                 } else if (cellInputD.cursorPosition < cellInputD.length) {
-                    var nextW = Inline.findNextWordEnd(cellInputD.text, cellInputD.cursorPosition);
-                    cellInputD.remove(cellInputD.cursorPosition, nextW);
+                    var pTextD = Inline.plainText(cellInputD);
+                    var nextWD = Inline.findNextWordEnd(pTextD, cellInputD.cursorPosition);
+                    cellInputD.remove(cellInputD.cursorPosition, nextWD);
                 }
                 event.accepted = true;
                 return;
             }
+        }
+
+        if (!isCtrl && !isShift && !isAlt && event.key === Qt.Key_Insert) {
+            if (root.editor && typeof root.editor.toggleOverwriteMode === "function") {
+                root.editor.toggleOverwriteMode();
+            }
+            event.accepted = true;
+            return;
         }
 
         // F23: Ctrl+Shift+V fuerza imagen; Ctrl+V decide por MIME real.
@@ -1055,6 +1064,7 @@ Item {
                                         TextEdit {
                                             id: hInput
                                             persistentSelection: true
+                                            overwriteMode: root.editor ? root.editor.overwriteMode : false
                                             Layout.fillWidth: true
                                             Layout.alignment: Qt.AlignVCenter
                                             wrapMode: TextEdit.WrapAtWordBoundaryOrAnywhere
@@ -1468,6 +1478,7 @@ Item {
                                 TextEdit {
                                     id: cellInput
                                     persistentSelection: true
+                                    overwriteMode: root.editor ? root.editor.overwriteMode : false
                                     visible: dataCell.isCurrentCell
                                     anchors.left: parent.left
                                     anchors.right: parent.right
@@ -1688,6 +1699,7 @@ Item {
     TextEdit {
         id: rawEditor
         persistentSelection: true
+        overwriteMode: root.editor ? root.editor.overwriteMode : false
         visible: root.parsedTable === null
         width: parent.width
         textFormat: TextEdit.PlainText
@@ -1807,8 +1819,19 @@ Item {
                 if (rawEditor.selectionStart !== rawEditor.selectionEnd) {
                     rawEditor.remove(rawEditor.selectionStart, rawEditor.selectionEnd);
                 } else if (rawEditor.cursorPosition < rawEditor.length) {
-                    var nextW = Inline.findNextWordEnd(rawEditor.text, rawEditor.cursorPosition);
-                    rawEditor.remove(rawEditor.cursorPosition, nextW);
+                    var pTextR = Inline.plainText(rawEditor);
+                    var nextWR = Inline.findNextWordEnd(pTextR, rawEditor.cursorPosition);
+                    rawEditor.remove(rawEditor.cursorPosition, nextWR);
+                }
+                event.accepted = true;
+                return;
+            }
+
+            if (!isCtrl && !isShift && !isAlt && event.key === Qt.Key_Insert) {
+                if (root.editor && typeof root.editor.toggleOverwriteMode === "function") {
+                    root.editor.toggleOverwriteMode();
+                } else {
+                    rawEditor.overwriteMode = !rawEditor.overwriteMode;
                 }
                 event.accepted = true;
                 return;
