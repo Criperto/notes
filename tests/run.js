@@ -4719,8 +4719,12 @@ runTest("F96: Phase P9 — System installation, AUR PKGBUILD, Flatpak manifest, 
     const aurPkgbuild = path.resolve(__dirname, '../packaging/arch/PKGBUILD');
     assert.ok(fs.existsSync(aurPkgbuild), "packaging/arch/PKGBUILD debe existir");
     const aurContent = fs.readFileSync(aurPkgbuild, 'utf8');
+    const cargoTomlPath = path.resolve(__dirname, '../Cargo.toml');
+    const cargoContent = fs.readFileSync(cargoTomlPath, 'utf8');
+    const cargoVerMatch = cargoContent.match(/^version\s*=\s*"([^"]+)"/m);
+    const expectedVer = cargoVerMatch ? cargoVerMatch[1] : "0.1.10";
     assert.ok(aurContent.includes("pkgname=notas"), "PKGBUILD debe definir pkgname=notas");
-    assert.ok(aurContent.includes("pkgver=0.1.10"), "PKGBUILD debe reflejar versión 0.1.10");
+    assert.ok(aurContent.includes(`pkgver=${expectedVer}`), `PKGBUILD debe reflejar versión ${expectedVer}`);
     assert.ok(aurContent.includes("install-system.sh"), "PKGBUILD debe invocar install-system.sh");
 
     // 3. packaging/arch/notas-git/PKGBUILD
@@ -4757,6 +4761,24 @@ runTest("F96: Phase P9 — System installation, AUR PKGBUILD, Flatpak manifest, 
     const metainfoContent = fs.readFileSync(metainfoFile, 'utf8');
     assert.ok(metainfoContent.includes("<developer id=\"dev.criperto\">"), "Metainfo debe incluir etiqueta developer con id");
     assert.ok(metainfoContent.includes("<content_rating type=\"oars-1.1\"/>"), "Metainfo debe incluir content_rating");
+});
+
+runTest("P9.2 - Script maestro de release y compilación (scripts/release.sh)", () => {
+    const releaseScript = path.resolve(__dirname, '../scripts/release.sh');
+    assert.ok(fs.existsSync(releaseScript), "scripts/release.sh debe existir");
+    const stat = fs.statSync(releaseScript);
+    assert.ok((stat.mode & 0o111) !== 0, "scripts/release.sh debe tener permisos de ejecución");
+    const content = fs.readFileSync(releaseScript, 'utf8');
+    assert.ok(content.includes("--patch"), "release.sh debe soportar flag --patch");
+    assert.ok(content.includes("--minor"), "release.sh debe soportar flag --minor");
+    assert.ok(content.includes("--major"), "release.sh debe soportar flag --major");
+    assert.ok(content.includes("--github"), "release.sh debe soportar flag --github");
+    assert.ok(content.includes("--dry-run"), "release.sh debe soportar flag --dry-run");
+
+    // Verificar integración en scripts/build.sh
+    const buildScript = path.resolve(__dirname, '../scripts/build.sh');
+    const buildContent = fs.readFileSync(buildScript, 'utf8');
+    assert.ok(buildContent.includes("release.sh"), "build.sh debe integrar delegación a release.sh");
 });
 
 console.log(`\n========================================`);

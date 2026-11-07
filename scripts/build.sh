@@ -24,12 +24,8 @@ case "${CMD}" in
         echo "✓ Binario listo en target/debug/criperto.notes. Lanzando..."
         exec "${ROOT_DIR}/target/debug/criperto.notes" "$@"
         ;;
-    release)
-        echo "📦 [build.sh] Compilando en modo RELEASE con optimizaciones..."
-        cargo build --release
-        ln -sf criperto-notes "${ROOT_DIR}/target/release/criperto.notes"
-        ln -sf criperto-notes "${ROOT_DIR}/target/release/notas"
-        echo "✓ Binarios listos en ${ROOT_DIR}/target/release/"
+    release|publish)
+        exec "${SCRIPT_DIR}/release.sh" "$@"
         ;;
     install)
         echo "📦 [build.sh] Compilando e instalando en ~/.local/bin/..."
@@ -58,7 +54,7 @@ case "${CMD}" in
         echo "✓ Limpieza finalizada."
         ;;
     *)
-        echo "Uso: $0 [dev [args...] | release | install | check | clean]"
+        echo "Uso: $0 [dev [args...] | release [flags...] | publish [flags...] | install | check | clean]"
         exit 1
         ;;
 esac
