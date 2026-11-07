@@ -13,7 +13,63 @@ Window {
 
     property var target: null
     property var extraItems: []
+    property var editor: null
     signal extraItemTriggered(var item)
+
+    function _hasAnySelection() {
+        if (editor && typeof editor.hasBlockSelection !== "undefined" && editor.hasBlockSelection) return true;
+        if (target && typeof target.selectedText === "string" && target.selectedText !== "") return true;
+        return false;
+    }
+
+    function _performCopy() {
+        if (editor && typeof editor.hasBlockSelection !== "undefined" && editor.hasBlockSelection) {
+            var txt = (typeof editor.getSelectedText === "function") ? editor.getSelectedText() : "";
+            if (txt !== "") {
+                if (typeof editor.copyText === "function") {
+                    editor.copyText(txt);
+                } else if (typeof Quickshell.clipboardText !== "undefined") {
+                    Quickshell.clipboardText = txt;
+                }
+                return;
+            }
+        }
+        if (target && typeof target.copy === "function") {
+            target.copy();
+        }
+    }
+
+    function _performCut() {
+        if (editor && typeof editor.hasBlockSelection !== "undefined" && editor.hasBlockSelection) {
+            var txt = (typeof editor.getSelectedText === "function") ? editor.getSelectedText() : "";
+            if (txt !== "") {
+                if (typeof editor.copyText === "function") {
+                    editor.copyText(txt);
+                } else if (typeof Quickshell.clipboardText !== "undefined") {
+                    Quickshell.clipboardText = txt;
+                }
+                if (typeof editor.replaceSelectedRange === "function") {
+                    editor.replaceSelectedRange("");
+                }
+                return;
+            }
+        }
+        if (target && typeof target.cut === "function") {
+            target.cut();
+        }
+    }
+
+    function _performDelete() {
+        if (editor && typeof editor.hasBlockSelection !== "undefined" && editor.hasBlockSelection) {
+            if (typeof editor.replaceSelectedRange === "function") {
+                editor.replaceSelectedRange("");
+                return;
+            }
+        }
+        if (target && typeof target.remove === "function") {
+            target.remove(target.selectionStart, target.selectionEnd);
+        }
+    }
 
     readonly property real shadowPadding: 14
     readonly property real maxMenuHeight: Math.min(520, (Screen.desktopAvailableHeight > 0) ? (Screen.desktopAvailableHeight - 80) : 520)
@@ -96,17 +152,17 @@ Window {
         if (target && !target.readOnly && target.canRedo) {
             list.push({ type: "standard", id: "redo", trigger: function() { if (target) target.redo(); menuWindow.close(); } });
         }
-        if (target && !target.readOnly && target.selectedText !== "") {
-            list.push({ type: "standard", id: "cut", trigger: function() { if (target) target.cut(); menuWindow.close(); } });
+        if (target && !target.readOnly && _hasAnySelection()) {
+            list.push({ type: "standard", id: "cut", trigger: function() { _performCut(); menuWindow.close(); } });
         }
-        if (target && target.selectedText !== "") {
-            list.push({ type: "standard", id: "copy", trigger: function() { if (target) target.copy(); menuWindow.close(); } });
+        if (target && _hasAnySelection()) {
+            list.push({ type: "standard", id: "copy", trigger: function() { _performCopy(); menuWindow.close(); } });
         }
         if (target && !target.readOnly && target.canPaste) {
             list.push({ type: "standard", id: "paste", trigger: function() { if (target) target.paste(); menuWindow.close(); } });
         }
-        if (target && !target.readOnly && target.selectedText !== "") {
-            list.push({ type: "standard", id: "delete", trigger: function() { if (target) target.remove(target.selectionStart, target.selectionEnd); menuWindow.close(); } });
+        if (target && !target.readOnly && _hasAnySelection()) {
+            list.push({ type: "standard", id: "delete", trigger: function() { _performDelete(); menuWindow.close(); } });
         }
         if (target && target.text !== "") {
             list.push({ type: "standard", id: "selectAll", trigger: function() { if (target) target.selectAll(); menuWindow.close(); } });
@@ -732,7 +788,7 @@ Window {
                     Item {
                         id: cutItem
                         visible: target ? !target.readOnly : false
-                        enabled: target ? target.selectedText !== "" : false
+                        enabled: target ? menuWindow._hasAnySelection() : false
                         readonly property bool isItemActive: (cutMA.containsMouse || menuWindow.isItemHighlighted("standard", "cut")) && cutItem.enabled
                         opacity: enabled ? 1.0 : 0.4
                         Layout.fillWidth: true
@@ -832,7 +888,7 @@ Window {
                                 if (!containsMouse) cutTextClip.offset = 0;
                             }
                             onClicked: {
-                                if (target) target.cut();
+                                menuWindow._performCut();
                                 menuWindow.close();
                             }
                         }
@@ -841,7 +897,7 @@ Window {
                     // Copiar
                     Item {
                         id: copyItem
-                        enabled: target ? target.selectedText !== "" : false
+                        enabled: target ? menuWindow._hasAnySelection() : false
                         readonly property bool isItemActive: (copyMA.containsMouse || menuWindow.isItemHighlighted("standard", "copy")) && copyItem.enabled
                         opacity: enabled ? 1.0 : 0.4
                         Layout.fillWidth: true
@@ -941,7 +997,7 @@ Window {
                                 if (!containsMouse) copyTextClip.offset = 0;
                             }
                             onClicked: {
-                                if (target) target.copy();
+                                menuWindow._performCopy();
                                 menuWindow.close();
                             }
                         }
@@ -1061,7 +1117,7 @@ Window {
                     Item {
                         id: deleteItem
                         visible: target ? !target.readOnly : false
-                        enabled: target ? target.selectedText !== "" : false
+                        enabled: target ? menuWindow._hasAnySelection() : false
                         readonly property bool isItemActive: (deleteMA.containsMouse || menuWindow.isItemHighlighted("standard", "delete")) && deleteItem.enabled
                         opacity: enabled ? 1.0 : 0.4
                         Layout.fillWidth: true
@@ -1161,7 +1217,7 @@ Window {
                                 if (!containsMouse) deleteTextClip.offset = 0;
                             }
                             onClicked: {
-                                if (target) target.remove(target.selectionStart, target.selectionEnd);
+                                menuWindow._performDelete();
                                 menuWindow.close();
                             }
                         }

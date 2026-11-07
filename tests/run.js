@@ -4531,6 +4531,23 @@ runTest("F90: Accesibilidad, navegación por teclado y escalado integral de inte
     }
 });
 
+runTest("F91: Multi-item selection, copy, cut, and context menu contracts in lists (BlockList & ContextMenu)", () => {
+    const blockListQml = fs.readFileSync(path.resolve(__dirname, '../qml/BlockList.qml'), 'utf8');
+    assert.ok(blockListQml.includes('function hasMultipleItemsSelected()'), "BlockList debe proveer hasMultipleItemsSelected");
+    assert.ok(blockListQml.includes('function updateMultiItemSelectionState()'), "BlockList debe proveer updateMultiItemSelectionState");
+    assert.ok(blockListQml.includes('var isMulti = root.hasMultipleItemsSelected() || root.hasMultiItemSelection'), "Keys.onPressed en BlockList debe validar selección múltiple");
+
+    const blockEditorQml = fs.readFileSync(path.resolve(__dirname, '../qml/BlockEditor.qml'), 'utf8');
+    assert.ok(blockEditorQml.includes('hasMultipleItemsSelected'), "BlockEditor debe verificar hasMultipleItemsSelected");
+
+    const contextMenuQml = fs.readFileSync(path.resolve(__dirname, '../qml/ContextMenu.qml'), 'utf8');
+    assert.ok(contextMenuQml.includes('property var editor: null'), "ContextMenu debe soportar vinculación a editor");
+    assert.ok(contextMenuQml.includes('function _hasAnySelection()'), "ContextMenu debe contar con _hasAnySelection()");
+    assert.ok(contextMenuQml.includes('function _performCopy()'), "ContextMenu debe delegar copia en _performCopy()");
+    assert.ok(contextMenuQml.includes('function _performCut()'), "ContextMenu debe delegar corte en _performCut()");
+    assert.ok(contextMenuQml.includes('function _performDelete()'), "ContextMenu debe delegar borrado en _performDelete()");
+});
+
 console.log(`\n========================================`);
 console.log(`Resultados: ${passed} OK, ${failed} FAIL`);
 console.log(`========================================`);

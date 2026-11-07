@@ -597,6 +597,7 @@ Item {
                 }
             }
         }
+        updateMultiItemSelectionState();
     }
 
     function selectAllText() {
@@ -606,6 +607,7 @@ Item {
                 del.selectAllText();
             }
         }
+        updateMultiItemSelectionState();
     }
 
     function clearTextSelection(exceptItemIdx) {
@@ -616,15 +618,36 @@ Item {
                 del.clearTextSelection();
             }
         }
+        updateMultiItemSelectionState();
     }
 
     function clearOtherItemsSelection(keepIndex) {
         clearTextSelection(keepIndex);
+        updateMultiItemSelectionState();
     }
 
-    readonly property bool hasMultiItemSelection: {
-        var rg = selectedItemRange();
-        return (rg.from !== -1 && rg.to !== -1 && rg.from < rg.to);
+    property bool hasMultiItemSelection: false
+
+    function hasMultipleItemsSelected() {
+        var count = 0;
+        for (var i = 0; i < itemsRepeater.count; i++) {
+            var del = itemsRepeater.itemAt(i);
+            if (!del) continue;
+            var te = (typeof del.getTextEdit === "function") ? del.getTextEdit() : null;
+            if (te && typeof te.selectionStart === "number" && typeof te.selectionEnd === "number" && te.selectionStart !== te.selectionEnd) {
+                count++;
+                if (count > 1) return true;
+            }
+        }
+        return false;
+    }
+
+    function updateMultiItemSelectionState() {
+        var multi = hasMultipleItemsSelected();
+        if (hasMultiItemSelection !== multi) {
+            hasMultiItemSelection = multi;
+        }
+        return multi;
     }
 
     function isItemSelectionStart(itemIdx) {
@@ -1393,7 +1416,8 @@ Item {
                     activeFocusOnTab: false
 
                     onSelectionStartChanged: {
-                        if (root.editor && !root.editor._syncingSelection && !root.editor.hasBlockSelection && !root.editor.isDraggingSelection && !root.hasMultiItemSelection) {
+                        root.updateMultiItemSelectionState();
+                        if (root.editor && !root.editor._syncingSelection && !root.editor.hasBlockSelection && !root.editor.isDraggingSelection && !root.hasMultipleItemsSelected()) {
                             if (lineEdit.selectionStart !== lineEdit.selectionEnd) {
                                 root.clearOtherItemsSelection(itemRow.index);
                                 if (root.blockData && typeof root.editor.notifySingleInputSelection === "function") {
@@ -1407,7 +1431,8 @@ Item {
                         }
                     }
                     onSelectionEndChanged: {
-                        if (root.editor && !root.editor._syncingSelection && !root.editor.hasBlockSelection && !root.editor.isDraggingSelection && !root.hasMultiItemSelection) {
+                        root.updateMultiItemSelectionState();
+                        if (root.editor && !root.editor._syncingSelection && !root.editor.hasBlockSelection && !root.editor.isDraggingSelection && !root.hasMultipleItemsSelected()) {
                             if (lineEdit.selectionStart !== lineEdit.selectionEnd) {
                                 root.clearOtherItemsSelection(itemRow.index);
                                 if (root.blockData && typeof root.editor.notifySingleInputSelection === "function") {
@@ -1421,7 +1446,7 @@ Item {
                         }
                     }
                     onCursorPositionChanged: {
-                        if (root.editor && !root.editor._syncingSelection && !root.editor.hasBlockSelection && !root.editor.isDraggingSelection && !root.hasMultiItemSelection) {
+                        if (root.editor && !root.editor._syncingSelection && !root.editor.hasBlockSelection && !root.editor.isDraggingSelection && !root.hasMultipleItemsSelected()) {
                             if (lineEdit.selectionStart === lineEdit.selectionEnd) {
                                 root.clearOtherItemsSelection(itemRow.index);
                                 if (root.blockData && typeof root.editor.notifySingleInputSelection === "function") {
@@ -1430,6 +1455,7 @@ Item {
                             }
                             if (typeof root.editor.updateFormatState === "function") root.editor.updateFormatState();
                         }
+                        root.updateMultiItemSelectionState();
                         if (root.isEditing && !lineEdit._syncingLocal && root.activeItemIndex === itemRow.index) {
                             lineEdit._updateLiveFormatting();
                         }
@@ -1813,26 +1839,52 @@ Item {
                             }
                         }
 
-                        if (root.hasMultiItemSelection) {
-                            if (event.key === Qt.Key_Backspace || event.key === Qt.Key_Delete) {
-                                root.deleteMultiItemSelection();
-                                event.accepted = true;
-                                return;
-                            }
-                            if ((event.modifiers & Qt.ControlModifier) && (event.key === Qt.Key_C || event.key === Qt.Key_X)) {
-                                var fullSelTxt = root.getSelectedText();
+                        var isMulti = root.hasMultipleItemsSelected() || root.hasMultiItemSelection;
+                        if (isMulti) {
+                            var isCtrlM = !!(event.modifiers & Qt.ControlModifier);
+                            var isShiftM = !!(event.modifiers & Qt.ShiftModifier);
+                            var isAltM = !!(event.modifiers & Qt.AltModifier);
+
+                            if (isCtrlM && !isShiftM && !isAltM && event.key === Qt.Key_C) {
+                                var fullSelTxtC = root.getSelectedText();
                                 if (rEditor && typeof rEditor.copyText === "function") {
-                                    rEditor.copyText(fullSelTxt);
+                                    rEditor.copyText(fullSelTxtC);
                                 } else if (typeof Quickshell.clipboardText !== "undefined") {
-                                    Quickshell.clipboardText = fullSelTxt;
-                                }
-                                if (event.key === Qt.Key_X) {
-                                    root.deleteMultiItemSelection();
+                                    Quickshell.clipboardText = fullSelTxtC;
                                 }
                                 event.accepted = true;
                                 return;
                             }
-                            if (event.text && event.text.length > 0 && !event.modifiers) {
+                            if (isCtrlM && !isShiftM && !isAltM && event.key === Qt.Key_X) {
+                                var fullSelTxtX = root.getSelectedText();
+                                if (rEditor && typeof rEditor.copyText === "function") {
+                                    rEditor.copyText(fullSelTxtX);
+                                } else if (typeof Quickshell.clipboardText !== "undefined") {
+                                    Quickshell.clipboardText = fullSelTxtX;
+                                }
+                                root.deleteMultiItemSelection("");
+                                event.accepted = true;
+                                return;
+                            }
+                            if ((isCtrlM && !isShiftM && !isAltM && event.key === Qt.Key_V) ||
+                                (isShiftM && !isCtrlM && !isAltM && event.key === Qt.Key_Insert)) {
+                                var pasteTxtM = (typeof Quickshell.clipboardText === "string") ? Quickshell.clipboardText : "";
+                                root.deleteMultiItemSelection(pasteTxtM);
+                                event.accepted = true;
+                                return;
+                            }
+                            if (event.key === Qt.Key_Backspace || event.key === Qt.Key_Delete) {
+                                root.deleteMultiItemSelection("");
+                                event.accepted = true;
+                                return;
+                            }
+                            if (event.key === Qt.Key_Escape) {
+                                root.clearTextSelection();
+                                if (rEditor) rEditor.clearBlockSelection();
+                                event.accepted = true;
+                                return;
+                            }
+                            if (!isCtrlM && !isAltM && event.text && event.text.length > 0 && event.key !== Qt.Key_Return && event.key !== Qt.Key_Enter) {
                                 root.deleteMultiItemSelection(event.text);
                                 event.accepted = true;
                                 return;

@@ -502,7 +502,16 @@ Flickable {
             if (sLoader && sLoader.item && typeof sLoader.item.selectRange === "function") {
                 sLoader.item.selectRange(root.selAnchorPos, curPos);
             }
-            if (root.hasBlockSelection) root.selectedBids = ({});
+            var isMultiItem = (sLoader && sLoader.item && typeof sLoader.item.hasMultipleItemsSelected === "function")
+                ? sLoader.item.hasMultipleItemsSelected() : false;
+            if (isMultiItem) {
+                var newSel = {};
+                var bCur = blocksModel.get(startIdx);
+                if (bCur) newSel[bCur.bid] = true;
+                root.selectedBids = newSel;
+            } else {
+                if (root.hasBlockSelection) root.selectedBids = ({});
+            }
             root._syncingSelection = false;
             root.updateFormatState();
             return;
@@ -831,7 +840,10 @@ Flickable {
         if (startIdx === endIdx) {
             var bSame = blocksModel.get(startIdx);
             var ldrSame = blocksRepeater.itemAt(startIdx);
-            if (ldrSame && ldrSame.item && typeof ldrSame.item.hasMultiItemSelection !== "undefined" && ldrSame.item.hasMultiItemSelection) {
+            var isMultiSame = (ldrSame && ldrSame.item && typeof ldrSame.item.hasMultipleItemsSelected === "function")
+                ? ldrSame.item.hasMultipleItemsSelected()
+                : (ldrSame && ldrSame.item && ldrSame.item.hasMultiItemSelection);
+            if (isMultiSame) {
                 ldrSame.item.deleteMultiItemSelection(replacementText);
                 clearBlockSelection();
                 contentModified();

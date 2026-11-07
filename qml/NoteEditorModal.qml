@@ -3782,6 +3782,7 @@ Item {
     // Menú contextual para el editor (Regla 9 .instrucciones.md)
     ContextMenu {
         id: editorContextMenu
+        editor: root.blockEditor
     }
 
     function _resolvePortalPickerPath() {
