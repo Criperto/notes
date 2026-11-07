@@ -43,6 +43,7 @@ PUBLISH_GITHUB=false
 DRY_RUN=false
 RUN_TESTS=true
 DO_INSTALL=true
+DO_PACKAGE=false
 RELEASE_DESC=""
 COMMIT_MSG=""
 
@@ -118,6 +119,11 @@ while [[ $# -gt 0 ]]; do
             ;;
         --github|--publish|-g)
             PUBLISH_GITHUB=true
+            DO_PACKAGE=true
+            shift
+            ;;
+        --package|--dist)
+            DO_PACKAGE=true
             shift
             ;;
         -n|--dry-run)
@@ -350,15 +356,44 @@ echo "   ✓ Binario generado en target/release/criperto-notes (versión ${NEW_V
 
 # 6. Instalación local en el sistema del usuario
 if [[ "${DO_INSTALL}" == true ]]; then
-    echo -e "\n${BLUE}💻 [4/5] Instalando en el entorno local (~/.local/bin/notas)...${NC}"
+    echo -e "\n${BLUE}💻 [4/6] Instalando en el entorno local (~/.local/bin/notas)...${NC}"
     "${ROOT_DIR}/scripts/install.sh"
 else
-    echo -e "\n${DIM}💻 [4/5] Instalación local omitida (--no-install)${NC}"
+    echo -e "\n${DIM}💻 [4/6] Instalación local omitida (--no-install)${NC}"
 fi
 
-# 7. Publicación en GitHub (Opcional, sólo con --github)
+# 7. Empaquetado local de distribución (dist/)
+if [[ "${DO_PACKAGE}" == true ]]; then
+    echo -e "\n${BLUE}🎁 [5/6] Generando paquetes de distribución en dist/...${NC}"
+    DIST_DIR="${ROOT_DIR}/dist"
+    PKG_TEMP="${DIST_DIR}/notas-${NEW_VER}"
+    rm -rf "${PKG_TEMP}"
+    mkdir -p "${PKG_TEMP}"
+
+    PREFIX="/usr" DESTDIR="${PKG_TEMP}" bash "${ROOT_DIR}/scripts/install-system.sh" >/dev/null 2>&1
+    cp "${ROOT_DIR}/README.md" "${ROOT_DIR}/LICENSE" "${PKG_TEMP}/"
+
+    tar -czf "${DIST_DIR}/notas-${NEW_VER}-x86_64-linux.tar.gz" -C "${DIST_DIR}" "notas-${NEW_VER}"
+    (cd "${DIST_DIR}" && sha256sum "notas-${NEW_VER}-x86_64-linux.tar.gz" > "notas-${NEW_VER}-x86_64-linux.tar.gz.sha256")
+    rm -rf "${PKG_TEMP}"
+    echo "   ✓ Tarball generado: dist/notas-${NEW_VER}-x86_64-linux.tar.gz"
+
+    if [[ -f "${ROOT_DIR}/packaging/appimage/build-appimage.sh" ]]; then
+        echo "   📦 Generando AppImage local..."
+        bash "${ROOT_DIR}/packaging/appimage/build-appimage.sh" >/dev/null 2>&1 || true
+        if ls "${ROOT_DIR}/packaging/appimage/out/"*.AppImage 1> /dev/null 2>&1; then
+            cp "${ROOT_DIR}/packaging/appimage/out/"*.AppImage "${DIST_DIR}/"
+            (cd "${DIST_DIR}" && for f in *.AppImage; do sha256sum "$f" > "${f}.sha256"; done)
+            echo "   ✓ AppImage copiado a dist/"
+        fi
+    fi
+else
+    echo -e "\n${DIM}🎁 [5/6] Empaquetado de distribución dist/ omitido (usar --package o --github)${NC}"
+fi
+
+# 8. Publicación en GitHub (Opcional, sólo con --github)
 if [[ "${PUBLISH_GITHUB}" == true ]]; then
-    echo -e "\n${BLUE}🚀 [5/5] Publicando en GitHub (Tagging + Push)...${NC}"
+    echo -e "\n${BLUE}🚀 [6/6] Publicando en GitHub (Tagging + Push)...${NC}"
 
     # Staging selectivo y explícito de archivos de versión
     FILES_TO_STAGE=(
@@ -398,13 +433,16 @@ if [[ "${PUBLISH_GITHUB}" == true ]]; then
     git push origin HEAD --tags
     echo -e "${GREEN}   ✓ Push exitoso. GitHub Actions procesará el release v${NEW_VER}.${NC}"
 else
-    echo -e "\n${DIM}🚀 [5/5] Publicación remota omitida (ejecución 100% local sin spam en GitHub)${NC}"
+    echo -e "\n${DIM}🚀 [6/6] Publicación remota omitida (ejecución 100% local sin spam en GitHub)${NC}"
 fi
 
 echo -e "\n${GREEN}${BOLD}===============================================================================${NC}"
 echo -e "${GREEN}${BOLD}🎉 ¡Operación completada exitosamente!${NC}"
 echo -e "   • Versión activa : ${BOLD}v${NEW_VER}${NC}"
 echo -e "   • Binario local  : ~/.local/bin/notas"
+if [[ -d "${ROOT_DIR}/dist" ]] && ls "${ROOT_DIR}/dist"/*.tar.gz 1>/dev/null 2>&1; then
+    echo -e "   • Paquetes dist/ : ${ROOT_DIR}/dist/"
+fi
 if [[ "${PUBLISH_GITHUB}" == true ]]; then
     echo -e "   • GitHub Release : https://github.com/Criperto/notes/releases/tag/v${NEW_VER}"
 fi

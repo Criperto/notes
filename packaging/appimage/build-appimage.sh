@@ -64,10 +64,10 @@ else
 fi
 
 if [[ -n "${APPIMAGETOOL}" && -x "${APPIMAGETOOL}" ]]; then
-    VERSION="$(cargo pkgid --manifest-path "${REPO_DIR}/Cargo.toml" | cut -d# -f2 | cut -d: -f2)"
+    VERSION="$(grep -E '^version\s*=' "${REPO_DIR}/Cargo.toml" | head -n1 | sed -E 's/^version\s*=\s*"([^"]+)".*/\1/')"
     OUTPUT_FILE="${OUTPUT_DIR}/Notas-${VERSION}-x86_64.AppImage"
     echo "==> Generando ${OUTPUT_FILE}..."
-    ARCH=x86_64 "${APPIMAGETOOL}" "${APP_DIR}" "${OUTPUT_FILE}"
+    ARCH=x86_64 "${APPIMAGETOOL}" --appimage-extract-and-run "${APP_DIR}" "${OUTPUT_FILE}"
     echo "✓ AppImage generado con éxito en ${OUTPUT_FILE}"
 else
     echo "ℹ Nota: appimagetool no disponible para empaquetado final local. AppDir preparado en ${APP_DIR}."

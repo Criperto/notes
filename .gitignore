@@ -9,3 +9,6 @@
 compile_commands.json
 .qmlls.ini
 /bin/
+/dist/
+packaging/appimage/build/
+packaging/appimage/out/
