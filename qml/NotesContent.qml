@@ -15,12 +15,24 @@ Item {
     signal closeRequested
     signal openSettingsRequested(var originRect)
     property bool isSettingsOpen: false
+    signal openShortcutsRequested(var originRect)
+    property bool isShortcutsOpen: false
 
     function getSettingsButtonRect() {
         if (!settingsBtn) return null;
         try {
             var origin = settingsBtn.mapToItem(null, 0, 0);
             return Qt.rect(origin.x, origin.y, settingsBtn.width, settingsBtn.height);
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function getShortcutsButtonRect() {
+        if (!shortcutsBtn) return null;
+        try {
+            var origin = shortcutsBtn.mapToItem(null, 0, 0);
+            return Qt.rect(origin.x, origin.y, shortcutsBtn.width, shortcutsBtn.height);
         } catch (e) {
             return null;
         }
@@ -689,29 +701,32 @@ Item {
                         Layout.preferredHeight: 38
                         Layout.preferredWidth: 38
                         radius: 10
-                        color: (shortcutsMa.containsMouse || shortcutsBtn.activeFocus) ? Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.1) : Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.05)
+                        opacity: (root.isShortcutsOpen && !NotesService.isEditing) ? 0.0 : 1.0
+                        color: shortcutsMa.containsMouse ? Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.1) : Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.05)
                         border.color: Qt.hsva(Theme.text.hsvHue, Theme.text.hsvSaturation, Theme.text.hsvValue, 0.12)
                         border.width: 1
-
-                        activeFocusOnTab: true
-                        Accessible.role: Accessible.Button
-                        Accessible.name: I18n.t("shortcuts.title", "Atajos de Teclado")
-                        Accessible.description: "Ctrl+/"
-
-                        FocusRing {
-                            target: shortcutsBtn
-                        }
 
                         Behavior on color {
                             enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
                             ColorAnimation { duration: 120; easing.type: Easing.OutCubic }
                         }
 
-                        Text {
+                        Image {
                             anchors.centerIn: parent
-                            text: "⌨"
-                            font.pixelSize: Theme.fontSizeTitle
-                            color: shortcutsMa.containsMouse ? Theme.text : Theme.muted
+                            width: 16
+                            height: 16
+                            source: Theme.iconsPath + "keyboard.svg"
+                            sourceSize: Qt.size(16, 16)
+                            layer.enabled: true
+                            layer.effect: MultiEffect {
+                                colorization: 1.0
+                                colorizationColor: shortcutsMa.containsMouse ? Theme.text : Theme.muted
+
+                                Behavior on colorizationColor {
+                                    enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                                    ColorAnimation { duration: 120; easing.type: Easing.OutCubic }
+                                }
+                            }
                         }
 
                         MouseArea {
@@ -719,12 +734,26 @@ Item {
                             anchors.fill: parent
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: shortcutsSheet.open()
+                            onClicked: {
+                                var origin = shortcutsBtn.mapToItem(null, 0, 0);
+                                root.openShortcutsRequested(Qt.rect(origin.x, origin.y, shortcutsBtn.width, shortcutsBtn.height));
+                            }
                         }
 
-                        Keys.onReturnPressed: shortcutsSheet.open()
-                        Keys.onEnterPressed: shortcutsSheet.open()
-                        Keys.onSpacePressed: shortcutsSheet.open()
+                        activeFocusOnTab: true
+                        Accessible.role: Accessible.Button
+                        Accessible.name: I18n.t("shortcuts.title", "Atajos de Teclado")
+
+                        FocusRing {
+                            target: shortcutsBtn
+                        }
+
+                        Keys.onReturnPressed: {
+                            var origin = shortcutsBtn.mapToItem(null, 0, 0);
+                            root.openShortcutsRequested(Qt.rect(origin.x, origin.y, shortcutsBtn.width, shortcutsBtn.height));
+                        }
+                        Keys.onEnterPressed: Keys.onReturnPressed()
+                        Keys.onSpacePressed: Keys.onReturnPressed()
                     }
 
                     // ── Barra de búsqueda rápida (Regla 9 de .instrucciones.md) ──
@@ -2540,15 +2569,9 @@ Item {
         }
     }
 
-    ShortcutsSheet {
-        id: shortcutsSheet
-        anchors.fill: parent
-    }
-
     function openShortcutsSheet() {
-        if (shortcutsSheet) {
-            shortcutsSheet.open();
-        }
+        var rect = getShortcutsButtonRect();
+        root.openShortcutsRequested(rect);
     }
 
     // ── Funciones de animación y ciclo de vida de morfismo ──────────────────

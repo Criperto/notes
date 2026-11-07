@@ -59,7 +59,6 @@ ClippingRectangle {
     }
 
     FocusRing {
-        target: root
         cornerRadius: root.radius
     }
 

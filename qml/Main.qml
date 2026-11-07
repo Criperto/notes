@@ -20,12 +20,21 @@ ApplicationWindow {
         initialAction: (typeof Sys !== "undefined") ? Sys.initialAction : ""
         initialTarget: (typeof Sys !== "undefined") ? Sys.initialTarget : ""
         isSettingsOpen: settingsModal.isOpen || settingsModal.isClosing
+        isShortcutsOpen: shortcutsModal.isOpen || shortcutsModal.isClosing
         onCloseRequested: root.close()
         onOpenSettingsRequested: (originRect) => settingsModal.open(originRect)
+        onOpenShortcutsRequested: (originRect) => shortcutsModal.open(originRect)
     }
 
     NotesSettingsModal {
         id: settingsModal
+        anchors.fill: parent
+        z: 9999
+        backgroundSourceItem: content
+    }
+
+    ShortcutsSheet {
+        id: shortcutsModal
         anchors.fill: parent
         z: 9999
         backgroundSourceItem: content
@@ -45,9 +54,33 @@ ApplicationWindow {
         }
     }
 
+    function toggleShortcuts() {
+        if (shortcutsModal.isOpen && !shortcutsModal.isClosing) {
+            shortcutsModal.close();
+        } else {
+            var noteIsActive = (typeof NotesService !== "undefined" && NotesService.isEditing);
+            if (!noteIsActive && content && typeof content.getShortcutsButtonRect === "function") {
+                var btnRect = content.getShortcutsButtonRect();
+                shortcutsModal.open(btnRect);
+            } else {
+                shortcutsModal.open();
+            }
+        }
+    }
+
     Shortcut {
         sequence: "Ctrl+,"
         onActivated: root.toggleSettings()
+    }
+
+    Shortcut {
+        sequence: "Ctrl+/"
+        onActivated: root.toggleShortcuts()
+    }
+
+    Shortcut {
+        sequence: "F1"
+        onActivated: root.toggleShortcuts()
     }
 
     Shortcut {

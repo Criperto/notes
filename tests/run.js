@@ -4472,11 +4472,12 @@ runTest("F90: Accesibilidad, navegación por teclado y escalado integral de inte
     assert.ok(themeQml.includes('readonly property real uiScale:'), "Theme debe definir uiScale");
     assert.ok(themeQml.includes('function s(px)'), "Theme debe definir helper s(px)");
 
-    // 4. Verificación de navegación por teclado y atajos en NotesContent.qml
+    // 4. Verificación de navegación por teclado y atajos en NotesContent.qml y Main.qml
     const notesContentQml = fs.readFileSync(path.resolve(__dirname, '../qml/NotesContent.qml'), 'utf8');
-    assert.ok(notesContentQml.includes('ShortcutsSheet {'), "NotesContent debe instanciar ShortcutsSheet");
+    const mainQml = fs.readFileSync(path.resolve(__dirname, '../qml/Main.qml'), 'utf8');
+    assert.ok(mainQml.includes('ShortcutsSheet {') || notesContentQml.includes('ShortcutsSheet {'), "ShortcutsSheet debe estar instanciado");
     assert.ok(notesContentQml.includes('id: shortcutsBtn'), "NotesContent debe tener botón para hoja de atajos");
-    assert.ok(notesContentQml.includes('root.openShortcutsSheet()'), "NotesContent debe abrir la hoja de atajos con atajo");
+    assert.ok(notesContentQml.includes('openShortcutsRequested'), "NotesContent debe abrir la hoja de atajos solicitando el modal");
 
     // 5. Verificación de ToolbarButton y NoteEditorModal
     const toolbarBtnQml = fs.readFileSync(path.resolve(__dirname, '../qml/ToolbarButton.qml'), 'utf8');

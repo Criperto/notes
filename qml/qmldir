@@ -46,3 +46,5 @@ BlockMath          1.0 BlockMath.qml
 MathView           1.0 MathView.qml
 BlockRaw           1.0 BlockRaw.qml
 SpellOverlay       1.0 SpellOverlay.qml
+FocusRing          1.0 FocusRing.qml
+ShortcutsSheet     1.0 ShortcutsSheet.qml

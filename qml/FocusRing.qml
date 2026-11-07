@@ -11,7 +11,7 @@ Rectangle {
     property color ringColor: Theme.accent
     property real cornerRadius: (target && target.radius !== undefined) ? (target.radius + offset) : 8
 
-    anchors.fill: target ? target : undefined
+    anchors.fill: (target && target !== parent && target.parent === parent) ? target : parent
     anchors.margins: -offset
 
     color: "transparent"
