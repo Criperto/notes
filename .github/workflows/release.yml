@@ -31,7 +31,9 @@ jobs:
             qt6-svg-dev \
             qt6-wayland-dev \
             appstream \
-            desktop-file-utils
+            desktop-file-utils \
+            libfuse2t64 \
+            file
 
       - name: Set up Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -65,7 +67,7 @@ jobs:
 
       - name: Build AppImage
         run: |
-          bash packaging/appimage/build-appimage.sh || true
+          bash packaging/appimage/build-appimage.sh
           if ls packaging/appimage/out/*.AppImage 1> /dev/null 2>&1; then
             cp packaging/appimage/out/*.AppImage dist/
             cd dist && for f in *.AppImage; do sha256sum "$f" > "${f}.sha256"; done

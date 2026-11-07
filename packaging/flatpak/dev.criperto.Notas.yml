@@ -28,6 +28,8 @@ build-options:
   append-path: /usr/lib/sdk/rust-stable/bin
   env:
     CARGO_HOME: /run/build/notas/cargo
+  build-args:
+    - --share=network
 
 modules:
   - name: hunspell
