@@ -1,0 +1,47 @@
+app-id: dev.criperto.Notas
+runtime: org.kde.Platform
+runtime-version: '6.7'
+sdk: org.kde.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.rust-stable
+command: notas
+
+finish-args:
+  # Soporte de display Wayland y fallback X11
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --share=ipc
+  - --device=dri
+
+  # Acceso de red para el Web Clipper y descarga de diccionarios
+  - --share=network
+
+  # Acceso al sistema de archivos para notas y exportaciones
+  - --filesystem=xdg-documents
+  - --filesystem=xdg-download
+
+  # Integración en solo lectura con temas del entorno Quickshell y Pywal
+  - --filesystem=~/.config/quickshell:ro
+  - --filesystem=~/.cache/wal:ro
+
+build-options:
+  append-path: /usr/lib/sdk/rust-stable/bin
+  env:
+    CARGO_HOME: /run/build/notas/cargo
+
+modules:
+  - name: hunspell
+    buildsystem: autotools
+    sources:
+      - type: archive
+        url: https://github.com/hunspell/hunspell/archive/v1.7.2.tar.gz
+        sha256: 11ddfa39de2680e930e20336f14bbfb6877b4ea930e4748ff15174092b774643
+
+  - name: notas
+    buildsystem: simple
+    build-commands:
+      - cargo build --release --locked
+      - PREFIX=/app bash scripts/install-system.sh
+    sources:
+      - type: dir
+        path: ../..

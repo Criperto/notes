@@ -1,0 +1,42 @@
+# Maintainer: Tomas (Criperto) <dev@criperto.com>
+pkgname=notas
+pkgver=0.1.10
+pkgrel=1
+pkgdesc="Editor moderno y nativo de notas en Markdown para Wayland"
+arch=('x86_64')
+url="https://github.com/Criperto/notes"
+license=('GPL-3.0-or-later')
+depends=(
+    'qt6-base'
+    'qt6-declarative'
+    'qt6-svg'
+    'hunspell'
+    'gcc-libs'
+    'glibc'
+)
+optdepends=(
+    'qt6-wayland: soporte nativo Wayland'
+    'wl-clipboard: integración avanzada de portapapeles en Wayland'
+)
+makedepends=(
+    'cargo'
+    'clang'
+    'cmake'
+)
+source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
+sha256sums=('SKIP')
+
+prepare() {
+    cd "$srcdir/$pkgname-$pkgver"
+    export RUSTUP_TOOLCHAIN=stable
+}
+
+build() {
+    cd "$srcdir/$pkgname-$pkgver"
+    cargo build --release --locked
+}
+
+package() {
+    cd "$srcdir/$pkgname-$pkgver"
+    PREFIX="/usr" DESTDIR="$pkgdir" bash scripts/install-system.sh
+}

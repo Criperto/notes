@@ -72,6 +72,50 @@ El script de instalación crea los enlaces simbólicos al binario, icono SVG y a
 ./scripts/install.sh
 ```
 
+### 3. Instalación a Nivel de Sistema (`/usr` o `DESTDIR`)
+
+Para administradores de sistemas y creadores de paquetes:
+
+```bash
+cargo build --release
+sudo PREFIX=/usr bash scripts/install-system.sh
+```
+
+---
+
+## 📦 Paquetes y Distribución
+
+### Arch Linux (AUR)
+
+Notas se encuentra disponible en el Arch User Repository (AUR):
+
+```bash
+# Versión estable:
+paru -S notas
+
+# Versión VCS en desarrollo:
+paru -S notas-git
+```
+
+Archivos PKGBUILD disponibles en [`packaging/arch/PKGBUILD`](packaging/arch/PKGBUILD) y [`packaging/arch/notas-git/PKGBUILD`](packaging/arch/notas-git/PKGBUILD).
+
+### Flatpak
+
+Manifiesto oficial para Flatpak basado en `org.kde.Platform`:
+
+```bash
+# Compilar e instalar localmente:
+flatpak-builder --user --install --force-clean build-flatpak packaging/flatpak/dev.criperto.Notas.yml
+```
+
+### AppImage
+
+Generador automatizado de AppImage autónomo:
+
+```bash
+bash packaging/appimage/build-appimage.sh
+```
+
 Una vez instalado, la aplicación estará disponible en tu lanzador de aplicaciones favorito (Wofi, Rofi, Anyrun, etc.) y como comando `notas` en cualquier terminal.
 
 ---

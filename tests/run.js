@@ -4706,6 +4706,59 @@ runTest("F95: Delete key forward, Ctrl+Delete with plain text, Insert overwriteM
     assert.ok(blockTableQml.includes('Inline.plainText(rawEditor)'), "BlockTable debe usar plainText en Ctrl+Delete de rawEditor");
 });
 
+runTest("F96: Phase P9 — System installation, AUR PKGBUILD, Flatpak manifest, AppImage builder and CI workflow contracts", () => {
+    // 1. scripts/install-system.sh
+    const installSystemScript = path.resolve(__dirname, '../scripts/install-system.sh');
+    assert.ok(fs.existsSync(installSystemScript), "scripts/install-system.sh debe existir");
+    const installSystemContent = fs.readFileSync(installSystemScript, 'utf8');
+    assert.ok(installSystemContent.includes('PREFIX="${PREFIX:-/usr}"'), "install-system.sh debe soportar variable PREFIX");
+    assert.ok(installSystemContent.includes('DESTDIR="${DESTDIR:-}"'), "install-system.sh debe soportar variable DESTDIR");
+    assert.ok(installSystemContent.includes('dev.criperto.Notas.metainfo.xml'), "install-system.sh debe instalar metainfo");
+
+    // 2. packaging/arch/PKGBUILD
+    const aurPkgbuild = path.resolve(__dirname, '../packaging/arch/PKGBUILD');
+    assert.ok(fs.existsSync(aurPkgbuild), "packaging/arch/PKGBUILD debe existir");
+    const aurContent = fs.readFileSync(aurPkgbuild, 'utf8');
+    assert.ok(aurContent.includes("pkgname=notas"), "PKGBUILD debe definir pkgname=notas");
+    assert.ok(aurContent.includes("pkgver=0.1.10"), "PKGBUILD debe reflejar versión 0.1.10");
+    assert.ok(aurContent.includes("install-system.sh"), "PKGBUILD debe invocar install-system.sh");
+
+    // 3. packaging/arch/notas-git/PKGBUILD
+    const aurGitPkgbuild = path.resolve(__dirname, '../packaging/arch/notas-git/PKGBUILD');
+    assert.ok(fs.existsSync(aurGitPkgbuild), "packaging/arch/notas-git/PKGBUILD debe existir");
+    const aurGitContent = fs.readFileSync(aurGitPkgbuild, 'utf8');
+    assert.ok(aurGitContent.includes("pkgname=notas-git"), "PKGBUILD debe definir pkgname=notas-git");
+    assert.ok(aurGitContent.includes("provides=(\"$_pkgname\")"), "PKGBUILD debe proveer notas");
+
+    // 4. packaging/flatpak/dev.criperto.Notas.yml
+    const flatpakYaml = path.resolve(__dirname, '../packaging/flatpak/dev.criperto.Notas.yml');
+    assert.ok(fs.existsSync(flatpakYaml), "packaging/flatpak/dev.criperto.Notas.yml debe existir");
+    const flatpakContent = fs.readFileSync(flatpakYaml, 'utf8');
+    assert.ok(flatpakContent.includes("app-id: dev.criperto.Notas"), "Flatpak manifest debe definir app-id dev.criperto.Notas");
+    assert.ok(flatpakContent.includes("runtime: org.kde.Platform"), "Flatpak manifest debe usar runtime org.kde.Platform");
+    assert.ok(flatpakContent.includes("--socket=wayland"), "Flatpak manifest debe habilitar socket=wayland");
+
+    // 5. packaging/appimage/build-appimage.sh
+    const appimageScript = path.resolve(__dirname, '../packaging/appimage/build-appimage.sh');
+    assert.ok(fs.existsSync(appimageScript), "packaging/appimage/build-appimage.sh debe existir");
+    const appimageContent = fs.readFileSync(appimageScript, 'utf8');
+    assert.ok(appimageContent.includes("AppRun"), "build-appimage.sh debe generar AppRun");
+    assert.ok(appimageContent.includes("dev.criperto.Notas.desktop"), "build-appimage.sh debe enlazar desktop entry");
+
+    // 6. .github/workflows/release.yml
+    const releaseWf = path.resolve(__dirname, '../.github/workflows/release.yml');
+    assert.ok(fs.existsSync(releaseWf), ".github/workflows/release.yml debe existir");
+    const releaseWfContent = fs.readFileSync(releaseWf, 'utf8');
+    assert.ok(releaseWfContent.includes("tags:"), "Workflow debe reaccionar a tags");
+    assert.ok(releaseWfContent.includes("action-gh-release"), "Workflow debe publicar assets en GitHub Releases");
+
+    // 7. AppStream Metainfo
+    const metainfoFile = path.resolve(__dirname, '../data/dev.criperto.Notas.metainfo.xml');
+    const metainfoContent = fs.readFileSync(metainfoFile, 'utf8');
+    assert.ok(metainfoContent.includes("<developer id=\"dev.criperto\">"), "Metainfo debe incluir etiqueta developer con id");
+    assert.ok(metainfoContent.includes("<content_rating type=\"oars-1.1\"/>"), "Metainfo debe incluir content_rating");
+});
+
 console.log(`\n========================================`);
 console.log(`Resultados: ${passed} OK, ${failed} FAIL`);
 console.log(`========================================`);

@@ -1,0 +1,84 @@
+name: Release & Packaging
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    name: Build & Package (x86_64 Linux)
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies (Qt 6, Hunspell & Clang)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            clang \
+            cmake \
+            libclang-dev \
+            libhunspell-dev \
+            qt6-base-dev \
+            qt6-declarative-dev \
+            qt6-svg-dev \
+            qt6-wayland-dev \
+            appstream \
+            desktop-file-utils
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+
+      - name: Validate AppStream Metainfo
+        run: |
+          appstreamcli validate --no-net data/dev.criperto.Notas.metainfo.xml
+
+      - name: Run automated test suite
+        run: |
+          node tests/run.js
+
+      - name: Compile release binary
+        run: |
+          cargo build --release --locked
+
+      - name: Prepare standalone tarball release
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          DIST_DIR="dist/notas-${VERSION}"
+          mkdir -p "${DIST_DIR}"
+
+          PREFIX="/usr" DESTDIR="${DIST_DIR}" bash scripts/install-system.sh
+          cp README.md LICENSE "${DIST_DIR}/"
+
+          tar -czf "dist/notas-${VERSION}-x86_64-linux.tar.gz" -C dist "notas-${VERSION}"
+          cd dist && sha256sum "notas-${VERSION}-x86_64-linux.tar.gz" > "notas-${VERSION}-x86_64-linux.tar.gz.sha256"
+
+      - name: Build AppImage
+        run: |
+          bash packaging/appimage/build-appimage.sh || true
+          if ls packaging/appimage/out/*.AppImage 1> /dev/null 2>&1; then
+            cp packaging/appimage/out/*.AppImage dist/
+            cd dist && for f in *.AppImage; do sha256sum "$f" > "${f}.sha256"; done
+          fi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.tar.gz
+            dist/*.tar.gz.sha256
+            dist/*.AppImage
+            dist/*.AppImage.sha256
+          generate_release_notes: true
+          draft: false
+          prerelease: false
