@@ -195,6 +195,11 @@ QtObject {
         if (typeof ConfigBackend !== "undefined" && ConfigBackend.persistUndo !== persistUndo) ConfigBackend.persistUndo = persistUndo;
     }
 
+    property real uiScale: (typeof ConfigBackend !== "undefined" && ConfigBackend.uiScale !== undefined) ? ConfigBackend.uiScale : 1.0
+    onUiScaleChanged: {
+        if (typeof ConfigBackend !== "undefined" && ConfigBackend.uiScale !== uiScale) ConfigBackend.uiScale = uiScale;
+    }
+
     property var _cfgSync: Connections {
         target: (typeof ConfigBackend !== "undefined") ? ConfigBackend : null
         function onNotasDirChanged() {
@@ -235,6 +240,9 @@ QtObject {
         }
         function onPersistUndoChanged() {
             if (root.persistUndo !== ConfigBackend.persistUndo) root.persistUndo = ConfigBackend.persistUndo;
+        }
+        function onUiScaleChanged() {
+            if (root.uiScale !== ConfigBackend.uiScale) root.uiScale = ConfigBackend.uiScale;
         }
     }
 

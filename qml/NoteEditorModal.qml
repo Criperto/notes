@@ -1300,6 +1300,17 @@ Item {
             return;
         }
 
+        if (event.key === Qt.Key_F10) {
+            for (var bi = 0; bi < toolbarRow.children.length; bi++) {
+                var tbBtn = toolbarRow.children[bi];
+                if (tbBtn && tbBtn.activeFocusOnTab && !tbBtn.disabled) {
+                    tbBtn.forceActiveFocus();
+                    event.accepted = true;
+                    return;
+                }
+            }
+        }
+
         if (event.key === Qt.Key_Escape) {
             event.accepted = true;
             if (imageMenuPopup.isOpen) {
@@ -2389,6 +2400,47 @@ Item {
                         id: toolbarRow
                         height: parent.height
                         spacing: 2
+
+                        Keys.onRightPressed: (event) => {
+                            var btns = [];
+                            for (var i = 0; i < toolbarRow.children.length; i++) {
+                                var c = toolbarRow.children[i];
+                                if (c && c.activeFocusOnTab && !c.disabled) btns.push(c);
+                            }
+                            for (var j = 0; j < btns.length; j++) {
+                                if (btns[j].activeFocus) {
+                                    var nextBtn = btns[(j + 1) % btns.length];
+                                    if (nextBtn) nextBtn.forceActiveFocus();
+                                    event.accepted = true;
+                                    return;
+                                }
+                            }
+                            if (btns.length > 0) btns[0].forceActiveFocus();
+                            event.accepted = true;
+                        }
+
+                        Keys.onLeftPressed: (event) => {
+                            var btns = [];
+                            for (var i = 0; i < toolbarRow.children.length; i++) {
+                                var c = toolbarRow.children[i];
+                                if (c && c.activeFocusOnTab && !c.disabled) btns.push(c);
+                            }
+                            for (var j = 0; j < btns.length; j++) {
+                                if (btns[j].activeFocus) {
+                                    var prevBtn = btns[(j - 1 + btns.length) % btns.length];
+                                    if (prevBtn) prevBtn.forceActiveFocus();
+                                    event.accepted = true;
+                                    return;
+                                }
+                            }
+                            if (btns.length > 0) btns[btns.length - 1].forceActiveFocus();
+                            event.accepted = true;
+                        }
+
+                        Keys.onEscapePressed: (event) => {
+                            if (root.blockEditor) root.blockEditor.forceActiveFocus();
+                            event.accepted = true;
+                        }
 
                         // 1. Negrita
                         ToolbarButton {

@@ -218,6 +218,10 @@
       "spell_enabled": "Activar corrector ortográfico",
       "spell_enabled_desc": "Habilita la revisión ortográfica con subrayado ondulado y sugerencias al hacer clic derecho.",
       "spell_active_title": "Idiomas activos (Detección simultánea)"
+    },
+    "appearance": {
+      "ui_scale": "Escala global de interfaz (UI)",
+      "ui_scale_desc": "Ajusta proporcionalmente botones, íconos, márgenes y tarjetas para pantallas HiDPI."
     }
   },
   "slash": {
@@ -282,5 +286,30 @@
   "notes.math.template.limit": "Límite",
   "notes.math.template.root": "Raíz cuadrada / n-ésima",
   "notes.math.template.matrix": "Matriz (2x2)",
-  "notes.math.template.cases": "Función a trozos (Casos)"
+  "notes.math.template.cases": "Función a trozos (Casos)",
+  "shortcuts": {
+    "title": "Atajos de Teclado",
+    "subtitle": "Navegación y productividad con teclado",
+    "cat_nav": "Navegación General",
+    "nav_tab": "Mover foco entre buscador, etiquetas y tarjetas",
+    "nav_enter": "Abrir la nota seleccionada",
+    "nav_delete": "Enviar nota a papelera (con deshacer)",
+    "nav_new": "Crear una nueva nota de inmediato",
+    "nav_search": "Enfocar barra de búsqueda",
+    "nav_settings": "Abrir ajustes y configuración",
+    "nav_help": "Ver esta hoja de atajos de teclado",
+    "nav_esc": "Cerrar modal o volver a la vista principal",
+    "cat_editor": "Edición y Markdown",
+    "edit_bold": "Texto en negrita",
+    "edit_italic": "Texto en cursiva",
+    "edit_link": "Insertar enlace Markdown",
+    "edit_slash": "Menú de comandos rápidos (Slash Menu)",
+    "edit_undo": "Deshacer y rehacer persistente",
+    "edit_save": "Guardar nota de inmediato",
+    "cat_tools": "Herramientas Avanzadas",
+    "tool_spell": "Ejecutar revisión ortográfica manual",
+    "tool_toolbar": "Alternar foco a barra de herramientas del editor",
+    "tool_clip": "Clipper web (recortar URL a Markdown)",
+    "tool_paste": "Capturar nueva nota desde portapapeles"
+  }
 }

@@ -4453,6 +4453,59 @@ runTest("F89: Corrector ortográfico avanzado (detección de idioma por párrafo
     }
 });
 
+runTest("F90: Accesibilidad, navegación por teclado y escalado integral de interfaz (uiScale)", () => {
+    // 1. Verificación de FocusRing.qml
+    const focusRingQml = fs.readFileSync(path.resolve(__dirname, '../qml/FocusRing.qml'), 'utf8');
+    assert.ok(focusRingQml.includes('property Item target: parent'), "FocusRing debe enlazar a parent o target");
+    assert.ok(focusRingQml.includes('border.color: ringColor'), "FocusRing debe tener borde visible");
+    assert.ok(focusRingQml.includes('Accessible.ignored: true'), "FocusRing debe ignorarse en árbol de accesibilidad");
+
+    // 2. Verificación de ShortcutsSheet.qml
+    const shortcutsSheetQml = fs.readFileSync(path.resolve(__dirname, '../qml/ShortcutsSheet.qml'), 'utf8');
+    assert.ok(shortcutsSheetQml.includes('sequence: "Esc"'), "ShortcutsSheet debe cerrarse con Esc");
+    assert.ok(shortcutsSheetQml.includes('sequence: "Ctrl+/"'), "ShortcutsSheet debe responder a Ctrl+/");
+    assert.ok(shortcutsSheetQml.includes('sequence: "F1"'), "ShortcutsSheet debe responder a F1");
+    assert.ok(shortcutsSheetQml.includes('I18n.t("shortcuts.title"'), "ShortcutsSheet debe usar I18n para título");
+
+    // 3. Verificación de uiScale y Theme.s(px) en Theme.qml
+    const themeQml = fs.readFileSync(path.resolve(__dirname, '../qml/Theme.qml'), 'utf8');
+    assert.ok(themeQml.includes('readonly property real uiScale:'), "Theme debe definir uiScale");
+    assert.ok(themeQml.includes('function s(px)'), "Theme debe definir helper s(px)");
+
+    // 4. Verificación de navegación por teclado y atajos en NotesContent.qml
+    const notesContentQml = fs.readFileSync(path.resolve(__dirname, '../qml/NotesContent.qml'), 'utf8');
+    assert.ok(notesContentQml.includes('ShortcutsSheet {'), "NotesContent debe instanciar ShortcutsSheet");
+    assert.ok(notesContentQml.includes('id: shortcutsBtn'), "NotesContent debe tener botón para hoja de atajos");
+    assert.ok(notesContentQml.includes('root.openShortcutsSheet()'), "NotesContent debe abrir la hoja de atajos con atajo");
+
+    // 5. Verificación de ToolbarButton y NoteEditorModal
+    const toolbarBtnQml = fs.readFileSync(path.resolve(__dirname, '../qml/ToolbarButton.qml'), 'utf8');
+    assert.ok(toolbarBtnQml.includes('FocusRing {'), "ToolbarButton debe tener FocusRing");
+    assert.ok(toolbarBtnQml.includes('activeFocusOnTab: !tbRoot.disabled'), "ToolbarButton debe tener foco por teclado");
+
+    const editorModalQml = fs.readFileSync(path.resolve(__dirname, '../qml/NoteEditorModal.qml'), 'utf8');
+    assert.ok(editorModalQml.includes('event.key === Qt.Key_F10'), "NoteEditorModal debe transferir foco con F10");
+    assert.ok(editorModalQml.includes('Keys.onRightPressed:'), "ToolbarRow debe soportar navegación con flechas");
+
+    // 6. Verificación de MorphingFab accesible
+    const fabQml = fs.readFileSync(path.resolve(__dirname, '../qml/MorphingFab.qml'), 'utf8');
+    assert.ok(fabQml.includes('activeFocusOnTab: true'), "MorphingFab debe ser focuseable por Tab");
+    assert.ok(fabQml.includes('Keys.onReturnPressed:'), "MorphingFab debe responder a Enter/Space");
+    assert.ok(fabQml.includes('Keys.onDownPressed:'), "MorphingFab debe navegar opciones con flechas");
+    assert.ok(fabQml.includes('FocusRing {'), "MorphingFab debe tener FocusRing");
+
+    // 7. Verificación de configuración y soporte en 9 idiomas
+    const langs = ['es_es', 'es_ar', 'en', 'de', 'fr', 'pt', 'ja', 'zh', 'ru'];
+    for (const lang of langs) {
+        const json = JSON.parse(fs.readFileSync(path.resolve(__dirname, `../assets/i18n/${lang}/notes.json`), 'utf8'));
+        assert.ok(json.config && json.config.appearance && json.config.appearance.ui_scale, `Falta config.appearance.ui_scale en ${lang}`);
+        assert.ok(json.shortcuts && json.shortcuts.title, `Falta shortcuts.title en ${lang}`);
+        assert.ok(json.shortcuts && json.shortcuts.cat_nav, `Falta shortcuts.cat_nav en ${lang}`);
+        assert.ok(json.shortcuts && json.shortcuts.cat_editor, `Falta shortcuts.cat_editor en ${lang}`);
+        assert.ok(json.shortcuts && json.shortcuts.cat_tools, `Falta shortcuts.cat_tools en ${lang}`);
+    }
+});
+
 console.log(`\n========================================`);
 console.log(`Resultados: ${passed} OK, ${failed} FAIL`);
 console.log(`========================================`);

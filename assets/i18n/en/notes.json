@@ -218,6 +218,10 @@
       "spell_enabled": "Enable spell checker",
       "spell_enabled_desc": "Enables spell checking with wavy underlines and right-click suggestions.",
       "spell_active_title": "Active languages (Simultaneous detection)"
+    },
+    "appearance": {
+      "ui_scale": "Global UI scale",
+      "ui_scale_desc": "Proportionally adjusts buttons, icons, margins, and cards for HiDPI displays."
     }
   },
   "slash": {
@@ -282,5 +286,30 @@
   "notes.math.template.limit": "Limit",
   "notes.math.template.root": "Square / n-th root",
   "notes.math.template.matrix": "Matrix (2x2)",
-  "notes.math.template.cases": "Piecewise function (Cases)"
+  "notes.math.template.cases": "Piecewise function (Cases)",
+  "shortcuts": {
+    "title": "Keyboard Shortcuts",
+    "subtitle": "Keyboard navigation and productivity",
+    "cat_nav": "General Navigation",
+    "nav_tab": "Move focus between search, tags, and cards",
+    "nav_enter": "Open selected note",
+    "nav_delete": "Send note to trash (with undo)",
+    "nav_new": "Create a new note immediately",
+    "nav_search": "Focus search bar",
+    "nav_settings": "Open settings and configuration",
+    "nav_help": "View this keyboard shortcuts sheet",
+    "nav_esc": "Close modal or return to main view",
+    "cat_editor": "Editing & Markdown",
+    "edit_bold": "Bold text",
+    "edit_italic": "Italic text",
+    "edit_link": "Insert Markdown link",
+    "edit_slash": "Slash Command Menu",
+    "edit_undo": "Persistent undo and redo",
+    "edit_save": "Save note immediately",
+    "cat_tools": "Advanced Tools",
+    "tool_spell": "Run manual spell check",
+    "tool_toolbar": "Toggle focus to editor toolbar",
+    "tool_clip": "Web Clipper (clip URL to Markdown)",
+    "tool_paste": "Capture new note from clipboard"
+  }
 }

@@ -218,6 +218,10 @@
       "spell_enabled": "Rechtschreibprüfung aktivieren",
       "spell_enabled_desc": "Aktiviert die Rechtschreibprüfung mit gewellter Unterstreichung und Rechtsklick-Vorschlägen.",
       "spell_active_title": "Aktive Sprachen (Gleichzeitige Erkennung)"
+    },
+    "appearance": {
+      "ui_scale": "Globale UI-Skalierung",
+      "ui_scale_desc": "Passt Schaltflächen, Symbole, Ränder und Karten proportional für HiDPI-Displays an."
     }
   },
   "slash": {
@@ -282,5 +286,30 @@
   "notes.math.template.limit": "Grenzwert",
   "notes.math.template.root": "Wurzel",
   "notes.math.template.matrix": "Matrix (2x2)",
-  "notes.math.template.cases": "Fallunterscheidung"
+  "notes.math.template.cases": "Fallunterscheidung",
+  "shortcuts": {
+    "title": "Tastaturkürzel",
+    "subtitle": "Navigation und Produktivität per Tastatur",
+    "cat_nav": "Allgemeine Navigation",
+    "nav_tab": "Fokus zwischen Suche, Tags und Karten wechseln",
+    "nav_enter": "Ausgewählte Notiz öffnen",
+    "nav_delete": "Notiz in Papierkorb verschieben (mit Rückgängig)",
+    "nav_new": "Sofort eine neue Notiz erstellen",
+    "nav_search": "Suchleiste fokussieren",
+    "nav_settings": "Einstellungen öffnen",
+    "nav_help": "Tastaturkürzel-Übersicht anzeigen",
+    "nav_esc": "Modal schließen oder zur Hauptansicht zurückkehren",
+    "cat_editor": "Bearbeitung & Markdown",
+    "edit_bold": "Fetter Text",
+    "edit_italic": "Kursiver Text",
+    "edit_link": "Markdown-Link einfügen",
+    "edit_slash": "Befehlsmenü (Slash-Menü)",
+    "edit_undo": "Dauerhaftes Rückgängigmachen und Wiederholen",
+    "edit_save": "Notiz sofort speichern",
+    "cat_tools": "Erweiterte Werkzeuge",
+    "tool_spell": "Manuelle Rechtschreibprüfung starten",
+    "tool_toolbar": "Fokus auf die Editor-Symbolleiste umschalten",
+    "tool_clip": "Web-Clipper (URL in Markdown erfassen)",
+    "tool_paste": "Neue Notiz aus Zwischenablage erstellen"
+  }
 }

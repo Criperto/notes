@@ -300,6 +300,11 @@ QtObject {
     readonly property string fontFamilyMonospace: systemMonospace ? systemMonospace : "Google Sans Code"
 
     readonly property real fontSizeScale: (typeof ConfigBackend !== "undefined" && ConfigBackend.fontSizeScale > 0) ? ConfigBackend.fontSizeScale : 1.0
+    readonly property real uiScale:       (typeof ConfigBackend !== "undefined" && ConfigBackend.uiScale > 0) ? ConfigBackend.uiScale : 1.0
+
+    function s(px) {
+        return Math.round(px * uiScale);
+    }
 
     readonly property real fontSizeBadge:         Math.round(8  * fontSizeScale)
     readonly property real fontSizeCaption:       Math.round(9  * fontSizeScale)

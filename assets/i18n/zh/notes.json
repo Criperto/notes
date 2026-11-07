@@ -218,6 +218,10 @@
       "spell_enabled": "启用拼写检查",
       "spell_enabled_desc": "启用波浪线拼写检查并在右键单击时提供建议。",
       "spell_active_title": "启用语言（同时检测）"
+    },
+    "appearance": {
+      "ui_scale": "全局界面缩放 (UI)",
+      "ui_scale_desc": "为高分屏等比例调整按钮、图标、边距和卡片大小。"
     }
   },
   "slash": {
@@ -282,5 +286,30 @@
   "notes.math.template.limit": "极限",
   "notes.math.template.root": "平方根 / n次方根",
   "notes.math.template.matrix": "矩阵 (2x2)",
-  "notes.math.template.cases": "分段函数 (条件分支)"
+  "notes.math.template.cases": "分段函数 (条件分支)",
+  "shortcuts": {
+    "title": "快捷键",
+    "subtitle": "键盘导航与效率快捷键",
+    "cat_nav": "常规导航",
+    "nav_tab": "在搜索栏、标签和卡片之间移动焦点",
+    "nav_enter": "打开选中的笔记",
+    "nav_delete": "将笔记移至回收站（支持撤销）",
+    "nav_new": "立即创建新笔记",
+    "nav_search": "聚焦搜索框",
+    "nav_settings": "打开设置",
+    "nav_help": "查看此快捷键列表",
+    "nav_esc": "关闭弹窗或返回主界面",
+    "cat_editor": "编辑与 Markdown",
+    "edit_bold": "粗体文本",
+    "edit_italic": "斜体文本",
+    "edit_link": "插入 Markdown 链接",
+    "edit_slash": "斜杠命令菜单 (/)",
+    "edit_undo": "持久化撤销与重做",
+    "edit_save": "立即保存笔记",
+    "cat_tools": "高级工具",
+    "tool_spell": "运行手动拼写检查",
+    "tool_toolbar": "将焦点切换至编辑器工具栏",
+    "tool_clip": "网页剪藏（将 URL 转换为 Markdown）",
+    "tool_paste": "从剪贴板捕获新笔记"
+  }
 }

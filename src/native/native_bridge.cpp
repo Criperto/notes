@@ -1887,6 +1887,14 @@ void ConfigBackend::setFontSizeScale(double val) {
     scheduleSave();
 }
 
+void ConfigBackend::setUiScale(double val) {
+    double clamped = qBound(0.75, val, 2.0);
+    if (qFuzzyCompare(m_uiScale, clamped)) return;
+    m_uiScale = clamped;
+    emit uiScaleChanged();
+    scheduleSave();
+}
+
 void ConfigBackend::setCustomThemeName(const QString &val) {
     if (m_customThemeName == val || val.isEmpty()) return;
     m_customThemeName = val;
@@ -1968,6 +1976,7 @@ void ConfigBackend::load() {
                 if (obj.contains("panelOpacity")) m_panelOpacity = qBound(20, obj["panelOpacity"].toInt(94), 100);
                 if (obj.contains("animationsEnabled")) m_animationsEnabled = obj["animationsEnabled"].toBool(true);
                 if (obj.contains("fontSizeScale")) m_fontSizeScale = obj["fontSizeScale"].toDouble(1.0);
+                if (obj.contains("uiScale")) m_uiScale = qBound(0.75, obj["uiScale"].toDouble(1.0), 2.0);
                 if (obj.contains("customThemeName")) m_customThemeName = obj["customThemeName"].toString("amarillo");
                 if (obj.contains("lightMode")) m_lightMode = obj["lightMode"].toBool(false);
                 if (obj.contains("syncWithQuickshell")) m_syncWithQuickshell = obj["syncWithQuickshell"].toBool(true);
@@ -2069,6 +2078,7 @@ void ConfigBackend::save() {
     obj[QStringLiteral("panelOpacity")] = m_panelOpacity;
     obj[QStringLiteral("animationsEnabled")] = m_animationsEnabled;
     obj[QStringLiteral("fontSizeScale")] = m_fontSizeScale;
+    obj[QStringLiteral("uiScale")] = m_uiScale;
     obj[QStringLiteral("customThemeName")] = m_customThemeName;
     obj[QStringLiteral("lightMode")] = m_lightMode;
     obj[QStringLiteral("syncWithQuickshell")] = m_syncWithQuickshell;
@@ -2118,6 +2128,7 @@ void ConfigBackend::reload() {
     emit panelOpacityChanged();
     emit animationsEnabledChanged();
     emit fontSizeScaleChanged();
+    emit uiScaleChanged();
     emit customThemeNameChanged();
     emit lightModeChanged();
 }

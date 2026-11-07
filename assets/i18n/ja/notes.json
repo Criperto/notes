@@ -218,6 +218,10 @@
       "spell_enabled": "スペルチェックを有効にする",
       "spell_enabled_desc": "波線のアンダーラインと右クリックによる候補表示を有効にします。",
       "spell_active_title": "アクティブな言語（同時検出）"
+    },
+    "appearance": {
+      "ui_scale": "UI全体の拡大縮小",
+      "ui_scale_desc": "HiDPI画面に合わせてボタン、アイコン、余白、カードのサイズを調整します。"
     }
   },
   "slash": {
@@ -282,5 +286,30 @@
   "notes.math.template.limit": "極限",
   "notes.math.template.root": "平方根 / 累乗根",
   "notes.math.template.matrix": "行列 (2x2)",
-  "notes.math.template.cases": "区分定義関数 (場合分け)"
+  "notes.math.template.cases": "区分定義関数 (場合分け)",
+  "shortcuts": {
+    "title": "キーボードショートカット",
+    "subtitle": "キーボードによるナビゲーションと操作",
+    "cat_nav": "全般ナビゲーション",
+    "nav_tab": "検索バー、タグ、カード間でフォーカスを移動",
+    "nav_enter": "選択したノートを開く",
+    "nav_delete": "ノートをゴミ箱に移動（元に戻す可能）",
+    "nav_new": "新しいノートをすぐに作成",
+    "nav_search": "検索バーにフォーカス",
+    "nav_settings": "設定を開く",
+    "nav_help": "ショートカット一覧を表示",
+    "nav_esc": "モーダルを閉じるかメイン画面に戻る",
+    "cat_editor": "編集とMarkdown",
+    "edit_bold": "太字",
+    "edit_italic": "斜体",
+    "edit_link": "Markdownリンクを挿入",
+    "edit_slash": "コマンドメニュー（スラッシュメニュー）",
+    "edit_undo": "永続的な元に戻す・やり直し",
+    "edit_save": "ノートを即座に保存",
+    "cat_tools": "高度なツール",
+    "tool_spell": "手動スペルチェックを実行",
+    "tool_toolbar": "エディターのツールバーにフォーカスを移動",
+    "tool_clip": "Webクリッパー（URLをMarkdownに保存）",
+    "tool_paste": "クリップボードから新しいノートを作成"
+  }
 }

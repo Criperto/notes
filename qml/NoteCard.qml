@@ -36,6 +36,15 @@ Rectangle {
     radius: 16
     color: cardBgColor
 
+    Accessible.role: Accessible.ListItem
+    Accessible.name: (root.noteData && root.noteData.title) ? root.noteData.title : I18n.t("card.untitled", "Sin título")
+
+    FocusRing {
+        target: root
+        active: root.isCurrent
+        cornerRadius: root.radius
+    }
+
     border.color: isCurrent
         ? Qt.hsva(Theme.accent.hsvHue, Theme.accent.hsvSaturation, Theme.accent.hsvValue, 0.6)
         : Qt.hsva(Theme.text.hsvHue, Theme.text.hsvSaturation, Theme.text.hsvValue, 0.08)

@@ -320,6 +320,7 @@ class ConfigBackend : public QObject {
     Q_PROPERTY(int panelOpacity READ panelOpacity WRITE setPanelOpacity NOTIFY panelOpacityChanged)
     Q_PROPERTY(bool animationsEnabled READ animationsEnabled WRITE setAnimationsEnabled NOTIFY animationsEnabledChanged)
     Q_PROPERTY(double fontSizeScale READ fontSizeScale WRITE setFontSizeScale NOTIFY fontSizeScaleChanged)
+    Q_PROPERTY(double uiScale READ uiScale WRITE setUiScale NOTIFY uiScaleChanged)
     Q_PROPERTY(QString customThemeName READ customThemeName WRITE setCustomThemeName NOTIFY customThemeNameChanged)
     Q_PROPERTY(bool lightMode READ lightMode WRITE setLightMode NOTIFY lightModeChanged)
     Q_PROPERTY(bool hasQuickshellConfig READ hasQuickshellConfig NOTIFY hasQuickshellConfigChanged)
@@ -409,6 +410,9 @@ public:
     double fontSizeScale() const { return m_fontSizeScale; }
     void setFontSizeScale(double val);
 
+    double uiScale() const { return m_uiScale; }
+    void setUiScale(double val);
+
     QString customThemeName() const { return m_customThemeName; }
     void setCustomThemeName(const QString &val);
 
@@ -456,6 +460,7 @@ signals:
     void panelOpacityChanged();
     void animationsEnabledChanged();
     void fontSizeScaleChanged();
+    void uiScaleChanged();
     void customThemeNameChanged();
     void lightModeChanged();
     void hasQuickshellConfigChanged();
@@ -499,6 +504,7 @@ private:
     int m_panelOpacity = 94;
     bool m_animationsEnabled = true;
     double m_fontSizeScale = 1.0;
+    double m_uiScale = 1.0;
     QString m_customThemeName = QStringLiteral("amarillo");
     bool m_lightMode = false;
     bool m_versionHistoryEnabled = true;

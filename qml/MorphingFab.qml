@@ -14,6 +14,54 @@ ClippingRectangle {
     signal importNotesRequested()
 
     property bool expanded: false
+    property int keyboardOptionIndex: 3
+
+    activeFocusOnTab: true
+    Accessible.role: Accessible.ButtonMenu
+    Accessible.name: I18n.t("notes.fab.create_new", "Nueva nota")
+
+    function _triggerOption(idx) {
+        root.expanded = false;
+        if (idx === 0) root.importNotesRequested();
+        else if (idx === 1) root.clipNoteRequested();
+        else if (idx === 2) root.webClipRequested();
+        else root.newNoteRequested();
+    }
+
+    Keys.onReturnPressed: (event) => {
+        if (!root.expanded) {
+            root.expanded = true;
+        } else {
+            root._triggerOption(root.keyboardOptionIndex);
+        }
+        event.accepted = true;
+    }
+    Keys.onEnterPressed: (event) => Keys.onReturnPressed(event)
+    Keys.onSpacePressed: (event) => Keys.onReturnPressed(event)
+
+    Keys.onDownPressed: (event) => {
+        if (root.expanded) {
+            root.keyboardOptionIndex = (root.keyboardOptionIndex + 1) % 4;
+            event.accepted = true;
+        }
+    }
+    Keys.onUpPressed: (event) => {
+        if (root.expanded) {
+            root.keyboardOptionIndex = (root.keyboardOptionIndex - 1 + 4) % 4;
+            event.accepted = true;
+        }
+    }
+    Keys.onEscapePressed: (event) => {
+        if (root.expanded) {
+            root.expanded = false;
+            event.accepted = true;
+        }
+    }
+
+    FocusRing {
+        target: root
+        cornerRadius: root.radius
+    }
 
     // Ancho dinámico basado en las opciones de texto (+ márgenes e íconos)
     readonly property real dynamicExpandedWidth: {
@@ -83,7 +131,7 @@ ClippingRectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: 38
             radius: 10
-            color: importMa.containsMouse ? Qt.rgba(root.contentColor.r, root.contentColor.g, root.contentColor.b, 0.14) : "transparent"
+            color: (importMa.containsMouse || (root.expanded && root.activeFocus && root.keyboardOptionIndex === 0)) ? Qt.rgba(root.contentColor.r, root.contentColor.g, root.contentColor.b, 0.18) : "transparent"
 
             Behavior on color {
                 enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
@@ -140,7 +188,7 @@ ClippingRectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: 38
             radius: 10
-            color: clipMa.containsMouse ? Qt.rgba(root.contentColor.r, root.contentColor.g, root.contentColor.b, 0.14) : "transparent"
+            color: (clipMa.containsMouse || (root.expanded && root.activeFocus && root.keyboardOptionIndex === 1)) ? Qt.rgba(root.contentColor.r, root.contentColor.g, root.contentColor.b, 0.18) : "transparent"
 
             Behavior on color {
                 enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
@@ -197,7 +245,7 @@ ClippingRectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: 38
             radius: 10
-            color: webClipMa.containsMouse ? Qt.rgba(root.contentColor.r, root.contentColor.g, root.contentColor.b, 0.14) : "transparent"
+            color: (webClipMa.containsMouse || (root.expanded && root.activeFocus && root.keyboardOptionIndex === 2)) ? Qt.rgba(root.contentColor.r, root.contentColor.g, root.contentColor.b, 0.18) : "transparent"
 
             Behavior on color {
                 enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
@@ -254,7 +302,7 @@ ClippingRectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: 38
             radius: 10
-            color: newNoteMa.containsMouse ? Qt.rgba(root.contentColor.r, root.contentColor.g, root.contentColor.b, 0.14) : "transparent"
+            color: (newNoteMa.containsMouse || (root.expanded && root.activeFocus && root.keyboardOptionIndex === 3)) ? Qt.rgba(root.contentColor.r, root.contentColor.g, root.contentColor.b, 0.18) : "transparent"
 
             Behavior on color {
                 enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive

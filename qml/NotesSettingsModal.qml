@@ -490,6 +490,26 @@ Item {
 
         signal selected(string value, int idx)
 
+        activeFocusOnTab: active
+        Accessible.role: Accessible.ComboBox
+
+        Keys.onLeftPressed: {
+            if (options.length > 0) {
+                var prevIdx = (activeIndex > 0) ? activeIndex - 1 : options.length - 1;
+                selected(options[prevIdx].value, prevIdx);
+            }
+        }
+        Keys.onRightPressed: {
+            if (options.length > 0) {
+                var nextIdx = (activeIndex < options.length - 1) ? activeIndex + 1 : 0;
+                selected(options[nextIdx].value, nextIdx);
+            }
+        }
+
+        FocusRing {
+            target: picker
+        }
+
         Layout.fillWidth: true
         implicitHeight: barHeight
         radius: 10
@@ -733,8 +753,21 @@ Item {
         Layout.fillWidth: true
         implicitHeight: 46
         radius: 8
-        color: rowMouse.containsMouse ? root._hsva(Theme.text, 0, 0.04) : "transparent"
+        color: (rowMouse.containsMouse || bf.activeFocus) ? root._hsva(Theme.text, 0, 0.04) : "transparent"
         border.width: 0
+
+        activeFocusOnTab: !isDisabled
+        Accessible.role: Accessible.CheckBox
+        Accessible.name: bf.label
+        Accessible.description: bf.comment
+
+        Keys.onSpacePressed: if (!isDisabled) toggled(!checked)
+        Keys.onReturnPressed: if (!isDisabled) toggled(!checked)
+        Keys.onEnterPressed: if (!isDisabled) toggled(!checked)
+
+        FocusRing {
+            target: bf
+        }
 
         MouseArea {
             id: rowMouse
@@ -899,6 +932,19 @@ Item {
             Layout.topMargin: 4
             Layout.leftMargin: 3
             Layout.rightMargin: 3
+
+            activeFocusOnTab: true
+            Accessible.role: Accessible.Slider
+            Accessible.name: nf.label
+
+            Keys.onLeftPressed: nf.moved(nf._snap(nf.val - (nf.stepSize > 0 ? nf.stepSize : 1)))
+            Keys.onRightPressed: nf.moved(nf._snap(nf.val + (nf.stepSize > 0 ? nf.stepSize : 1)))
+
+            FocusRing {
+                target: track
+                offset: 4
+                cornerRadius: 4
+            }
 
             Rectangle {
                 anchors.fill: parent
@@ -1836,6 +1882,18 @@ Item {
                                     isInt: true
                                     suffix: " %"
                                     onMoved: (v) => { ConfigBackend.fontSizeScale = Math.round(v) / 100.0; }
+                                }
+
+                                SchemaSliderRow {
+                                    label: I18n.t("config.appearance.ui_scale", "Escala global de interfaz (UI)")
+                                    comment: I18n.t("config.appearance.ui_scale_desc", "Ajusta proporcionalmente botones, íconos, márgenes y tarjetas para pantallas HiDPI.")
+                                    val: Math.round(ConfigBackend.uiScale * 100)
+                                    minV: 75
+                                    maxV: 175
+                                    stepSize: 5
+                                    isInt: true
+                                    suffix: " %"
+                                    onMoved: (v) => { ConfigBackend.uiScale = Math.round(v) / 100.0; }
                                 }
 
                                 SchemaSwitchRow {

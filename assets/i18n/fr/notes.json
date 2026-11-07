@@ -218,6 +218,10 @@
       "spell_enabled": "Activer le correcteur orthographique",
       "spell_enabled_desc": "Active la vérification orthographique avec soulignement ondulé et suggestions par clic droit.",
       "spell_active_title": "Langues actives (Détection simultanée)"
+    },
+    "appearance": {
+      "ui_scale": "Échelle globale de l'interface (UI)",
+      "ui_scale_desc": "Ajuste proportionnellement les boutons, icônes, marges et cartes pour les écrans HiDPI."
     }
   },
   "slash": {
@@ -282,5 +286,30 @@
   "notes.math.template.limit": "Limite",
   "notes.math.template.root": "Racine carrée / n-ième",
   "notes.math.template.matrix": "Matrice (2x2)",
-  "notes.math.template.cases": "Fonction par morceaux (Cas)"
+  "notes.math.template.cases": "Fonction par morceaux (Cas)",
+  "shortcuts": {
+    "title": "Raccourcis Clavier",
+    "subtitle": "Navigation et productivité au clavier",
+    "cat_nav": "Navigation Générale",
+    "nav_tab": "Déplacer le focus entre recherche, étiquettes et cartes",
+    "nav_enter": "Ouvrir la note sélectionnée",
+    "nav_delete": "Mettre la note à la corbeille (avec annulation)",
+    "nav_new": "Créer une nouvelle note immédiatement",
+    "nav_search": "Activer la barre de recherche",
+    "nav_settings": "Ouvrir les paramètres et la configuration",
+    "nav_help": "Afficher cette feuille de raccourcis clavier",
+    "nav_esc": "Fermer la boîte de dialogue ou revenir à la vue principale",
+    "cat_editor": "Édition et Markdown",
+    "edit_bold": "Texte en gras",
+    "edit_italic": "Texte en italique",
+    "edit_link": "Insérer un lien Markdown",
+    "edit_slash": "Menu de commandes rapides (Slash Menu)",
+    "edit_undo": "Annuler et rétablir persistant",
+    "edit_save": "Enregistrer la note immédiatement",
+    "cat_tools": "Outils Avancés",
+    "tool_spell": "Lancer la vérification orthographique manuelle",
+    "tool_toolbar": "Basculer le focus sur la barre d'outils de l'éditeur",
+    "tool_clip": "Web Clipper (capturer l'URL en Markdown)",
+    "tool_paste": "Capturer une nouvelle note depuis le presse-papiers"
+  }
 }

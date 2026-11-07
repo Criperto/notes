@@ -374,6 +374,30 @@ Item {
             return;
         }
 
+        if (((event.modifiers & Qt.ControlModifier) && (event.key === Qt.Key_Slash || event.key === Qt.Key_Question)) || event.key === Qt.Key_F1) {
+            root.openShortcutsSheet();
+            event.accepted = true;
+            return;
+        }
+
+        if ((event.modifiers & Qt.ControlModifier) && event.key === Qt.Key_Comma) {
+            var originSt = settingsBtn.mapToItem(null, 0, 0);
+            root.openSettingsRequested(Qt.rect(originSt.x, originSt.y, settingsBtn.width, settingsBtn.height));
+            event.accepted = true;
+            return;
+        }
+
+        if (event.key === Qt.Key_Tab && !searchInput.activeFocus) {
+            if (event.modifiers & Qt.ShiftModifier) {
+                searchInput.forceActiveFocus();
+                searchInput.selectAll();
+            } else {
+                fab.forceActiveFocus();
+            }
+            event.accepted = true;
+            return;
+        }
+
         if (event.key === Qt.Key_Escape) {
             root.closeRequested();
             event.accepted = true;
@@ -584,6 +608,18 @@ Item {
                                 NotesService.sortBy = SortLogic.nextSort(NotesService.sortBy);
                             }
                         }
+
+                        activeFocusOnTab: true
+                        Accessible.role: Accessible.Button
+                        Accessible.name: I18n.t("notes.sort.title", "Ordenar notas")
+
+                        FocusRing {
+                            target: sortBtn
+                        }
+
+                        Keys.onReturnPressed: NotesService.sortBy = SortLogic.nextSort(NotesService.sortBy)
+                        Keys.onEnterPressed: Keys.onReturnPressed()
+                        Keys.onSpacePressed: Keys.onReturnPressed()
                     }
 
                     // Botón de Configuración
@@ -630,6 +666,65 @@ Item {
                                 root.openSettingsRequested(Qt.rect(origin.x, origin.y, settingsBtn.width, settingsBtn.height));
                             }
                         }
+
+                        activeFocusOnTab: true
+                        Accessible.role: Accessible.Button
+                        Accessible.name: I18n.t("config.header.title", "Configuración")
+
+                        FocusRing {
+                            target: settingsBtn
+                        }
+
+                        Keys.onReturnPressed: {
+                            var origin = settingsBtn.mapToItem(null, 0, 0);
+                            root.openSettingsRequested(Qt.rect(origin.x, origin.y, settingsBtn.width, settingsBtn.height));
+                        }
+                        Keys.onEnterPressed: Keys.onReturnPressed()
+                        Keys.onSpacePressed: Keys.onReturnPressed()
+                    }
+
+                    // Botón de Atajos de Teclado
+                    Rectangle {
+                        id: shortcutsBtn
+                        Layout.preferredHeight: 38
+                        Layout.preferredWidth: 38
+                        radius: 10
+                        color: (shortcutsMa.containsMouse || shortcutsBtn.activeFocus) ? Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.1) : Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.05)
+                        border.color: Qt.hsva(Theme.text.hsvHue, Theme.text.hsvSaturation, Theme.text.hsvValue, 0.12)
+                        border.width: 1
+
+                        activeFocusOnTab: true
+                        Accessible.role: Accessible.Button
+                        Accessible.name: I18n.t("shortcuts.title", "Atajos de Teclado")
+                        Accessible.description: "Ctrl+/"
+
+                        FocusRing {
+                            target: shortcutsBtn
+                        }
+
+                        Behavior on color {
+                            enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                            ColorAnimation { duration: 120; easing.type: Easing.OutCubic }
+                        }
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: "⌨"
+                            font.pixelSize: Theme.fontSizeTitle
+                            color: shortcutsMa.containsMouse ? Theme.text : Theme.muted
+                        }
+
+                        MouseArea {
+                            id: shortcutsMa
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: shortcutsSheet.open()
+                        }
+
+                        Keys.onReturnPressed: shortcutsSheet.open()
+                        Keys.onEnterPressed: shortcutsSheet.open()
+                        Keys.onSpacePressed: shortcutsSheet.open()
                     }
 
                     // ── Barra de búsqueda rápida (Regla 9 de .instrucciones.md) ──
@@ -710,6 +805,21 @@ Item {
 
                                     onTextChanged: {
                                         if (NotesService.searchQuery !== text) NotesService.searchQuery = text;
+                                    }
+
+                                    Accessible.role: Accessible.EditableText
+                                    Accessible.name: I18n.t("search.placeholder", "Buscar notas...")
+
+                                    Keys.onTabPressed: (event) => {
+                                        if (root.activeNotesList.length > 0) {
+                                            root.keyboardNavActive = true;
+                                            var first = root.activeNotesList[0];
+                                            root.keyboardSelectedSlug = first ? (first.key || first.slug || first.id || "") : "";
+                                            root.forceActiveFocus();
+                                        } else {
+                                            fab.forceActiveFocus();
+                                        }
+                                        event.accepted = true;
                                     }
 
                                     Keys.onDownPressed: (event) => {
@@ -2427,6 +2537,17 @@ Item {
     function openWebClipper(initialUrl) {
         if (webClipModal) {
             webClipModal.open(initialUrl);
+        }
+    }
+
+    ShortcutsSheet {
+        id: shortcutsSheet
+        anchors.fill: parent
+    }
+
+    function openShortcutsSheet() {
+        if (shortcutsSheet) {
+            shortcutsSheet.open();
         }
     }
 

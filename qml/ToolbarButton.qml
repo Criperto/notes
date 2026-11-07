@@ -33,33 +33,46 @@ Rectangle {
         return tbRoot.tooltipShortcut;
     }
 
-    width: 30
-    height: 30
-    radius: 8
+    width: Theme.s(30)
+    height: Theme.s(30)
+    radius: Theme.s(8)
+
+    activeFocusOnTab: !tbRoot.disabled
+    Accessible.role: Accessible.Button
+    Accessible.name: tbRoot.resolvedLabel
+    Accessible.description: tbRoot.resolvedShortcut
 
     color: tbRoot.disabled
         ? Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.04)
         : (active
             ? Qt.hsva(Theme.accent.hsvHue, Theme.accent.hsvSaturation, Theme.accent.hsvValue, 0.28)
-            : (mouseArea.containsMouse ? Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.12) : "transparent"))
+            : ((mouseArea.containsMouse || tbRoot.activeFocus) ? Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.12) : "transparent"))
 
     Behavior on color {
         enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
         ColorAnimation { duration: 120 }
     }
 
+    FocusRing {
+        target: tbRoot
+    }
+
+    Keys.onReturnPressed: if (!tbRoot.disabled) tbRoot.clicked()
+    Keys.onEnterPressed: if (!tbRoot.disabled) tbRoot.clicked()
+    Keys.onSpacePressed: if (!tbRoot.disabled) tbRoot.clicked()
+
     Image {
         id: iconImg
         visible: tbRoot.iconSource !== ""
         anchors.centerIn: parent
-        width: 16
-        height: 16
+        width: Theme.s(16)
+        height: Theme.s(16)
         source: tbRoot.iconSource
-        sourceSize: Qt.size(16, 16)
+        sourceSize: Qt.size(Theme.s(16), Theme.s(16))
         layer.enabled: !GamemodeService.gamemodeActive
         layer.effect: MultiEffect {
             colorization: 1.0
-            colorizationColor: tbRoot.disabled ? Theme.muted : (tbRoot.active ? Theme.accent : (mouseArea.containsMouse ? Theme.accent : Theme.text))
+            colorizationColor: tbRoot.disabled ? Theme.muted : (tbRoot.active ? Theme.accent : ((mouseArea.containsMouse || tbRoot.activeFocus) ? Theme.accent : Theme.text))
         }
     }
 
