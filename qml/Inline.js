@@ -1201,3 +1201,12 @@ function plainText(te) {
     var txt = (typeof te === "string") ? te : ((typeof te.getText === "function") ? te.getText(0, te.length) : (te.text || ""));
     return txt.replace(/[\u2028\u2029]/g, "\n");
 }
+
+// Encuentra la posición final de la siguiente palabra o delimitador hacia adelante (para Ctrl+Suprimir)
+function findNextWordEnd(text, pos) {
+    if (typeof text !== "string" || pos < 0) return 0;
+    if (pos >= text.length) return text.length;
+    var sub = text.substring(pos);
+    var m = sub.match(/^(\s+|[^\s\w\u00C0-\u024F\u0400-\u04FF]+|[\w\u00C0-\u024F\u0400-\u04FF]+)\s*/);
+    return pos + (m ? m[0].length : 1);
+}

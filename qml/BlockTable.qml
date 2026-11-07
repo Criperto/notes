@@ -569,6 +569,56 @@ Item {
     }
 
     function _handleCellSpecialKeys(event) {
+        var isCtrl = !!(event.modifiers & Qt.ControlModifier);
+        var isShift = !!(event.modifiers & Qt.ShiftModifier);
+        var isAlt = !!(event.modifiers & Qt.AltModifier);
+
+        if (isCtrl && !isShift && !isAlt && event.key === Qt.Key_Home) {
+            if (root.editor && typeof root.editor.goToDocumentStart === "function") {
+                root.editor.goToDocumentStart();
+                event.accepted = true;
+                return;
+            }
+        }
+        if (isCtrl && !isShift && !isAlt && event.key === Qt.Key_End) {
+            if (root.editor && typeof root.editor.goToDocumentEnd === "function") {
+                root.editor.goToDocumentEnd();
+                event.accepted = true;
+                return;
+            }
+        }
+        if (event.key === Qt.Key_PageUp) {
+            if (root.editor && typeof root.editor.pageUp === "function") {
+                root.editor.pageUp();
+                event.accepted = true;
+                return;
+            }
+        }
+        if (event.key === Qt.Key_PageDown) {
+            if (root.editor && typeof root.editor.pageDown === "function") {
+                root.editor.pageDown();
+                event.accepted = true;
+                return;
+            }
+        }
+        if (isCtrl && !isShift && !isAlt && event.key === Qt.Key_Delete) {
+            if (root.editor && root.editor.readOnly) {
+                event.accepted = true;
+                return;
+            }
+            var cellInputD = root._getCellInput(root.focusedRow, root.focusedCol);
+            if (cellInputD) {
+                if (cellInputD.selectionStart !== cellInputD.selectionEnd) {
+                    cellInputD.remove(cellInputD.selectionStart, cellInputD.selectionEnd);
+                } else if (cellInputD.cursorPosition < cellInputD.length) {
+                    var nextW = Inline.findNextWordEnd(cellInputD.text, cellInputD.cursorPosition);
+                    cellInputD.remove(cellInputD.cursorPosition, nextW);
+                }
+                event.accepted = true;
+                return;
+            }
+        }
+
         // F23: Ctrl+Shift+V fuerza imagen; Ctrl+V decide por MIME real.
         // En celdas no se pega la imagen dentro de la celda: se inserta como bloque (vía modal).
         if ((event.modifiers & Qt.ControlModifier) && (event.modifiers & Qt.ShiftModifier) && event.key === Qt.Key_V) {
@@ -1713,6 +1763,55 @@ Item {
             if (root.editor) {
                 root.editor.confirmActiveBlock();
                 event.accepted = true;
+            }
+        }
+
+        Keys.onPressed: (event) => {
+            var isCtrl = !!(event.modifiers & Qt.ControlModifier);
+            var isShift = !!(event.modifiers & Qt.ShiftModifier);
+            var isAlt = !!(event.modifiers & Qt.AltModifier);
+
+            if (isCtrl && !isShift && !isAlt && event.key === Qt.Key_Home) {
+                if (root.editor && typeof root.editor.goToDocumentStart === "function") {
+                    root.editor.goToDocumentStart();
+                    event.accepted = true;
+                    return;
+                }
+            }
+            if (isCtrl && !isShift && !isAlt && event.key === Qt.Key_End) {
+                if (root.editor && typeof root.editor.goToDocumentEnd === "function") {
+                    root.editor.goToDocumentEnd();
+                    event.accepted = true;
+                    return;
+                }
+            }
+            if (event.key === Qt.Key_PageUp) {
+                if (root.editor && typeof root.editor.pageUp === "function") {
+                    root.editor.pageUp();
+                    event.accepted = true;
+                    return;
+                }
+            }
+            if (event.key === Qt.Key_PageDown) {
+                if (root.editor && typeof root.editor.pageDown === "function") {
+                    root.editor.pageDown();
+                    event.accepted = true;
+                    return;
+                }
+            }
+            if (isCtrl && !isShift && !isAlt && event.key === Qt.Key_Delete) {
+                if (root.editor && root.editor.readOnly) {
+                    event.accepted = true;
+                    return;
+                }
+                if (rawEditor.selectionStart !== rawEditor.selectionEnd) {
+                    rawEditor.remove(rawEditor.selectionStart, rawEditor.selectionEnd);
+                } else if (rawEditor.cursorPosition < rawEditor.length) {
+                    var nextW = Inline.findNextWordEnd(rawEditor.text, rawEditor.cursorPosition);
+                    rawEditor.remove(rawEditor.cursorPosition, nextW);
+                }
+                event.accepted = true;
+                return;
             }
         }
 

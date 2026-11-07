@@ -89,40 +89,68 @@ Flickable {
         }
     }
 
+    property var _scrollFinishedCallback: null
+
+    function _smoothScrollTo(targetY, onFinished) {
+        if (scrollAnim && scrollAnim.running) {
+            scrollAnim.stop();
+        }
+        root._scrollFinishedCallback = (typeof onFinished === "function") ? onFinished : null;
+        if (Theme.animationsEnabled && !GamemodeService.gamemodeActive) {
+            scrollAnim.to = targetY;
+            scrollAnim.duration = Math.min(320, Math.max(160, 140 + Math.abs(root.contentY - targetY) * 0.18));
+            scrollAnim.restart();
+        } else {
+            root.contentY = targetY;
+            if (blocksModel.count > 35) {
+                root._recalcChunkWindow();
+            }
+            if (root._scrollFinishedCallback) {
+                var cb = root._scrollFinishedCallback;
+                root._scrollFinishedCallback = null;
+                cb();
+            }
+        }
+    }
+
     function goToDocumentStart() {
         if (blocksModel.count === 0) return;
         var firstBid = blocksModel.get(0).bid;
-        root.contentY = 0;
-        root.requestEditBlock(firstBid, 0);
+        _smoothScrollTo(0, function() {
+            root.requestEditBlock(firstBid, 0);
+        });
     }
 
     function goToDocumentEnd() {
         if (blocksModel.count === 0) return;
         var lastBid = blocksModel.get(blocksModel.count - 1).bid;
         var maxScroll = Math.max(0, (blocksColumn.implicitHeight + 120) - root.height);
-        root.contentY = maxScroll;
-        root.requestEditBlock(lastBid, -1);
+        _smoothScrollTo(maxScroll, function() {
+            root.requestEditBlock(lastBid, -1);
+        });
     }
 
     function pageUp() {
-        var pageStep = root.height * 0.85;
-        root.contentY = Math.max(0, root.contentY - pageStep);
-        var targetY = root.contentY + 40;
-        var bid = root._findBlockNearY(targetY);
-        if (bid !== -1) {
-            root.requestEditBlock(bid, { x: root.preferredCursorX, y: 0 });
-        }
+        var pageStep = root.height * 0.75;
+        var targetY = Math.max(0, root.contentY - pageStep);
+        _smoothScrollTo(targetY, function() {
+            var bid = root._findBlockNearY(root.contentY + 40);
+            if (bid !== -1) {
+                root.requestEditBlock(bid, { x: root.preferredCursorX, y: 0 });
+            }
+        });
     }
 
     function pageDown() {
-        var pageStep = root.height * 0.85;
+        var pageStep = root.height * 0.75;
         var maxScroll = Math.max(0, (blocksColumn.implicitHeight + 120) - root.height);
-        root.contentY = Math.min(maxScroll, root.contentY + pageStep);
-        var targetY = root.contentY + 40;
-        var bid = root._findBlockNearY(targetY);
-        if (bid !== -1) {
-            root.requestEditBlock(bid, { x: root.preferredCursorX, y: 0 });
-        }
+        var targetY = Math.min(maxScroll, root.contentY + pageStep);
+        _smoothScrollTo(targetY, function() {
+            var bid = root._findBlockNearY(root.contentY + 40);
+            if (bid !== -1) {
+                root.requestEditBlock(bid, { x: root.preferredCursorX, y: 0 });
+            }
+        });
     }
 
     function _commitInlineFormattedSubEdit(bid, textEdit, newPlainText, newSelStart, newSelEnd) {
@@ -1753,6 +1781,9 @@ Flickable {
         var idx = _findBlockIndex(bid);
         if (idx !== -1) {
             root._activeBlockDirty = true;
+            if (!typingSnapshotTimer.running) {
+                root._saveSnapshot();
+            }
             blocksModel.setProperty(idx, "raw", newRaw);
 
             // Autoformato al vuelo si escribe prefijo de lista o cita seguido de espacio
@@ -3269,6 +3300,11 @@ Flickable {
             if (blocksModel.count > 35) {
                 root._recalcChunkWindow();
             }
+            if (root._scrollFinishedCallback) {
+                var cb = root._scrollFinishedCallback;
+                root._scrollFinishedCallback = null;
+                cb();
+            }
         }
     }
 
@@ -3297,9 +3333,13 @@ Flickable {
         typingSnapshotTimer.stop();
         var cur = root.getMarkdown();
         var cursorPos = 0;
+        var selStart = -1;
+        var selEnd = -1;
         var textEdit = _getTextEditForBid(root.activeBlockBid);
         if (textEdit) {
             cursorPos = textEdit.cursorPosition;
+            selStart = textEdit.selectionStart;
+            selEnd = textEdit.selectionEnd;
         }
         var activeIdx = _findBlockIndex(root.activeBlockBid);
         var subIdx = -1;
@@ -3317,6 +3357,8 @@ Flickable {
             activeBid: root.activeBlockBid,
             activeIndex: activeIdx,
             cursorPos: cursorPos,
+            selStart: selStart,
+            selEnd: selEnd,
             subIndex: subIdx,
             cellRow: cRow,
             cellCol: cCol,
@@ -3381,6 +3423,10 @@ Flickable {
             if (targetBid !== -1) {
                 root.activeBlockBid = targetBid;
                 root.safeFocusDelegate(targetBid, snapshot.cursorPos);
+                var te = root._getTextEditForBid(targetBid);
+                if (te && typeof snapshot.selStart === "number" && typeof snapshot.selEnd === "number" && snapshot.selStart !== snapshot.selEnd && snapshot.selStart >= 0) {
+                    te.select(Math.min(te.length, snapshot.selStart), Math.min(te.length, snapshot.selEnd));
+                }
                 if ((typeof snapshot.subIndex === "number" && snapshot.subIndex >= 0) ||
                     (typeof snapshot.cellRow === "number" && snapshot.cellRow >= -1)) {
                     Qt.callLater(() => {

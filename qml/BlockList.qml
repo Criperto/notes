@@ -70,17 +70,41 @@ Item {
         root._loadingModel = true;
         var parsed = LP.parseList(root.blockData.raw);
         root._itemsRawArray = parsed;
-        itemsModel.clear();
-        for (var i = 0; i < parsed.length; i++) {
+
+        var common = Math.min(itemsModel.count, parsed.length);
+        for (var i = 0; i < common; i++) {
             var p = parsed[i];
-            itemsModel.append({
-                indent: p.indent || "",
-                marker: p.marker || "-",
-                spacingStr: p.spacing || " ",
-                isTask: !!p.isTask,
-                checked: !!p.checked,
-                text: p.text || ""
-            });
+            var cur = itemsModel.get(i);
+            var pIndent = p.indent || "";
+            var pMarker = p.marker || "-";
+            var pSpacing = p.spacing || " ";
+            var pIsTask = !!p.isTask;
+            var pChecked = !!p.checked;
+            var pText = p.text || "";
+            if (cur.indent !== pIndent) itemsModel.setProperty(i, "indent", pIndent);
+            if (cur.marker !== pMarker) itemsModel.setProperty(i, "marker", pMarker);
+            if (cur.spacingStr !== pSpacing) itemsModel.setProperty(i, "spacingStr", pSpacing);
+            if (cur.isTask !== pIsTask) itemsModel.setProperty(i, "isTask", pIsTask);
+            if (cur.checked !== pChecked) itemsModel.setProperty(i, "checked", pChecked);
+            if (cur.text !== pText) itemsModel.setProperty(i, "text", pText);
+        }
+
+        if (itemsModel.count > parsed.length) {
+            while (itemsModel.count > parsed.length) {
+                itemsModel.remove(itemsModel.count - 1);
+            }
+        } else if (parsed.length > itemsModel.count) {
+            for (var j = itemsModel.count; j < parsed.length; j++) {
+                var pj = parsed[j];
+                itemsModel.append({
+                    indent: pj.indent || "",
+                    marker: pj.marker || "-",
+                    spacingStr: pj.spacing || " ",
+                    isTask: !!pj.isTask,
+                    checked: !!pj.checked,
+                    text: pj.text || ""
+                });
+            }
         }
         root._loadingModel = false;
         Qt.callLater(function() {
@@ -1770,6 +1794,64 @@ Item {
                         }
 
                         var rEditor = itemRow.rootBlock ? itemRow.rootBlock.editor : (root.editor || null);
+                        var isCtrlKey = !!(event.modifiers & Qt.ControlModifier);
+                        var isShiftKey = !!(event.modifiers & Qt.ShiftModifier);
+                        var isAltKey = !!(event.modifiers & Qt.AltModifier);
+
+                        if (isCtrlKey && !isShiftKey && !isAltKey && event.key === Qt.Key_Home) {
+                            if (rEditor && typeof rEditor.goToDocumentStart === "function") {
+                                rEditor.goToDocumentStart();
+                                event.accepted = true;
+                                return;
+                            }
+                        }
+                        if (isCtrlKey && !isShiftKey && !isAltKey && event.key === Qt.Key_End) {
+                            if (rEditor && typeof rEditor.goToDocumentEnd === "function") {
+                                rEditor.goToDocumentEnd();
+                                event.accepted = true;
+                                return;
+                            }
+                        }
+                        if (event.key === Qt.Key_PageUp) {
+                            if (rEditor && typeof rEditor.pageUp === "function") {
+                                rEditor.pageUp();
+                                event.accepted = true;
+                                return;
+                            }
+                        }
+                        if (event.key === Qt.Key_PageDown) {
+                            if (rEditor && typeof rEditor.pageDown === "function") {
+                                rEditor.pageDown();
+                                event.accepted = true;
+                                return;
+                            }
+                        }
+                        if (isCtrlKey && !isShiftKey && !isAltKey && event.key === Qt.Key_Delete) {
+                            if (root.editor && root.editor.readOnly) {
+                                event.accepted = true;
+                                return;
+                            }
+                            if (lineEdit.selectionStart !== lineEdit.selectionEnd) {
+                                lineEdit.remove(lineEdit.selectionStart, lineEdit.selectionEnd);
+                            } else if (lineEdit.cursorPosition < lineEdit.length) {
+                                var nextW = Inline.findNextWordEnd(lineEdit.text, lineEdit.cursorPosition);
+                                lineEdit.remove(lineEdit.cursorPosition, nextW);
+                            } else if (lineEdit.cursorPosition === lineEdit.length) {
+                                if (itemRow.index < itemsModel.count - 1) {
+                                    var nextItem = root._itemsRawArray[itemRow.index + 1];
+                                    var curItem = root._itemsRawArray[itemRow.index];
+                                    curItem.text = (curItem.text || "") + (nextItem.text || "");
+                                    itemsModel.setProperty(itemRow.index, "text", curItem.text);
+                                    root._removeItem(itemRow.index + 1);
+                                    root._notifyRawChanged();
+                                } else if (itemRow.index === itemsModel.count - 1 && rEditor) {
+                                    rEditor.handleBlockDeleteAtEnd(root.blockData.bid);
+                                }
+                            }
+                            event.accepted = true;
+                            return;
+                        }
+
                         if (event.key === Qt.Key_Left || event.key === Qt.Key_Right ||
                             event.key === Qt.Key_Home || event.key === Qt.Key_End ||
                             event.key === Qt.Key_Backspace || event.key === Qt.Key_Delete ||

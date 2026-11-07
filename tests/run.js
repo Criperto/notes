@@ -4603,6 +4603,67 @@ runTest("F93: Persistent multi-line & sub-line selection retention contracts acr
     assert.ok(blockEditorQml.includes('isMultiItem'), "BlockEditor endCrossBlockDrag debe retener selectedBids si isMultiItem");
 });
 
+runTest("F94: Keyboard ergonomics contracts: forward word delete (Ctrl+Supr), smooth scroll (Re/AvPag), doc navigation (Ctrl+Home/End) & in-place list undo", () => {
+    // 1. Tests unitarios puros de findNextWordEnd en Inline.js
+    const inlineContent = fs.readFileSync(path.resolve(__dirname, '../qml/Inline.js'), 'utf8');
+    assert.ok(inlineContent.includes('function findNextWordEnd(text, pos)'), "Inline.js debe proveer findNextWordEnd");
+
+    // Evaluar findNextWordEnd en entorno de test
+    const vm = require('vm');
+    const sandbox = {};
+    const sanitizedInline = inlineContent.replace(/^\s*\.pragma[^\n]*\n?/gm, "");
+    vm.runInNewContext(sanitizedInline, sandbox);
+    const findNextWordEnd = sandbox.findNextWordEnd;
+
+    assert.strictEqual(findNextWordEnd("hello world", 0), 6, "Debe saltar palabra 'hello ' completa");
+    assert.strictEqual(findNextWordEnd("hello   world", 5), 8, "Debe consumir espacios consecutivos '   '");
+    assert.strictEqual(findNextWordEnd("árbol verde", 0), 6, "Debe soportar caracteres con tildes");
+    assert.strictEqual(findNextWordEnd("test-driven", 0), 4, "Debe detenerse en signo de puntuación");
+    assert.strictEqual(findNextWordEnd("-driven", 0), 1, "Debe consumir signo de puntuación");
+    assert.strictEqual(findNextWordEnd("fin", 3), 3, "Debe ser idempotente en fin de cadena");
+    assert.strictEqual(findNextWordEnd("", 0), 0, "Debe manejar cadena vacía");
+
+    // 2. Contratos de BlockEditor.qml
+    const blockEditorQml = fs.readFileSync(path.resolve(__dirname, '../qml/BlockEditor.qml'), 'utf8');
+    assert.ok(blockEditorQml.includes('_smoothScrollTo'), "BlockEditor debe contar con _smoothScrollTo()");
+    assert.ok(blockEditorQml.includes('if (!typingSnapshotTimer.running)'), "BlockEditor debe guardar snapshot antes de iniciar ráfaga en onBlockRawChanged");
+    assert.ok(blockEditorQml.includes('selStart: selStart') && blockEditorQml.includes('selEnd: selEnd'), "BlockEditor debe persistir selStart y selEnd en snapshot");
+
+    // 3. Contratos de BlockList.qml
+    const blockListQml = fs.readFileSync(path.resolve(__dirname, '../qml/BlockList.qml'), 'utf8');
+    assert.ok(blockListQml.includes('itemsModel.setProperty(i, "text", pText)'), "BlockList debe reconciliar itemsModel in-place sin destruir delegates");
+    assert.ok(blockListQml.includes('goToDocumentStart'), "BlockList debe delegar Ctrl+Home a goToDocumentStart");
+    assert.ok(blockListQml.includes('goToDocumentEnd'), "BlockList debe delegar Ctrl+End a goToDocumentEnd");
+    assert.ok(blockListQml.includes('pageUp'), "BlockList debe delegar PageUp a pageUp");
+    assert.ok(blockListQml.includes('pageDown'), "BlockList debe delegar PageDown a pageDown");
+    assert.ok(blockListQml.includes('Inline.findNextWordEnd'), "BlockList debe usar Inline.findNextWordEnd en Ctrl+Delete");
+
+    // 4. Contratos de BlockParagraph.qml
+    const blockParagraphQml = fs.readFileSync(path.resolve(__dirname, '../qml/BlockParagraph.qml'), 'utf8');
+    assert.ok(blockParagraphQml.includes('goToDocumentStart'), "BlockParagraph debe delegar Ctrl+Home a goToDocumentStart");
+    assert.ok(blockParagraphQml.includes('goToDocumentEnd'), "BlockParagraph debe delegar Ctrl+End a goToDocumentEnd");
+    assert.ok(blockParagraphQml.includes('pageUp'), "BlockParagraph debe delegar PageUp a pageUp");
+    assert.ok(blockParagraphQml.includes('pageDown'), "BlockParagraph debe delegar PageDown a pageDown");
+    assert.ok(blockParagraphQml.includes('Inline.findNextWordEnd'), "BlockParagraph debe usar Inline.findNextWordEnd en Ctrl+Delete");
+
+    // 5. Contratos de BlockHeading.qml, BlockQuote.qml, BlockCode.qml, BlockTable.qml
+    const blockHeadingQml = fs.readFileSync(path.resolve(__dirname, '../qml/BlockHeading.qml'), 'utf8');
+    assert.ok(blockHeadingQml.includes('Inline.findNextWordEnd'), "BlockHeading debe usar Inline.findNextWordEnd en Ctrl+Delete");
+    assert.ok(blockHeadingQml.includes('goToDocumentStart'), "BlockHeading debe delegar Ctrl+Home");
+
+    const blockQuoteQml = fs.readFileSync(path.resolve(__dirname, '../qml/BlockQuote.qml'), 'utf8');
+    assert.ok(blockQuoteQml.includes('Inline.findNextWordEnd'), "BlockQuote debe usar Inline.findNextWordEnd en Ctrl+Delete");
+    assert.ok(blockQuoteQml.includes('goToDocumentStart'), "BlockQuote debe delegar Ctrl+Home");
+
+    const blockCodeQml = fs.readFileSync(path.resolve(__dirname, '../qml/BlockCode.qml'), 'utf8');
+    assert.ok(blockCodeQml.includes('Inline.findNextWordEnd'), "BlockCode debe usar Inline.findNextWordEnd en Ctrl+Delete");
+    assert.ok(blockCodeQml.includes('goToDocumentStart'), "BlockCode debe delegar Ctrl+Home");
+
+    const blockTableQml = fs.readFileSync(path.resolve(__dirname, '../qml/BlockTable.qml'), 'utf8');
+    assert.ok(blockTableQml.includes('Inline.findNextWordEnd'), "BlockTable debe usar Inline.findNextWordEnd en Ctrl+Delete");
+    assert.ok(blockTableQml.includes('goToDocumentStart'), "BlockTable debe delegar Ctrl+Home");
+});
+
 console.log(`\n========================================`);
 console.log(`Resultados: ${passed} OK, ${failed} FAIL`);
 console.log(`========================================`);

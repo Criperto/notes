@@ -902,10 +902,58 @@ Item {
         }
 
         Keys.onPressed: (event) => {
+            var isCtrl = !!(event.modifiers & Qt.ControlModifier);
+            var isShift = !!(event.modifiers & Qt.ShiftModifier);
+            var isAlt = !!(event.modifiers & Qt.AltModifier);
+
+            if (isCtrl && !isShift && !isAlt && event.key === Qt.Key_Home) {
+                if (root.editor && typeof root.editor.goToDocumentStart === "function") {
+                    root.editor.goToDocumentStart();
+                    event.accepted = true;
+                    return;
+                }
+            }
+            if (isCtrl && !isShift && !isAlt && event.key === Qt.Key_End) {
+                if (root.editor && typeof root.editor.goToDocumentEnd === "function") {
+                    root.editor.goToDocumentEnd();
+                    event.accepted = true;
+                    return;
+                }
+            }
+            if (event.key === Qt.Key_PageUp) {
+                if (root.editor && typeof root.editor.pageUp === "function") {
+                    root.editor.pageUp();
+                    event.accepted = true;
+                    return;
+                }
+            }
+            if (event.key === Qt.Key_PageDown) {
+                if (root.editor && typeof root.editor.pageDown === "function") {
+                    root.editor.pageDown();
+                    event.accepted = true;
+                    return;
+                }
+            }
+            if (isCtrl && !isShift && !isAlt && event.key === Qt.Key_Delete) {
+                if (root.editor && root.editor.readOnly) {
+                    event.accepted = true;
+                    return;
+                }
+                if (editInput.selectionStart !== editInput.selectionEnd) {
+                    editInput.remove(editInput.selectionStart, editInput.selectionEnd);
+                } else if (editInput.cursorPosition < editInput.length) {
+                    var nextW = Inline.findNextWordEnd(editInput.text, editInput.cursorPosition);
+                    editInput.remove(editInput.cursorPosition, nextW);
+                } else if (editInput.cursorPosition === editInput.length) {
+                    if (root.editor && typeof root.editor.handleBlockDeleteAtEnd === "function") {
+                        root.editor.handleBlockDeleteAtEnd(root.blockData.bid);
+                    }
+                }
+                event.accepted = true;
+                return;
+            }
+
             if (root.editor && root.editor.hasBlockSelection) {
-                var isCtrl = !!(event.modifiers & Qt.ControlModifier);
-                var isShift = !!(event.modifiers & Qt.ShiftModifier);
-                var isAlt = !!(event.modifiers & Qt.AltModifier);
 
                 if (isCtrl && !isShift && !isAlt && event.key === Qt.Key_C) {
                     root.editor.copySelectedText();
