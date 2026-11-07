@@ -440,7 +440,7 @@ Flickable {
         root.selAnchorPos = (typeof anchorPos === "number") ? anchorPos : 0;
         root.selCurrentBid = anchorBid;
         root.selCurrentPos = root.selAnchorPos;
-        root.isDraggingSelection = true;
+        root.isDraggingSelection = false;
     }
 
     function _findBlockAndCharNear(x, y) {
@@ -472,6 +472,7 @@ Flickable {
     function handleCrossBlockDrag(anchorBid, targetY, targetX) {
         if (root.selAnchorBid === -1) root.selAnchorBid = anchorBid;
         root.isDraggingSelection = true;
+        root.interactive = false;
 
         var targetInfo = root._findBlockAndCharNear(targetX !== undefined ? targetX : (blocksColumn.x + blocksColumn.width / 2), targetY);
         var curBid = targetInfo.bid;
@@ -570,9 +571,12 @@ Flickable {
 
     function endCrossBlockDrag() {
         root.isDraggingSelection = false;
+        root.interactive = true;
         if (root.hasBlockSelection) {
-            root.confirmActiveBlock();
+            root._syncingSelection = true;
+            root._activeBlockDirty = false;
             root.forceActiveFocus();
+            root._syncingSelection = false;
         }
         root.updateFormatStateImmediate();
     }

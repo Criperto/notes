@@ -4548,6 +4548,31 @@ runTest("F91: Multi-item selection, copy, cut, and context menu contracts in lis
     assert.ok(contextMenuQml.includes('function _performDelete()'), "ContextMenu debe delegar borrado en _performDelete()");
 });
 
+runTest("F92: Multi-line and multi-block drag selection release preservation contracts", () => {
+    const blockEditorQml = fs.readFileSync(path.resolve(__dirname, '../qml/BlockEditor.qml'), 'utf8');
+    assert.ok(blockEditorQml.includes('root.isDraggingSelection = false'), "endCrossBlockDrag debe resetear isDraggingSelection");
+    assert.ok(blockEditorQml.includes('root.interactive = true'), "endCrossBlockDrag debe restaurar interactive");
+    assert.ok(!blockEditorQml.includes('root.confirmActiveBlock();\n        root.forceActiveFocus();'), "endCrossBlockDrag no debe re-parsear destructivamente con confirmActiveBlock()");
+
+    const blockListQml = fs.readFileSync(path.resolve(__dirname, '../qml/BlockList.qml'), 'utf8');
+    assert.ok(!blockListQml.includes('id: editPointHandler'), "BlockList no debe tener editPointHandler en conflicto con MouseArea");
+    assert.ok(blockListQml.includes('function hasAnyItemSelection()'), "BlockList debe contar con hasAnyItemSelection");
+    assert.ok(blockListQml.includes('!hasAnyItemSelection()'), "BlockList debe proteger recargas de modelo si hay selección activa");
+    assert.ok(blockListQml.includes('lineEdit.selectionStart !== lineEdit.selectionEnd || root.hasMultiItemSelection'), "onActiveFocusChanged en BlockList no debe sobreescribir text si hay selección");
+
+    const blockParagraphQml = fs.readFileSync(path.resolve(__dirname, '../qml/BlockParagraph.qml'), 'utf8');
+    assert.ok(!blockParagraphQml.includes('id: editPointHandler'), "BlockParagraph no debe tener editPointHandler duplicado");
+    assert.ok(blockParagraphQml.includes('editInput.select(Math.min(editInput.length, oldSelStart), Math.min(editInput.length, oldSelEnd))'), "BlockParagraph debe preservar selección en _syncTextFromModel");
+
+    const blockHeadingQml = fs.readFileSync(path.resolve(__dirname, '../qml/BlockHeading.qml'), 'utf8');
+    assert.ok(!blockHeadingQml.includes('id: editPointHandler'), "BlockHeading no debe tener editPointHandler duplicado");
+    assert.ok(blockHeadingQml.includes('editInput.select(Math.min(editInput.length, oldSelStart), Math.min(editInput.length, oldSelEnd))'), "BlockHeading debe preservar selección en _syncTextFromModel");
+
+    const blockQuoteQml = fs.readFileSync(path.resolve(__dirname, '../qml/BlockQuote.qml'), 'utf8');
+    assert.ok(!blockQuoteQml.includes('id: editPointHandler'), "BlockQuote no debe tener editPointHandler duplicado");
+    assert.ok(blockQuoteQml.includes('editInput.select(Math.min(editInput.length, oldSelStart), Math.min(editInput.length, oldSelEnd))'), "BlockQuote debe preservar selección en _syncTextFromModel");
+});
+
 console.log(`\n========================================`);
 console.log(`Resultados: ${passed} OK, ${failed} FAIL`);
 console.log(`========================================`);

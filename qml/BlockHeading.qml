@@ -255,17 +255,23 @@ Item {
         var curRaw = Inline.plainText(editInput);
         if (curRaw !== clean || editInput.text === "") {
             var oldPos = editInput.cursorPosition;
+            var oldSelStart = editInput.selectionStart;
+            var oldSelEnd = editInput.selectionEnd;
             root._syncingModel = true;
             root._lastAppliedHtml = formatted;
             editInput.text = formatted;
-            editInput.cursorPosition = Math.min(editInput.length, oldPos);
+            if (oldSelStart !== oldSelEnd) {
+                editInput.select(Math.min(editInput.length, oldSelStart), Math.min(editInput.length, oldSelEnd));
+            } else {
+                editInput.cursorPosition = Math.min(editInput.length, oldPos);
+            }
             root._syncingModel = false;
         }
     }
 
     function _updateLiveFormatting() {
         if (!root.isEditing || root._syncingModel || !editInput) return;
-        if (root.editor && (root.editor.readOnly || root.editor._syncingSelection)) return;
+        if (root.editor && (root.editor.readOnly || root.editor._syncingSelection || root.editor.isDraggingSelection || root.editor.hasBlockSelection)) return;
         if (editInput.inputMethodComposing) return;
         var clean = Inline.plainText(editInput);
         if (!clean || !/[*_~=`<\[]/.test(clean)) return;
@@ -407,15 +413,22 @@ Item {
             _syncTextFromModel();
             editInput.forceActiveFocus();
             if (editInput.selectionStart !== editInput.selectionEnd) return;
+            if (root.editor && (root.editor.isDraggingSelection || root.editor.hasBlockSelection || root.editor._syncingSelection)) return;
             if (typeof cursorPos === "object" && cursorPos !== null && typeof cursorPos.x === "number") {
                 if (cursorPos.fromBottom === true || (typeof cursorPos.y === "number" && cursorPos.y > 1000)) {
                     var lastRect = editInput.positionToRectangle(editInput.length);
                     var targetY = lastRect.y + (lastRect.height > 0 ? lastRect.height / 2 : 10);
                     editInput.cursorPosition = editInput.positionAt(cursorPos.x, targetY);
-                } else {
+                } else if (cursorPos.fromTop === true) {
                     var firstRect = editInput.positionToRectangle(0);
                     var targetY0 = firstRect.y + (firstRect.height > 0 ? firstRect.height / 2 : 10);
                     editInput.cursorPosition = editInput.positionAt(cursorPos.x, targetY0);
+                } else if (typeof cursorPos.y === "number") {
+                    editInput.cursorPosition = editInput.positionAt(cursorPos.x, cursorPos.y);
+                } else {
+                    var firstRect2 = editInput.positionToRectangle(0);
+                    var targetY02 = firstRect2.y + (firstRect2.height > 0 ? firstRect2.height / 2 : 10);
+                    editInput.cursorPosition = editInput.positionAt(cursorPos.x, targetY02);
                 }
             } else if (cursorPos === -1 || cursorPos === undefined || cursorPos > editInput.length) {
                 editInput.cursorPosition = editInput.length;
@@ -520,7 +533,7 @@ Item {
             }
             dragging = false;
             anchorPos = -1;
-            if (isCrossDragging) {
+            if (isCrossDragging || (root.editor && root.editor.isDraggingSelection)) {
                 isCrossDragging = false;
                 if (root.editor && typeof root.editor.endCrossBlockDrag === "function") {
                     root.editor.endCrossBlockDrag();
@@ -532,6 +545,9 @@ Item {
             dragging = false;
             anchorPos = -1;
             isCrossDragging = false;
+            if (root.editor && typeof root.editor.endCrossBlockDrag === "function") {
+                root.editor.endCrossBlockDrag();
+            }
         }
 
         onDoubleClicked: (mouse) => {
@@ -691,39 +707,6 @@ Item {
             }
             if (root.isEditing && !root._syncingModel) {
                 root._updateLiveFormatting();
-            }
-        }
-
-        PointHandler {
-            id: editPointHandler
-            acceptedButtons: Qt.LeftButton
-            property bool isCrossDragging: false
-            onActiveChanged: {
-                if (!active) {
-                    if (isCrossDragging) {
-                        isCrossDragging = false;
-                        if (root.editor && typeof root.editor.endCrossBlockDrag === "function") {
-                            root.editor.endCrossBlockDrag();
-                        }
-                    }
-                }
-            }
-            onPointChanged: {
-                if (!active) return;
-                var py = point.position.y;
-                if (py < -4 || py > editInput.height + 4 || isCrossDragging) {
-                    if (!isCrossDragging) {
-                        isCrossDragging = true;
-                        if (root.editor && typeof root.editor.startCrossBlockDrag === "function") {
-                            var anchor = editInput.selectionStart !== editInput.cursorPosition ? editInput.selectionStart : editInput.selectionEnd;
-                            root.editor.startCrossBlockDrag(root.blockData.bid, anchor);
-                        }
-                    }
-                    if (root.editor && typeof root.editor.handleCrossBlockDrag === "function") {
-                        var ptInContent = editInput.mapToItem(root.editor.contentItem, point.position.x, point.position.y);
-                        root.editor.handleCrossBlockDrag(root.blockData.bid, ptInContent.y, ptInContent.x);
-                    }
-                }
             }
         }
 

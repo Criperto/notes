@@ -141,14 +141,25 @@ Item {
         }
     }
 
+    function hasAnyItemSelection() {
+        for (var i = 0; i < itemsRepeater.count; i++) {
+            var del = itemsRepeater.itemAt(i);
+            if (del && typeof del.getTextEdit === "function") {
+                var te = del.getTextEdit();
+                if (te && te.selectionStart !== te.selectionEnd) return true;
+            }
+        }
+        return false;
+    }
+
     onIsEditingChanged: {
-        if (!isEditing && !isSelected) {
+        if (!isEditing && !isSelected && !hasMultiItemSelection && !hasAnyItemSelection()) {
             _reloadFromRaw();
         }
     }
 
     onIsSelectedChanged: {
-        if (!isSelected && !isEditing) {
+        if (!isSelected && !isEditing && !hasMultiItemSelection && !hasAnyItemSelection()) {
             root.clearTextSelection();
         }
     }
@@ -1088,12 +1099,13 @@ Item {
                     var r = itemRow.rootBlock || (typeof root !== "undefined" ? root : null);
                     if (!r) return;
                     if (!r.isEditing && r.editor && r.blockData && r.editor.activeBlockBid !== r.blockData.bid) {
-                        r.editor.requestEditBlock(r.blockData.bid);
+                        r.editor.requestEditBlock(r.blockData.bid, pos);
                     }
                     var applyFocus = () => {
                         if (!lineEdit) return;
                         lineEdit.forceActiveFocus();
                         if (lineEdit.selectionStart !== lineEdit.selectionEnd) return;
+                        if (r && r.editor && (r.editor.isDraggingSelection || r.editor.hasBlockSelection || r.editor._syncingSelection)) return;
                         if (pos === -1) {
                             lineEdit.cursorPosition = lineEdit.length;
                         } else if (typeof pos === "object" && pos !== null && typeof pos.x === "number") {
@@ -1101,10 +1113,16 @@ Item {
                                 var lastRect = lineEdit.positionToRectangle(lineEdit.length);
                                 var targetY = lastRect.y + (lastRect.height > 0 ? lastRect.height / 2 : 10);
                                 lineEdit.cursorPosition = lineEdit.positionAt(pos.x, targetY);
-                            } else {
+                            } else if (pos.fromTop === true) {
                                 var firstRect = lineEdit.positionToRectangle(0);
                                 var targetY0 = firstRect.y + (firstRect.height > 0 ? firstRect.height / 2 : 10);
                                 lineEdit.cursorPosition = lineEdit.positionAt(pos.x, targetY0);
+                            } else if (typeof pos.y === "number") {
+                                lineEdit.cursorPosition = lineEdit.positionAt(pos.x, pos.y);
+                            } else {
+                                var firstRect2 = lineEdit.positionToRectangle(0);
+                                var targetY02 = firstRect2.y + (firstRect2.height > 0 ? firstRect2.height / 2 : 10);
+                                lineEdit.cursorPosition = lineEdit.positionAt(pos.x, targetY02);
                             }
                         } else if (typeof pos === "number" && pos >= 0) {
                             lineEdit.cursorPosition = Math.min(lineEdit.length, pos);
@@ -1214,7 +1232,7 @@ Item {
                     return lineEdit;
                 }
 
-                property bool isSelected: root.isSelected
+                property bool isSelected: root.isSelected || root.hasMultiItemSelection || (lineEdit && lineEdit.selectionStart !== lineEdit.selectionEnd)
 
                 // start/end en coords. RAW del bloque (con `## `) → display.
                 function selectRange(start, end) {
@@ -1388,7 +1406,7 @@ Item {
                     // solo revela el ítem activo con el cursor al inicio o vacío.
                     TextEdit {
                         id: lineEdit
-                        property string _lastAppliedHtml: ""
+                        property string _lastAppliedHtml: itemRow.baseDisplayText(itemRow.text)
                         visible: root.isEditing || itemRow.isSelected || (root.spellActive && itemRow.spellRanges && itemRow.spellRanges.length > 0 && lineEdit.length > 0)
                         readOnly: !root.isEditing || (root.editor && root.editor.readOnly)
                         cursorVisible: activeFocus && root.isEditing && (!root.editor || !root.editor.readOnly)
@@ -1461,40 +1479,6 @@ Item {
                         }
                     }
 
-                    PointHandler {
-                        id: editPointHandler
-                        acceptedButtons: Qt.LeftButton
-                        property bool isCrossDragging: false
-                        onActiveChanged: {
-                            if (!active) {
-                                if (isCrossDragging) {
-                                    isCrossDragging = false;
-                                    if (root.editor && typeof root.editor.endCrossBlockDrag === "function") {
-                                        root.editor.endCrossBlockDrag();
-                                    }
-                                }
-                            }
-                        }
-                        onPointChanged: {
-                            if (!active) return;
-                            var py = point.position.y;
-                            if (py < -2 || py > lineEdit.height + 2 || isCrossDragging) {
-                                if (!isCrossDragging) {
-                                    isCrossDragging = true;
-                                    if (root.editor && typeof root.editor.startCrossBlockDrag === "function") {
-                                        var localAnchor = (lineEdit.selectionStart !== lineEdit.cursorPosition) ? lineEdit.selectionStart : lineEdit.selectionEnd;
-                                        var globalAnchor = root.getItemStartOffset(itemRow.index) + itemRow.rawPrefixLen() + localAnchor;
-                                        root.editor.startCrossBlockDrag(root.blockData.bid, globalAnchor);
-                                    }
-                                }
-                                if (root.editor && typeof root.editor.handleCrossBlockDrag === "function") {
-                                    var ptInContent = lineEdit.mapToItem(root.editor.contentItem, point.position.x, point.position.y);
-                                    root.editor.handleCrossBlockDrag(root.blockData.bid, ptInContent.y, ptInContent.x);
-                                }
-                            }
-                        }
-                    }
-
                     // F21: marcador `##` revelado (Text separado, fuera del TextEdit editable).
                     // Solo el ítem activo con cursor al inicio o vacío; fundido ≤100ms.
                     Text {
@@ -1533,6 +1517,9 @@ Item {
                             }
                             lineEdit._updateLiveFormatting();
                         } else {
+                            if (lineEdit.selectionStart !== lineEdit.selectionEnd || root.hasMultiItemSelection || (root.editor && (root.editor.hasBlockSelection || root.editor._syncingSelection || root.editor.isDraggingSelection))) {
+                                return;
+                            }
                             if (itemRow.index >= 0 && itemRow.index < root._itemsRawArray.length) {
                                 var rawT = root._itemsRawArray[itemRow.index].text || "";
                                 var baseT = itemRow.baseDisplayText(rawT);
@@ -1590,7 +1577,8 @@ Item {
 
                     function _updateLiveFormatting() {
                         if (!root.isEditing || lineEdit._syncingLocal || root._loadingModel || root.activeItemIndex !== itemRow.index) return;
-                        if (root.editor && (root.editor.readOnly || root.editor._syncingSelection)) return;
+                        if (root.editor && (root.editor.readOnly || root.editor._syncingSelection || root.editor.isDraggingSelection || root.editor.hasBlockSelection)) return;
+                        if (root.hasMultiItemSelection) return;
                         if (lineEdit.inputMethodComposing) return;
                         var dispRaw = Inline.plainText(lineEdit);
                         if (!dispRaw || !/[#*_~=`<\[]/.test(dispRaw)) return;
@@ -2232,11 +2220,11 @@ Item {
                         isCrossDragging = false;
                         startX = mouse.x;
                         startY = mouse.y;
-                        if (r.editor && r.blockData && r.editor.activeBlockBid !== r.blockData.bid) {
-                            r.editor.requestEditBlock(r.blockData.bid);
-                        }
                         var ptEdit = mapToItem(lineEdit, mouse.x, mouse.y);
                         if (lineEdit) anchorPos = lineEdit.positionAt(ptEdit.x, ptEdit.y);
+                        if (r.editor && r.blockData && r.editor.activeBlockBid !== r.blockData.bid) {
+                            r.editor.requestEditBlock(r.blockData.bid, { x: ptEdit.x, y: ptEdit.y });
+                        }
                         itemRow.focusInput({ x: ptEdit.x, y: ptEdit.y });
                         var globalAnchor = r.getItemStartOffset(itemRow.index) + itemRow.rawPrefixLen() + (anchorPos >= 0 ? anchorPos : 0);
                         if (r.editor && r.blockData && typeof r.editor.startCrossBlockDrag === "function") {
@@ -2277,7 +2265,7 @@ Item {
                         }
                         dragging = false;
                         anchorPos = -1;
-                        if (isCrossDragging) {
+                        if (isCrossDragging || (r && r.editor && r.editor.isDraggingSelection)) {
                             isCrossDragging = false;
                             if (r && r.editor && typeof r.editor.endCrossBlockDrag === "function") {
                                 r.editor.endCrossBlockDrag();
@@ -2289,6 +2277,10 @@ Item {
                         dragging = false;
                         anchorPos = -1;
                         isCrossDragging = false;
+                        var r = itemRow.rootBlock || (typeof root !== "undefined" ? root : null);
+                        if (r && r.editor && typeof r.editor.endCrossBlockDrag === "function") {
+                            r.editor.endCrossBlockDrag();
+                        }
                     }
 
                     onDoubleClicked: (mouse) => {
