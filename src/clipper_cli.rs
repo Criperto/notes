@@ -236,7 +236,11 @@ fn fetch_url_bytes(
         .get(url)
         .header(
             "User-Agent",
-            "Mozilla/5.0 (X11; Linux x86_64; rv:130.0) Gecko/20100101 Firefox/130.0 Notas/0.1.0 WebClipper",
+            concat!(
+                "Mozilla/5.0 (X11; Linux x86_64; rv:130.0) Gecko/20100101 Firefox/130.0 Notas/",
+                env!("CARGO_PKG_VERSION"),
+                " WebClipper"
+            ),
         )
         .header(
             "Accept",
@@ -511,7 +515,10 @@ fn download_single_image(agent: &ureq::Agent, url: &str, dest: &Path) -> bool {
         .get(url)
         .header(
             "User-Agent",
-            "Mozilla/5.0 (X11; Linux x86_64; rv:130.0) Gecko/20100101 Firefox/130.0 Notas/0.1.0",
+            concat!(
+                "Mozilla/5.0 (X11; Linux x86_64; rv:130.0) Gecko/20100101 Firefox/130.0 Notas/",
+                env!("CARGO_PKG_VERSION")
+            ),
         )
         .header("Accept", "image/avif,image/webp,image/png,image/*,*/*;q=0.8")
         .call()

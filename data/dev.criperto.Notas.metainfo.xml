@@ -18,6 +18,11 @@
     <dbus type="user">dev.criperto.Notas</dbus>
   </provides>
   <releases>
+    <release version="0.1.10" date="2026-11-07">
+      <description>
+        <p>Mejoras de ergonomía de teclado, atajos, selección de texto multilínea y corrección de edición.</p>
+      </description>
+    </release>
     <release version="0.1.0" date="2026-11-01">
       <description>
         <p>Lanzamiento inicial de la versión autónoma de Notas.</p>

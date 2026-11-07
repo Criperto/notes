@@ -20,7 +20,7 @@ extern "C" {
 #[derive(Parser, Debug)]
 #[command(
     name = "notas",
-    version = "0.1.0",
+    version = env!("CARGO_PKG_VERSION"),
     about = "Aplicación nativa de notas en Markdown con editor de bloques y diagramas Mermaid"
 )]
 struct Cli {
@@ -330,7 +330,7 @@ fn main() {
     }
 
     if cli.check_only {
-        println!("✓ Notas 0.1.0 inicializado y validado correctamente.");
+        println!("✓ Notas {} inicializado y validado correctamente.", env!("CARGO_PKG_VERSION"));
         return;
     }
 
