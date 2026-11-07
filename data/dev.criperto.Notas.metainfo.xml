@@ -28,6 +28,11 @@
   </screenshots>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.1.11" date="2026-11-07">
+      <description>
+        <p>Pre-release v0.1.11 con soporte AppImage, .deb y .rpm</p>
+      </description>
+    </release>
     <release version="0.1.10" date="2026-11-07">
       <description>
         <p>Mejoras de ergonomía de teclado, atajos, selección de texto multilínea y corrección de edición.</p>

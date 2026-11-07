@@ -1,5 +1,5 @@
 Name:           notas
-Version:        0.1.10
+Version:        0.1.11
 Release:        1%{?dist}
 Summary:        Editor moderno y nativo de notas en Markdown para Wayland
 License:        GPL-3.0-or-later

@@ -32,7 +32,7 @@ sha256sums=('SKIP')
 
 pkgver() {
     cd "$srcdir/notes"
-    git describe --long --tags --always 2>/dev/null | sed 's/^v//;s/\([^-]*-g\)/r\1/;s/-/./g' || echo "0.1.10"
+    git describe --long --tags --always 2>/dev/null | sed 's/^v//;s/\([^-]*-g\)/r\1/;s/-/./g' || echo "0.1.11"
 }
 
 prepare() {

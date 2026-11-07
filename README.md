@@ -3,7 +3,7 @@
 > Editor moderno y nativo de notas en Markdown con edición visual por bloques, diagramas Mermaid enriquecidos, soporte multilingüe y rendimiento ultra-ligero.
 
 ![License: GPL-3.0-or-later](https://img.shields.io/badge/license-GPL--3.0--or--later-blue.svg)
-![Version: 0.1.10](https://img.shields.io/badge/version-0.1.10-orange.svg)
+![Version: 0.1.11](https://img.shields.io/badge/version-0.1.11-orange.svg)
 ![Platform: Linux / Wayland](https://img.shields.io/badge/platform-Wayland-purple.svg)
 
 ---
