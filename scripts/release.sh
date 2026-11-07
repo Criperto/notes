@@ -387,6 +387,14 @@ if [[ "${DO_PACKAGE}" == true ]]; then
             echo "   ✓ AppImage copiado a dist/"
         fi
     fi
+
+    if [[ -f "${ROOT_DIR}/packaging/deb/build-deb.sh" ]]; then
+        bash "${ROOT_DIR}/packaging/deb/build-deb.sh" >/dev/null 2>&1 || true
+    fi
+
+    if [[ -f "${ROOT_DIR}/packaging/rpm/build-rpm.sh" ]]; then
+        bash "${ROOT_DIR}/packaging/rpm/build-rpm.sh" >/dev/null 2>&1 || true
+    fi
 else
     echo -e "\n${DIM}🎁 [5/6] Empaquetado de distribución dist/ omitido (usar --package o --github)${NC}"
 fi

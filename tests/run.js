@@ -4781,6 +4781,27 @@ runTest("P9.2 - Script maestro de release y compilación (scripts/release.sh)", 
     assert.ok(buildContent.includes("release.sh"), "build.sh debe integrar delegación a release.sh");
 });
 
+runTest("P9.3 - Scripts de empaquetado Debian (.deb) y Fedora (.rpm)", () => {
+    const debScript = path.resolve(__dirname, '../packaging/deb/build-deb.sh');
+    assert.ok(fs.existsSync(debScript), "packaging/deb/build-deb.sh debe existir");
+    const debStat = fs.statSync(debScript);
+    assert.ok((debStat.mode & 0o111) !== 0, "build-deb.sh debe ser ejecutable");
+
+    const rpmScript = path.resolve(__dirname, '../packaging/rpm/build-rpm.sh');
+    assert.ok(fs.existsSync(rpmScript), "packaging/rpm/build-rpm.sh debe existir");
+    const rpmStat = fs.statSync(rpmScript);
+    assert.ok((rpmStat.mode & 0o111) !== 0, "build-rpm.sh debe ser ejecutable");
+
+    const rpmSpec = path.resolve(__dirname, '../packaging/rpm/notas.spec');
+    assert.ok(fs.existsSync(rpmSpec), "packaging/rpm/notas.spec debe existir");
+
+    const releaseWf = path.resolve(__dirname, '../.github/workflows/release.yml');
+    const wfContent = fs.readFileSync(releaseWf, 'utf8');
+    assert.ok(wfContent.includes("build-deb.sh"), "Workflow debe compilar .deb");
+    assert.ok(wfContent.includes("build-rpm.sh"), "Workflow debe compilar .rpm");
+    assert.ok(wfContent.includes("prerelease: true"), "Workflow debe marcar los releases como pre-release");
+});
+
 console.log(`\n========================================`);
 console.log(`Resultados: ${passed} OK, ${failed} FAIL`);
 console.log(`========================================`);

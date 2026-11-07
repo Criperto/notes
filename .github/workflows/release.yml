@@ -33,7 +33,8 @@ jobs:
             appstream \
             desktop-file-utils \
             libfuse2t64 \
-            file
+            file \
+            rpm
 
       - name: Set up Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -73,6 +74,14 @@ jobs:
             cd dist && for f in *.AppImage; do sha256sum "$f" > "${f}.sha256"; done
           fi
 
+      - name: Build Debian Package (.deb)
+        run: |
+          bash packaging/deb/build-deb.sh
+
+      - name: Build Fedora Package (.rpm)
+        run: |
+          bash packaging/rpm/build-rpm.sh
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -81,6 +90,10 @@ jobs:
             dist/*.tar.gz.sha256
             dist/*.AppImage
             dist/*.AppImage.sha256
+            dist/*.deb
+            dist/*.deb.sha256
+            dist/*.rpm
+            dist/*.rpm.sha256
           generate_release_notes: true
           draft: false
-          prerelease: false
+          prerelease: true
