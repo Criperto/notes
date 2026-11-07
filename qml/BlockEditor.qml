@@ -11,6 +11,7 @@ import "Anchors.js" as Anchors
 import "ListParser.js" as LP
 import "Selection.js" as Sel
 import "MermaidTemplates.js" as MermaidTemplates
+import "MathTemplates.js" as MathTemplates
 
 Flickable {
     id: root
@@ -2703,9 +2704,13 @@ Flickable {
             root.safeFocusDelegate(mBid, 0);
             _saveSnapshot();
             root.updateFormatState();
-        } else if (actionId === "math") {
+        } else if (actionId === "math" || (typeof actionId === "string" && actionId.startsWith("math:"))) {
             root.confirmActiveBlock();
             var mathTpl = "$$\n\\frac{a}{b}\n$$";
+            if (typeof actionId === "string" && actionId.startsWith("math:")) {
+                var mKey = actionId.substring(5);
+                mathTpl = MathTemplates.getTemplate(mKey);
+            }
             var mathBid = BlockModel.getNextBid();
             var insertPos = (idx !== -1) ? idx + 1 : blocksModel.count;
             blocksModel.insert(insertPos, { bid: mathBid, type: "math", raw: mathTpl, sep: "\n\n" });

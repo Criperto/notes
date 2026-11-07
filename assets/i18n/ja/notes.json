@@ -261,5 +261,13 @@
     "cancel": "キャンセル",
     "action": "クリップ",
     "error_generic": "ウェブページをクリップできませんでした。"
-  }
+  },
+  "notes.math.template.fraction": "分数",
+  "notes.math.template.quadratic": "二次方程式",
+  "notes.math.template.integral": "定積分",
+  "notes.math.template.sum": "総和 (シグマ)",
+  "notes.math.template.limit": "極限",
+  "notes.math.template.root": "平方根 / 累乗根",
+  "notes.math.template.matrix": "行列 (2x2)",
+  "notes.math.template.cases": "区分定義関数 (場合分け)"
 }

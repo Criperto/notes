@@ -47,6 +47,7 @@ const MermaidParser = loadModule('MermaidParser.js');
 const MermaidShapes = loadModule('MermaidShapes.js');
 const MermaidLayout = loadModule('MermaidLayout.js');
 const MermaidTemplates = loadModule('MermaidTemplates.js');
+const MathTemplates = loadModule('MathTemplates.js');
 const Anchors = loadModule('Anchors.js');
 const SlashLogic = loadModule('SlashLogic.js');
 const SlashCommands = loadModule('SlashCommands.js');
@@ -4359,6 +4360,33 @@ runTest("F87: Web clipper nativo, contratos CLI JSON, modal y FAB", () => {
             const outErr = err.stdout ? err.stdout.toString() : "";
             assert.ok(outErr.includes('"ok":false'), "clip con bad-url debe retornar JSON con ok:false");
         }
+    }
+});
+
+runTest("F88: MathTemplates y menú contextual de fórmulas LaTeX con traducciones", () => {
+    const list = MathTemplates.getTemplateList();
+    assert.strictEqual(list.length, 8);
+    const ids = Array.from(list).map(item => String(item.id));
+    assert.strictEqual(ids.join(","), "fraction,quadratic,integral,sum,limit,root,matrix,cases");
+    for (const item of list) {
+        assert.ok(item.labelKey.startsWith("notes.math.template."));
+        const tpl = MathTemplates.getTemplate(item.id);
+        assert.ok(tpl.startsWith("$$\n") && tpl.endsWith("\n$$"), `Plantilla ${item.id} delimitada por $$`);
+    }
+    const langs = ['es_es', 'es_ar', 'en', 'de', 'fr', 'pt', 'ja', 'zh', 'ru'];
+    for (const lang of langs) {
+        const json = JSON.parse(fs.readFileSync(path.resolve(__dirname, `../assets/i18n/${lang}/notes.json`), 'utf8'));
+        for (const item of list) {
+            assert.ok(json[item.labelKey], `Falta ${item.labelKey} en ${lang}`);
+        }
+    }
+    const editorModal = fs.readFileSync(path.resolve(__dirname, '../qml/NoteEditorModal.qml'), 'utf8');
+    assert.ok(editorModal.includes('id: mathMenuPopup'));
+    assert.ok(editorModal.includes('MathTemplates.getTemplateList()'));
+    assert.ok(editorModal.includes('onRightClicked: mathMenuPopup.isOpen = !mathMenuPopup.isOpen'));
+    const theme = fs.readFileSync(path.resolve(__dirname, '../qml/Theme.qml'), 'utf8');
+    for (const tok of ['textSecondary', 'textTertiary', 'outlineVariant', 'surfaceContainer', 'surfaceContainerHigh']) {
+        assert.ok(theme.includes(`property color ${tok}:`), `Theme debe definir ${tok}`);
     }
 });
 

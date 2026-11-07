@@ -261,5 +261,13 @@
     "cancel": "Cancelar",
     "action": "Recortar",
     "error_generic": "Não foi possível recortar a página web."
-  }
+  },
+  "notes.math.template.fraction": "Fração",
+  "notes.math.template.quadratic": "Equação quadrática",
+  "notes.math.template.integral": "Integral definida",
+  "notes.math.template.sum": "Somatório",
+  "notes.math.template.limit": "Limite",
+  "notes.math.template.root": "Raiz quadrada / n-ésima",
+  "notes.math.template.matrix": "Matriz (2x2)",
+  "notes.math.template.cases": "Função por partes (Casos)"
 }

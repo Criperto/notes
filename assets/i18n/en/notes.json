@@ -261,5 +261,13 @@
     "cancel": "Cancel",
     "action": "Clip",
     "error_generic": "Failed to clip web page."
-  }
+  },
+  "notes.math.template.fraction": "Fraction",
+  "notes.math.template.quadratic": "Quadratic equation",
+  "notes.math.template.integral": "Definite integral",
+  "notes.math.template.sum": "Summation",
+  "notes.math.template.limit": "Limit",
+  "notes.math.template.root": "Square / n-th root",
+  "notes.math.template.matrix": "Matrix (2x2)",
+  "notes.math.template.cases": "Piecewise function (Cases)"
 }

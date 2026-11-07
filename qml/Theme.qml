@@ -284,6 +284,11 @@ QtObject {
     readonly property color surfaceHover:  Qt.rgba(text.r, text.g, text.b, 0.08)
     readonly property color surfaceActive: Qt.rgba(primary.r, primary.g, primary.b, 0.16)
     readonly property color accentText:    textOn(accent)
+    readonly property color textSecondary: muted
+    readonly property color textTertiary:  Qt.rgba(text.r, text.g, text.b, 0.4)
+    readonly property color outlineVariant: border
+    readonly property color surfaceContainer: surface
+    readonly property color surfaceContainerHigh: Qt.rgba(text.r, text.g, text.b, 0.08)
 
     // ── Tipografía y Tokens de tamaño ────────────────────────────────────
     readonly property string systemFont: (typeof Sys !== "undefined" && Sys.systemFontFamily) ? Sys.systemFontFamily : ""

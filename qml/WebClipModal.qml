@@ -112,8 +112,8 @@ Item {
         width: Math.min(500, parent.width - 40)
         height: cardCol.implicitHeight + 40
         radius: 18
-        color: Theme.surfaceContainer
-        border.color: Theme.outlineVariant
+        color: Theme.surface
+        border.color: Theme.border
         border.width: 1
 
         scale: (root.isOpen && !root.isClosing) ? 1.0 : 0.94
@@ -182,7 +182,7 @@ Item {
 
                     Text {
                         text: I18n.t("notes.clip.subtitle", "Descarga y limpia artículos a Markdown offline")
-                        color: Theme.textSecondary
+                        color: Theme.muted
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontSizeSmall
                     }
@@ -193,7 +193,7 @@ Item {
                     Layout.preferredWidth: 32
                     Layout.preferredHeight: 32
                     radius: 8
-                    color: closeMa.containsMouse ? Theme.surfaceContainerHigh : "transparent"
+                    color: closeMa.containsMouse ? Theme.surfaceHover : "transparent"
 
                     Image {
                         anchors.centerIn: parent
@@ -206,7 +206,7 @@ Item {
                         layer.enabled: true
                         layer.effect: MultiEffect {
                             colorization: 1.0
-                            colorizationColor: closeMa.containsMouse ? Theme.text : Theme.textSecondary
+                            colorizationColor: closeMa.containsMouse ? Theme.text : Theme.muted
                         }
                     }
 
@@ -224,7 +224,7 @@ Item {
             Rectangle {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 1
-                color: Theme.outlineVariant
+                color: Theme.border
                 opacity: 0.5
             }
 
@@ -246,7 +246,7 @@ Item {
                     Layout.preferredHeight: 44
                     radius: 10
                     color: Theme.surface
-                    border.color: urlInput.activeFocus ? Theme.primary : Theme.outlineVariant
+                    border.color: urlInput.activeFocus ? Theme.primary : Theme.border
                     border.width: urlInput.activeFocus ? 2 : 1
 
                     Behavior on border.color {
@@ -270,7 +270,7 @@ Item {
                             layer.enabled: true
                             layer.effect: MultiEffect {
                                 colorization: 1.0
-                                colorizationColor: urlInput.activeFocus ? Theme.primary : Theme.textSecondary
+                                colorizationColor: urlInput.activeFocus ? Theme.primary : Theme.muted
                             }
                         }
 
@@ -292,7 +292,7 @@ Item {
                                 anchors.fill: parent
                                 anchors.leftMargin: 1
                                 text: I18n.t("notes.clip.placeholder", "https://ejemplo.com/articulo")
-                                color: Theme.textTertiary
+                                color: Theme.muted
                                 font.family: Theme.fontFamily
                                 font.pixelSize: Theme.fontSizeBody
                                 visible: !urlInput.text && !urlInput.inputMethodComposing
@@ -308,7 +308,7 @@ Item {
                             Layout.preferredWidth: 28
                             Layout.preferredHeight: 28
                             radius: 6
-                            color: pasteMa.containsMouse ? Theme.surfaceContainerHigh : "transparent"
+                            color: pasteMa.containsMouse ? Theme.surfaceHover : "transparent"
                             visible: !root.isClipping
 
                             Image {
@@ -322,7 +322,7 @@ Item {
                                 layer.enabled: true
                                 layer.effect: MultiEffect {
                                     colorization: 1.0
-                                    colorizationColor: Theme.textSecondary
+                                    colorizationColor: Theme.muted
                                 }
                             }
 
@@ -353,7 +353,7 @@ Item {
                     Layout.fillWidth: true
                     Layout.preferredHeight: 34
                     radius: 8
-                    color: imgOptMa.containsMouse ? Theme.surfaceContainerHigh : "transparent"
+                    color: imgOptMa.containsMouse ? Theme.surfaceHover : "transparent"
 
                     RowLayout {
                         anchors.fill: parent
@@ -371,7 +371,7 @@ Item {
                             layer.enabled: true
                             layer.effect: MultiEffect {
                                 colorization: 1.0
-                                colorizationColor: root.downloadImages ? Theme.primary : Theme.textSecondary
+                                colorizationColor: root.downloadImages ? Theme.primary : Theme.muted
                             }
                         }
 
@@ -399,7 +399,7 @@ Item {
                     Layout.fillWidth: true
                     Layout.preferredHeight: 34
                     radius: 8
-                    color: contentOptMa.containsMouse ? Theme.surfaceContainerHigh : "transparent"
+                    color: contentOptMa.containsMouse ? Theme.surfaceHover : "transparent"
 
                     RowLayout {
                         anchors.fill: parent
@@ -417,7 +417,7 @@ Item {
                             layer.enabled: true
                             layer.effect: MultiEffect {
                                 colorization: 1.0
-                                colorizationColor: root.mainContentOnly ? Theme.primary : Theme.textSecondary
+                                colorizationColor: root.mainContentOnly ? Theme.primary : Theme.muted
                             }
                         }
 
@@ -535,8 +535,8 @@ Item {
                     Layout.preferredWidth: cancelText.implicitWidth + 28
                     Layout.preferredHeight: 38
                     radius: 10
-                    color: cancelMa.containsMouse ? Theme.surfaceContainerHigh : "transparent"
-                    border.color: Theme.outlineVariant
+                    color: cancelMa.containsMouse ? Theme.surfaceHover : "transparent"
+                    border.color: Theme.border
                     border.width: 1
                     enabled: !root.isClipping
 
@@ -565,7 +565,7 @@ Item {
                     Layout.preferredWidth: clipBtnText.implicitWidth + 32
                     Layout.preferredHeight: 38
                     radius: 10
-                    color: canClip ? (clipBtnMa.containsMouse ? Qt.lighter(Theme.primary, 1.08) : Theme.primary) : Theme.surfaceContainerHigh
+                    color: canClip ? (clipBtnMa.containsMouse ? Qt.lighter(Theme.primary, 1.08) : Theme.primary) : Theme.surfaceHover
                     opacity: canClip ? 1.0 : 0.6
 
                     Behavior on color {
@@ -587,14 +587,14 @@ Item {
                             layer.enabled: true
                             layer.effect: MultiEffect {
                                 colorization: 1.0
-                                colorizationColor: parent.parent.canClip ? Theme.textOn(Theme.primary) : Theme.textSecondary
+                                colorizationColor: parent.parent.canClip ? Theme.textOn(Theme.primary) : Theme.muted
                             }
                         }
 
                         Text {
                             id: clipBtnText
                             text: I18n.t("notes.clip.action", "Recortar")
-                            color: parent.parent.canClip ? Theme.textOn(Theme.primary) : Theme.textSecondary
+                            color: parent.parent.canClip ? Theme.textOn(Theme.primary) : Theme.muted
                             font.family: Theme.fontFamilyDisplay
                             font.pixelSize: Theme.fontSizeBody
                             font.bold: true

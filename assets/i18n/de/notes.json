@@ -261,5 +261,13 @@
     "cancel": "Abbrechen",
     "action": "Clippen",
     "error_generic": "Webseite konnte nicht geclippt werden."
-  }
+  },
+  "notes.math.template.fraction": "Bruch",
+  "notes.math.template.quadratic": "Quadratische Gleichung",
+  "notes.math.template.integral": "Bestimmtes Integral",
+  "notes.math.template.sum": "Summe",
+  "notes.math.template.limit": "Grenzwert",
+  "notes.math.template.root": "Wurzel",
+  "notes.math.template.matrix": "Matrix (2x2)",
+  "notes.math.template.cases": "Fallunterscheidung"
 }

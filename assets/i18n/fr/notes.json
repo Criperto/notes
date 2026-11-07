@@ -261,5 +261,13 @@
     "cancel": "Annuler",
     "action": "Capturer",
     "error_generic": "Impossible de capturer la page web."
-  }
+  },
+  "notes.math.template.fraction": "Fraction",
+  "notes.math.template.quadratic": "Équation quadratique",
+  "notes.math.template.integral": "Intégrale définie",
+  "notes.math.template.sum": "Somme",
+  "notes.math.template.limit": "Limite",
+  "notes.math.template.root": "Racine carrée / n-ième",
+  "notes.math.template.matrix": "Matrice (2x2)",
+  "notes.math.template.cases": "Fonction par morceaux (Cas)"
 }

@@ -15,6 +15,7 @@ import "ListParser.js" as LP
 import "TableParser.js" as TP
 import "QuoteParser.js" as QP
 import "MermaidTemplates.js" as MermaidTemplates
+import "MathTemplates.js" as MathTemplates
 
 Item {
     id: root
@@ -934,6 +935,18 @@ Item {
                 sourceCodeEditor.forceActiveFocus();
                 root.markDirty();
             }
+            else if (action === "math" || (typeof action === "string" && action.startsWith("math"))) {
+                var mathPos = sourceCodeEditor.cursorPosition;
+                var mathTpl = "$$\n\\frac{a}{b}\n$$\n";
+                if (action.startsWith("math:")) {
+                    var mathKey = action.substring(5);
+                    mathTpl = MathTemplates.getTemplate(mathKey) + "\n";
+                }
+                sourceCodeEditor.insert(mathPos, "\n" + mathTpl);
+                sourceCodeEditor.cursorPosition = mathPos + mathTpl.length + 1;
+                sourceCodeEditor.forceActiveFocus();
+                root.markDirty();
+            }
             else if (action === "link") {
                 var sel = sourceCodeEditor.selectedText;
                 if (sel) {
@@ -1293,6 +1306,8 @@ Item {
                 imageMenuPopup.isOpen = false;
             } else if (mermaidMenuPopup.isOpen) {
                 mermaidMenuPopup.isOpen = false;
+            } else if (mathMenuPopup.isOpen) {
+                mathMenuPopup.isOpen = false;
             } else if (root.isFindActive) {
                 root.closeFind();
             } else {
@@ -2551,7 +2566,8 @@ Item {
                             tooltipLayer: tooltipLayer
                             iconSource: Theme.iconsPath + "math.svg"
                             active: root.isFormatActive("math")
-                            onClicked: root.applyFormatOrAction("math")
+                            onClicked: mathMenuPopup.isOpen = !mathMenuPopup.isOpen
+                            onRightClicked: mathMenuPopup.isOpen = !mathMenuPopup.isOpen
                         }
 
                         // 15. HR
@@ -3271,10 +3287,11 @@ Item {
         MouseArea {
             anchors.fill: parent
             z: 199
-            visible: imageMenuPopup.isOpen || mermaidMenuPopup.isOpen
+            visible: imageMenuPopup.isOpen || mermaidMenuPopup.isOpen || mathMenuPopup.isOpen
             onClicked: {
                 imageMenuPopup.isOpen = false;
                 mermaidMenuPopup.isOpen = false;
+                mathMenuPopup.isOpen = false;
             }
         }
 
@@ -3587,6 +3604,117 @@ Item {
                             onClicked: {
                                 mermaidMenuPopup.isOpen = false;
                                 root.applyFormatOrAction("mermaid:" + modelData.id);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Menú emergente de inserción de fórmulas LaTeX
+        Rectangle {
+            id: mathMenuPopup
+            property bool isOpen: false
+            visible: isOpen || scale > 0.02
+            z: 200
+            width: 250
+            height: mathMenuCol.implicitHeight + 12
+            radius: 8
+            color: Theme.color0
+            border.width: 0
+
+            transformOrigin: Item.Top
+            scale: isOpen ? 1.0 : 0.0
+            opacity: isOpen ? 1.0 : 0.0
+
+            Behavior on scale {
+                enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                SpringAnimation {
+                    spring: 5.5
+                    damping: 0.42
+                    epsilon: 0.01
+                }
+            }
+            Behavior on opacity {
+                NumberAnimation { duration: 140; easing.type: Easing.OutCubic }
+            }
+
+            layer.enabled: true
+            layer.effect: MultiEffect {
+                shadowEnabled: true
+                shadowColor: Qt.rgba(0, 0, 0, 0.45)
+                shadowBlur: 0.6
+                shadowVerticalOffset: 3
+            }
+
+            x: {
+                if (!mathToolbarBtn || !mathMenuPopup.parent) return 0;
+                try {
+                    var pt = mathToolbarBtn.mapToItem(mathMenuPopup.parent, 0, 0);
+                    return Math.max(16, Math.min(mathMenuPopup.parent.width - width - 16, pt.x + (mathToolbarBtn.width - width) / 2));
+                } catch(e) {
+                    return Math.max(0, toolbarRect.x + toolbarRect.width - width);
+                }
+            }
+            y: {
+                if (!mathToolbarBtn || !mathMenuPopup.parent) return toolbarRect.y + toolbarRect.height + 4;
+                try {
+                    var pt = mathToolbarBtn.mapToItem(mathMenuPopup.parent, 0, 0);
+                    return pt.y + mathToolbarBtn.height + 6;
+                } catch(e) {
+                    return toolbarRect.y + toolbarRect.height + 4;
+                }
+            }
+
+            Column {
+                id: mathMenuCol
+                anchors.centerIn: parent
+                width: parent.width - 12
+                spacing: 2
+
+                Repeater {
+                    model: MathTemplates.getTemplateList()
+                    delegate: Rectangle {
+                        width: mathMenuCol.width
+                        height: 32
+                        radius: 6
+                        color: mathTplMa.containsMouse ? Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.1) : "transparent"
+
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.leftMargin: 8
+                            anchors.rightMargin: 8
+                            spacing: 8
+
+                            Image {
+                                width: 16; height: 16
+                                source: Theme.iconsPath + (modelData.icon ? (modelData.icon + ".svg") : "math.svg")
+                                sourceSize: Qt.size(16, 16)
+                                layer.enabled: true
+                                layer.effect: MultiEffect {
+                                    colorization: 1.0
+                                    colorizationColor: Theme.accent
+                                }
+                            }
+
+                            Text {
+                                Layout.fillWidth: true
+                                text: I18n.t(modelData.labelKey, modelData.defaultLabel)
+                                color: Theme.text
+                                font.family: Theme.fontFamily
+                                font.pixelSize: Theme.fontSizeCaption
+                                elide: Text.ElideRight
+                            }
+                        }
+
+                        MouseArea {
+                            id: mathTplMa
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                mathMenuPopup.isOpen = false;
+                                root.applyFormatOrAction("math:" + modelData.id);
                             }
                         }
                     }

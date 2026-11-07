@@ -261,5 +261,13 @@
     "cancel": "Отмена",
     "action": "Сохранить",
     "error_generic": "Не удалось сохранить веб-страницу."
-  }
+  },
+  "notes.math.template.fraction": "Дробь",
+  "notes.math.template.quadratic": "Квадратное уравнение",
+  "notes.math.template.integral": "Определенный интеграл",
+  "notes.math.template.sum": "Сумма (сигма)",
+  "notes.math.template.limit": "Предел",
+  "notes.math.template.root": "Корень n-й степени",
+  "notes.math.template.matrix": "Матрица (2x2)",
+  "notes.math.template.cases": "Кусочная функция (случаи)"
 }

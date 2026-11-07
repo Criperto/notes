@@ -261,5 +261,13 @@
     "cancel": "取消",
     "action": "剪藏",
     "error_generic": "无法剪藏网页。"
-  }
+  },
+  "notes.math.template.fraction": "分数",
+  "notes.math.template.quadratic": "二次方程",
+  "notes.math.template.integral": "定积分",
+  "notes.math.template.sum": "求和",
+  "notes.math.template.limit": "极限",
+  "notes.math.template.root": "平方根 / n次方根",
+  "notes.math.template.matrix": "矩阵 (2x2)",
+  "notes.math.template.cases": "分段函数 (条件分支)"
 }

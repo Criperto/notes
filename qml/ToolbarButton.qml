@@ -21,6 +21,7 @@ Rectangle {
     property string disabledReason: ""
 
     signal clicked()
+    signal rightClicked()
 
     readonly property string resolvedLabel: {
         if (tbRoot.actionId) return EA.getLabel(tbRoot.actionId, I18n);
@@ -78,6 +79,7 @@ Rectangle {
         id: mouseArea
         anchors.fill: parent
         hoverEnabled: true
+        acceptedButtons: Qt.LeftButton | Qt.RightButton
         cursorShape: tbRoot.disabled ? Qt.ArrowCursor : Qt.PointingHandCursor
         onEntered: {
             if (tbRoot.tooltipLayer) {
@@ -94,12 +96,16 @@ Rectangle {
                 tbRoot.tooltipLayer.hideTooltip();
             }
         }
-        onClicked: {
+        onClicked: mouse => {
             if (tbRoot.disabled) return;
             if (tbRoot.tooltipLayer) {
                 tbRoot.tooltipLayer.hideTooltip();
             }
-            tbRoot.clicked();
+            if (mouse.button === Qt.RightButton) {
+                tbRoot.rightClicked();
+            } else {
+                tbRoot.clicked();
+            }
         }
     }
 }
