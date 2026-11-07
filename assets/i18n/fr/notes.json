@@ -205,6 +205,19 @@
       "spellcheck_manual": "Manuel (F7 / Bouton)",
       "spellcheck_auto": "Automatique en temps réel",
       "spellcheck_mode_comment": "Mode de vérification orthographique pour l'éditeur."
+    },
+    "spellcheck": {
+      "ignore_uppercase": "Ignorer les MAJUSCULES",
+      "ignore_uppercase_comment": "Ne pas signaler les sigles ou mots écrits entièrement en majuscules.",
+      "ignore_digits": "Ignorer les mots avec chiffres",
+      "ignore_digits_comment": "Ne pas signaler les codes alphanumériques contenant des chiffres (ex. v2, h1, utf8).",
+      "auto_detect": "Détecter la langue par paragraphe",
+      "auto_detect_comment": "Applique le dictionnaire approprié selon le texte de chaque bloc ou paragraphe."
+    },
+    "language": {
+      "spell_enabled": "Activer le correcteur orthographique",
+      "spell_enabled_desc": "Active la vérification orthographique avec soulignement ondulé et suggestions par clic droit.",
+      "spell_active_title": "Langues actives (Détection simultanée)"
     }
   },
   "slash": {

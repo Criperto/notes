@@ -2,6 +2,7 @@ pragma Singleton
 import QtQuick
 import Notas
 import "SpellLogic.js" as SpellLogic
+import "LangDetect.js" as LangDetect
 
 QtObject {
     id: root
@@ -336,7 +337,7 @@ QtObject {
 
     // ── API Pública ──────────────────────────────────────────────────────
 
-    function checkWord(word, callback) {
+    function checkWord(word, callback, targetLangs) {
         if (!word || typeof word !== "string") {
             if (typeof callback === "function") callback({ ok: true, suggestions: [] });
             return;
@@ -348,8 +349,12 @@ QtObject {
             return;
         }
 
-        if (root._wordCache[w] !== undefined) {
-            if (typeof callback === "function") callback(root._wordCache[w]);
+        var langsToCheck = (Array.isArray(targetLangs) && targetLangs.length > 0) ? targetLangs : null;
+        var langKey = langsToCheck ? langsToCheck.join(",") : "all";
+        var cacheKey = langKey + ":" + w;
+
+        if (root._wordCache[cacheKey] !== undefined) {
+            if (typeof callback === "function") callback(root._wordCache[cacheKey]);
             return;
         }
 
@@ -368,8 +373,29 @@ QtObject {
             return;
         }
 
+        var activeWorkers = [];
+        for (var idx = 0; idx < count; idx++) {
+            var workerObj = hunspellWorkers.objectAt(idx);
+            if (workerObj && (!langsToCheck || langsToCheck.indexOf(workerObj.langCode) !== -1)) {
+                activeWorkers.push(workerObj);
+            }
+        }
+
+        // Si se filtraron diccionarios y ninguno coincide en el trabajador, fallback a todos los trabajadores
+        if (activeWorkers.length === 0) {
+            for (var fIdx = 0; fIdx < count; fIdx++) {
+                var wObj = hunspellWorkers.objectAt(fIdx);
+                if (wObj) activeWorkers.push(wObj);
+            }
+        }
+
+        if (activeWorkers.length === 0) {
+            if (typeof callback === "function") callback({ ok: true, suggestions: [] });
+            return;
+        }
+
         var resultsByLang = {};
-        var pending = count;
+        var pending = activeWorkers.length;
 
         var onAllFinished = function() {
             var anyOk = false;
@@ -381,28 +407,24 @@ QtObject {
             }
 
             if (anyOk) {
-                root._wordCache[w] = { ok: true, suggestions: [] };
+                root._wordCache[cacheKey] = { ok: true, suggestions: [] };
             } else {
                 var sugsMap = {};
                 for (var code in resultsByLang) {
                     sugsMap[code] = (resultsByLang[code] && resultsByLang[code].suggestions) ? resultsByLang[code].suggestions : [];
                 }
-                var primaryLang = (root._activeEffectiveLangs && root._activeEffectiveLangs.length > 0) ? root._activeEffectiveLangs[0] : "";
+                var primaryLang = (langsToCheck && langsToCheck.length > 0) ? langsToCheck[0] : ((root._activeEffectiveLangs && root._activeEffectiveLangs.length > 0) ? root._activeEffectiveLangs[0] : "");
                 var merged = SpellLogic.mergeMultiLangSuggestions(sugsMap, w, primaryLang);
-                root._wordCache[w] = { ok: false, suggestions: merged };
+                root._wordCache[cacheKey] = { ok: false, suggestions: merged };
             }
 
             if (typeof callback === "function") {
-                callback(root._wordCache[w]);
+                callback(root._wordCache[cacheKey]);
             }
         };
 
-        for (var i = 0; i < count; i++) {
-            var worker = hunspellWorkers.objectAt(i);
-            if (!worker) {
-                pending--;
-                continue;
-            }
+        for (var i = 0; i < activeWorkers.length; i++) {
+            var worker = activeWorkers[i];
             (function(wItem) {
                 wItem.query(w, function(res) {
                     resultsByLang[wItem.langCode] = res;
@@ -419,7 +441,7 @@ QtObject {
         }
     }
 
-    function checkWordsBatch(words, callback, owner) {
+    function checkWordsBatch(words, callback, owner, options) {
         if (!Array.isArray(words) || words.length === 0) {
             if (typeof callback === "function") callback({});
             return;
@@ -437,6 +459,24 @@ QtObject {
             if (typeof callback === "function") callback({});
             return;
         }
+
+        // Resolución de idioma de destino por párrafo
+        var targetLangs = null;
+        var autoDetect = (typeof SpellConfig === "undefined" || SpellConfig.autoDetectParagraphLanguage !== false);
+        if (options) {
+            if (Array.isArray(options.langs) && options.langs.length > 0) {
+                targetLangs = options.langs;
+            } else if (autoDetect && options.text) {
+                var detected = LangDetect.detect(options.text);
+                if (detected) {
+                    targetLangs = SpellLogic.filterLanguagesByDetected(detected, root._activeEffectiveLangs);
+                }
+            } else if (options.lang) {
+                targetLangs = SpellLogic.filterLanguagesByDetected(options.lang, root._activeEffectiveLangs);
+            }
+        }
+
+        var langKey = (targetLangs && targetLangs.length > 0) ? targetLangs.join(",") : "all";
 
         var batch = {
             id: ++root._batchSeq,
@@ -478,8 +518,9 @@ QtObject {
                     batch.results[word] = { ok: true, suggestions: [] };
                     return;
                 }
-                if (root._wordCache[word] !== undefined) {
-                    batch.results[word] = root._wordCache[word];
+                var cacheKey = langKey + ":" + word;
+                if (root._wordCache[cacheKey] !== undefined) {
+                    batch.results[word] = root._wordCache[cacheKey];
                     return;
                 }
 
@@ -488,7 +529,7 @@ QtObject {
                     batch.results[word] = res;
                     batch.pendingCount--;
                     checkFinished();
-                });
+                }, targetLangs);
             })(uniqueWords[j]);
         }
 
@@ -501,7 +542,11 @@ QtObject {
         if (!word) return;
         var w = word.trim();
         root._sessionIgnored[w] = true;
-        root._wordCache[w] = { ok: true, suggestions: [] };
+        for (var k in root._wordCache) {
+            if (k.endsWith(":" + w) || k === w) {
+                root._wordCache[k] = { ok: true, suggestions: [] };
+            }
+        }
         root.cacheRevision++;
     }
 
@@ -510,7 +555,11 @@ QtObject {
         var w = word.trim();
         if (!w) return;
         root._sessionIgnored[w] = true;
-        root._wordCache[w] = { ok: true, suggestions: [] };
+        for (var k in root._wordCache) {
+            if (k.endsWith(":" + w) || k === w) {
+                root._wordCache[k] = { ok: true, suggestions: [] };
+            }
+        }
         if (typeof SpellBackend !== "undefined" && typeof SpellBackend.addPersonalWord === "function") {
             SpellBackend.addPersonalWord(w);
         }

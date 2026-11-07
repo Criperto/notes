@@ -316,6 +316,7 @@ class ConfigBackend : public QObject {
     Q_PROPERTY(QString primarySpellLanguage READ primarySpellLanguage WRITE setPrimarySpellLanguage NOTIFY primarySpellLanguageChanged)
     Q_PROPERTY(bool ignoreUppercase READ ignoreUppercase WRITE setIgnoreUppercase NOTIFY ignoreUppercaseChanged)
     Q_PROPERTY(bool ignoreWithDigits READ ignoreWithDigits WRITE setIgnoreWithDigits NOTIFY ignoreWithDigitsChanged)
+    Q_PROPERTY(bool autoDetectParagraphLanguage READ autoDetectParagraphLanguage WRITE setAutoDetectParagraphLanguage NOTIFY autoDetectParagraphLanguageChanged)
     Q_PROPERTY(int panelOpacity READ panelOpacity WRITE setPanelOpacity NOTIFY panelOpacityChanged)
     Q_PROPERTY(bool animationsEnabled READ animationsEnabled WRITE setAnimationsEnabled NOTIFY animationsEnabledChanged)
     Q_PROPERTY(double fontSizeScale READ fontSizeScale WRITE setFontSizeScale NOTIFY fontSizeScaleChanged)
@@ -396,6 +397,9 @@ public:
     bool ignoreWithDigits() const { return m_ignoreWithDigits; }
     void setIgnoreWithDigits(bool val);
 
+    bool autoDetectParagraphLanguage() const { return m_autoDetectParagraphLanguage; }
+    void setAutoDetectParagraphLanguage(bool val);
+
     int panelOpacity() const { return m_panelOpacity; }
     void setPanelOpacity(int val);
 
@@ -448,6 +452,7 @@ signals:
     void primarySpellLanguageChanged();
     void ignoreUppercaseChanged();
     void ignoreWithDigitsChanged();
+    void autoDetectParagraphLanguageChanged();
     void panelOpacityChanged();
     void animationsEnabledChanged();
     void fontSizeScaleChanged();
@@ -490,6 +495,7 @@ private:
     QString m_primarySpellLanguage;
     bool m_ignoreUppercase = true;
     bool m_ignoreWithDigits = true;
+    bool m_autoDetectParagraphLanguage = true;
     int m_panelOpacity = 94;
     bool m_animationsEnabled = true;
     double m_fontSizeScale = 1.0;

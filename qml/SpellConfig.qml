@@ -11,6 +11,7 @@ QtObject {
     property string primaryLanguage: (typeof ConfigBackend !== "undefined") ? ConfigBackend.primarySpellLanguage : ""
     property bool   ignoreUppercase: (typeof ConfigBackend !== "undefined") ? ConfigBackend.ignoreUppercase : true
     property bool   ignoreWithDigits: (typeof ConfigBackend !== "undefined") ? ConfigBackend.ignoreWithDigits : true
+    property bool   autoDetectParagraphLanguage: (typeof ConfigBackend !== "undefined" && ConfigBackend.autoDetectParagraphLanguage !== undefined) ? ConfigBackend.autoDetectParagraphLanguage : true
     property bool   ignoreCamelCase: true
     property bool   ignoreSnakeCase: true
 
@@ -39,6 +40,11 @@ QtObject {
             ConfigBackend.ignoreWithDigits = ignoreWithDigits;
         }
     }
+    onAutoDetectParagraphLanguageChanged: {
+        if (typeof ConfigBackend !== "undefined" && ConfigBackend.autoDetectParagraphLanguage !== autoDetectParagraphLanguage) {
+            ConfigBackend.autoDetectParagraphLanguage = autoDetectParagraphLanguage;
+        }
+    }
 
     property var _cfgSync: Connections {
         target: (typeof ConfigBackend !== "undefined") ? ConfigBackend : null
@@ -56,6 +62,9 @@ QtObject {
         }
         function onIgnoreWithDigitsChanged() {
             if (root.ignoreWithDigits !== ConfigBackend.ignoreWithDigits) root.ignoreWithDigits = ConfigBackend.ignoreWithDigits;
+        }
+        function onAutoDetectParagraphLanguageChanged() {
+            if (root.autoDetectParagraphLanguage !== ConfigBackend.autoDetectParagraphLanguage) root.autoDetectParagraphLanguage = ConfigBackend.autoDetectParagraphLanguage;
         }
     }
 

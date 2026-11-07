@@ -1857,6 +1857,13 @@ void ConfigBackend::setIgnoreWithDigits(bool val) {
     scheduleSave();
 }
 
+void ConfigBackend::setAutoDetectParagraphLanguage(bool val) {
+    if (m_autoDetectParagraphLanguage == val) return;
+    m_autoDetectParagraphLanguage = val;
+    emit autoDetectParagraphLanguageChanged();
+    scheduleSave();
+}
+
 void ConfigBackend::setPanelOpacity(int val) {
     int clamped = qBound(20, val, 100);
     if (m_panelOpacity == clamped) return;
@@ -1957,6 +1964,7 @@ void ConfigBackend::load() {
                 if (obj.contains("primarySpellLanguage")) m_primarySpellLanguage = obj["primarySpellLanguage"].toString();
                 if (obj.contains("ignoreUppercase")) m_ignoreUppercase = obj["ignoreUppercase"].toBool(true);
                 if (obj.contains("ignoreWithDigits")) m_ignoreWithDigits = obj["ignoreWithDigits"].toBool(true);
+                if (obj.contains("autoDetectParagraphLanguage")) m_autoDetectParagraphLanguage = obj["autoDetectParagraphLanguage"].toBool(true);
                 if (obj.contains("panelOpacity")) m_panelOpacity = qBound(20, obj["panelOpacity"].toInt(94), 100);
                 if (obj.contains("animationsEnabled")) m_animationsEnabled = obj["animationsEnabled"].toBool(true);
                 if (obj.contains("fontSizeScale")) m_fontSizeScale = obj["fontSizeScale"].toDouble(1.0);
@@ -2057,6 +2065,7 @@ void ConfigBackend::save() {
     obj[QStringLiteral("primarySpellLanguage")] = m_primarySpellLanguage;
     obj[QStringLiteral("ignoreUppercase")] = m_ignoreUppercase;
     obj[QStringLiteral("ignoreWithDigits")] = m_ignoreWithDigits;
+    obj[QStringLiteral("autoDetectParagraphLanguage")] = m_autoDetectParagraphLanguage;
     obj[QStringLiteral("panelOpacity")] = m_panelOpacity;
     obj[QStringLiteral("animationsEnabled")] = m_animationsEnabled;
     obj[QStringLiteral("fontSizeScale")] = m_fontSizeScale;
@@ -2105,6 +2114,7 @@ void ConfigBackend::reload() {
     emit primarySpellLanguageChanged();
     emit ignoreUppercaseChanged();
     emit ignoreWithDigitsChanged();
+    emit autoDetectParagraphLanguageChanged();
     emit panelOpacityChanged();
     emit animationsEnabledChanged();
     emit fontSizeScaleChanged();

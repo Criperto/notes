@@ -205,6 +205,19 @@
       "spellcheck_manual": "手动 (F7 / 按钮)",
       "spellcheck_auto": "实时自动检查",
       "spellcheck_mode_comment": "笔记编辑器的拼写检查模式。"
+    },
+    "spellcheck": {
+      "ignore_uppercase": "忽略大写字母",
+      "ignore_uppercase_comment": "不标记缩写或全大写单词。",
+      "ignore_digits": "忽略包含数字的单词",
+      "ignore_digits_comment": "不标记包含数字的字母数字代码（例如 v2、h1、utf8）。",
+      "auto_detect": "按段落自动识别语言",
+      "auto_detect_comment": "根据每个区块或段落的文本应用匹配的词典。"
+    },
+    "language": {
+      "spell_enabled": "启用拼写检查",
+      "spell_enabled_desc": "启用波浪线拼写检查并在右键单击时提供建议。",
+      "spell_active_title": "启用语言（同时检测）"
     }
   },
   "slash": {

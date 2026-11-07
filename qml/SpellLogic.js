@@ -100,6 +100,34 @@ function resolveEffectiveLanguages(systemLocale, config, availableDicts) {
 }
 
 /**
+ * Filtra la lista de diccionarios activos según el idioma detectado en un párrafo.
+ * Si el idioma es desconocido o ninguno de los diccionarios coincide, retorna activeLangs como fallback.
+ * @param {string|null} detectedLang - Código ISO ("es", "en", "pt", etc.) o null
+ * @param {Array<string>} activeLangs - Diccionarios activos (ej. ["es_AR", "en_US"])
+ * @returns {Array<string>} Diccionarios filtrados
+ */
+function filterLanguagesByDetected(detectedLang, activeLangs) {
+    if (!Array.isArray(activeLangs) || activeLangs.length === 0) return [];
+    if (!detectedLang || typeof detectedLang !== "string") return activeLangs;
+
+    var clean = detectedLang.toLowerCase().trim();
+    var matched = [];
+    for (var i = 0; i < activeLangs.length; i++) {
+        var lang = activeLangs[i];
+        if (!lang) continue;
+        var base = lang.toLowerCase().split("_")[0];
+        if (base === clean) {
+            matched.push(lang);
+        }
+    }
+
+    if (matched.length > 0) {
+        return matched;
+    }
+    return activeLangs;
+}
+
+/**
  * Tokeniza un texto extrayendo palabras y sus posiciones [start, end].
  * Soporta caracteres alfabéticos Unicode y apóstrofes internos.
  * Enmascara y excluye automáticamente spans de código inline (`...`),

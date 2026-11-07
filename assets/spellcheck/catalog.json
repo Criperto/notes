@@ -179,6 +179,126 @@
       "name": "Latina",
       "url_aff": "https://raw.githubusercontent.com/wooorm/dictionaries/main/dictionaries/la/index.aff",
       "url_dic": "https://raw.githubusercontent.com/wooorm/dictionaries/main/dictionaries/la/index.dic"
+    },
+    {
+      "code": "de_AT",
+      "name": "Deutsch (Österreich)",
+      "url_aff": "https://raw.githubusercontent.com/wooorm/dictionaries/main/dictionaries/de-AT/index.aff",
+      "url_dic": "https://raw.githubusercontent.com/wooorm/dictionaries/main/dictionaries/de-AT/index.dic"
+    },
+    {
+      "code": "de_CH",
+      "name": "Deutsch (Schweiz)",
+      "url_aff": "https://raw.githubusercontent.com/wooorm/dictionaries/main/dictionaries/de-CH/index.aff",
+      "url_dic": "https://raw.githubusercontent.com/wooorm/dictionaries/main/dictionaries/de-CH/index.dic"
+    },
+    {
+      "code": "en_ZA",
+      "name": "English (South Africa)",
+      "url_aff": "https://raw.githubusercontent.com/wooorm/dictionaries/main/dictionaries/en-ZA/index.aff",
+      "url_dic": "https://raw.githubusercontent.com/wooorm/dictionaries/main/dictionaries/en-ZA/index.dic"
+    },
+    {
+      "code": "es_BO",
+      "name": "Español (Bolivia)",
+      "url_aff": "https://raw.githubusercontent.com/wooorm/dictionaries/main/dictionaries/es-BO/index.aff",
+      "url_dic": "https://raw.githubusercontent.com/wooorm/dictionaries/main/dictionaries/es-BO/index.dic"
+    },
+    {
+      "code": "es_CR",
+      "name": "Español (Costa Rica)",
+      "url_aff": "https://raw.githubusercontent.com/wooorm/dictionaries/main/dictionaries/es-CR/index.aff",
+      "url_dic": "https://raw.githubusercontent.com/wooorm/dictionaries/main/dictionaries/es-CR/index.dic"
+    },
+    {
+      "code": "es_EC",
+      "name": "Español (Ecuador)",
+      "url_aff": "https://raw.githubusercontent.com/wooorm/dictionaries/main/dictionaries/es-EC/index.aff",
+      "url_dic": "https://raw.githubusercontent.com/wooorm/dictionaries/main/dictionaries/es-EC/index.dic"
+    },
+    {
+      "code": "es_PE",
+      "name": "Español (Perú)",
+      "url_aff": "https://raw.githubusercontent.com/wooorm/dictionaries/main/dictionaries/es-PE/index.aff",
+      "url_dic": "https://raw.githubusercontent.com/wooorm/dictionaries/main/dictionaries/es-PE/index.dic"
+    },
+    {
+      "code": "es_PY",
+      "name": "Español (Paraguay)",
+      "url_aff": "https://raw.githubusercontent.com/wooorm/dictionaries/main/dictionaries/es-PY/index.aff",
+      "url_dic": "https://raw.githubusercontent.com/wooorm/dictionaries/main/dictionaries/es-PY/index.dic"
+    },
+    {
+      "code": "es_UY",
+      "name": "Español (Uruguay)",
+      "url_aff": "https://raw.githubusercontent.com/wooorm/dictionaries/main/dictionaries/es-UY/index.aff",
+      "url_dic": "https://raw.githubusercontent.com/wooorm/dictionaries/main/dictionaries/es-UY/index.dic"
+    },
+    {
+      "code": "es_VE",
+      "name": "Español (Venezuela)",
+      "url_aff": "https://raw.githubusercontent.com/wooorm/dictionaries/main/dictionaries/es-VE/index.aff",
+      "url_dic": "https://raw.githubusercontent.com/wooorm/dictionaries/main/dictionaries/es-VE/index.dic"
+    },
+    {
+      "code": "hu_HU",
+      "name": "Magyar",
+      "url_aff": "https://raw.githubusercontent.com/wooorm/dictionaries/main/dictionaries/hu/index.aff",
+      "url_dic": "https://raw.githubusercontent.com/wooorm/dictionaries/main/dictionaries/hu/index.dic"
+    },
+    {
+      "code": "hr_HR",
+      "name": "Hrvatski",
+      "url_aff": "https://raw.githubusercontent.com/wooorm/dictionaries/main/dictionaries/hr/index.aff",
+      "url_dic": "https://raw.githubusercontent.com/wooorm/dictionaries/main/dictionaries/hr/index.dic"
+    },
+    {
+      "code": "sk_SK",
+      "name": "Slovenčina",
+      "url_aff": "https://raw.githubusercontent.com/wooorm/dictionaries/main/dictionaries/sk/index.aff",
+      "url_dic": "https://raw.githubusercontent.com/wooorm/dictionaries/main/dictionaries/sk/index.dic"
+    },
+    {
+      "code": "sl_SI",
+      "name": "Slovenščina",
+      "url_aff": "https://raw.githubusercontent.com/wooorm/dictionaries/main/dictionaries/sl/index.aff",
+      "url_dic": "https://raw.githubusercontent.com/wooorm/dictionaries/main/dictionaries/sl/index.dic"
+    },
+    {
+      "code": "bg_BG",
+      "name": "Български",
+      "url_aff": "https://raw.githubusercontent.com/wooorm/dictionaries/main/dictionaries/bg/index.aff",
+      "url_dic": "https://raw.githubusercontent.com/wooorm/dictionaries/main/dictionaries/bg/index.dic"
+    },
+    {
+      "code": "sr_RS",
+      "name": "Српски",
+      "url_aff": "https://raw.githubusercontent.com/wooorm/dictionaries/main/dictionaries/sr/index.aff",
+      "url_dic": "https://raw.githubusercontent.com/wooorm/dictionaries/main/dictionaries/sr/index.dic"
+    },
+    {
+      "code": "is_IS",
+      "name": "Íslenska",
+      "url_aff": "https://raw.githubusercontent.com/wooorm/dictionaries/main/dictionaries/is/index.aff",
+      "url_dic": "https://raw.githubusercontent.com/wooorm/dictionaries/main/dictionaries/is/index.dic"
+    },
+    {
+      "code": "et_EE",
+      "name": "Eesti",
+      "url_aff": "https://raw.githubusercontent.com/wooorm/dictionaries/main/dictionaries/et/index.aff",
+      "url_dic": "https://raw.githubusercontent.com/wooorm/dictionaries/main/dictionaries/et/index.dic"
+    },
+    {
+      "code": "lt_LT",
+      "name": "Lietuvių",
+      "url_aff": "https://raw.githubusercontent.com/wooorm/dictionaries/main/dictionaries/lt/index.aff",
+      "url_dic": "https://raw.githubusercontent.com/wooorm/dictionaries/main/dictionaries/lt/index.dic"
+    },
+    {
+      "code": "lv_LV",
+      "name": "Latviešu",
+      "url_aff": "https://raw.githubusercontent.com/wooorm/dictionaries/main/dictionaries/lv/index.aff",
+      "url_dic": "https://raw.githubusercontent.com/wooorm/dictionaries/main/dictionaries/lv/index.dic"
     }
   ]
 }

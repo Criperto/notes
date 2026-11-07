@@ -960,7 +960,7 @@ Item {
                         }
                         itemRow.spellRanges = badRanges;
                         if (spellOverlay) spellOverlay.requestUpdate();
-                    }, root);
+                    }, root, { text: rawText });
                 }
 
                 function _openContextMenuAt(targetItem, clickPos, fromKeyboard) {

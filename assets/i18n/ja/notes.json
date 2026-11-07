@@ -205,6 +205,19 @@
       "spellcheck_manual": "手動 (F7 / ボタン)",
       "spellcheck_auto": "リアルタイム自動",
       "spellcheck_mode_comment": "ノートエディターのスペルチェック検証モード。"
+    },
+    "spellcheck": {
+      "ignore_uppercase": "大文字を無視",
+      "ignore_uppercase_comment": "略語やすべて大文字で書かれた単語をマークしません。",
+      "ignore_digits": "数字を含む単語を無視",
+      "ignore_digits_comment": "数字を含む英数字コード（例: v2, h1, utf8）をマークしません。",
+      "auto_detect": "段落ごとに言語を自動検出",
+      "auto_detect_comment": "各ブロックまたは段落のテキストに応じて適切な辞書を適用します。"
+    },
+    "language": {
+      "spell_enabled": "スペルチェックを有効にする",
+      "spell_enabled_desc": "波線のアンダーラインと右クリックによる候補表示を有効にします。",
+      "spell_active_title": "アクティブな言語（同時検出）"
     }
   },
   "slash": {

@@ -122,7 +122,7 @@ Item {
                 }
             }
             if (spellOverlay) spellOverlay.requestUpdate();
-        }, root);
+        }, root, { text: plain });
     }
 
     function _openContextMenuAt(targetItem, clickPos, fromKeyboard) {

@@ -838,7 +838,7 @@ Item {
                                             }
                                             headerCell.spellRanges = badRanges;
                                             if (hSpellOverlay) hSpellOverlay.requestUpdate();
-                                        }, root);
+                                        }, root, { text: plain });
                                     }
 
                                     function _openContextMenuAt(targetItem, clickPos, fromKeyboard) {
@@ -1258,7 +1258,7 @@ Item {
                                         }
                                         dataCell.spellRanges = badRanges;
                                         if (cellSpellOverlay) cellSpellOverlay.requestUpdate();
-                                    }, root);
+                                    }, root, { text: plain });
                                 }
 
                                 function _openContextMenuAt(targetItem, clickPos, fromKeyboard) {

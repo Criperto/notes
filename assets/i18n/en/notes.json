@@ -205,6 +205,19 @@
       "spellcheck_manual": "Manual (F7 / Button)",
       "spellcheck_auto": "Real-time automatic",
       "spellcheck_mode_comment": "Spellcheck verification mode for the note editor."
+    },
+    "spellcheck": {
+      "ignore_uppercase": "Ignore UPPERCASE",
+      "ignore_uppercase_comment": "Do not mark acronyms or words written entirely in uppercase.",
+      "ignore_digits": "Ignore words with numbers",
+      "ignore_digits_comment": "Do not mark alphanumeric codes containing digits (e.g. v2, h1, utf8).",
+      "auto_detect": "Detect language per paragraph",
+      "auto_detect_comment": "Applies the matching dictionary based on each block's text."
+    },
+    "language": {
+      "spell_enabled": "Enable spell checker",
+      "spell_enabled_desc": "Enables spell checking with wavy underlines and right-click suggestions.",
+      "spell_active_title": "Active languages (Simultaneous detection)"
     }
   },
   "slash": {

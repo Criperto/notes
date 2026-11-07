@@ -205,6 +205,19 @@
       "spellcheck_manual": "Manuell (F7 / Taste)",
       "spellcheck_auto": "Echtzeit automatisch",
       "spellcheck_mode_comment": "Rechtschreibprüfungsmodus für den Notiz-Editor."
+    },
+    "spellcheck": {
+      "ignore_uppercase": "GROSSBUCHSTABEN ignorieren",
+      "ignore_uppercase_comment": "Akronyme oder Wörter in reinen Großbuchstaben nicht markieren.",
+      "ignore_digits": "Wörter mit Ziffern ignorieren",
+      "ignore_digits_comment": "Alphanumerische Codes mit Ziffern nicht markieren (z. B. v2, h1, utf8).",
+      "auto_detect": "Sprache pro Absatz erkennen",
+      "auto_detect_comment": "Wendet das passende Wörterbuch basierend auf dem Text jedes Blocks oder Absatzes an."
+    },
+    "language": {
+      "spell_enabled": "Rechtschreibprüfung aktivieren",
+      "spell_enabled_desc": "Aktiviert die Rechtschreibprüfung mit gewellter Unterstreichung und Rechtsklick-Vorschlägen.",
+      "spell_active_title": "Aktive Sprachen (Gleichzeitige Erkennung)"
     }
   },
   "slash": {

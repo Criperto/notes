@@ -48,6 +48,7 @@ const MermaidShapes = loadModule('MermaidShapes.js');
 const MermaidLayout = loadModule('MermaidLayout.js');
 const MermaidTemplates = loadModule('MermaidTemplates.js');
 const MathTemplates = loadModule('MathTemplates.js');
+const LangDetect = loadModule('LangDetect.js');
 const Anchors = loadModule('Anchors.js');
 const SlashLogic = loadModule('SlashLogic.js');
 const SlashCommands = loadModule('SlashCommands.js');
@@ -3330,7 +3331,7 @@ runTest('F66: SpellService ciclo de vida, cancelOwner y SpellLogic filtrado de t
     const spellServiceQml = fs.readFileSync(path.resolve(__dirname, '../qml/SpellService.qml'), 'utf8');
     assert.ok(spellServiceQml.indexOf('function cancelOwner(owner)') !== -1, "SpellService debe declarar cancelOwner(owner)");
     assert.ok(spellServiceQml.indexOf('function _isOwnerValid(owner)') !== -1, "SpellService debe declarar _isOwnerValid(owner)");
-    assert.ok(spellServiceQml.indexOf('function checkWordsBatch(words, callback, owner)') !== -1, "checkWordsBatch debe soportar owner");
+    assert.ok(spellServiceQml.indexOf('function checkWordsBatch(words, callback, owner') !== -1, "checkWordsBatch debe soportar owner");
     assert.ok(spellServiceQml.indexOf('property var _activeBatches: []') !== -1, "SpellService debe mantener _activeBatches");
     assert.ok(spellServiceQml.indexOf('if (q && !q.cancelled && typeof q.callback === "function")') !== -1, "Worker debe chequear q.cancelled");
 
@@ -4387,6 +4388,68 @@ runTest("F88: MathTemplates y menú contextual de fórmulas LaTeX con traduccion
     const theme = fs.readFileSync(path.resolve(__dirname, '../qml/Theme.qml'), 'utf8');
     for (const tok of ['textSecondary', 'textTertiary', 'outlineVariant', 'surfaceContainer', 'surfaceContainerHigh']) {
         assert.ok(theme.includes(`property color ${tok}:`), `Theme debe definir ${tok}`);
+    }
+});
+
+runTest("F89: Corrector ortográfico avanzado (detección de idioma por párrafo y catálogo ampliado de 50 diccionarios)", () => {
+    // 1. Detección de idioma por párrafo (LangDetect.detect)
+    assert.strictEqual(LangDetect.detect("Este es un texto de prueba en español con palabras comunes"), "es");
+    assert.strictEqual(LangDetect.detect("This is a sample sentence written in the English language"), "en");
+    assert.strictEqual(LangDetect.detect("Este é um texto escrito em português para testar"), "pt");
+    assert.strictEqual(LangDetect.detect("Ceci est une phrase de test écrite en français"), "fr");
+    assert.strictEqual(LangDetect.detect("Dies ist ein einfacher Satz in deutscher Sprache"), "de");
+    assert.strictEqual(LangDetect.detect("Questo è un testo di prova scritto in italiano"), "it");
+    assert.strictEqual(LangDetect.detect("Это тестовое предложение на русском языке"), "ru");
+    assert.strictEqual(LangDetect.detect("这是一个简单的中文测试句子"), "zh");
+    assert.strictEqual(LangDetect.detect("これは日本語のテスト文章です"), "ja");
+
+    // Casos cortos o ambiguos deben retornar null (fallback seguro)
+    assert.strictEqual(LangDetect.detect("Hola"), null);
+    assert.strictEqual(LangDetect.detect("12345"), null);
+    assert.strictEqual(LangDetect.detect(""), null);
+    assert.strictEqual(LangDetect.detect(null), null);
+
+    // 2. SpellLogic.filterLanguagesByDetected
+    const active = ["es_AR", "en_US"];
+    assert.deepStrictEqual(Array.from(SpellLogic.filterLanguagesByDetected("es", active)), ["es_AR"]);
+    assert.deepStrictEqual(Array.from(SpellLogic.filterLanguagesByDetected("en", active)), ["en_US"]);
+    assert.deepStrictEqual(Array.from(SpellLogic.filterLanguagesByDetected(null, active)), ["es_AR", "en_US"]);
+    assert.deepStrictEqual(Array.from(SpellLogic.filterLanguagesByDetected("ru", active)), ["es_AR", "en_US"]);
+
+    // 3. Integridad del catálogo ampliado de diccionarios (50 diccionarios)
+    const catalogPath = path.resolve(__dirname, '../assets/spellcheck/catalog.json');
+    assert.ok(fs.existsSync(catalogPath), "El archivo catalog.json debe existir");
+    const catalogJson = JSON.parse(fs.readFileSync(catalogPath, 'utf8'));
+    const catalog = catalogJson.languages || catalogJson;
+    assert.strictEqual(catalog.length, 50, "El catálogo debe contener 50 diccionarios");
+    const seenCodes = new Set();
+    for (const item of catalog) {
+        assert.ok(item.code, "Cada diccionario debe tener código");
+        assert.ok(item.name, "Cada diccionario debe tener nombre");
+        assert.ok(item.url_aff, "Cada diccionario debe tener url_aff");
+        assert.ok(item.url_dic, "Cada diccionario debe tener url_dic");
+        assert.ok(!seenCodes.has(item.code), `No debe haber códigos duplicados: ${item.code}`);
+        seenCodes.add(item.code);
+    }
+
+    // 4. Verificación estática de SpellService, SpellConfig y NotesSettingsModal
+    const spellServiceQml = fs.readFileSync(path.resolve(__dirname, '../qml/SpellService.qml'), 'utf8');
+    assert.ok(spellServiceQml.includes('import "LangDetect.js" as LangDetect'), "SpellService debe importar LangDetect.js");
+    assert.ok(spellServiceQml.includes('var autoDetect = (typeof SpellConfig === "undefined" || SpellConfig.autoDetectParagraphLanguage !== false)'), "SpellService debe respetar autoDetectParagraphLanguage");
+
+    const spellConfigQml = fs.readFileSync(path.resolve(__dirname, '../qml/SpellConfig.qml'), 'utf8');
+    assert.ok(spellConfigQml.includes('property bool   autoDetectParagraphLanguage:'), "SpellConfig debe declarar autoDetectParagraphLanguage");
+    assert.ok(spellConfigQml.includes('onAutoDetectParagraphLanguageChanged:'), "SpellConfig debe sincronizar autoDetectParagraphLanguage");
+
+    const settingsModalQml = fs.readFileSync(path.resolve(__dirname, '../qml/NotesSettingsModal.qml'), 'utf8');
+    assert.ok(settingsModalQml.includes('checked: SpellConfig.autoDetectParagraphLanguage'), "SettingsModal debe enlazar autoDetectParagraphLanguage");
+
+    // 5. Traducciones en los 9 idiomas para el switch de auto-detección
+    const langs = ['es_es', 'es_ar', 'en', 'de', 'fr', 'pt', 'ja', 'zh', 'ru'];
+    for (const lang of langs) {
+        const json = JSON.parse(fs.readFileSync(path.resolve(__dirname, `../assets/i18n/${lang}/notes.json`), 'utf8'));
+        assert.ok(json.config && json.config.spellcheck && json.config.spellcheck.auto_detect, `Falta config.spellcheck.auto_detect en ${lang}`);
+        assert.ok(json.config && json.config.spellcheck && json.config.spellcheck.auto_detect_comment, `Falta config.spellcheck.auto_detect_comment en ${lang}`);
     }
 });
 

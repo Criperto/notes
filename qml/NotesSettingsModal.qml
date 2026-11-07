@@ -2043,6 +2043,14 @@ Item {
                                     onToggled: (v) => { SpellConfig.ignoreWithDigits = v; }
                                 }
 
+                                SchemaSwitchRow {
+                                    label: I18n.t("config.spellcheck.auto_detect", "Detectar idioma por párrafo")
+                                    comment: I18n.t("config.spellcheck.auto_detect_comment", "Aplica el diccionario adecuado según el texto de cada bloque o párrafo.")
+                                    checked: SpellConfig.autoDetectParagraphLanguage
+                                    isDisabled: !SpellConfig.enabled
+                                    onToggled: (v) => { SpellConfig.autoDetectParagraphLanguage = v; }
+                                }
+
                                 // Idiomas activos simultáneamente (Multi-idioma automático — copiado de LanguageManager.qml)
                                 ColumnLayout {
                                     Layout.fillWidth: true
