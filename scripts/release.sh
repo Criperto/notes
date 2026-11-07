@@ -294,6 +294,12 @@ if [[ "${NEW_VER}" != "${CURRENT_VER}" ]]; then
         echo "   ✓ src/native/native_bridge.cpp actualizado"
     fi
 
+    # f2) packaging/rpm/notas.spec
+    if [[ -f "packaging/rpm/notas.spec" ]]; then
+        sed -i -E "s/^Version:\s*.*/Version:        ${NEW_VER}/" packaging/rpm/notas.spec
+        echo "   ✓ packaging/rpm/notas.spec actualizado"
+    fi
+
     # g) data/dev.criperto.Notas.metainfo.xml
     if [[ -f "data/dev.criperto.Notas.metainfo.xml" ]]; then
         python3 - << EOF
@@ -412,6 +418,7 @@ if [[ "${PUBLISH_GITHUB}" == true ]]; then
         "README.md"
         "packaging/arch/PKGBUILD"
         "packaging/arch/notas-git/PKGBUILD"
+        "packaging/rpm/notas.spec"
         "src/native/native_bridge.cpp"
     )
 
