@@ -222,6 +222,9 @@
     "appearance": {
       "ui_scale": "全局界面缩放 (UI)",
       "ui_scale_desc": "为高分屏等比例调整按钮、图标、边距和卡片大小。"
+    },
+    "tabs": {
+      "shortcuts": "快捷键"
     }
   },
   "slash": {

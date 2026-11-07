@@ -222,6 +222,9 @@
     "appearance": {
       "ui_scale": "Échelle globale de l'interface (UI)",
       "ui_scale_desc": "Ajuste proportionnellement les boutons, icônes, marges et cartes pour les écrans HiDPI."
+    },
+    "tabs": {
+      "shortcuts": "Raccourcis"
     }
   },
   "slash": {

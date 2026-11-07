@@ -45,9 +45,25 @@ Item {
         { value: "editor",     label: I18n.t("config.tabs.editor", "Editor"),                         icon: "edit.svg" },
         { value: "appearance", label: I18n.t("config.tabs.appearance", "Apariencia"),                 icon: "settings.svg" },
         { value: "language",   label: I18n.t("config.tabs.language", "Idioma y Corrección"),          icon: "spellcheck.svg" },
+        { value: "shortcuts",  label: I18n.t("config.tabs.shortcuts", "Atajos"),                     icon: "keyboard.svg" },
         { value: "about",      label: I18n.t("config.tabs.about", "Acerca de"),                       icon: "info.svg" }
     ]
     readonly property var tabs: showAppearanceTab ? allTabs : allTabs.filter(function(t) { return t.value !== "appearance"; })
+
+    function setTab(tabValue) {
+        if (!tabValue) return;
+        for (var i = 0; i < tabs.length; i++) {
+            if (tabs[i].value === tabValue) {
+                if (root.tabIndex !== i) {
+                    root.tabIndex = i;
+                }
+                if (typeof modalFlickable !== "undefined" && modalFlickable) {
+                    modalFlickable.contentY = 0;
+                }
+                break;
+            }
+        }
+    }
 
     onTabsChanged: {
         var found = false;
@@ -77,15 +93,22 @@ Item {
         return Qt.hsva(h, s, v, alpha);
     }
 
-    function toggle(rect) {
+    function toggle(rect, initialTab) {
         if (isOpen && !isClosing) {
-            close();
+            if (initialTab && typeof initialTab === "string" && currentTabValue !== initialTab) {
+                setTab(initialTab);
+            } else {
+                close();
+            }
         } else {
-            open(rect);
+            open(rect, initialTab);
         }
     }
 
-    function open(rect) {
+    function open(rect, initialTab) {
+        if (initialTab && typeof initialTab === "string") {
+            setTab(initialTab);
+        }
         if (isOpen && !isClosing) return;
         closeCardAnim.stop();
         fadeCloseAnim.stop();
@@ -2888,7 +2911,232 @@ Item {
                     }
 
                     // ══════════════════════════════════════════════════════
-                    // PESTAÑA 3: ACERCA DE
+                    // PESTAÑA: ATAJOS DE TECLADO
+                    // ══════════════════════════════════════════════════════
+                    ColumnLayout {
+                        id: tabShortcuts
+                        visible: root.currentTabValue === "shortcuts"
+                        width: parent.width
+                        spacing: 16
+
+                        SectionHeader {
+                            iconName: "keyboard.svg"
+                            title: I18n.t("shortcuts.title", "Atajos de Teclado")
+                        }
+
+                        // Categoría 1: Navegación General
+                        BentoCard {
+                            implicitHeight: colNavShortcuts.implicitHeight + 16
+                            ColumnLayout {
+                                id: colNavShortcuts
+                                anchors.fill: parent
+                                anchors.margins: 8
+                                spacing: 10
+
+                                Text {
+                                    text: I18n.t("shortcuts.cat_nav", "Navegación General").toUpperCase()
+                                    color: Theme.accent
+                                    font {
+                                        family: Theme.fontFamily
+                                        pixelSize: Theme.fontSizeSmall
+                                        bold: true
+                                        letterSpacing: 1.1
+                                    }
+                                }
+
+                                Repeater {
+                                    model: [
+                                        { keys: "Tab / Shift+Tab", desc: I18n.t("shortcuts.nav_tab", "Mover foco entre buscador, etiquetas y tarjetas") },
+                                        { keys: "Enter", desc: I18n.t("shortcuts.nav_enter", "Abrir la nota seleccionada") },
+                                        { keys: "Delete / Supr", desc: I18n.t("shortcuts.nav_delete", "Enviar nota a papelera (con deshacer)") },
+                                        { keys: "Ctrl+N", desc: I18n.t("shortcuts.nav_new", "Crear una nueva nota de inmediato") },
+                                        { keys: "Ctrl+F / /", desc: I18n.t("shortcuts.nav_search", "Enfocar barra de búsqueda") },
+                                        { keys: "Ctrl+,", desc: I18n.t("shortcuts.nav_settings", "Abrir ajustes y configuración") },
+                                        { keys: "Ctrl+/ / F1", desc: I18n.t("shortcuts.nav_help", "Ver esta hoja de atajos de teclado") },
+                                        { keys: "Esc", desc: I18n.t("shortcuts.nav_esc", "Cerrar modal o volver a la vista principal") }
+                                    ]
+
+                                    delegate: RowLayout {
+                                        Layout.fillWidth: true
+                                        spacing: 12
+
+                                        Rectangle {
+                                            implicitWidth: keyTxt.implicitWidth + 16
+                                            implicitHeight: 26
+                                            radius: 6
+                                            color: Qt.rgba(0, 0, 0, 0.3)
+                                            border.width: 1
+                                            border.color: Qt.rgba(1, 1, 1, 0.12)
+
+                                            Text {
+                                                id: keyTxt
+                                                anchors.centerIn: parent
+                                                text: modelData.keys
+                                                color: Theme.textSecondary ? Theme.textSecondary : Theme.text
+                                                font {
+                                                    family: Theme.fontFamilyMonospace
+                                                    pixelSize: Theme.fontSizeSmall
+                                                    bold: true
+                                                }
+                                            }
+                                        }
+
+                                        Text {
+                                            Layout.fillWidth: true
+                                            text: modelData.desc
+                                            color: Theme.text
+                                            wrapMode: Text.WordWrap
+                                            font {
+                                                family: Theme.fontFamily
+                                                pixelSize: Theme.fontSizeBody
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Categoría 2: Edición y Markdown
+                        BentoCard {
+                            implicitHeight: colEditShortcuts.implicitHeight + 16
+                            ColumnLayout {
+                                id: colEditShortcuts
+                                anchors.fill: parent
+                                anchors.margins: 8
+                                spacing: 10
+
+                                Text {
+                                    text: I18n.t("shortcuts.cat_editor", "Edición y Markdown").toUpperCase()
+                                    color: Theme.accent
+                                    font {
+                                        family: Theme.fontFamily
+                                        pixelSize: Theme.fontSizeSmall
+                                        bold: true
+                                        letterSpacing: 1.1
+                                    }
+                                }
+
+                                Repeater {
+                                    model: [
+                                        { keys: "Ctrl+B", desc: I18n.t("shortcuts.edit_bold", "Texto en negrita") },
+                                        { keys: "Ctrl+I", desc: I18n.t("shortcuts.edit_italic", "Texto en cursiva") },
+                                        { keys: "Ctrl+K", desc: I18n.t("shortcuts.edit_link", "Insertar enlace Markdown") },
+                                        { keys: "/", desc: I18n.t("shortcuts.edit_slash", "Menú de comandos rápidos (Slash Menu)") },
+                                        { keys: "Ctrl+Z / Ctrl+Y", desc: I18n.t("shortcuts.edit_undo", "Deshacer y rehacer persistente") },
+                                        { keys: "Ctrl+S", desc: I18n.t("shortcuts.edit_save", "Guardar nota de inmediato") }
+                                    ]
+
+                                    delegate: RowLayout {
+                                        Layout.fillWidth: true
+                                        spacing: 12
+
+                                        Rectangle {
+                                            implicitWidth: keyTxt2.implicitWidth + 16
+                                            implicitHeight: 26
+                                            radius: 6
+                                            color: Qt.rgba(0, 0, 0, 0.3)
+                                            border.width: 1
+                                            border.color: Qt.rgba(1, 1, 1, 0.12)
+
+                                            Text {
+                                                id: keyTxt2
+                                                anchors.centerIn: parent
+                                                text: modelData.keys
+                                                color: Theme.textSecondary ? Theme.textSecondary : Theme.text
+                                                font {
+                                                    family: Theme.fontFamilyMonospace
+                                                    pixelSize: Theme.fontSizeSmall
+                                                    bold: true
+                                                }
+                                            }
+                                        }
+
+                                        Text {
+                                            Layout.fillWidth: true
+                                            text: modelData.desc
+                                            color: Theme.text
+                                            wrapMode: Text.WordWrap
+                                            font {
+                                                family: Theme.fontFamily
+                                                pixelSize: Theme.fontSizeBody
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Categoría 3: Herramientas Avanzadas
+                        BentoCard {
+                            implicitHeight: colToolsShortcuts.implicitHeight + 16
+                            ColumnLayout {
+                                id: colToolsShortcuts
+                                anchors.fill: parent
+                                anchors.margins: 8
+                                spacing: 10
+
+                                Text {
+                                    text: I18n.t("shortcuts.cat_tools", "Herramientas Avanzadas").toUpperCase()
+                                    color: Theme.accent
+                                    font {
+                                        family: Theme.fontFamily
+                                        pixelSize: Theme.fontSizeSmall
+                                        bold: true
+                                        letterSpacing: 1.1
+                                    }
+                                }
+
+                                Repeater {
+                                    model: [
+                                        { keys: "F7", desc: I18n.t("shortcuts.tool_spell", "Ejecutar revisión ortográfica manual") },
+                                        { keys: "F10", desc: I18n.t("shortcuts.tool_toolbar", "Alternar foco a barra de herramientas del editor") },
+                                        { keys: "Ctrl+Alt+W", desc: I18n.t("shortcuts.tool_clip", "Clipper web (recortar URL a Markdown)") },
+                                        { keys: "Ctrl+Alt+V", desc: I18n.t("shortcuts.tool_paste", "Capturar nueva nota desde portapapeles") }
+                                    ]
+
+                                    delegate: RowLayout {
+                                        Layout.fillWidth: true
+                                        spacing: 12
+
+                                        Rectangle {
+                                            implicitWidth: keyTxt3.implicitWidth + 16
+                                            implicitHeight: 26
+                                            radius: 6
+                                            color: Qt.rgba(0, 0, 0, 0.3)
+                                            border.width: 1
+                                            border.color: Qt.rgba(1, 1, 1, 0.12)
+
+                                            Text {
+                                                id: keyTxt3
+                                                anchors.centerIn: parent
+                                                text: modelData.keys
+                                                color: Theme.textSecondary ? Theme.textSecondary : Theme.text
+                                                font {
+                                                    family: Theme.fontFamilyMonospace
+                                                    pixelSize: Theme.fontSizeSmall
+                                                    bold: true
+                                                }
+                                            }
+                                        }
+
+                                        Text {
+                                            Layout.fillWidth: true
+                                            text: modelData.desc
+                                            color: Theme.text
+                                            wrapMode: Text.WordWrap
+                                            font {
+                                                family: Theme.fontFamily
+                                                pixelSize: Theme.fontSizeBody
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // ══════════════════════════════════════════════════════
+                    // PESTAÑA 4: ACERCA DE
                     // ══════════════════════════════════════════════════════
                     ColumnLayout {
                         id: tabAbout
@@ -3186,26 +3434,43 @@ Item {
                                     }
                                 }
 
-                                RowLayout {
+                                Rectangle {
                                     Layout.fillWidth: true
-                                    spacing: 24
+                                    Layout.preferredHeight: 38
+                                    radius: 8
+                                    color: viewShortcutsMa.containsMouse ? Theme.surfaceHover : Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.05)
+                                    border.color: Theme.border
+                                    border.width: 1
 
-                                    ColumnLayout {
-                                        Layout.fillWidth: true
-                                        spacing: 4
-                                        Text { text: "Ctrl+N : Nueva nota"; font.family: Theme.fontFamilyMonospace; font.pixelSize: Theme.fontSizeBodySecondary; color: Theme.text }
-                                        Text { text: "Ctrl+F : Buscar notas / en nota"; font.family: Theme.fontFamilyMonospace; font.pixelSize: Theme.fontSizeBodySecondary; color: Theme.text }
-                                        Text { text: "Ctrl+, : Configuración"; font.family: Theme.fontFamilyMonospace; font.pixelSize: Theme.fontSizeBodySecondary; color: Theme.text }
-                                        Text { text: "Ctrl+Q : Salir"; font.family: Theme.fontFamilyMonospace; font.pixelSize: Theme.fontSizeBodySecondary; color: Theme.text }
+                                    RowLayout {
+                                        anchors.centerIn: parent
+                                        spacing: 8
+                                        Image {
+                                            width: 16
+                                            height: 16
+                                            source: Theme.iconsPath + "keyboard.svg"
+                                            sourceSize: Qt.size(16, 16)
+                                            layer.enabled: true
+                                            layer.effect: MultiEffect {
+                                                colorization: 1.0
+                                                colorizationColor: Theme.accent
+                                            }
+                                        }
+                                        Text {
+                                            text: I18n.t("shortcuts.title", "Atajos de Teclado") + " →"
+                                            font.family: Theme.fontFamily
+                                            font.pixelSize: Theme.fontSizeSmall
+                                            font.bold: true
+                                            color: Theme.accent
+                                        }
                                     }
 
-                                    ColumnLayout {
-                                        Layout.fillWidth: true
-                                        spacing: 4
-                                        Text { text: "Ctrl+B / Ctrl+I : Negrita / Cursiva"; font.family: Theme.fontFamilyMonospace; font.pixelSize: Theme.fontSizeBodySecondary; color: Theme.text }
-                                        Text { text: "Ctrl+K : Insertar enlace"; font.family: Theme.fontFamilyMonospace; font.pixelSize: Theme.fontSizeBodySecondary; color: Theme.text }
-                                        Text { text: "F7 : Alternar corrector"; font.family: Theme.fontFamilyMonospace; font.pixelSize: Theme.fontSizeBodySecondary; color: Theme.text }
-                                        Text { text: "Esc : Cerrar nota / diálogo"; font.family: Theme.fontFamilyMonospace; font.pixelSize: Theme.fontSizeBodySecondary; color: Theme.text }
+                                    MouseArea {
+                                        id: viewShortcutsMa
+                                        anchors.fill: parent
+                                        hoverEnabled: true
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: root.setTab("shortcuts")
                                     }
                                 }
                             }
@@ -3218,6 +3483,7 @@ Item {
                             if (root.currentTabValue === "editor") return tabEditor.implicitHeight;
                             if (root.currentTabValue === "appearance") return tabAppearance.implicitHeight;
                             if (root.currentTabValue === "language") return tabLanguage.implicitHeight;
+                            if (root.currentTabValue === "shortcuts") return tabShortcuts.implicitHeight;
                             return tabAbout.implicitHeight;
                         }
                     }

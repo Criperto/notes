@@ -20,10 +20,8 @@ ApplicationWindow {
         initialAction: (typeof Sys !== "undefined") ? Sys.initialAction : ""
         initialTarget: (typeof Sys !== "undefined") ? Sys.initialTarget : ""
         isSettingsOpen: settingsModal.isOpen || settingsModal.isClosing
-        isShortcutsOpen: shortcutsModal.isOpen || shortcutsModal.isClosing
         onCloseRequested: root.close()
-        onOpenSettingsRequested: (originRect) => settingsModal.open(originRect)
-        onOpenShortcutsRequested: (originRect) => shortcutsModal.open(originRect)
+        onOpenSettingsRequested: (originRect, initialTab) => settingsModal.open(originRect, initialTab)
     }
 
     NotesSettingsModal {
@@ -33,37 +31,20 @@ ApplicationWindow {
         backgroundSourceItem: content
     }
 
-    ShortcutsSheet {
-        id: shortcutsModal
-        anchors.fill: parent
-        z: 9999
-        backgroundSourceItem: content
-    }
-
-    function toggleSettings() {
+    function toggleSettings(initialTab) {
         if (settingsModal.isOpen && !settingsModal.isClosing) {
-            settingsModal.close();
+            if (initialTab && typeof initialTab === "string" && settingsModal.currentTabValue !== initialTab) {
+                settingsModal.setTab(initialTab);
+            } else {
+                settingsModal.close();
+            }
         } else {
             var noteIsActive = (typeof NotesService !== "undefined" && NotesService.isEditing);
             if (!noteIsActive && content && typeof content.getSettingsButtonRect === "function") {
                 var btnRect = content.getSettingsButtonRect();
-                settingsModal.open(btnRect);
+                settingsModal.open(btnRect, initialTab);
             } else {
-                settingsModal.open();
-            }
-        }
-    }
-
-    function toggleShortcuts() {
-        if (shortcutsModal.isOpen && !shortcutsModal.isClosing) {
-            shortcutsModal.close();
-        } else {
-            var noteIsActive = (typeof NotesService !== "undefined" && NotesService.isEditing);
-            if (!noteIsActive && content && typeof content.getShortcutsButtonRect === "function") {
-                var btnRect = content.getShortcutsButtonRect();
-                shortcutsModal.open(btnRect);
-            } else {
-                shortcutsModal.open();
+                settingsModal.open(null, initialTab);
             }
         }
     }
@@ -75,12 +56,12 @@ ApplicationWindow {
 
     Shortcut {
         sequence: "Ctrl+/"
-        onActivated: root.toggleShortcuts()
+        onActivated: root.toggleSettings("shortcuts")
     }
 
     Shortcut {
         sequence: "F1"
-        onActivated: root.toggleShortcuts()
+        onActivated: root.toggleSettings("shortcuts")
     }
 
     Shortcut {

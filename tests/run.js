@@ -4460,24 +4460,26 @@ runTest("F90: Accesibilidad, navegación por teclado y escalado integral de inte
     assert.ok(focusRingQml.includes('border.color: ringColor'), "FocusRing debe tener borde visible");
     assert.ok(focusRingQml.includes('Accessible.ignored: true'), "FocusRing debe ignorarse en árbol de accesibilidad");
 
-    // 2. Verificación de ShortcutsSheet.qml
-    const shortcutsSheetQml = fs.readFileSync(path.resolve(__dirname, '../qml/ShortcutsSheet.qml'), 'utf8');
-    assert.ok(shortcutsSheetQml.includes('sequence: "Esc"'), "ShortcutsSheet debe cerrarse con Esc");
-    assert.ok(shortcutsSheetQml.includes('sequence: "Ctrl+/"'), "ShortcutsSheet debe responder a Ctrl+/");
-    assert.ok(shortcutsSheetQml.includes('sequence: "F1"'), "ShortcutsSheet debe responder a F1");
-    assert.ok(shortcutsSheetQml.includes('I18n.t("shortcuts.title"'), "ShortcutsSheet debe usar I18n para título");
+    // 2. Verificación de pestaña de atajos en NotesSettingsModal.qml
+    const settingsModalQml = fs.readFileSync(path.resolve(__dirname, '../qml/NotesSettingsModal.qml'), 'utf8');
+    assert.ok(settingsModalQml.includes('value: "shortcuts"'), "NotesSettingsModal debe tener la pestaña shortcuts");
+    assert.ok(settingsModalQml.includes('I18n.t("shortcuts.title"'), "NotesSettingsModal debe usar I18n para título de atajos");
+    assert.ok(settingsModalQml.includes('I18n.t("shortcuts.cat_nav"'), "NotesSettingsModal debe incluir categoría de navegación");
+    assert.ok(settingsModalQml.includes('I18n.t("shortcuts.cat_editor"'), "NotesSettingsModal debe incluir categoría de edición");
+    assert.ok(settingsModalQml.includes('I18n.t("shortcuts.cat_tools"'), "NotesSettingsModal debe incluir categoría de herramientas");
 
     // 3. Verificación de uiScale y Theme.s(px) en Theme.qml
     const themeQml = fs.readFileSync(path.resolve(__dirname, '../qml/Theme.qml'), 'utf8');
     assert.ok(themeQml.includes('readonly property real uiScale:'), "Theme debe definir uiScale");
     assert.ok(themeQml.includes('function s(px)'), "Theme debe definir helper s(px)");
 
-    // 4. Verificación de navegación por teclado y atajos en NotesContent.qml y Main.qml
+    // 4. Verificación de atajos y navegación directa en NotesContent.qml y Main.qml
     const notesContentQml = fs.readFileSync(path.resolve(__dirname, '../qml/NotesContent.qml'), 'utf8');
     const mainQml = fs.readFileSync(path.resolve(__dirname, '../qml/Main.qml'), 'utf8');
-    assert.ok(mainQml.includes('ShortcutsSheet {') || notesContentQml.includes('ShortcutsSheet {'), "ShortcutsSheet debe estar instanciado");
-    assert.ok(notesContentQml.includes('id: shortcutsBtn'), "NotesContent debe tener botón para hoja de atajos");
-    assert.ok(notesContentQml.includes('openShortcutsRequested'), "NotesContent debe abrir la hoja de atajos solicitando el modal");
+    assert.ok(mainQml.includes('sequence: "Ctrl+/"'), "Main debe abrir atajos con Ctrl+/");
+    assert.ok(mainQml.includes('sequence: "F1"'), "Main debe abrir atajos con F1");
+    assert.ok(mainQml.includes('toggleSettings("shortcuts")'), "Main debe alternar al tab de atajos");
+    assert.ok(notesContentQml.includes('openShortcutsSheet()'), "NotesContent debe soportar helper openShortcutsSheet");
 
     // 5. Verificación de ToolbarButton y NoteEditorModal
     const toolbarBtnQml = fs.readFileSync(path.resolve(__dirname, '../qml/ToolbarButton.qml'), 'utf8');

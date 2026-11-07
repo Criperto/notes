@@ -222,6 +222,9 @@
     "appearance": {
       "ui_scale": "UI全体の拡大縮小",
       "ui_scale_desc": "HiDPI画面に合わせてボタン、アイコン、余白、カードのサイズを調整します。"
+    },
+    "tabs": {
+      "shortcuts": "ショートカット"
     }
   },
   "slash": {

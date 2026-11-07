@@ -222,6 +222,9 @@
     "appearance": {
       "ui_scale": "Global UI scale",
       "ui_scale_desc": "Proportionally adjusts buttons, icons, margins, and cards for HiDPI displays."
+    },
+    "tabs": {
+      "shortcuts": "Shortcuts"
     }
   },
   "slash": {

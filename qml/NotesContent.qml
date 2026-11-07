@@ -13,26 +13,14 @@ Item {
     id: root
 
     signal closeRequested
-    signal openSettingsRequested(var originRect)
+    signal openSettingsRequested(var originRect, string initialTab)
     property bool isSettingsOpen: false
-    signal openShortcutsRequested(var originRect)
-    property bool isShortcutsOpen: false
 
     function getSettingsButtonRect() {
         if (!settingsBtn) return null;
         try {
             var origin = settingsBtn.mapToItem(null, 0, 0);
             return Qt.rect(origin.x, origin.y, settingsBtn.width, settingsBtn.height);
-        } catch (e) {
-            return null;
-        }
-    }
-
-    function getShortcutsButtonRect() {
-        if (!shortcutsBtn) return null;
-        try {
-            var origin = shortcutsBtn.mapToItem(null, 0, 0);
-            return Qt.rect(origin.x, origin.y, shortcutsBtn.width, shortcutsBtn.height);
         } catch (e) {
             return null;
         }
@@ -675,7 +663,7 @@ Item {
                             cursorShape: Qt.PointingHandCursor
                             onClicked: {
                                 var origin = settingsBtn.mapToItem(null, 0, 0);
-                                root.openSettingsRequested(Qt.rect(origin.x, origin.y, settingsBtn.width, settingsBtn.height));
+                                root.openSettingsRequested(Qt.rect(origin.x, origin.y, settingsBtn.width, settingsBtn.height), "");
                             }
                         }
 
@@ -689,68 +677,7 @@ Item {
 
                         Keys.onReturnPressed: {
                             var origin = settingsBtn.mapToItem(null, 0, 0);
-                            root.openSettingsRequested(Qt.rect(origin.x, origin.y, settingsBtn.width, settingsBtn.height));
-                        }
-                        Keys.onEnterPressed: Keys.onReturnPressed()
-                        Keys.onSpacePressed: Keys.onReturnPressed()
-                    }
-
-                    // Botón de Atajos de Teclado
-                    Rectangle {
-                        id: shortcutsBtn
-                        Layout.preferredHeight: 38
-                        Layout.preferredWidth: 38
-                        radius: 10
-                        opacity: (root.isShortcutsOpen && !NotesService.isEditing) ? 0.0 : 1.0
-                        color: shortcutsMa.containsMouse ? Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.1) : Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.05)
-                        border.color: Qt.hsva(Theme.text.hsvHue, Theme.text.hsvSaturation, Theme.text.hsvValue, 0.12)
-                        border.width: 1
-
-                        Behavior on color {
-                            enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
-                            ColorAnimation { duration: 120; easing.type: Easing.OutCubic }
-                        }
-
-                        Image {
-                            anchors.centerIn: parent
-                            width: 16
-                            height: 16
-                            source: Theme.iconsPath + "keyboard.svg"
-                            sourceSize: Qt.size(16, 16)
-                            layer.enabled: true
-                            layer.effect: MultiEffect {
-                                colorization: 1.0
-                                colorizationColor: shortcutsMa.containsMouse ? Theme.text : Theme.muted
-
-                                Behavior on colorizationColor {
-                                    enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
-                                    ColorAnimation { duration: 120; easing.type: Easing.OutCubic }
-                                }
-                            }
-                        }
-
-                        MouseArea {
-                            id: shortcutsMa
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                var origin = shortcutsBtn.mapToItem(null, 0, 0);
-                                root.openShortcutsRequested(Qt.rect(origin.x, origin.y, shortcutsBtn.width, shortcutsBtn.height));
-                            }
-                        }
-
-                        activeFocusOnTab: true
-                        Accessible.role: Accessible.Button
-                        Accessible.name: I18n.t("shortcuts.title", "Atajos de Teclado")
-
-                        FocusRing {
-                            target: shortcutsBtn
-                        }
-
-                        Keys.onReturnPressed: {
-                            var origin = shortcutsBtn.mapToItem(null, 0, 0);
-                            root.openShortcutsRequested(Qt.rect(origin.x, origin.y, shortcutsBtn.width, shortcutsBtn.height));
+                            root.openSettingsRequested(Qt.rect(origin.x, origin.y, settingsBtn.width, settingsBtn.height), "");
                         }
                         Keys.onEnterPressed: Keys.onReturnPressed()
                         Keys.onSpacePressed: Keys.onReturnPressed()
@@ -2570,8 +2497,8 @@ Item {
     }
 
     function openShortcutsSheet() {
-        var rect = getShortcutsButtonRect();
-        root.openShortcutsRequested(rect);
+        var rect = getSettingsButtonRect();
+        root.openSettingsRequested(rect, "shortcuts");
     }
 
     // ── Funciones de animación y ciclo de vida de morfismo ──────────────────
