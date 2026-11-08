@@ -57,14 +57,14 @@ jobs:
       - name: Prepare standalone tarball release
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          DIST_DIR="dist/notas-${VERSION}"
+          DIST_DIR="dist/criperto-notes-${VERSION}"
           mkdir -p "${DIST_DIR}"
 
           PREFIX="/usr" DESTDIR="${DIST_DIR}" bash scripts/install-system.sh
           cp README.md LICENSE "${DIST_DIR}/"
 
-          tar -czf "dist/notas-${VERSION}-x86_64-linux.tar.gz" -C dist "notas-${VERSION}"
-          cd dist && sha256sum "notas-${VERSION}-x86_64-linux.tar.gz" > "notas-${VERSION}-x86_64-linux.tar.gz.sha256"
+          tar -czf "dist/criperto-notes-${VERSION}-x86_64-linux.tar.gz" -C dist "criperto-notes-${VERSION}"
+          cd dist && sha256sum "criperto-notes-${VERSION}-x86_64-linux.tar.gz" > "criperto-notes-${VERSION}-x86_64-linux.tar.gz.sha256"
 
       - name: Build AppImage
         run: |

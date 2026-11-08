@@ -4088,6 +4088,13 @@ runTest('F79: Operaciones CLI y captura desde portapapeles', () => {
     assert.ok(catContent.includes('from_clipboard'));
     assert.ok(catContent.includes('copy_abs_path'));
     assert.ok(catContent.includes('open_folder'));
+
+    // 5. Verificación de apertura directa en editor tras crear nota desde portapapeles
+    const mainRsContent = fs.readFileSync(path.resolve(__dirname, '../src/main.rs'), 'utf8');
+    assert.ok(mainRsContent.includes('clip_target = Some(created_path)'), "main.rs debe guardar la ruta de la nota creada en clip_target");
+    assert.ok(mainRsContent.includes('else if let Some(ref cp) = clip_target'), "main.rs debe propagar clip_target con acción open");
+    const notesContentQml = fs.readFileSync(path.resolve(__dirname, '../qml/NotesContent.qml'), 'utf8');
+    assert.ok(notesContentQml.includes('Sys.clipboardText'), "createNoteFromClipboard debe consultar Sys.clipboardText");
 });
 
 runTest('F80: Diff.js (Myers O(ND) lines/words/hunks), VersionPolicy.js y History.js persistencia', () => {
@@ -4725,7 +4732,7 @@ runTest("F96: Phase P9 — System installation, AUR PKGBUILD, Flatpak manifest, 
     const cargoContent = fs.readFileSync(cargoTomlPath, 'utf8');
     const cargoVerMatch = cargoContent.match(/^version\s*=\s*"([^"]+)"/m);
     const expectedVer = cargoVerMatch ? cargoVerMatch[1] : "0.1.10";
-    assert.ok(aurContent.includes("pkgname=notas"), "PKGBUILD debe definir pkgname=notas");
+    assert.ok(aurContent.includes("pkgname=criperto-notes") || aurContent.includes("pkgname=notas"), "PKGBUILD debe definir pkgname=criperto-notes o notas");
     assert.ok(aurContent.includes(`pkgver=${expectedVer}`), `PKGBUILD debe reflejar versión ${expectedVer}`);
     assert.ok(aurContent.includes("install-system.sh"), "PKGBUILD debe invocar install-system.sh");
 

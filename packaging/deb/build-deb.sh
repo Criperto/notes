@@ -17,7 +17,7 @@ PREFIX="/usr" DESTDIR="${STAGE_DIR}" bash "${REPO_DIR}/scripts/install-system.sh
 INSTALLED_SIZE=$(du -sk "${STAGE_DIR}" | cut -f1)
 
 cat << EOF > "${STAGE_DIR}/DEBIAN/control"
-Package: notas
+Package: criperto-notes
 Version: ${VERSION}
 Section: utils
 Priority: optional
@@ -32,9 +32,9 @@ Description: Editor moderno y nativo de notas en Markdown para Wayland
 EOF
 
 if command -v dpkg-deb &>/dev/null; then
-    dpkg-deb --build --root-owner-group "${STAGE_DIR}" "${OUTPUT_DIR}/notas_${VERSION}_amd64.deb"
-    (cd "${OUTPUT_DIR}" && sha256sum "notas_${VERSION}_amd64.deb" > "notas_${VERSION}_amd64.deb.sha256")
-    echo "✓ Paquete Debian generado en ${OUTPUT_DIR}/notas_${VERSION}_amd64.deb"
+    dpkg-deb --build --root-owner-group "${STAGE_DIR}" "${OUTPUT_DIR}/criperto-notes_${VERSION}_amd64.deb"
+    (cd "${OUTPUT_DIR}" && sha256sum "criperto-notes_${VERSION}_amd64.deb" > "criperto-notes_${VERSION}_amd64.deb.sha256")
+    echo "✓ Paquete Debian generado en ${OUTPUT_DIR}/criperto-notes_${VERSION}_amd64.deb"
 else
     echo "ℹ Nota: dpkg-deb no disponible en este sistema host. Se compilará en GitHub Actions."
 fi

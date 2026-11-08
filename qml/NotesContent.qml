@@ -2613,7 +2613,9 @@ Item {
 
     function createNoteFromClipboard() {
         if (root._morphTransitioning || morphContainer.isVisible || NotesService.isEditing) return;
-        var clip = (typeof Quickshell.clipboardText === "string") ? Quickshell.clipboardText : "";
+        var clip = (typeof Sys !== "undefined" && typeof Sys.clipboardText === "string" && Sys.clipboardText !== "")
+            ? Sys.clipboardText
+            : ((typeof Quickshell !== "undefined" && typeof Quickshell.clipboardText === "string") ? Quickshell.clipboardText : "");
         if (!clip || clip.trim() === "") {
             importToast.showText(I18n.t("notes.toast.clipboard_empty", "El portapapeles está vacío"));
             return;

@@ -1,7 +1,7 @@
 %define _unpackaged_files_terminate_build 0
 %define debug_package %{nil}
 
-Name:           notas
+Name:           criperto-notes
 Version:        0.1.11
 Release:        1%{?dist}
 Summary:        Editor moderno y nativo de notas en Markdown para Wayland

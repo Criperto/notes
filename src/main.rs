@@ -264,6 +264,7 @@ fn main() {
         return;
     }
 
+    let mut clip_target: Option<String> = None;
     if cli.clip {
         if let Some(created_path) = cli_ops::cmd_clip(cli.to_note.as_deref(), cli.stamp) {
             let instances = instance_hub::list_active_instances();
@@ -272,8 +273,7 @@ fn main() {
                     return;
                 }
             }
-            std::env::set_var("NOTAS_INITIAL_ACTION", "open");
-            std::env::set_var("NOTAS_INITIAL_TARGET", &created_path);
+            clip_target = Some(created_path);
         } else {
             return;
         }
@@ -317,6 +317,8 @@ fn main() {
             "open"
         };
         (act.to_string(), resolved)
+    } else if let Some(ref cp) = clip_target {
+        ("open".to_string(), cp.clone())
     } else {
         ("raise".to_string(), String::new())
     };

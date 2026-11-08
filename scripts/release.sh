@@ -372,17 +372,17 @@ fi
 if [[ "${DO_PACKAGE}" == true ]]; then
     echo -e "\n${BLUE}🎁 [5/6] Generando paquetes de distribución en dist/...${NC}"
     DIST_DIR="${ROOT_DIR}/dist"
-    PKG_TEMP="${DIST_DIR}/notas-${NEW_VER}"
+    PKG_TEMP="${DIST_DIR}/criperto-notes-${NEW_VER}"
     rm -rf "${PKG_TEMP}"
     mkdir -p "${PKG_TEMP}"
 
     PREFIX="/usr" DESTDIR="${PKG_TEMP}" bash "${ROOT_DIR}/scripts/install-system.sh" >/dev/null 2>&1
     cp "${ROOT_DIR}/README.md" "${ROOT_DIR}/LICENSE" "${PKG_TEMP}/"
 
-    tar -czf "${DIST_DIR}/notas-${NEW_VER}-x86_64-linux.tar.gz" -C "${DIST_DIR}" "notas-${NEW_VER}"
-    (cd "${DIST_DIR}" && sha256sum "notas-${NEW_VER}-x86_64-linux.tar.gz" > "notas-${NEW_VER}-x86_64-linux.tar.gz.sha256")
+    tar -czf "${DIST_DIR}/criperto-notes-${NEW_VER}-x86_64-linux.tar.gz" -C "${DIST_DIR}" "criperto-notes-${NEW_VER}"
+    (cd "${DIST_DIR}" && sha256sum "criperto-notes-${NEW_VER}-x86_64-linux.tar.gz" > "criperto-notes-${NEW_VER}-x86_64-linux.tar.gz.sha256")
     rm -rf "${PKG_TEMP}"
-    echo "   ✓ Tarball generado: dist/notas-${NEW_VER}-x86_64-linux.tar.gz"
+    echo "   ✓ Tarball generado: dist/criperto-notes-${NEW_VER}-x86_64-linux.tar.gz"
 
     if [[ -f "${ROOT_DIR}/packaging/appimage/build-appimage.sh" ]]; then
         echo "   📦 Generando AppImage local..."
