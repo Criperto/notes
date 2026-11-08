@@ -1233,9 +1233,9 @@ Item {
                     var q = root.editor ? root.editor.searchQuery : "";
                     if (q && q.trim() !== "") {
                         var hBg = root.editor ? ("" + root.editor.searchHighlightColor) : "";
-                        var aBg = (root.editor && root.blockData) ? root.editor.searchActiveBg(root.blockData.bid, itemRow.index) : "";
-                        var ord = (root.editor && root.blockData) ? root.editor.searchActiveOrdinal(root.blockData.bid, itemRow.index) : -1;
-                        var aFg = (root.editor && root.blockData) ? root.editor.searchHighlightActiveFg(root.blockData.bid, itemRow.index) : "";
+                        var aBg = (root.editor && root.blockData && typeof root.editor.searchActiveBg === "function") ? root.editor.searchActiveBg(root.blockData.bid, itemRow.index) : "";
+                        var ord = (root.editor && root.blockData && typeof root.editor.searchActiveOrdinal === "function") ? root.editor.searchActiveOrdinal(root.blockData.bid, itemRow.index) : -1;
+                        var aFg = (root.editor && root.blockData && typeof root.editor.searchActiveFg === "function") ? root.editor.searchActiveFg(root.blockData.bid, itemRow.index) : "";
                         base = Inline.highlightInHtml(base, q, hBg, aBg, ord, aFg);
                     }
                     return base;

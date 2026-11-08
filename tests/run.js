@@ -4879,6 +4879,8 @@ runTest('F100: Resaltado de búsqueda en listas con sugerencias ortográficas ac
     assert.ok(blockListQml.includes('function onActiveMatchOrdinalChanged()'), "BlockList debe conectar onActiveMatchOrdinalChanged");
     assert.ok(blockListQml.includes('function syncText()'), "itemRow debe implementar syncText()");
     assert.ok(blockListQml.includes('Inline.highlightInHtml(base, q, hBg, aBg, ord, aFg)'), "baseDisplayText debe aplicar highlightInHtml");
+    assert.ok(!blockListQml.includes('searchHighlightActiveFg('), "BlockList.qml no debe llamar al método inexistente searchHighlightActiveFg()");
+    assert.ok(blockListQml.includes('searchActiveFg(root.blockData.bid, itemRow.index)'), "BlockList.qml debe invocar searchActiveFg");
     assert.ok(blockListQml.includes('itemRow.syncText()'), "onSpellRangesChanged y onTextChanged deben sincronizar lineEdit");
     assert.ok(blockListQml.includes('onLinkActivated: (link) => {'), "lineEdit debe implementar onLinkActivated");
 
