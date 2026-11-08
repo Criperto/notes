@@ -4072,7 +4072,7 @@ runTest('F79: Operaciones CLI y captura desde portapapeles', () => {
     const desktopPath = path.resolve(__dirname, '../data/dev.criperto.Notas.desktop');
     assert.ok(fs.existsSync(desktopPath));
     const desktopContent = fs.readFileSync(desktopPath, 'utf8');
-    assert.ok(desktopContent.includes('Actions=new-note;clip-note;toggle;'));
+    assert.ok(desktopContent.includes('Actions=new-note;new-window;clip-note;toggle;'));
     assert.ok(desktopContent.includes('[Desktop Action clip-note]'));
     assert.ok(desktopContent.includes('Exec=criperto.notes --clip'));
 
@@ -4802,6 +4802,44 @@ runTest("P9.3 - Scripts de empaquetado Debian (.deb) y Fedora (.rpm)", () => {
     assert.ok(wfContent.includes("build-deb.sh"), "Workflow debe compilar .deb");
     assert.ok(wfContent.includes("build-rpm.sh"), "Workflow debe compilar .rpm");
     assert.ok(wfContent.includes("prerelease: true"), "Workflow debe marcar los releases como pre-release");
+});
+
+runTest('F97: Integración Desktop Entry (DBusActivatable desactivado, action new-window, exec criperto.notes %F)', () => {
+    const desktopEntry = fs.readFileSync(path.resolve(__dirname, '../assets/dev.criperto.Notas.desktop'), 'utf8');
+    const dataDesktopEntry = fs.readFileSync(path.resolve(__dirname, '../data/dev.criperto.Notas.desktop'), 'utf8');
+
+    assert.ok(!desktopEntry.includes('DBusActivatable=true'), "assets desktop entry no debe tener DBusActivatable=true");
+    assert.ok(!dataDesktopEntry.includes('DBusActivatable=true'), "data desktop entry no debe tener DBusActivatable=true");
+    assert.ok(desktopEntry.includes('[Desktop Action new-window]'), "assets desktop entry debe incluir acción new-window");
+    assert.ok(dataDesktopEntry.includes('[Desktop Action new-window]'), "data desktop entry debe incluir acción new-window");
+    assert.ok(desktopEntry.includes('Exec=criperto.notes --new-window'), "acción new-window debe ejecutar criperto.notes --new-window");
+});
+
+runTest('F98: Decodificación de URIs file:// y percent-encoding en CLI y rutas de apertura', () => {
+    const mainRs = fs.readFileSync(path.resolve(__dirname, '../src/main.rs'), 'utf8');
+    assert.ok(mainRs.includes('decode_percent'), "main.rs debe incluir función decode_percent");
+    assert.ok(mainRs.includes('file://'), "main.rs debe soportar prefijo file://");
+    assert.ok(mainRs.includes('new-window'), "main.rs debe declarar argumento --new-window");
+});
+
+runTest('F99: Coordinación multi-instancia, exclusividad de edición y WhatsApp Web "Editar aquí"', () => {
+    const nativeBridgeH = fs.readFileSync(path.resolve(__dirname, '../src/native/native_bridge.h'), 'utf8');
+    const nativeBridgeCpp = fs.readFileSync(path.resolve(__dirname, '../src/native/native_bridge.cpp'), 'utf8');
+    const noteEditorQml = fs.readFileSync(path.resolve(__dirname, '../qml/NoteEditorModal.qml'), 'utf8');
+    const notesContentQml = fs.readFileSync(path.resolve(__dirname, '../qml/NotesContent.qml'), 'utf8');
+
+    // 1. Métodos y señales de Native Bridge
+    assert.ok(nativeBridgeH.includes('isNoteBeingEditedElsewhere'), "native_bridge.h debe declarar isNoteBeingEditedElsewhere");
+    assert.ok(nativeBridgeH.includes('claimEditLock'), "native_bridge.h debe declarar claimEditLock");
+    assert.ok(nativeBridgeH.includes('remoteEditLockClaimed'), "native_bridge.h debe declarar remoteEditLockClaimed");
+    assert.ok(nativeBridgeCpp.includes('criperto-notes/instances'), "native_bridge.cpp debe registrar instancias en criperto-notes/instances");
+    assert.ok(nativeBridgeCpp.includes('wl-paste'), "Sys::clipboardText debe tener fallback a wl-paste");
+
+    // 2. QML NoteEditorModal & NotesContent
+    assert.ok(noteEditorQml.includes('remoteLocked'), "NoteEditorModal debe tener propiedad remoteLocked");
+    assert.ok(noteEditorQml.includes('claimEditLock'), "NoteEditorModal debe invocar claimEditLock al pulsar 'Editar aquí'");
+    assert.ok(notesContentQml.includes('handleRemoteEditLockClaimed'), "NotesContent debe implementar handleRemoteEditLockClaimed");
+    assert.ok(notesContentQml.includes('isNoteBeingEditedElsewhere'), "NotesContent debe consultar isNoteBeingEditedElsewhere");
 });
 
 console.log(`\n========================================`);

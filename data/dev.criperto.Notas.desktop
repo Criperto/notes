@@ -40,9 +40,9 @@ Terminal=false
 Categories=Office;Utility;TextEditor;
 MimeType=text/markdown;text/plain;text/x-markdown;
 StartupWMClass=dev.criperto.Notas
-DBusActivatable=true
+DBusActivatable=false
 Keywords=notas;notes;markdown;md;apuntes;editor;texto;checklist;tareas;mermaid;
-Actions=new-note;clip-note;toggle;
+Actions=new-note;new-window;clip-note;toggle;
 
 [Desktop Action new-note]
 Name=Nueva nota
@@ -57,6 +57,20 @@ Name[pt]=Nova nota
 Name[ru]=Новая заметка
 Name[zh]=新建笔记
 Exec=criperto.notes --new
+
+[Desktop Action new-window]
+Name=Nueva ventana
+Name[es]=Nueva ventana
+Name[es_AR]=Nueva ventana
+Name[es_ES]=Nueva ventana
+Name[en]=New window
+Name[de]=Neues Fenster
+Name[fr]=Nouvelle fenêtre
+Name[ja]=新しいウィンドウ
+Name[pt]=Nova janela
+Name[ru]=Новое окно
+Name[zh]=新窗口
+Exec=criperto.notes --new-window
 
 [Desktop Action clip-note]
 Name=Nota desde portapapeles

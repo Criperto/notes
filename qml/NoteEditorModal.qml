@@ -22,7 +22,8 @@ Item {
     focus: true
 
     property var noteData: null
-    readonly property bool isPreviewMode: Boolean(noteData && noteData.readOnly)
+    property bool remoteLocked: false
+    readonly property bool isPreviewMode: Boolean((noteData && noteData.readOnly) || remoteLocked)
     readonly property bool isExternalNote: Boolean(noteData && noteData.isExternal)
     property string loadedSlug: ""
     property bool isPinned: false
@@ -1920,6 +1921,7 @@ Item {
 
                         Text {
                             text: {
+                                if (root.remoteLocked) return I18n.t("notes.editor.remote_editing", "Editando en otra ventana");
                                 if (root.isPreviewMode) return I18n.t("notes.preview.badge", "Vista previa · Solo lectura");
                                 if (NotesService.saveState === "error") return I18n.t("notes.editor.error", "Error al guardar");
                                 if (NotesService.saveState === "conflict" || root.hasConflict) return I18n.t("notes.editor.conflict", "Conflicto");
@@ -2263,7 +2265,9 @@ Item {
 
                     Text {
                         Layout.fillWidth: true
-                        text: I18n.t("notes.preview.banner_text", "Archivo externo abierto en modo de solo lectura.")
+                        text: root.remoteLocked
+                            ? I18n.t("notes.preview.remote_locked", "Esta nota se está editando en otra ventana.")
+                            : I18n.t("notes.preview.banner_text", "Archivo externo abierto en modo de solo lectura.")
                         color: Theme.text
                         font.family: Theme.fontFamily
                         font.pixelSize: Theme.fontSizeSmall
@@ -2309,7 +2313,17 @@ Item {
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
                             onClicked: {
-                                NotesService.unlockExternalInPlace();
+                                if (root.remoteLocked) {
+                                    if (typeof Sys !== "undefined" && typeof Sys.claimEditLock === "function" && root.noteData) {
+                                        Sys.claimEditLock(root.noteData.filePath || "");
+                                    }
+                                    root.remoteLocked = false;
+                                    if (root.noteData) root.noteData.readOnly = false;
+                                    root.readOnly = false;
+                                    NotesService.unlockExternalInPlace();
+                                } else {
+                                    NotesService.unlockExternalInPlace();
+                                }
                             }
                         }
                     }

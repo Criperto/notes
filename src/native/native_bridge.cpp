@@ -456,6 +456,12 @@ Sys::~Sys() {
         delete m_ipcServer;
         m_ipcServer = nullptr;
     }
+    if (!m_currentInstanceSockPath.isEmpty()) {
+        QFile::remove(m_currentInstanceSockPath);
+    }
+    if (!m_currentInstanceJsonPath.isEmpty()) {
+        QFile::remove(m_currentInstanceJsonPath);
+    }
 }
 
 bool Sys::eventFilter(QObject *watched, QEvent *event) {
@@ -749,17 +755,29 @@ QJsonObject Sys::readQtColors() const {
 void Sys::startIpcServer() {
     QString runtimeDir = QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation);
     if (runtimeDir.isEmpty()) runtimeDir = QDir::tempPath();
-    QString sockPath = runtimeDir + QStringLiteral("/notas.sock");
 
-    QFile::remove(sockPath);
+    QString instancesDir = runtimeDir + QStringLiteral("/criperto-notes/instances");
+    QDir().mkpath(instancesDir);
+
+    qint64 pid = QCoreApplication::applicationPid();
+    m_currentInstanceSockPath = instancesDir + QStringLiteral("/") + QString::number(pid) + QStringLiteral(".sock");
+    m_currentInstanceJsonPath = instancesDir + QStringLiteral("/") + QString::number(pid) + QStringLiteral(".json");
+
+    QFile::remove(m_currentInstanceSockPath);
+    QFile::remove(m_currentInstanceJsonPath);
 
     m_ipcServer = new QLocalServer(this);
     connect(m_ipcServer, &QLocalServer::newConnection, this, &Sys::onNewIpcConnection);
 
-    if (!m_ipcServer->listen(sockPath)) {
-        // Fallback al nombre abstracto o por defecto
-        m_ipcServer->listen(QStringLiteral("notas"));
+    m_ipcServer->listen(m_currentInstanceSockPath);
+
+    // Compatibilidad: enlazar notas.sock si no existe
+    QString legacySock = runtimeDir + QStringLiteral("/notas.sock");
+    if (!QFile::exists(legacySock)) {
+        QFile::link(m_currentInstanceSockPath, legacySock);
     }
+
+    updateInstanceStatus(QString(), false);
 }
 
 void Sys::onNewIpcConnection() {
@@ -768,15 +786,30 @@ void Sys::onNewIpcConnection() {
         connect(client, &QLocalSocket::readyRead, this, [this, client]() {
             QByteArray raw = client->readAll().trimmed();
             if (!raw.isEmpty()) {
-                QJsonDocument doc = QJsonDocument::fromJson(raw);
-                if (doc.isObject()) {
-                    QJsonObject obj = doc.object();
-                    QString action = obj[QStringLiteral("action")].toString();
-                    QString target = obj[QStringLiteral("target")].toString();
-                    if (action == QStringLiteral("sync")) {
-                        emit quickshellConfigChanged();
+                const QList<QByteArray> lines = raw.split('\n');
+                for (const QByteArray &line : lines) {
+                    QByteArray trimmed = line.trimmed();
+                    if (trimmed.isEmpty()) continue;
+                    QJsonDocument doc = QJsonDocument::fromJson(trimmed);
+                    if (doc.isObject()) {
+                        QJsonObject obj = doc.object();
+                        QString action = obj[QStringLiteral("action")].toString();
+                        QString target = obj[QStringLiteral("target")].toString();
+                        qint64 fromPid = obj[QStringLiteral("fromPid")].toInteger();
+
+                        if (action == QStringLiteral("take_edit_lock")) {
+                            emit remoteEditLockClaimed(target, fromPid);
+                        } else if (action == QStringLiteral("note_saved")) {
+                            emit remoteNoteSaved(target);
+                        } else if (action == QStringLiteral("note_deleted")) {
+                            emit remoteNoteDeleted(target);
+                        } else if (action == QStringLiteral("sync")) {
+                            emit quickshellConfigChanged();
+                            emit ipcCommandReceived(action, target);
+                        } else {
+                            emit ipcCommandReceived(action, target);
+                        }
                     }
-                    emit ipcCommandReceived(action, target);
                 }
             }
             client->deleteLater();
@@ -784,10 +817,143 @@ void Sys::onNewIpcConnection() {
     }
 }
 
+void Sys::updateInstanceStatus(const QString &notePath, bool isEditing) {
+    if (m_currentInstanceJsonPath.isEmpty()) return;
+
+    qint64 pid = QCoreApplication::applicationPid();
+    qint64 now = QDateTime::currentMSecsSinceEpoch();
+
+    QJsonObject obj;
+    obj[QStringLiteral("pid")] = pid;
+    obj[QStringLiteral("active_note")] = notePath;
+    obj[QStringLiteral("is_editing")] = isEditing;
+    obj[QStringLiteral("last_focused")] = now;
+
+    QFile f(m_currentInstanceJsonPath);
+    if (f.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) {
+        f.write(QJsonDocument(obj).toJson(QJsonDocument::Compact));
+        f.flush();
+        f.close();
+    }
+}
+
+bool Sys::isNoteBeingEditedElsewhere(const QString &notePath) const {
+    if (notePath.trimmed().isEmpty()) return false;
+    QString runtimeDir = QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation);
+    if (runtimeDir.isEmpty()) runtimeDir = QDir::tempPath();
+    QDir dir(runtimeDir + QStringLiteral("/criperto-notes/instances"));
+    if (!dir.exists()) return false;
+
+    qint64 myPid = QCoreApplication::applicationPid();
+    const QFileInfoList entries = dir.entryInfoList({QStringLiteral("*.json")}, QDir::Files);
+    for (const QFileInfo &fi : entries) {
+        QString stem = fi.baseName();
+        qint64 pid = stem.toLongLong();
+        if (pid == myPid || pid <= 0) continue;
+
+        if (!QFile::exists(QStringLiteral("/proc/") + QString::number(pid))) {
+            QFile::remove(fi.absoluteFilePath());
+            QFile::remove(dir.absoluteFilePath(stem + QStringLiteral(".sock")));
+            continue;
+        }
+
+        QFile f(fi.absoluteFilePath());
+        if (f.open(QIODevice::ReadOnly | QIODevice::Text)) {
+            QJsonDocument doc = QJsonDocument::fromJson(f.readAll());
+            if (doc.isObject()) {
+                QJsonObject obj = doc.object();
+                QString active = obj[QStringLiteral("active_note")].toString();
+                bool editing = obj[QStringLiteral("is_editing")].toBool();
+                if (editing && !active.isEmpty() && active == notePath) {
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
+
+static void broadcastToOtherInstances(const QJsonObject &payload, qint64 excludePid) {
+    QString runtimeDir = QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation);
+    if (runtimeDir.isEmpty()) runtimeDir = QDir::tempPath();
+    QDir dir(runtimeDir + QStringLiteral("/criperto-notes/instances"));
+    if (!dir.exists()) return;
+
+    QByteArray data = QJsonDocument(payload).toJson(QJsonDocument::Compact) + "\n";
+    const QFileInfoList entries = dir.entryInfoList({QStringLiteral("*.sock")}, QDir::Files | QDir::System);
+    for (const QFileInfo &fi : entries) {
+        QString stem = fi.baseName();
+        qint64 pid = stem.toLongLong();
+        if (pid == excludePid || pid <= 0) continue;
+
+        if (!QFile::exists(QStringLiteral("/proc/") + QString::number(pid))) {
+            QFile::remove(fi.absoluteFilePath());
+            QFile::remove(dir.absoluteFilePath(stem + QStringLiteral(".json")));
+            continue;
+        }
+
+        QLocalSocket sock;
+        sock.connectToServer(fi.absoluteFilePath());
+        if (sock.waitForConnected(80)) {
+            sock.write(data);
+            sock.flush();
+            sock.waitForBytesWritten(80);
+            sock.disconnectFromServer();
+        }
+    }
+}
+
+void Sys::claimEditLock(const QString &notePath) {
+    qint64 pid = QCoreApplication::applicationPid();
+    updateInstanceStatus(notePath, true);
+
+    QJsonObject msg;
+    msg[QStringLiteral("action")] = QStringLiteral("take_edit_lock");
+    msg[QStringLiteral("target")] = notePath;
+    msg[QStringLiteral("fromPid")] = pid;
+    broadcastToOtherInstances(msg, pid);
+}
+
+void Sys::broadcastNoteSaved(const QString &notePath) {
+    qint64 pid = QCoreApplication::applicationPid();
+    updateInstanceStatus(notePath, true);
+
+    QJsonObject msg;
+    msg[QStringLiteral("action")] = QStringLiteral("note_saved");
+    msg[QStringLiteral("target")] = notePath;
+    msg[QStringLiteral("fromPid")] = pid;
+    broadcastToOtherInstances(msg, pid);
+}
+
+void Sys::broadcastNoteDeleted(const QString &notePath) {
+    qint64 pid = QCoreApplication::applicationPid();
+    updateInstanceStatus(QString(), false);
+
+    QJsonObject msg;
+    msg[QStringLiteral("action")] = QStringLiteral("note_deleted");
+    msg[QStringLiteral("target")] = notePath;
+    msg[QStringLiteral("fromPid")] = pid;
+    broadcastToOtherInstances(msg, pid);
+}
+
 QString Sys::clipboardText() const {
     if (auto *cb = QGuiApplication::clipboard()) {
-        return cb->text();
+        QString txt = cb->text();
+        if (!txt.trimmed().isEmpty()) {
+            return txt;
+        }
     }
+
+    // Fallback nativo para Wayland cuando la ventana aún no tiene foco activo
+    QProcess proc;
+    proc.start(QStringLiteral("wl-paste"), {QStringLiteral("-n")});
+    if (proc.waitForFinished(120) && proc.exitCode() == 0) {
+        QString out = QString::fromUtf8(proc.readAllStandardOutput());
+        if (!out.trimmed().isEmpty()) {
+            return out;
+        }
+    }
+
     return QString();
 }
 

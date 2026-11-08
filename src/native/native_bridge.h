@@ -263,6 +263,11 @@ public:
     Q_INVOKABLE QString renderLatexSvg(const QString &latex, bool display = false, const QString &colorHex = QString(), double ptSize = 12.0) const;
     Q_INVOKABLE QJsonObject readQtColors() const;
     Q_INVOKABLE void refreshQtColors();
+    Q_INVOKABLE void updateInstanceStatus(const QString &notePath, bool isEditing);
+    Q_INVOKABLE bool isNoteBeingEditedElsewhere(const QString &notePath) const;
+    Q_INVOKABLE void claimEditLock(const QString &notePath);
+    Q_INVOKABLE void broadcastNoteSaved(const QString &notePath);
+    Q_INVOKABLE void broadcastNoteDeleted(const QString &notePath);
 
 signals:
     void clipboardTextChanged();
@@ -271,6 +276,9 @@ signals:
     void systemFontChanged();
     void quickshellConfigChanged();
     void ipcCommandReceived(const QString &action, const QString &target);
+    void remoteEditLockClaimed(const QString &notePath, qint64 newOwnerPid);
+    void remoteNoteSaved(const QString &notePath);
+    void remoteNoteDeleted(const QString &notePath);
 
 private slots:
     void onNewIpcConnection();
@@ -287,6 +295,8 @@ private:
     QLocalServer *m_ipcServer = nullptr;
     QFileSystemWatcher *m_qtThemeWatcher = nullptr;
     QJsonObject m_qtColors;
+    QString m_currentInstanceSockPath;
+    QString m_currentInstanceJsonPath;
 };
 
 // ── 5. ConfigBackend Singleton ──────────────────────────────────────────────

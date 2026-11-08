@@ -2506,6 +2506,16 @@ Item {
         if (!noteData) return;
         root.commitUndoToast();
         if (NotesService.debug) console.log("[NotesContent - morph] Abriendo nota con morfismo:", noteData.slug || noteData.title);
+
+        var isRemoteLocked = (typeof Sys !== "undefined" && typeof Sys.isNoteBeingEditedElsewhere === "function" && noteData.filePath) 
+            ? Sys.isNoteBeingEditedElsewhere(noteData.filePath) : false;
+        if (isRemoteLocked) {
+            noteData.readOnly = true;
+            editorModal.remoteLocked = true;
+        } else {
+            editorModal.remoteLocked = false;
+        }
+
         var orig = origin || _findCurrentCardPosition(noteData.key || noteData.slug || noteData.id, true) || {
             x: width * 0.2,
             y: height * 0.2,
@@ -2691,6 +2701,16 @@ Item {
     function openNoteImmediate(noteData) {
         if (!noteData) return;
         root.commitUndoToast();
+
+        var isRemoteLocked = (typeof Sys !== "undefined" && typeof Sys.isNoteBeingEditedElsewhere === "function" && noteData.filePath) 
+            ? Sys.isNoteBeingEditedElsewhere(noteData.filePath) : false;
+        if (isRemoteLocked) {
+            noteData.readOnly = true;
+            editorModal.remoteLocked = true;
+        } else {
+            editorModal.remoteLocked = false;
+        }
+
         root.keyboardNavActive = false;
         root.keyboardSelectedSlug = "";
         root.isCardMorph = true;
@@ -2754,7 +2774,9 @@ Item {
         if (act === "open" || act === "openPath" || act === "edit") {
             if (!tgt || tgt === "") return;
             var isOutside = !ImportLogic.isInsideDir(tgt, NotesService.notesDir);
-            var shouldPreview = (act !== "edit") && isOutside && (NotesConfig.externalFileOpenMode !== "edit");
+            var remoteLocked = (typeof Sys !== "undefined" && typeof Sys.isNoteBeingEditedElsewhere === "function") 
+                ? Sys.isNoteBeingEditedElsewhere(tgt) : false;
+            var shouldPreview = remoteLocked || ((act !== "edit") && isOutside && (NotesConfig.externalFileOpenMode !== "edit"));
             NotesService.openPath(tgt, shouldPreview, function(note) {
                 if (note) {
                     if (note.isExternal) root.launchedForExternal = true;
@@ -3430,6 +3452,56 @@ Item {
             Qt.callLater(function() {
                 root.handleIpcAction(root.initialAction, root.initialTarget);
             });
+        }
+    }
+
+    function handleRemoteEditLockClaimed(notePath, newOwnerPid) {
+        if (NotesService.activeNote && NotesService.activeNote.filePath === notePath) {
+            if (editorModal && !editorModal.isPreviewMode) {
+                editorModal.performSave(null, true);
+            }
+            editorModal.remoteLocked = true;
+            if (NotesService.activeNote) {
+                NotesService.activeNote.readOnly = true;
+            }
+            editorModal.readOnly = true;
+            importToast.showText(I18n.t("notes.toast.remote_editing_transferred", "Edición transferida a otra ventana (modo lectura activo)"));
+        }
+    }
+
+    function handleRemoteNoteSaved(notePath) {
+        if (NotesService.activeNote && NotesService.activeNote.filePath === notePath) {
+            if (editorModal && editorModal.isPreviewMode) {
+                importToast.showText(I18n.t("notes.toast.remote_note_updated", "Actualizado desde otra ventana"));
+            }
+        }
+    }
+
+    function handleRemoteNoteDeleted(notePath) {
+        if (NotesService.activeNote && NotesService.activeNote.filePath === notePath) {
+            if (morphContainer.isExpanded) {
+                root.closeNoteWithMorph();
+            } else {
+                NotesService.closeNote();
+            }
+            importToast.showText(I18n.t("notes.toast.remote_note_deleted", "La nota fue eliminada en otra ventana"));
+        }
+        if (typeof NotesService.refresh === "function") {
+            NotesService.refresh();
+        }
+    }
+
+    Connections {
+        target: NotesService
+        function onActiveNoteChanged() {
+            if (typeof Sys !== "undefined" && typeof Sys.updateInstanceStatus === "function") {
+                Sys.updateInstanceStatus(NotesService.activeNote ? (NotesService.activeNote.filePath || "") : "", NotesService.isEditing);
+            }
+        }
+        function onIsEditingChanged() {
+            if (typeof Sys !== "undefined" && typeof Sys.updateInstanceStatus === "function") {
+                Sys.updateInstanceStatus(NotesService.activeNote ? (NotesService.activeNote.filePath || "") : "", NotesService.isEditing);
+            }
         }
     }
 

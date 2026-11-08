@@ -1158,6 +1158,9 @@ Item {
                     item.callback(item.parsed);
                 }
                 root.noteSaved(item.parsed);
+                if (typeof Sys !== "undefined" && typeof Sys.broadcastNoteSaved === "function" && item.targetPath) {
+                    Sys.broadcastNoteSaved(item.targetPath);
+                }
             } catch (err) {
                 console.error("[NotesService] Error en callback tras guardar:", err);
             }
@@ -1966,6 +1969,11 @@ Item {
 
         root._rebuildNotes();
         root.noteDeleted(root._slugOfKey(key));
+        if (typeof Sys !== "undefined" && typeof Sys.broadcastNoteDeleted === "function") {
+            var delPath = root.notesDir + "/" + key;
+            if (!delPath.endsWith(".md") && !delPath.endsWith(".txt")) delPath += ".md";
+            Sys.broadcastNoteDeleted(delPath);
+        }
         if (!fileScannerProc.running) {
             fileScannerProc.running = true;
         }

@@ -6,11 +6,10 @@ mod sync_cli;
 mod history_cli;
 mod math_cli;
 mod clipper_cli;
+pub mod instance_hub;
 
 use clap::Parser;
 use cxx_qt_lib::{QGuiApplication, QQmlApplicationEngine, QUrl};
-use std::io::Write;
-use std::os::unix::net::UnixStream;
 use std::path::Path;
 
 extern "C" {
@@ -34,6 +33,10 @@ struct Cli {
     /// Alternar visibilidad de la ventana (toggle)
     #[arg(short = 't', long = "toggle")]
     toggle: bool,
+
+    /// Abrir una nueva ventana independiente
+    #[arg(short = 'w', long = "new-window")]
+    new_window: bool,
 
     /// Cerrar la aplicación
     #[arg(short = 'c', long = "close")]
@@ -108,15 +111,41 @@ struct Cli {
     check_only: bool,
 }
 
-fn resolve_target_path(path_str: &str) -> String {
-    let expanded = if path_str.starts_with("~/") {
-        if let Ok(home) = std::env::var("HOME") {
-            format!("{}{}", home, &path_str[1..])
-        } else {
-            path_str.to_string()
+fn decode_percent(s: &str) -> String {
+    let mut bytes = Vec::new();
+    let mut iter = s.as_bytes().iter();
+    while let Some(&b) = iter.next() {
+        if b == b'%' {
+            if let (Some(&h1), Some(&h2)) = (iter.next(), iter.next()) {
+                let hex = [h1, h2];
+                if let Ok(val) = u8::from_str_radix(std::str::from_utf8(&hex).unwrap_or(""), 16) {
+                    bytes.push(val);
+                    continue;
+                }
+            }
         }
+        bytes.push(b);
+    }
+    String::from_utf8_lossy(&bytes).into_owned()
+}
+
+fn resolve_target_path(path_str: &str) -> String {
+    let clean = if let Some(stripped) = path_str.strip_prefix("file://localhost/") {
+        decode_percent(stripped)
+    } else if let Some(stripped) = path_str.strip_prefix("file://") {
+        decode_percent(stripped)
     } else {
         path_str.to_string()
+    };
+
+    let expanded = if clean.starts_with("~/") {
+        if let Ok(home) = std::env::var("HOME") {
+            format!("{}{}", home, &clean[1..])
+        } else {
+            clean
+        }
+    } else {
+        clean
     };
 
     let p = Path::new(&expanded);
@@ -167,18 +196,7 @@ fn resolve_target_path(path_str: &str) -> String {
 }
 
 pub fn try_send_ipc(action: &str, target: &str) -> bool {
-    let runtime_dir = std::env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/tmp".to_string());
-    let sock_path = format!("{}/notas.sock", runtime_dir);
-
-    if let Ok(mut stream) = UnixStream::connect(&sock_path) {
-        let escaped_action = action.replace('\\', "\\\\").replace('"', "\\\"");
-        let escaped_target = target.replace('\\', "\\\\").replace('"', "\\\"");
-        let payload = format!("{{\"action\":\"{escaped_action}\",\"target\":\"{escaped_target}\"}}\n");
-        if stream.write_all(payload.as_bytes()).is_ok() && stream.flush().is_ok() {
-            return true;
-        }
-    }
-    false
+    instance_hub::send_to_focused_instance(action, target)
 }
 
 fn main() {
@@ -247,8 +265,18 @@ fn main() {
     }
 
     if cli.clip {
-        cli_ops::cmd_clip(cli.to_note.as_deref(), cli.stamp);
-        return;
+        if let Some(created_path) = cli_ops::cmd_clip(cli.to_note.as_deref(), cli.stamp) {
+            let instances = instance_hub::list_active_instances();
+            if let Some(idle_inst) = instances.iter().find(|i| !i.is_editing) {
+                if instance_hub::send_ipc_to_instance(&idle_inst.sock_path(), "open", &created_path) {
+                    return;
+                }
+            }
+            std::env::set_var("NOTAS_INITIAL_ACTION", "open");
+            std::env::set_var("NOTAS_INITIAL_TARGET", &created_path);
+        } else {
+            return;
+        }
     }
 
     if let Some(ref h_args) = cli.history {
@@ -271,14 +299,14 @@ fn main() {
         return;
     }
 
-    let (action, target) = if let Some(ref find_q) = cli.find {
+    let (mut action, target) = if let Some(ref find_q) = cli.find {
         ("find".to_string(), find_q.clone())
     } else if cli.close {
         ("close".to_string(), String::new())
     } else if cli.toggle {
         ("toggle".to_string(), String::new())
-    } else if let Some(new_val) = cli.new_note {
-        ("new".to_string(), new_val.unwrap_or_default())
+    } else if let Some(ref new_val) = cli.new_note {
+        ("new".to_string(), new_val.clone().unwrap_or_default())
     } else if let Some(ref p) = cli.path {
         let resolved = resolve_target_path(p);
         let act = if cli.preview {
@@ -293,8 +321,52 @@ fn main() {
         ("raise".to_string(), String::new())
     };
 
-    if !cli.check_only && try_send_ipc(&action, &target) {
-        return;
+    if !cli.check_only && !cli.new_window && !cli.clip {
+        let instances = instance_hub::list_active_instances();
+        if !instances.is_empty() {
+            if cli.close {
+                instance_hub::broadcast_to_all("close", "", None);
+                return;
+            }
+            if cli.toggle {
+                let _ = instance_hub::send_to_focused_instance("toggle", "");
+                return;
+            }
+            if let Some(ref find_q) = cli.find {
+                if let Some(idle_inst) = instances.iter().find(|i| !i.is_editing) {
+                    if instance_hub::send_ipc_to_instance(&idle_inst.sock_path(), "find", find_q) {
+                        return;
+                    }
+                }
+            }
+            if cli.path.is_some() {
+                // Si la instancia con foco NO está editando otra nota, abrir allí
+                if let Some(focused) = instances.first() {
+                    if !focused.is_editing {
+                        if instance_hub::send_ipc_to_instance(&focused.sock_path(), &action, &target) {
+                            return;
+                        }
+                    }
+                }
+                // Si la instancia enfocada SÍ está editando otra nota, no interrumpirla:
+                // Se procede a abrir una nueva ventana en modo preview (salvo si se pidió --edit explícito)
+                if !cli.edit {
+                    action = "preview".to_string();
+                }
+            } else if cli.new_note.is_some() {
+                if let Some(idle_inst) = instances.iter().find(|i| !i.is_editing) {
+                    if instance_hub::send_ipc_to_instance(&idle_inst.sock_path(), "new", &target) {
+                        return;
+                    }
+                }
+            } else if action == "raise" {
+                if let Some(idle_inst) = instances.iter().find(|i| !i.is_editing) {
+                    if instance_hub::send_ipc_to_instance(&idle_inst.sock_path(), "raise", "") {
+                        return;
+                    }
+                }
+            }
+        }
     }
 
     if cli.close {

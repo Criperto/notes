@@ -82,8 +82,23 @@ ApplicationWindow {
         }
     }
 
+    onActiveChanged: {
+        if (root.active && typeof Sys !== "undefined" && typeof Sys.updateInstanceStatus === "function") {
+            Sys.updateInstanceStatus((typeof NotesService !== "undefined" && NotesService.activeNote) ? (NotesService.activeNote.filePath || "") : "", (typeof NotesService !== "undefined") && NotesService.isEditing);
+        }
+    }
+
     Connections {
         target: (typeof Sys !== "undefined") ? Sys : null
+        function onRemoteEditLockClaimed(notePath, newOwnerPid) {
+            content.handleRemoteEditLockClaimed(notePath, newOwnerPid);
+        }
+        function onRemoteNoteSaved(notePath) {
+            content.handleRemoteNoteSaved(notePath);
+        }
+        function onRemoteNoteDeleted(notePath) {
+            content.handleRemoteNoteDeleted(notePath);
+        }
         function onIpcCommandReceived(action, target) {
             root.show();
             root.raise();

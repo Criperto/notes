@@ -449,17 +449,26 @@ pub fn cmd_append(text_input: &str, to_note: &str, with_stamp: bool) {
     notify_app_reload(&target_path.to_string_lossy());
 }
 
-/// Comando --clip: crea una nota nueva o agrega a `--to` desde el portapapeles
-pub fn cmd_clip(to_note: Option<&str>, with_stamp: bool) {
+/// Comando --clip: crea una nota nueva o agrega a `--to` desde el portapapeles.
+/// Retorna la ruta absoluta del archivo generado si se creó una nueva nota.
+pub fn cmd_clip(to_note: Option<&str>, with_stamp: bool) -> Option<String> {
     let clip_text = read_system_clipboard();
     if clip_text.trim().is_empty() {
         eprintln!("Error: El portapapeles está vacío o no contiene texto.");
+        let _ = Command::new("notify-send")
+            .args([
+                "-a", "Notas",
+                "-i", "dev.criperto.Notas",
+                "Portapapeles vacío",
+                "No se encontró texto en el portapapeles para crear una nota.",
+            ])
+            .spawn();
         std::process::exit(1);
     }
 
     if let Some(target) = to_note {
         cmd_append(&clip_text, target, with_stamp);
-        return;
+        return None;
     }
 
     // Crear nota nueva a partir del portapapeles
@@ -504,9 +513,7 @@ pub fn cmd_clip(to_note: Option<&str>, with_stamp: bool) {
 
     let path_str = file_path.to_string_lossy().to_string();
     println!("✓ Nota creada desde portapapeles: {}", path_str);
-
-    // Intentar abrir en la app vía IPC
-    let _ = crate::try_send_ipc("open", &path_str);
+    Some(path_str)
 }
 
 fn read_system_clipboard() -> String {
