@@ -1,0 +1,6 @@
+# Linguist overrides para estadísticas precisas del repositorio en GitHub
+# Excluye suites de tests de node, catálogos masivos de traducciones y scripts auxiliares.
+tests/** linguist-detectable=false linguist-documentation=true
+qml/I18nCatalogs.js linguist-detectable=false linguist-vendored=true
+scripts/*.py linguist-detectable=false
+packaging/** linguist-detectable=false

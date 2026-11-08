@@ -7,6 +7,8 @@ mod history_cli;
 mod math_cli;
 mod clipper_cli;
 pub mod instance_hub;
+pub mod diff_core;
+pub mod lang_detect;
 
 use clap::Parser;
 use cxx_qt_lib::{QGuiApplication, QQmlApplicationEngine, QUrl};

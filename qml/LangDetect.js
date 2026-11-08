@@ -83,6 +83,13 @@ function detect(text) {
     var raw = text.trim();
     if (raw.length < 8) return null;
 
+    if (typeof Sys !== "undefined" && typeof Sys.detectLanguage === "function") {
+        var nativeLang = Sys.detectLanguage(raw);
+        if (nativeLang && nativeLang !== "") {
+            return nativeLang;
+        }
+    }
+
     // 1. Detección por script no latino
     if (SCRIPT_REGEX.kana.test(raw)) return "ja";
     if (SCRIPT_REGEX.cjk.test(raw)) return "zh";

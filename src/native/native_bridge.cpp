@@ -1340,6 +1340,9 @@ bool Sys::saveHistoryUndo(const QString &notePath, const QString &jsonData) cons
 
 extern "C" {
     char *notas_render_latex_svg(const char *latex, bool display, const char *color, double pt_size);
+    char *notas_diff_lines(const char *text_a, const char *text_b);
+    char *notas_diff_words(const char *line_a, const char *line_b);
+    char *notas_detect_language(const char *text);
     void notas_free_string(char *ptr);
 }
 
@@ -1385,6 +1388,49 @@ QString Sys::renderLatexSvg(const QString &latex, bool display, const QString &c
     s_latexCache.insert(cacheKey, svgResult);
 
     return svgResult;
+}
+
+QJsonArray Sys::diffLines(const QString &textA, const QString &textB) const {
+    QByteArray bytesA = textA.toUtf8();
+    QByteArray bytesB = textB.toUtf8();
+    char *resPtr = notas_diff_lines(bytesA.constData(), bytesB.constData());
+    if (!resPtr) return QJsonArray();
+
+    QByteArray jsonBytes(resPtr);
+    notas_free_string(resPtr);
+
+    QJsonDocument doc = QJsonDocument::fromJson(jsonBytes);
+    if (doc.isArray()) {
+        return doc.array();
+    }
+    return QJsonArray();
+}
+
+QJsonArray Sys::diffWords(const QString &lineA, const QString &lineB) const {
+    QByteArray bytesA = lineA.toUtf8();
+    QByteArray bytesB = lineB.toUtf8();
+    char *resPtr = notas_diff_words(bytesA.constData(), bytesB.constData());
+    if (!resPtr) return QJsonArray();
+
+    QByteArray jsonBytes(resPtr);
+    notas_free_string(resPtr);
+
+    QJsonDocument doc = QJsonDocument::fromJson(jsonBytes);
+    if (doc.isArray()) {
+        return doc.array();
+    }
+    return QJsonArray();
+}
+
+QString Sys::detectLanguage(const QString &text) const {
+    if (text.trimmed().length() < 8) return QString();
+    QByteArray bytes = text.toUtf8();
+    char *resPtr = notas_detect_language(bytes.constData());
+    if (!resPtr) return QString();
+
+    QString lang = QString::fromUtf8(resPtr);
+    notas_free_string(resPtr);
+    return lang;
 }
 
 QJsonObject Sys::indexNotes(const QString &notesDirStr) const {

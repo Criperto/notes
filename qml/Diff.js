@@ -108,6 +108,11 @@ function _myers(a, b, equalsFn) {
 
 // ── Diff de Líneas ───────────────────────────────────────────────────────
 function diffLines(textA, textB) {
+    if (typeof Sys !== "undefined" && typeof Sys.diffLines === "function") {
+        var nativeRes = Sys.diffLines(textA, textB);
+        if (nativeRes) return nativeRes;
+    }
+
     if (textA === textB) {
         if (!textA) return [];
         var sameLines = textA.split("\n");
@@ -172,6 +177,11 @@ function _tokenizeWords(line) {
 }
 
 function diffWords(lineA, lineB) {
+    if (typeof Sys !== "undefined" && typeof Sys.diffWords === "function") {
+        var nativeWords = Sys.diffWords(lineA, lineB);
+        if (nativeWords) return nativeWords;
+    }
+
     if (lineA === lineB) {
         return [{ type: "equal", text: lineA || "" }];
     }

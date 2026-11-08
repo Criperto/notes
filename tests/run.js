@@ -4166,6 +4166,17 @@ runTest('F80: Diff.js (Myers O(ND) lines/words/hunks), VersionPolicy.js y Histor
 
     const badRestore = History.restore(histRestored, serialized, "Versión que cambió por fuera");
     assert.strictEqual(badRestore, false, "restore debe rechazar cuando difiere currentMd");
+
+    // ── 5. Verificación de backend nativo en Rust para Diff ──────────────────
+    const diffCoreRs = path.resolve(__dirname, '../src/diff_core.rs');
+    assert.ok(fs.existsSync(diffCoreRs), "src/diff_core.rs debe existir");
+    const diffRsContent = fs.readFileSync(diffCoreRs, 'utf8');
+    assert.ok(diffRsContent.includes('notas_diff_lines'), "diff_core.rs debe exportar notas_diff_lines");
+    assert.ok(diffRsContent.includes('notas_diff_words'), "diff_core.rs debe exportar notas_diff_words");
+    const nativeBridgeH = fs.readFileSync(path.resolve(__dirname, '../src/native/native_bridge.h'), 'utf8');
+    assert.ok(nativeBridgeH.includes('diffLines'), "native_bridge.h debe declarar diffLines");
+    assert.ok(nativeBridgeH.includes('diffWords'), "native_bridge.h debe declarar diffWords");
+    assert.ok(nativeBridgeH.includes('detectLanguage'), "native_bridge.h debe declarar detectLanguage");
 });
 
 runTest('F81: build.rs registra todos los archivos QML en el módulo Notas', () => {
@@ -4482,6 +4493,16 @@ runTest("F89: Corrector ortográfico avanzado (detección de idioma por párrafo
         assert.ok(json.config && json.config.spellcheck && json.config.spellcheck.auto_detect, `Falta config.spellcheck.auto_detect en ${lang}`);
         assert.ok(json.config && json.config.spellcheck && json.config.spellcheck.auto_detect_comment, `Falta config.spellcheck.auto_detect_comment en ${lang}`);
     }
+
+    // 6. Verificación de backend nativo en Rust para LangDetect y .gitattributes
+    const langDetectRs = path.resolve(__dirname, '../src/lang_detect.rs');
+    assert.ok(fs.existsSync(langDetectRs), "src/lang_detect.rs debe existir");
+    const langRsContent = fs.readFileSync(langDetectRs, 'utf8');
+    assert.ok(langRsContent.includes('notas_detect_language'), "lang_detect.rs debe exportar notas_detect_language");
+    const gitAttributesPath = path.resolve(__dirname, '../.gitattributes');
+    assert.ok(fs.existsSync(gitAttributesPath), ".gitattributes debe existir");
+    const gitAttributesContent = fs.readFileSync(gitAttributesPath, 'utf8');
+    assert.ok(gitAttributesContent.includes('linguist-detectable=false'), ".gitattributes debe excluir tests y catálogos de Linguist");
 });
 
 runTest("F90: Accesibilidad, navegación por teclado y escalado integral de interfaz (uiScale)", () => {
