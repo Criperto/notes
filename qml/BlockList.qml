@@ -155,6 +155,32 @@ Item {
         }
     }
 
+    function syncAllLineEdits() {
+        for (var i = 0; i < itemsRepeater.count; i++) {
+            var it = itemsRepeater.itemAt(i);
+            if (it && typeof it.syncText === "function") {
+                it.syncText();
+            }
+        }
+    }
+
+    Connections {
+        target: root.editor
+        ignoreUnknownSignals: true
+        function onSearchQueryChanged() {
+            root.syncAllLineEdits();
+        }
+        function onActiveMatchBidChanged() {
+            root.syncAllLineEdits();
+        }
+        function onActiveMatchUnitChanged() {
+            root.syncAllLineEdits();
+        }
+        function onActiveMatchOrdinalChanged() {
+            root.syncAllLineEdits();
+        }
+    }
+
     onBlockDataChanged: {
         if (!root._internalSync) {
             var curSerialized = LP.serializeList(root._itemsRawArray);
@@ -969,6 +995,7 @@ Item {
                 }
 
                 onTextChanged: {
+                    itemRow.syncText();
                     var r = itemRow.rootBlock || (typeof root !== "undefined" ? root : null);
                     if (r && r.spellActive && (r.inViewportChunk || r.isEditing || r.isSelected)) {
                         itemSpellCheckTimer.restart();
@@ -976,6 +1003,7 @@ Item {
                 }
 
                 onSpellRangesChanged: {
+                    itemRow.syncText();
                     if (spellOverlay) spellOverlay.requestUpdate();
                 }
 
@@ -1200,9 +1228,39 @@ Item {
                         hideSyntax: Boolean(root.editor && root.editor.readOnly)
                     });
                     if (sp.level > 0 && root.headingSizes && root.headingSizes[sp.level]) {
-                        return '<span style="font-size: ' + root.headingSizes[sp.level] + 'px;"><b>' + base + '</b></span>';
+                        base = '<span style="font-size: ' + root.headingSizes[sp.level] + 'px;"><b>' + base + '</b></span>';
+                    }
+                    var q = root.editor ? root.editor.searchQuery : "";
+                    if (q && q.trim() !== "") {
+                        var hBg = root.editor ? ("" + root.editor.searchHighlightColor) : "";
+                        var aBg = (root.editor && root.blockData) ? root.editor.searchActiveBg(root.blockData.bid, itemRow.index) : "";
+                        var ord = (root.editor && root.blockData) ? root.editor.searchActiveOrdinal(root.blockData.bid, itemRow.index) : -1;
+                        var aFg = (root.editor && root.blockData) ? root.editor.searchHighlightActiveFg(root.blockData.bid, itemRow.index) : "";
+                        base = Inline.highlightInHtml(base, q, hBg, aBg, ord, aFg);
                     }
                     return base;
+                }
+
+                function syncText() {
+                    if (!lineEdit) return;
+                    if (root.isEditing && root.activeItemIndex === itemRow.index && lineEdit.activeFocus) {
+                        return;
+                    }
+                    var rawT = (itemRow.index >= 0 && itemRow.index < root._itemsRawArray.length)
+                        ? (root._itemsRawArray[itemRow.index].text || "")
+                        : (itemRow.text || "");
+                    var baseT = itemRow.baseDisplayText(rawT);
+                    if (lineEdit.text !== baseT) {
+                        var s = lineEdit.selectionStart;
+                        var e = lineEdit.selectionEnd;
+                        lineEdit._syncingLocal = true;
+                        lineEdit._lastAppliedHtml = baseT;
+                        lineEdit.text = baseT;
+                        if (s !== e && lineEdit.length > 0) {
+                            lineEdit.select(Math.min(lineEdit.length, s), Math.min(lineEdit.length, e));
+                        }
+                        lineEdit._syncingLocal = false;
+                    }
                 }
                 // Texto vivo del editor: contenido sin `##`, con tamaño de encabezado.
                 function liveDisplayText(raw) {
@@ -1438,8 +1496,19 @@ Item {
                         cursorVisible: activeFocus && root.isEditing && (!root.editor || !root.editor.readOnly)
                         width: parent.width
                         textFormat: TextEdit.RichText
-                    text: itemRow.baseDisplayText(itemRow.text)
-                    leftPadding: itemRow.markerReveal ? (headingMarker.implicitWidth + 5) : 0
+                        text: {
+                            var _sq = root.editor ? root.editor.searchQuery : "";
+                            var _ab = root.editor ? root.editor.activeMatchBid : -1;
+                            var _au = root.editor ? root.editor.activeMatchUnit : -1;
+                            var _ao = root.editor ? root.editor.activeMatchOrdinal : -1;
+                            return itemRow.baseDisplayText(itemRow.text);
+                        }
+                        onLinkActivated: (link) => {
+                            if (root.editor && typeof root.editor.handleLink === "function") {
+                                root.editor.handleLink(link);
+                            }
+                        }
+                        leftPadding: itemRow.markerReveal ? (headingMarker.implicitWidth + 5) : 0
                     color: Theme.text
                     font.family: Theme.fontFamily
                     font.pixelSize: EditorMetrics.body

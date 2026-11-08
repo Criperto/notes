@@ -4870,6 +4870,50 @@ runTest('F99: Coordinación multi-instancia, exclusividad de edición y WhatsApp
     assert.ok(notesContentQml.includes('isNoteBeingEditedElsewhere'), "NotesContent debe consultar isNoteBeingEditedElsewhere");
 });
 
+runTest('F100: Resaltado de búsqueda en listas con sugerencias ortográficas activas (BlockList & baseDisplayText)', () => {
+    const blockListQml = fs.readFileSync(path.resolve(__dirname, '../qml/BlockList.qml'), 'utf8');
+
+    // 1. Contratos estáticos en BlockList.qml
+    assert.ok(blockListQml.includes('function syncAllLineEdits()'), "BlockList.qml debe definir syncAllLineEdits()");
+    assert.ok(blockListQml.includes('function onSearchQueryChanged()'), "BlockList debe conectar onSearchQueryChanged");
+    assert.ok(blockListQml.includes('function onActiveMatchOrdinalChanged()'), "BlockList debe conectar onActiveMatchOrdinalChanged");
+    assert.ok(blockListQml.includes('function syncText()'), "itemRow debe implementar syncText()");
+    assert.ok(blockListQml.includes('Inline.highlightInHtml(base, q, hBg, aBg, ord, aFg)'), "baseDisplayText debe aplicar highlightInHtml");
+    assert.ok(blockListQml.includes('itemRow.syncText()'), "onSpellRangesChanged y onTextChanged deben sincronizar lineEdit");
+    assert.ok(blockListQml.includes('onLinkActivated: (link) => {'), "lineEdit debe implementar onLinkActivated");
+
+    // 2. Comportamiento funcional de formateo y resaltado combinado
+    const rawLine = "adaptar los **elementos** como wlogout(de paso re-diseñarlo) y alguno que qued";
+    const formatted = Inline.formatForLiveEditing(rawLine, {
+        cursorPos: -1,
+        selStart: -1,
+        selEnd: -1,
+        dimColor: "#888888",
+        linkColor: "#5294e2",
+        hideSyntax: false
+    });
+
+    const searchQ = "me";
+    const softBg = "rgba(255, 165, 0, 0.4)";
+    const activeBg = "rgba(255, 100, 0, 0.8)";
+    const activeOrd = 0; // Primera coincidencia activa
+    const activeFg = "#ffffff";
+
+    const highlighted = Inline.highlightInHtml(formatted, searchQ, softBg, activeBg, activeOrd, activeFg);
+
+    // Debe contener el span de resaltado activo en la primera coincidencia "me" (en elementos)
+    assert.ok(highlighted.includes('background-color: rgba(255, 100, 0, 0.8)'), "Debe aplicar fondo activo a la primera coincidencia");
+    assert.ok(highlighted.includes('color: #ffffff'), "Debe aplicar color de texto activo");
+    assert.ok(highlighted.includes('>me</span>'), "Debe envolver el texto 'me'");
+
+    // Los delimitadores de markdown transparentes deben conservarse intactos
+    assert.ok(highlighted.includes('font-size: 1px; color: transparent;'), "Debe conservar delimitadores transparentes");
+
+    // El texto plano extraído de la cadena HTML debe ser idéntico al texto crudo original
+    const plainFromDom = highlighted.replace(/<[^>]+>/g, "");
+    assert.strictEqual(plainFromDom, rawLine, "El texto plano no debe alterarse para no desfasar SpellOverlay ni el cursor");
+});
+
 console.log(`\n========================================`);
 console.log(`Resultados: ${passed} OK, ${failed} FAIL`);
 console.log(`========================================`);
