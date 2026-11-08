@@ -1,6 +1,6 @@
 # Maintainer: Tomas (Criperto) <dev@criperto.com>
 pkgname=criperto-notes
-pkgver=0.1.11
+pkgver=0.1.12
 pkgrel=1
 pkgdesc="Editor moderno y nativo de notas en Markdown para Wayland"
 arch=('x86_64')
