@@ -370,7 +370,9 @@
     "anchor": "章节锚点",
     "anchor_desc": "跳转到当前笔记的标题",
     "wikilink": "笔记引用",
-    "wikilink_desc": "链接到现有笔记或创建新笔记"
+    "wikilink_desc": "链接到现有笔记或创建新笔记",
+    "link": "网页或外部链接",
+    "link_desc": "插入 Markdown 链接 [文本](url)"
   },
   "menu": {
     "copy_abs_path": "复制绝对路径",
@@ -660,5 +662,9 @@
   "config.language.spell_remove": "移除",
   "config.language.spell_install": "安装",
   "config.spellcheck.personal_dict": "个人词典",
-  "config.spellcheck.clear_personal": "清空"
+  "config.spellcheck.clear_personal": "清空",
+  "notes.slash.link": "网页或外部链接",
+  "slash.link": "网页或外部链接",
+  "notes.slash.link_desc": "插入 Markdown 链接 [文本](url)",
+  "slash.link_desc": "插入 Markdown 链接 [文本](url)"
 }

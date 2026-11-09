@@ -211,8 +211,9 @@ if [[ "$MODE" == "user" ]]; then
     mkdir -p "${BIN_DIR}" "${APPS_DIR}" "${ICONS_DIR}" "${DATA_DIR}/scripts" "${DATA_DIR}/dictionaries"
 
     # Enlaces simbólicos directos en modo usuario (para desarrollo ágil)
-    rm -f "${BIN_DIR}/notas" "${BIN_DIR}/criperto-notes"
-    ln -sf "${BIN_SRC}" "${BIN_DIR}/criperto.notes"
+    rm -f "${BIN_DIR}/notas"
+    ln -sf "${BIN_SRC}" "${BIN_DIR}/criperto-notes"
+    ln -sf "criperto-notes" "${BIN_DIR}/criperto.notes"
     ln -sf "${SCRIPT_DIR}/assets/dev.criperto.Notas.desktop" "${APPS_DIR}/dev.criperto.Notas.desktop"
     ln -sf "${SCRIPT_DIR}/assets/icons/dev.criperto.Notas.svg" "${ICONS_DIR}/dev.criperto.Notas.svg"
 
@@ -260,8 +261,8 @@ if [[ "$MODE" == "user" ]]; then
 
     msg "✓ Instalación de usuario completada en ${TARGET_BASE}." \
         "✓ User installation completed in ${TARGET_BASE}."
-    msg "  Comando disponible: criperto.notes (asegurate de tener ~/.local/bin en tu PATH)" \
-        "  Available command: criperto.notes (ensure ~/.local/bin is in your PATH)"
+    msg "  Comando disponible: criperto-notes (asegurate de tener ~/.local/bin en tu PATH)" \
+        "  Available command: criperto-notes (ensure ~/.local/bin is in your PATH)"
 else
     # Modo global / sistema (/usr o PREFIX/DESTDIR)
     BIN_DIR="${DESTDIR}${PREFIX}/bin"
@@ -275,8 +276,9 @@ else
         "==> Installing Notas system-wide into ${DESTDIR}${PREFIX}..."
 
     install -d "${BIN_DIR}"
-    install -m 755 "${BIN_SRC}" "${BIN_DIR}/criperto.notes"
-    rm -f "${BIN_DIR}/notas" "${BIN_DIR}/criperto-notes"
+    install -m 755 "${BIN_SRC}" "${BIN_DIR}/criperto-notes"
+    ln -sf "criperto-notes" "${BIN_DIR}/criperto.notes"
+    rm -f "${BIN_DIR}/notas"
 
     install -d "${APPS_DIR}"
     install -m 644 "${SCRIPT_DIR}/assets/dev.criperto.Notas.desktop" "${APPS_DIR}/dev.criperto.Notas.desktop"
@@ -309,6 +311,6 @@ else
 
     msg "✓ Instalación global completada en ${DESTDIR}${PREFIX}." \
         "✓ System-wide installation completed in ${DESTDIR}${PREFIX}."
-    msg "  Comando disponible en cualquier terminal: criperto.notes" \
-        "  Command available in any terminal: criperto.notes"
+    msg "  Comando disponible en cualquier terminal: criperto-notes" \
+        "  Command available in any terminal: criperto-notes"
 fi

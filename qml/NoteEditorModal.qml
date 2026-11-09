@@ -345,6 +345,8 @@ Item {
                 root.loadedSlug = newSlug;
                 root._originalTitle = newTitle;
                 root.noteKeyChanged(oldK, newSlug);
+                // Guardar forzado para sincronizar el nuevo título en el frontmatter en disco
+                root.performSave(null, true);
             } else {
                 titleInput.text = root._originalTitle;
                 console.warn("[NoteEditorModal] Falló renombrado; restaurando título:", root._originalTitle);
@@ -1716,7 +1718,7 @@ Item {
 
                         Keys.onDownPressed: (event) => {
                             root._confirmTitleRename();
-                            if (blockEditor && blockEditor.blocksModel.count > 0) {
+                            if (blockEditor && blockEditor.blocksModel && blockEditor.blocksModel.count > 0) {
                                 blockEditor.requestEditBlock(blockEditor.blocksModel.get(0).bid, 0);
                                 event.accepted = true;
                             }
@@ -1724,7 +1726,7 @@ Item {
 
                         Keys.onReturnPressed: (event) => {
                             root._confirmTitleRename();
-                            if (blockEditor && blockEditor.blocksModel.count > 0) {
+                            if (blockEditor && blockEditor.blocksModel && blockEditor.blocksModel.count > 0) {
                                 blockEditor.requestEditBlock(blockEditor.blocksModel.get(0).bid, 0);
                                 event.accepted = true;
                             }
@@ -1736,7 +1738,7 @@ Item {
                             if (tagsRow.visible && tagInputBox.visible && tagInput) {
                                 tagInput.forceActiveFocus();
                                 event.accepted = true;
-                            } else if (blockEditor && blockEditor.blocksModel.count > 0) {
+                            } else if (blockEditor && blockEditor.blocksModel && blockEditor.blocksModel.count > 0) {
                                 blockEditor.requestEditBlock(blockEditor.blocksModel.get(0).bid, 0);
                                 event.accepted = true;
                             }
@@ -4206,7 +4208,7 @@ Item {
     }
 
     function _resolvePortalPickerPath() {
-        return (typeof Sys !== "undefined" && Sys.appExecutable) ? Sys.appExecutable : "criperto.notes";
+        return (typeof Sys !== "undefined" && Sys.appExecutable) ? Sys.appExecutable : "criperto-notes";
     }
 
     // Proceso para seleccionar imagen vía xdg-desktop-portal

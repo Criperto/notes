@@ -139,6 +139,17 @@ var COMMANDS = [
         keywords: ["separador", "hr", "linea", "divider", "regla"]
     },
     {
+        id: "link",
+        category: "advanced",
+        icon: "link.svg",
+        titleKey: "notes.slash.link",
+        fallbackTitle: "Enlace web o externo",
+        descKey: "notes.slash.link_desc",
+        fallbackDesc: "Insertar un enlace markdown [texto](url)",
+        badge: "/link",
+        keywords: ["link", "enlace", "url", "web", "http", "vinculo"]
+    },
+    {
         id: "anchor",
         category: "advanced",
         icon: "link.svg",

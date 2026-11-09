@@ -370,7 +370,9 @@
     "anchor": "Якорь раздела",
     "anchor_desc": "Перейти к заголовку в этой заметке",
     "wikilink": "Ссылка на заметку",
-    "wikilink_desc": "Ссылка на существующую заметку или создание новой"
+    "wikilink_desc": "Ссылка на существующую заметку или создание новой",
+    "link": "Веб или внешняя ссылка",
+    "link_desc": "Вставить ссылку markdown [текст](url)"
   },
   "menu": {
     "copy_abs_path": "Копировать абсолютный путь",
@@ -660,5 +662,9 @@
   "config.language.spell_remove": "Удалить",
   "config.language.spell_install": "Установить",
   "config.spellcheck.personal_dict": "Пользовательский словарь",
-  "config.spellcheck.clear_personal": "Очистить"
+  "config.spellcheck.clear_personal": "Очистить",
+  "notes.slash.link": "Веб или внешняя ссылка",
+  "slash.link": "Веб или внешняя ссылка",
+  "notes.slash.link_desc": "Вставить ссылку markdown [текст](url)",
+  "slash.link_desc": "Вставить ссылку markdown [текст](url)"
 }

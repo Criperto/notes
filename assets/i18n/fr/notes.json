@@ -370,7 +370,9 @@
     "anchor": "Ancre de section",
     "anchor_desc": "Accéder à un en-tête de cette note",
     "wikilink": "Référence de note",
-    "wikilink_desc": "Lier à une note existante ou en créer une nouvelle"
+    "wikilink_desc": "Lier à une note existante ou en créer une nouvelle",
+    "link": "Lien web ou externe",
+    "link_desc": "Insérer un lien markdown [texte](url)"
   },
   "menu": {
     "copy_abs_path": "Copier le chemin absolu",
@@ -660,5 +662,9 @@
   "config.language.spell_remove": "Supprimer",
   "config.language.spell_install": "Installer",
   "config.spellcheck.personal_dict": "Dictionnaire personnel",
-  "config.spellcheck.clear_personal": "Effacer"
+  "config.spellcheck.clear_personal": "Effacer",
+  "notes.slash.link": "Lien web ou externe",
+  "slash.link": "Lien web ou externe",
+  "notes.slash.link_desc": "Insérer un lien markdown [texte](url)",
+  "slash.link_desc": "Insérer un lien markdown [texte](url)"
 }

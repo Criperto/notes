@@ -1075,7 +1075,13 @@ Item {
             }
             if (event.modifiers & Qt.ShiftModifier) {
                 var sPos = editInput.cursorPosition;
-                editInput.insert(sPos, "\n");
+                var sClean = Inline.plainText(editInput);
+                var newSClean = sClean.substring(0, sPos) + "\n" + sClean.substring(sPos);
+                var newSRaw = newSClean.split("\n").map(function(l) { return "> " + l; }).join("\n");
+                if (root.editor && root.blockData) {
+                    root.editor.onBlockRawChanged(root.blockData.bid, newSRaw);
+                }
+                root._syncTextFromModel();
                 editInput.cursorPosition = sPos + 1;
                 event.accepted = true;
                 return;
@@ -1118,7 +1124,12 @@ Item {
             }
 
             // Caso 3: Enter en una línea con texto -> continuar la cita en la siguiente línea sin recortar caracteres
-            editInput.insert(pos, "\n");
+            var newCleanLine = clean.substring(0, pos) + "\n" + clean.substring(pos);
+            var newRawLine = newCleanLine.split("\n").map(function(l) { return "> " + l; }).join("\n");
+            if (root.editor && root.blockData) {
+                root.editor.onBlockRawChanged(root.blockData.bid, newRawLine);
+            }
+            root._syncTextFromModel();
             editInput.cursorPosition = pos + 1;
             event.accepted = true;
         }
@@ -1334,7 +1345,7 @@ Item {
                     if (root.editor && root.blockData) {
                         var curClean = Inline.plainText(editInput);
                         if (curClean.trim() === "") {
-                            root.editor.convertBlockType(root.blockData.bid, "paragraph", "> ");
+                            root.editor.convertBlockType(root.blockData.bid, "paragraph", "");
                             event.accepted = true;
                             return;
                         } else if (curClean.indexOf("\n") === -1) {

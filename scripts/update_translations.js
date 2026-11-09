@@ -728,6 +728,17 @@ const translations = {
   "config.spellcheck.clear_personal": {
     es_ar: "Vaciar", es_es: "Vaciar", en: "Clear", pt: "Limpar",
     de: "Leeren", fr: "Effacer", ja: "クリア", ru: "Очистить", zh: "清空"
+  },
+  "notes.slash.link": {
+    es_ar: "Enlace web o externo", es_es: "Enlace web o externo", en: "Web or external link", pt: "Link web ou externo",
+    de: "Web- oder externer Link", fr: "Lien web ou externe", ja: "ウェブまたは外部リンク", ru: "Веб или внешняя ссылка", zh: "网页或外部链接"
+  },
+  "notes.slash.link_desc": {
+    es_ar: "Insertar un enlace markdown [texto](url)", es_es: "Insertar un enlace markdown [texto](url)",
+    en: "Insert a markdown link [text](url)", pt: "Inserir um link markdown [texto](url)",
+    de: "Einen Markdown-Link einfügen [Text](URL)", fr: "Insérer un lien markdown [texte](url)",
+    ja: "マークダウンリンクを挿入 [テキスト](URL)", ru: "Вставить ссылку markdown [текст](url)",
+    zh: "插入 Markdown 链接 [文本](url)"
   }
 };
 

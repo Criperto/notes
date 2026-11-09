@@ -370,7 +370,9 @@
     "anchor": "Section Anchor",
     "anchor_desc": "Jump to a heading in this note",
     "wikilink": "Note Reference",
-    "wikilink_desc": "Link to an existing note or create a new one"
+    "wikilink_desc": "Link to an existing note or create a new one",
+    "link": "Web or external link",
+    "link_desc": "Insert a markdown link [text](url)"
   },
   "menu": {
     "copy_abs_path": "Copy absolute path",
@@ -660,5 +662,9 @@
   "config.language.spell_remove": "Remove",
   "config.language.spell_install": "Install",
   "config.spellcheck.personal_dict": "Personal dictionary",
-  "config.spellcheck.clear_personal": "Clear"
+  "config.spellcheck.clear_personal": "Clear",
+  "notes.slash.link": "Web or external link",
+  "slash.link": "Web or external link",
+  "notes.slash.link_desc": "Insert a markdown link [text](url)",
+  "slash.link_desc": "Insert a markdown link [text](url)"
 }

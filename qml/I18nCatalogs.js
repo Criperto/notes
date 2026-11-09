@@ -432,7 +432,9 @@ const catalogs = {
       "anchor": "Enlace a sección",
       "anchor_desc": "Saltar a un encabezado de esta nota",
       "wikilink": "Referencia a otra nota",
-      "wikilink_desc": "Vincular a una nota existente o crear una nueva"
+      "wikilink_desc": "Vincular a una nota existente o crear una nueva",
+      "link": "Enlace web o externo",
+      "link_desc": "Insertar un enlace markdown [texto](url)"
     },
     "menu": {
       "copy_abs_path": "Copiar ruta absoluta",
@@ -722,7 +724,11 @@ const catalogs = {
     "config.language.spell_remove": "Eliminar",
     "config.language.spell_install": "Instalar",
     "config.spellcheck.personal_dict": "Diccionario personal",
-    "config.spellcheck.clear_personal": "Vaciar"
+    "config.spellcheck.clear_personal": "Vaciar",
+    "notes.slash.link": "Enlace web o externo",
+    "slash.link": "Enlace web o externo",
+    "notes.slash.link_desc": "Insertar un enlace markdown [texto](url)",
+    "slash.link_desc": "Insertar un enlace markdown [texto](url)"
   },
   "es_ar": {
     "header": {
@@ -1096,7 +1102,9 @@ const catalogs = {
       "anchor": "Enlace a sección",
       "anchor_desc": "Saltar a un encabezado de esta nota",
       "wikilink": "Referencia a otra nota",
-      "wikilink_desc": "Vincular a una nota existente o crear una nueva"
+      "wikilink_desc": "Vincular a una nota existente o crear una nueva",
+      "link": "Enlace web o externo",
+      "link_desc": "Insertar un enlace markdown [texto](url)"
     },
     "menu": {
       "copy_abs_path": "Copiar ruta absoluta",
@@ -1386,7 +1394,11 @@ const catalogs = {
     "config.language.spell_remove": "Quitar",
     "config.language.spell_install": "Instalar",
     "config.spellcheck.personal_dict": "Diccionario personal",
-    "config.spellcheck.clear_personal": "Vaciar"
+    "config.spellcheck.clear_personal": "Vaciar",
+    "notes.slash.link": "Enlace web o externo",
+    "slash.link": "Enlace web o externo",
+    "notes.slash.link_desc": "Insertar un enlace markdown [texto](url)",
+    "slash.link_desc": "Insertar un enlace markdown [texto](url)"
   },
   "en": {
     "header": {
@@ -1760,7 +1772,9 @@ const catalogs = {
       "anchor": "Section Anchor",
       "anchor_desc": "Jump to a heading in this note",
       "wikilink": "Note Reference",
-      "wikilink_desc": "Link to an existing note or create a new one"
+      "wikilink_desc": "Link to an existing note or create a new one",
+      "link": "Web or external link",
+      "link_desc": "Insert a markdown link [text](url)"
     },
     "menu": {
       "copy_abs_path": "Copy absolute path",
@@ -2050,7 +2064,11 @@ const catalogs = {
     "config.language.spell_remove": "Remove",
     "config.language.spell_install": "Install",
     "config.spellcheck.personal_dict": "Personal dictionary",
-    "config.spellcheck.clear_personal": "Clear"
+    "config.spellcheck.clear_personal": "Clear",
+    "notes.slash.link": "Web or external link",
+    "slash.link": "Web or external link",
+    "notes.slash.link_desc": "Insert a markdown link [text](url)",
+    "slash.link_desc": "Insert a markdown link [text](url)"
   },
   "pt": {
     "header": {
@@ -2424,7 +2442,9 @@ const catalogs = {
       "anchor": "Âncora de seção",
       "anchor_desc": "Pular para um cabeçalho desta nota",
       "wikilink": "Referência de nota",
-      "wikilink_desc": "Vincular a uma nota existente ou criar uma nova"
+      "wikilink_desc": "Vincular a uma nota existente ou criar uma nova",
+      "link": "Link web ou externo",
+      "link_desc": "Inserir um link markdown [texto](url)"
     },
     "menu": {
       "copy_abs_path": "Copiar caminho absoluto",
@@ -2714,7 +2734,11 @@ const catalogs = {
     "config.language.spell_remove": "Remover",
     "config.language.spell_install": "Instalar",
     "config.spellcheck.personal_dict": "Dicionário pessoal",
-    "config.spellcheck.clear_personal": "Limpar"
+    "config.spellcheck.clear_personal": "Limpar",
+    "notes.slash.link": "Link web ou externo",
+    "slash.link": "Link web ou externo",
+    "notes.slash.link_desc": "Inserir um link markdown [texto](url)",
+    "slash.link_desc": "Inserir um link markdown [texto](url)"
   },
   "ja": {
     "header": {
@@ -3088,7 +3112,9 @@ const catalogs = {
       "anchor": "セクションアンカー",
       "anchor_desc": "このノートの見出しにジャンプ",
       "wikilink": "ノート参照",
-      "wikilink_desc": "既存のノートにリンクするか新規作成"
+      "wikilink_desc": "既存のノートにリンクするか新規作成",
+      "link": "ウェブまたは外部リンク",
+      "link_desc": "マークダウンリンクを挿入 [テキスト](URL)"
     },
     "menu": {
       "copy_abs_path": "絶対パスをコピー",
@@ -3378,7 +3404,11 @@ const catalogs = {
     "config.language.spell_remove": "削除",
     "config.language.spell_install": "インストール",
     "config.spellcheck.personal_dict": "個人用辞書",
-    "config.spellcheck.clear_personal": "クリア"
+    "config.spellcheck.clear_personal": "クリア",
+    "notes.slash.link": "ウェブまたは外部リンク",
+    "slash.link": "ウェブまたは外部リンク",
+    "notes.slash.link_desc": "マークダウンリンクを挿入 [テキスト](URL)",
+    "slash.link_desc": "マークダウンリンクを挿入 [テキスト](URL)"
   },
   "zh": {
     "header": {
@@ -3752,7 +3782,9 @@ const catalogs = {
       "anchor": "章节锚点",
       "anchor_desc": "跳转到当前笔记的标题",
       "wikilink": "笔记引用",
-      "wikilink_desc": "链接到现有笔记或创建新笔记"
+      "wikilink_desc": "链接到现有笔记或创建新笔记",
+      "link": "网页或外部链接",
+      "link_desc": "插入 Markdown 链接 [文本](url)"
     },
     "menu": {
       "copy_abs_path": "复制绝对路径",
@@ -4042,7 +4074,11 @@ const catalogs = {
     "config.language.spell_remove": "移除",
     "config.language.spell_install": "安装",
     "config.spellcheck.personal_dict": "个人词典",
-    "config.spellcheck.clear_personal": "清空"
+    "config.spellcheck.clear_personal": "清空",
+    "notes.slash.link": "网页或外部链接",
+    "slash.link": "网页或外部链接",
+    "notes.slash.link_desc": "插入 Markdown 链接 [文本](url)",
+    "slash.link_desc": "插入 Markdown 链接 [文本](url)"
   },
   "de": {
     "header": {
@@ -4416,7 +4452,9 @@ const catalogs = {
       "anchor": "Abschnittsanker",
       "anchor_desc": "Zu einer Überschrift in dieser Notiz springen",
       "wikilink": "Notizreferenz",
-      "wikilink_desc": "Mit vorhandener Notiz verknüpfen oder neu erstellen"
+      "wikilink_desc": "Mit vorhandener Notiz verknüpfen oder neu erstellen",
+      "link": "Web- oder externer Link",
+      "link_desc": "Einen Markdown-Link einfügen [Text](URL)"
     },
     "menu": {
       "copy_abs_path": "Absoluten Pfad kopieren",
@@ -4706,7 +4744,11 @@ const catalogs = {
     "config.language.spell_remove": "Entfernen",
     "config.language.spell_install": "Installieren",
     "config.spellcheck.personal_dict": "Persönliches Wörterbuch",
-    "config.spellcheck.clear_personal": "Leeren"
+    "config.spellcheck.clear_personal": "Leeren",
+    "notes.slash.link": "Web- oder externer Link",
+    "slash.link": "Web- oder externer Link",
+    "notes.slash.link_desc": "Einen Markdown-Link einfügen [Text](URL)",
+    "slash.link_desc": "Einen Markdown-Link einfügen [Text](URL)"
   },
   "fr": {
     "header": {
@@ -5080,7 +5122,9 @@ const catalogs = {
       "anchor": "Ancre de section",
       "anchor_desc": "Accéder à un en-tête de cette note",
       "wikilink": "Référence de note",
-      "wikilink_desc": "Lier à une note existante ou en créer une nouvelle"
+      "wikilink_desc": "Lier à une note existante ou en créer une nouvelle",
+      "link": "Lien web ou externe",
+      "link_desc": "Insérer un lien markdown [texte](url)"
     },
     "menu": {
       "copy_abs_path": "Copier le chemin absolu",
@@ -5370,7 +5414,11 @@ const catalogs = {
     "config.language.spell_remove": "Supprimer",
     "config.language.spell_install": "Installer",
     "config.spellcheck.personal_dict": "Dictionnaire personnel",
-    "config.spellcheck.clear_personal": "Effacer"
+    "config.spellcheck.clear_personal": "Effacer",
+    "notes.slash.link": "Lien web ou externe",
+    "slash.link": "Lien web ou externe",
+    "notes.slash.link_desc": "Insérer un lien markdown [texte](url)",
+    "slash.link_desc": "Insérer un lien markdown [texte](url)"
   },
   "ru": {
     "header": {
@@ -5744,7 +5792,9 @@ const catalogs = {
       "anchor": "Якорь раздела",
       "anchor_desc": "Перейти к заголовку в этой заметке",
       "wikilink": "Ссылка на заметку",
-      "wikilink_desc": "Ссылка на существующую заметку или создание новой"
+      "wikilink_desc": "Ссылка на существующую заметку или создание новой",
+      "link": "Веб или внешняя ссылка",
+      "link_desc": "Вставить ссылку markdown [текст](url)"
     },
     "menu": {
       "copy_abs_path": "Копировать абсолютный путь",
@@ -6034,6 +6084,10 @@ const catalogs = {
     "config.language.spell_remove": "Удалить",
     "config.language.spell_install": "Установить",
     "config.spellcheck.personal_dict": "Пользовательский словарь",
-    "config.spellcheck.clear_personal": "Очистить"
+    "config.spellcheck.clear_personal": "Очистить",
+    "notes.slash.link": "Веб или внешняя ссылка",
+    "slash.link": "Веб или внешняя ссылка",
+    "notes.slash.link_desc": "Вставить ссылку markdown [текст](url)",
+    "slash.link_desc": "Вставить ссылку markdown [текст](url)"
   }
 };

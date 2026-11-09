@@ -370,7 +370,9 @@
     "anchor": "Âncora de seção",
     "anchor_desc": "Pular para um cabeçalho desta nota",
     "wikilink": "Referência de nota",
-    "wikilink_desc": "Vincular a uma nota existente ou criar uma nova"
+    "wikilink_desc": "Vincular a uma nota existente ou criar uma nova",
+    "link": "Link web ou externo",
+    "link_desc": "Inserir um link markdown [texto](url)"
   },
   "menu": {
     "copy_abs_path": "Copiar caminho absoluto",
@@ -660,5 +662,9 @@
   "config.language.spell_remove": "Remover",
   "config.language.spell_install": "Instalar",
   "config.spellcheck.personal_dict": "Dicionário pessoal",
-  "config.spellcheck.clear_personal": "Limpar"
+  "config.spellcheck.clear_personal": "Limpar",
+  "notes.slash.link": "Link web ou externo",
+  "slash.link": "Link web ou externo",
+  "notes.slash.link_desc": "Inserir um link markdown [texto](url)",
+  "slash.link_desc": "Inserir um link markdown [texto](url)"
 }

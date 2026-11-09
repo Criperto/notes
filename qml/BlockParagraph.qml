@@ -588,27 +588,28 @@ Item {
             if (!found) return null;
         }
 
+        var maxLineH = Math.round(EditorMetrics.body * 2.2);
         var leftX = x;
         while (leftX > 4 && viewItem.linkAt(leftX - 4, y) === linkUrl) leftX -= 4;
         while (leftX > 0 && viewItem.linkAt(leftX - 1, y) === linkUrl) leftX -= 1;
 
         var rightX = x;
-        var maxW = viewItem.width;
+        var maxW = viewItem.width > 0 ? viewItem.width : 500;
         while (rightX + 4 < maxW && viewItem.linkAt(rightX + 4, y) === linkUrl) rightX += 4;
         while (rightX + 1 < maxW && viewItem.linkAt(rightX + 1, y) === linkUrl) rightX += 1;
 
         var topY = y;
-        while (topY > 2 && viewItem.linkAt(x, topY - 2) === linkUrl) topY -= 2;
-        while (topY > 0 && viewItem.linkAt(x, topY - 1) === linkUrl) topY -= 1;
+        while (topY > y - maxLineH && topY > 2 && viewItem.linkAt(x, topY - 2) === linkUrl) topY -= 2;
+        while (topY > y - maxLineH && topY > 0 && viewItem.linkAt(x, topY - 1) === linkUrl) topY -= 1;
 
         var bottomY = y;
-        var maxH = viewItem.height;
+        var maxH = Math.min(viewItem.height, y + maxLineH);
         while (bottomY + 2 < maxH && viewItem.linkAt(x, bottomY + 2) === linkUrl) bottomY += 2;
         while (bottomY + 1 < maxH && viewItem.linkAt(x, bottomY + 1) === linkUrl) bottomY += 1;
 
-        var w = Math.max(8, rightX - leftX + 1);
-        var h = Math.max(12, bottomY - topY + 1);
-        return { x: leftX, y: topY, width: w, height: h };
+        var w = Math.min(maxW, Math.max(8, rightX - leftX + 1));
+        var h = Math.min(maxLineH, Math.max(12, bottomY - topY + 1));
+        return { x: Math.max(0, leftX), y: Math.max(0, topY), width: w, height: h };
     }
 
     function triggerLinkEffect(clickX, clickY, linkUrl) {
@@ -623,17 +624,6 @@ Item {
         }
     }
 
-    Rectangle {
-        id: linkPressMask
-        visible: linkPressOverlay.active
-        x: linkPressOverlay.targetX - 2
-        y: linkPressOverlay.targetY - 1
-        width: linkPressOverlay.targetW + 4
-        height: linkPressOverlay.targetH + 2
-        radius: 3
-        color: (root.editor && root.editor.backgroundColor) ? root.editor.backgroundColor : Theme.surface
-    }
-
     Item {
         id: linkPressOverlay
         visible: active
@@ -644,39 +634,24 @@ Item {
         property real targetW: 0
         property real targetH: 0
 
-        x: targetX - 3
-        y: targetY - 2
-        width: targetW + 6
-        height: targetH + 4
+        x: targetX - 2
+        y: targetY - 1
+        width: Math.max(8, targetW + 4)
+        height: Math.max(8, targetH + 2)
 
-        scale: active ? 0.91 : 1.0
-        transformOrigin: Item.Center
+        opacity: active ? 1.0 : 0.0
 
-        Behavior on scale {
+        Behavior on opacity {
             enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
-            SpringAnimation {
-                spring: 8.5
-                damping: 0.88
-                mass: 0.45
-                epsilon: 0.05
-            }
+            NumberAnimation { duration: 120 }
         }
 
         Rectangle {
             anchors.fill: parent
             radius: 4
-            color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.16)
-            border.color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.35)
+            color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.20)
+            border.color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.40)
             border.width: 1
-        }
-
-        ShaderEffectSource {
-            anchors.centerIn: parent
-            width: linkPressOverlay.targetW
-            height: linkPressOverlay.targetH
-            sourceItem: viewText
-            sourceRect: Qt.rect(linkPressOverlay.targetX, linkPressOverlay.targetY, linkPressOverlay.targetW, linkPressOverlay.targetH)
-            live: false
         }
     }
 

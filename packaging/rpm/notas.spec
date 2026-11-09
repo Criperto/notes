@@ -21,6 +21,7 @@ mkdir -p %{buildroot}
 PREFIX=/usr DESTDIR=%{buildroot} bash %{_sourcedir}/scripts/install.sh --system
 
 %files
+/usr/bin/criperto-notes
 /usr/bin/criperto.notes
 /usr/share/applications/dev.criperto.Notas.desktop
 /usr/share/icons/hicolor/scalable/apps/dev.criperto.Notas.svg

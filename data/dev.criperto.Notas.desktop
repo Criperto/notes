@@ -35,7 +35,7 @@ Comment[pt]=Aplicativo de notas Markdown com cartões interativos
 Comment[ru]=Приложение для заметок в Markdown с интерактивными карточками
 Comment[zh]=带有交互式卡片的 Markdown 笔记应用
 Icon=dev.criperto.Notas
-Exec=criperto.notes %F
+Exec=criperto-notes %F
 Terminal=false
 Categories=Office;Utility;TextEditor;
 MimeType=text/markdown;text/plain;text/x-markdown;
@@ -56,7 +56,7 @@ Name[ja]=新規ノート
 Name[pt]=Nova nota
 Name[ru]=Новая заметка
 Name[zh]=新建笔记
-Exec=criperto.notes --new
+Exec=criperto-notes --new
 
 [Desktop Action new-window]
 Name=Nueva ventana
@@ -70,7 +70,7 @@ Name[ja]=新しいウィンドウ
 Name[pt]=Nova janela
 Name[ru]=Новое окно
 Name[zh]=新窗口
-Exec=criperto.notes --new-window
+Exec=criperto-notes --new-window
 
 [Desktop Action clip-note]
 Name=Nota desde portapapeles
@@ -82,10 +82,10 @@ Name[ja]=クリップボードからノート
 Name[pt]=Nota da área de transferência
 Name[ru]=Заметка из буфера обмена
 Name[zh]=从剪贴板创建笔记
-Exec=criperto.notes --clip
+Exec=criperto-notes --clip
 
 [Desktop Action toggle]
 Name=Alternar ventana
 Name[es]=Alternar ventana
 Name[en]=Toggle window
-Exec=criperto.notes toggle
+Exec=criperto-notes toggle

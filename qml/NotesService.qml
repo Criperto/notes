@@ -424,7 +424,7 @@ Item {
         id: qsIndexProc
         property string outJson: ""
         command: [
-            (typeof Sys !== "undefined" && Sys.appExecutable) ? Sys.appExecutable : "criperto.notes",
+            (typeof Sys !== "undefined" && Sys.appExecutable) ? Sys.appExecutable : "criperto-notes",
             "notes",
             "index",
             root.notesDir
@@ -741,7 +741,7 @@ Item {
 
             if (exitCode === 0) {
                 root.log("[NotesService - deleteNote] gio trash exitoso para:", tkey);
-                var qsHelperBin = (typeof Sys !== "undefined" && Sys.appExecutable) ? Sys.appExecutable : "criperto.notes";
+                var qsHelperBin = (typeof Sys !== "undefined" && Sys.appExecutable) ? Sys.appExecutable : "criperto-notes";
                 if (path) Quickshell.execDetached([qsHelperBin, "history", "purge", path]);
                 root._finalizeDeletion(tkey);
                 root._isTrashing = false;
@@ -996,7 +996,7 @@ Item {
         root.log("[NotesService - refresh] Refrescando directorio de notas:", root.notesDir);
         if (root.notesDir) {
             qsIndexProc.command = [
-                (typeof Sys !== "undefined" && Sys.appExecutable) ? Sys.appExecutable : "criperto.notes",
+                (typeof Sys !== "undefined" && Sys.appExecutable) ? Sys.appExecutable : "criperto-notes",
                 "notes",
                 "index",
                 root.notesDir
@@ -1638,13 +1638,34 @@ Item {
         renameProc.pendingNewRel = "";
     }
 
-    // Acepta clave compuesta (directo) o slug plano (.md primero, luego .txt).
+    // Acepta clave compuesta (directo), slug plano o título de nota (.md primero, luego .txt).
     // Se mantiene por compatibilidad (wikilinks); el resto usa claves.
     function getNote(slug) {
         if (!slug) return null;
         if ((slug || "").indexOf(root._keySep()) !== -1) return root._notesDict[slug] || null;
         var cs = root._canonSlug(slug);
-        return root._notesDict[root._dictKey(cs, "md")] || root._notesDict[root._dictKey(cs, "txt")] || null;
+        var direct = root._notesDict[root._dictKey(cs, "md")] || root._notesDict[root._dictKey(cs, "txt")];
+        if (direct) return direct;
+
+        // Probar slug normalizado por MD.slugify (en caso de títulos con espacios o mayúsculas)
+        var slugified = MD.slugify(slug);
+        if (slugified && slugified !== cs) {
+            var slugMatch = root._notesDict[root._dictKey(slugified, "md")] || root._notesDict[root._dictKey(slugified, "txt")];
+            if (slugMatch) return slugMatch;
+        }
+
+        // Búsqueda por título o slug en la lista de notas cargadas
+        var searchLower = String(slug).trim().toLowerCase();
+        for (var i = 0; i < root.notes.length; i++) {
+            var n = root.notes[i];
+            if (!n) continue;
+            if ((n.title && n.title.trim().toLowerCase() === searchLower) ||
+                (n.slug && n.slug.toLowerCase() === searchLower) ||
+                (n.fileName && n.fileName.toLowerCase() === searchLower)) {
+                return n;
+            }
+        }
+        return null;
     }
 
     // Helper local de traducción: I18n y NotesConfig son singletons
@@ -2119,7 +2140,7 @@ Item {
         pasteImgProc.pendingBase = baseDir;
         pasteImgProc.pendingKey = key;
         pasteImgProc.savedRelTag = "";
-        var qsHelperBin = (typeof Sys !== "undefined" && Sys.appExecutable) ? Sys.appExecutable : "criperto.notes";
+        var qsHelperBin = (typeof Sys !== "undefined" && Sys.appExecutable) ? Sys.appExecutable : "criperto-notes";
         var pasteArgs = [
             qsHelperBin,
             "notes",
@@ -3705,7 +3726,7 @@ Item {
                 timestamp: new Date().toISOString(),
                 length: content.length
             };
-            var qsHelperBin = (typeof Sys !== "undefined" && Sys.appExecutable) ? Sys.appExecutable : "criperto.notes";
+            var qsHelperBin = (typeof Sys !== "undefined" && Sys.appExecutable) ? Sys.appExecutable : "criperto-notes";
             var snapLabel = (reason === "open_base" ? "auto · base" : (reason === "auto_interval" ? "auto · intervalo" : "auto · guardado"));
             var maxMb = (NotesConfig && NotesConfig.versionHistoryMaxMb) ? NotesConfig.versionHistoryMaxMb : 5;
             Quickshell.execDetached([
@@ -3771,7 +3792,7 @@ Item {
         webClipProc.outJson = "";
         root._webClipCallback = callback || null;
 
-        var bin = (typeof Sys !== "undefined" && Sys.appExecutable) ? Sys.appExecutable : "criperto.notes";
+        var bin = (typeof Sys !== "undefined" && Sys.appExecutable) ? Sys.appExecutable : "criperto-notes";
         var cmd = [bin, "clip", url, "--json"];
         if (opts && opts.downloadImages) cmd.push("--images");
         if (opts && opts.fullMode) cmd.push("--full");

@@ -370,7 +370,9 @@
     "anchor": "Abschnittsanker",
     "anchor_desc": "Zu einer Überschrift in dieser Notiz springen",
     "wikilink": "Notizreferenz",
-    "wikilink_desc": "Mit vorhandener Notiz verknüpfen oder neu erstellen"
+    "wikilink_desc": "Mit vorhandener Notiz verknüpfen oder neu erstellen",
+    "link": "Web- oder externer Link",
+    "link_desc": "Einen Markdown-Link einfügen [Text](URL)"
   },
   "menu": {
     "copy_abs_path": "Absoluten Pfad kopieren",
@@ -660,5 +662,9 @@
   "config.language.spell_remove": "Entfernen",
   "config.language.spell_install": "Installieren",
   "config.spellcheck.personal_dict": "Persönliches Wörterbuch",
-  "config.spellcheck.clear_personal": "Leeren"
+  "config.spellcheck.clear_personal": "Leeren",
+  "notes.slash.link": "Web- oder externer Link",
+  "slash.link": "Web- oder externer Link",
+  "notes.slash.link_desc": "Einen Markdown-Link einfügen [Text](URL)",
+  "slash.link_desc": "Einen Markdown-Link einfügen [Text](URL)"
 }

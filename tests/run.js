@@ -3645,7 +3645,7 @@ runTest('F73: Asociación de Notas como aplicación por defecto para .md y .txt 
     assert.ok(desktopEntry.indexOf('text/markdown') !== -1, "Desktop entry debe soportar text/markdown");
     assert.ok(desktopEntry.indexOf('text/plain') !== -1, "Desktop entry debe soportar text/plain");
     assert.ok(desktopEntry.indexOf('text/x-markdown') !== -1, "Desktop entry debe soportar text/x-markdown");
-    assert.ok(desktopEntry.indexOf('Exec=criperto.notes %F') !== -1, "Desktop entry debe incluir %F para recibir archivos como argumentos");
+    assert.ok(desktopEntry.indexOf('Exec=criperto-notes %F') !== -1 || desktopEntry.indexOf('Exec=criperto.notes %F') !== -1, "Desktop entry debe incluir %F para recibir archivos como argumentos");
 
     // 2. Asociación como editor predeterminado en script de instalación
     assert.ok(installScript.indexOf('xdg-mime default dev.criperto.Notas.desktop') !== -1, "install.sh debe ejecutar xdg-mime default");
@@ -4078,7 +4078,7 @@ runTest('F79: Operaciones CLI y captura desde portapapeles', () => {
     const desktopContent = fs.readFileSync(desktopPath, 'utf8');
     assert.ok(desktopContent.includes('Actions=new-note;new-window;clip-note;toggle;'));
     assert.ok(desktopContent.includes('[Desktop Action clip-note]'));
-    assert.ok(desktopContent.includes('Exec=criperto.notes --clip'));
+    assert.ok(desktopContent.includes('Exec=criperto-notes --clip') || desktopContent.includes('Exec=criperto.notes --clip'));
 
     // 3. Verificación de ícono content-paste.svg
     const iconsDir = path.resolve(__dirname, '../assets/icons');
@@ -4395,7 +4395,7 @@ runTest("F87: Web clipper nativo, contratos CLI JSON, modal y FAB", () => {
         const { execFileSync } = require('child_process');
         try {
             const outHelp = execFileSync(targetDebugBin, ['clip', '--help'], { encoding: 'utf8' });
-            assert.ok(outHelp.includes('criperto.notes clip <URL>'), "CLI clip --help debe mostrar uso");
+            assert.ok(outHelp.includes('criperto-notes clip <URL>') || outHelp.includes('criperto.notes clip <URL>'), "CLI clip --help debe mostrar uso");
         } catch (e) {
             assert.fail("Fallo al ejecutar criperto-notes clip --help: " + e.message);
         }
@@ -4837,7 +4837,7 @@ runTest("P9.3 - Scripts de empaquetado Debian (.deb) y Fedora (.rpm)", () => {
     assert.ok(wfContent.includes("prerelease: true"), "Workflow debe marcar los releases como pre-release");
 });
 
-runTest('F97: Integración Desktop Entry (DBusActivatable desactivado, action new-window, exec criperto.notes %F)', () => {
+runTest('F97: Integración Desktop Entry (DBusActivatable desactivado, action new-window, exec criperto-notes %F)', () => {
     const desktopEntry = fs.readFileSync(path.resolve(__dirname, '../assets/dev.criperto.Notas.desktop'), 'utf8');
     const dataDesktopEntry = fs.readFileSync(path.resolve(__dirname, '../data/dev.criperto.Notas.desktop'), 'utf8');
 
@@ -4845,7 +4845,7 @@ runTest('F97: Integración Desktop Entry (DBusActivatable desactivado, action ne
     assert.ok(!dataDesktopEntry.includes('DBusActivatable=true'), "data desktop entry no debe tener DBusActivatable=true");
     assert.ok(desktopEntry.includes('[Desktop Action new-window]'), "assets desktop entry debe incluir acción new-window");
     assert.ok(dataDesktopEntry.includes('[Desktop Action new-window]'), "data desktop entry debe incluir acción new-window");
-    assert.ok(desktopEntry.includes('Exec=criperto.notes --new-window'), "acción new-window debe ejecutar criperto.notes --new-window");
+    assert.ok(desktopEntry.includes('Exec=criperto-notes --new-window') || desktopEntry.includes('Exec=criperto.notes --new-window'), "acción new-window debe ejecutar criperto-notes --new-window");
 });
 
 runTest('F98: Decodificación de URIs file:// y percent-encoding en CLI y rutas de apertura', () => {
@@ -5469,6 +5469,60 @@ runTest("F124: Detección y layout adaptativo CSD izquierda/derecha según entor
 
     const editorQml = fs.readFileSync(path.resolve(__dirname, '../qml/NoteEditorModal.qml'), 'utf8');
     assert.ok(editorQml.includes('property bool windowControlsOnLeft'), "NoteEditorModal.qml debe adaptar espaciadores CSD con windowControlsOnLeft");
+});
+
+runTest("F125: BlockQuote contratos de borrado con Backspace y salto de línea multilínea", () => {
+    const bqQml = fs.readFileSync(path.resolve(__dirname, '../qml/BlockQuote.qml'), 'utf8');
+    assert.ok(bqQml.includes('root.editor.convertBlockType(root.blockData.bid, "paragraph", "");'),
+        "Backspace en cita vacía debe convertir a párrafo limpio sin '> '");
+    assert.ok(bqQml.includes('root.editor.insertParagraphAfter(root.blockData.bid)'),
+        "Enter en línea vacía de cita debe salir a párrafo siguiente");
+    assert.ok(bqQml.includes('root._syncTextFromModel()'),
+        "Enter con texto en cita debe refrescar el modelo con formateo rico");
+});
+
+runTest("F126: NoteEditorModal persistencia del título en frontmatter y null-safety de blocksModel", () => {
+    const nemQml = fs.readFileSync(path.resolve(__dirname, '../qml/NoteEditorModal.qml'), 'utf8');
+    assert.ok(nemQml.includes('root.performSave(null, true);'),
+        "_confirmTitleRename debe ejecutar performSave forzado para persistir frontmatter");
+    assert.ok(nemQml.includes('blockEditor && blockEditor.blocksModel && blockEditor.blocksModel.count > 0'),
+        "Navegación de teclas en titleInput debe chequear defensivamente blockEditor.blocksModel");
+});
+
+runTest("F127: NotesService getNote resolución de notas por título, slug canónico y slug normalizado", () => {
+    const nsQml = fs.readFileSync(path.resolve(__dirname, '../qml/NotesService.qml'), 'utf8');
+    assert.ok(nsQml.includes('MD.slugify(slug)'),
+        "getNote debe probar versión normalizada con guiones");
+    assert.ok(nsQml.includes('n.title.trim().toLowerCase() === searchLower'),
+        "getNote debe resolver notas buscando por título humano en la lista notes");
+});
+
+runTest("F128: Catálogo de comando slash /link y traducciones completas en 9 idiomas", () => {
+    const slashJs = fs.readFileSync(path.resolve(__dirname, '../qml/SlashCommands.js'), 'utf8');
+    assert.ok(slashJs.includes('badge: "/link"'), "SlashCommands.js debe incluir comando con badge /link");
+    assert.ok(slashJs.includes('id: "link"'), "SlashCommands.js debe declarar id: link");
+
+    const blockEditorQml = fs.readFileSync(path.resolve(__dirname, '../qml/BlockEditor.qml'), 'utf8');
+    assert.ok(blockEditorQml.includes('if (cmdId === "link")'),
+        "BlockEditor debe despachar cmdId link");
+
+    const catalogsJs = fs.readFileSync(path.resolve(__dirname, '../qml/I18nCatalogs.js'), 'utf8');
+    assert.ok(catalogsJs.includes('"notes.slash.link"'), "I18nCatalogs.js debe contener notes.slash.link");
+    assert.ok(catalogsJs.includes('"notes.slash.link_desc"'), "I18nCatalogs.js debe contener notes.slash.link_desc");
+});
+
+runTest("F129: BlockParagraph acotamiento de _findLinkBoundingBox y eliminación de loop en Loader", () => {
+    const bpQml = fs.readFileSync(path.resolve(__dirname, '../qml/BlockParagraph.qml'), 'utf8');
+    assert.ok(bpQml.includes('var maxLineH = Math.round(EditorMetrics.body * 2.2);'),
+        "_findLinkBoundingBox debe acotar altura máxima de enlace");
+    assert.ok(!bpQml.includes('ShaderEffectSource'),
+        "BlockParagraph no debe usar ShaderEffectSource para overlays de enlace");
+
+    const beQml = fs.readFileSync(path.resolve(__dirname, '../qml/BlockEditor.qml'), 'utf8');
+    assert.ok(beQml.includes('readonly property bool mustBeActive: inViewportChunk || blockIsEditing || isSelected || isSearchTarget'),
+        "BlockEditor Loader no debe crear bucle con _everActivated");
+    assert.ok(!beQml.includes('_everActivated'),
+        "BlockEditor Loader debe eliminar variable causante de bucle");
 });
 
 console.log(`\n========================================`);

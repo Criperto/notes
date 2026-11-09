@@ -21,8 +21,8 @@ case "${CMD}" in
         cargo build --bin criperto-notes
         ln -sf criperto-notes "${ROOT_DIR}/target/debug/criperto.notes"
         rm -f "${ROOT_DIR}/target/debug/notas"
-        echo "✓ Binario listo en target/debug/criperto.notes. Lanzando..."
-        exec "${ROOT_DIR}/target/debug/criperto.notes" "$@"
+        echo "✓ Binario listo en target/debug/criperto-notes. Lanzando..."
+        exec "${ROOT_DIR}/target/debug/criperto-notes" "$@"
         ;;
     release|publish)
         exec "${SCRIPT_DIR}/release.sh" "$@"
@@ -41,10 +41,10 @@ case "${CMD}" in
         echo "🔍 [build.sh] Verificando compilación Cargo..."
         cargo check
         echo "🔍 [build.sh] Smoke test headless (verificación de carga limpia)..."
-        if [[ -x "${ROOT_DIR}/target/release/criperto.notes" ]]; then
-            QT_QPA_PLATFORM=offscreen "${ROOT_DIR}/target/release/criperto.notes" --check 2>&1 || true
-        elif [[ -x "${ROOT_DIR}/target/debug/criperto.notes" ]]; then
-            QT_QPA_PLATFORM=offscreen "${ROOT_DIR}/target/debug/criperto.notes" --check 2>&1 || true
+        if [[ -x "${ROOT_DIR}/target/release/criperto-notes" ]]; then
+            QT_QPA_PLATFORM=offscreen "${ROOT_DIR}/target/release/criperto-notes" --check 2>&1 || true
+        elif [[ -x "${ROOT_DIR}/target/debug/criperto-notes" ]]; then
+            QT_QPA_PLATFORM=offscreen "${ROOT_DIR}/target/debug/criperto-notes" --check 2>&1 || true
         fi
         echo "✓ Chequeo completo."
         ;;

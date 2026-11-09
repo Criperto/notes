@@ -370,7 +370,9 @@
     "anchor": "セクションアンカー",
     "anchor_desc": "このノートの見出しにジャンプ",
     "wikilink": "ノート参照",
-    "wikilink_desc": "既存のノートにリンクするか新規作成"
+    "wikilink_desc": "既存のノートにリンクするか新規作成",
+    "link": "ウェブまたは外部リンク",
+    "link_desc": "マークダウンリンクを挿入 [テキスト](URL)"
   },
   "menu": {
     "copy_abs_path": "絶対パスをコピー",
@@ -660,5 +662,9 @@
   "config.language.spell_remove": "削除",
   "config.language.spell_install": "インストール",
   "config.spellcheck.personal_dict": "個人用辞書",
-  "config.spellcheck.clear_personal": "クリア"
+  "config.spellcheck.clear_personal": "クリア",
+  "notes.slash.link": "ウェブまたは外部リンク",
+  "slash.link": "ウェブまたは外部リンク",
+  "notes.slash.link_desc": "マークダウンリンクを挿入 [テキスト](URL)",
+  "slash.link_desc": "マークダウンリンクを挿入 [テキスト](URL)"
 }

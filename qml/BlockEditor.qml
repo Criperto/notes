@@ -2484,7 +2484,13 @@ Flickable {
             return;
         }
 
-        // 9. Ancla a sección
+        // 9. Enlace estándar markdown / web
+        if (cmdId === "link") {
+            root.applyAction("link");
+            return;
+        }
+
+        // 10. Ancla a sección
         if (cmdId === "anchor") {
             if (root.editorModal && typeof root.editorModal.openAnchorSuggestions === "function") {
                 root.editorModal.openAnchorSuggestions();
@@ -2492,7 +2498,7 @@ Flickable {
             return;
         }
 
-        // 10. Referencia a otra nota (Wikilink)
+        // 11. Referencia a otra nota (Wikilink)
         if (cmdId === "wikilink") {
             if (root.editorModal && typeof root.editorModal.openWikilinkSuggestions === "function") {
                 root.editorModal.openWikilinkSuggestions();
@@ -3312,7 +3318,7 @@ Flickable {
         if (parsed.slug) {
             var targetNote = NotesService.getNote(parsed.slug);
             if (targetNote) {
-                NotesService.openNoteBySlug(parsed.slug);
+                NotesService.openNote(targetNote);
                 if (parsed.anchor) {
                     Qt.callLater(() => {
                         scrollToAnchor(parsed.anchor);
@@ -3581,17 +3587,13 @@ Flickable {
                 // Intersección con la ventana visible por rango atómico (evita binding loops)
                 readonly property bool inViewportChunk: (blocksModel.count <= 35) || (index >= root.visibleChunk.x && index <= root.visibleChunk.y)
 
-                property bool _everActivated: false
-                readonly property bool shouldBeActive: inViewportChunk ||
-                                                       (blocksModel.count <= 150 && _everActivated) ||
-                                                       (model.type === "image" && _everActivated) ||
-                                                       blockIsEditing || isSelected || isSearchTarget
+                property bool isLoaded: false
+                readonly property bool mustBeActive: inViewportChunk || blockIsEditing || isSelected || isSearchTarget
+                active: isLoaded || mustBeActive
 
-                active: shouldBeActive
-
-                onActiveChanged: {
-                    if (active && !_everActivated) {
-                        _everActivated = true;
+                onMustBeActiveChanged: {
+                    if (mustBeActive && (blocksModel.count <= 150 || model.type === "image")) {
+                        isLoaded = true;
                     }
                 }
 
