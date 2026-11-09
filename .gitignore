@@ -14,3 +14,4 @@ packaging/appimage/build/
 packaging/appimage/out/
 packaging/deb/stage/
 packaging/rpm/build/
+scripts/release.sh
