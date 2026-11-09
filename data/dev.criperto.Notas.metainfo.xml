@@ -28,6 +28,11 @@
   </screenshots>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.0" date="2026-11-09">
+      <description>
+        <p>feat: release v0.2.0 - list toolbar fixes, multiline quote/code, CSD left/right auto-layout, complete i18n quality audit across 9 languages</p>
+      </description>
+    </release>
     <release version="0.1.14" date="2026-11-09">
       <description>
         <p>feat: release v0.1.14 - aligned csd window controls, frameless hint for wayfire and --csd cli flag</p>
