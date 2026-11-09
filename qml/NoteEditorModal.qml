@@ -16,6 +16,7 @@ import "TableParser.js" as TP
 import "QuoteParser.js" as QP
 import "MermaidTemplates.js" as MermaidTemplates
 import "MathTemplates.js" as MathTemplates
+import "ReferenceLogic.js" as ReferenceLogic
 
 Item {
     id: root
@@ -898,6 +899,14 @@ Item {
     function applyFormatOrAction(action) {
         // En .txt no hay formato: todo inerte salvo Buscar (que no pasa por acá)
         if (root.isTxt) return;
+        if (action === "wikilink") {
+            root.openWikilinkSuggestions();
+            return;
+        }
+        if (action === "anchor") {
+            root.openAnchorSuggestions();
+            return;
+        }
         if (root.isSourceMode) {
             if (action === "bold") _applySourceInlineFormat("**");
             else if (action === "italic") _applySourceInlineFormat("*");
@@ -1321,7 +1330,9 @@ Item {
 
         if (event.key === Qt.Key_Escape) {
             event.accepted = true;
-            if (headingMenuPopup.isOpen) {
+            if (linkSuggestionMenu && linkSuggestionMenu.isOpen) {
+                linkSuggestionMenu.close();
+            } else if (headingMenuPopup.isOpen) {
                 headingMenuPopup.isOpen = false;
             } else if (imageMenuPopup.isOpen) {
                 imageMenuPopup.isOpen = false;
@@ -1403,6 +1414,11 @@ Item {
                 event.accepted = true;
                 return;
             }
+            if (event.key === Qt.Key_K) {
+                root.applyFormatOrAction("wikilink");
+                event.accepted = true;
+                return;
+            }
             if (event.key === Qt.Key_V) {
                 root.pasteClipboardImage();
                 event.accepted = true;
@@ -1439,6 +1455,11 @@ Item {
             }
             if (event.key === Qt.Key_6) {
                 root.applyFormatOrAction("h6");
+                event.accepted = true;
+                return;
+            }
+            if (event.key === Qt.Key_A) {
+                root.applyFormatOrAction("anchor");
                 event.accepted = true;
                 return;
             }
@@ -2547,6 +2568,7 @@ Item {
                                     imageMenuPopup.isOpen = false;
                                     mermaidMenuPopup.isOpen = false;
                                     mathMenuPopup.isOpen = false;
+                                    headingMenuPopup.updatePosition();
                                 }
                                 headingMenuPopup.isOpen = willOpen;
                             }
@@ -2630,6 +2652,7 @@ Item {
                                     headingMenuPopup.isOpen = false;
                                     imageMenuPopup.isOpen = false;
                                     mathMenuPopup.isOpen = false;
+                                    mermaidMenuPopup.updatePosition();
                                 }
                                 mermaidMenuPopup.isOpen = willOpen;
                             }
@@ -2649,6 +2672,7 @@ Item {
                                     headingMenuPopup.isOpen = false;
                                     imageMenuPopup.isOpen = false;
                                     mermaidMenuPopup.isOpen = false;
+                                    mathMenuPopup.updatePosition();
                                 }
                                 mathMenuPopup.isOpen = willOpen;
                             }
@@ -2679,6 +2703,7 @@ Item {
                                     headingMenuPopup.isOpen = false;
                                     mermaidMenuPopup.isOpen = false;
                                     mathMenuPopup.isOpen = false;
+                                    imageMenuPopup.updatePosition();
                                 }
                                 imageMenuPopup.isOpen = willOpen;
                             }
@@ -2692,6 +2717,26 @@ Item {
                             iconSource: Theme.iconsPath + "link.svg"
                             active: root.isFormatActive("link")
                             onClicked: root.applyFormatOrAction("link")
+                        }
+
+                        // 17b. Referencia a otra nota (Wikilink)
+                        ToolbarButton {
+                            id: noteLinkToolbarBtn
+                            actionId: "wikilink"
+                            disabled: root.isTxt
+                            tooltipLayer: tooltipLayer
+                            textLabel: "[[ ]]"
+                            onClicked: root.openWikilinkSuggestions()
+                        }
+
+                        // 17c. Enlace a sección (Ancla interna)
+                        ToolbarButton {
+                            id: anchorToolbarBtn
+                            actionId: "anchor"
+                            disabled: root.isTxt
+                            tooltipLayer: tooltipLayer
+                            textLabel: "#"
+                            onClicked: root.openAnchorSuggestions()
                         }
 
                         Rectangle { width: 1; height: 18; color: Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.1) }
@@ -3318,6 +3363,7 @@ Item {
                     ? root._findMatchesList[root.findMatchIndex].local : -1
                 contextMenu: editorContextMenu
                 slashMenu: slashMenu
+                linkSuggestionMenu: linkSuggestionMenu
                 tooltipLayer: tooltipLayer
                 editorModal: root
                 onContentYChanged: tooltipLayer.hideTooltip()
@@ -3381,8 +3427,9 @@ Item {
         MouseArea {
             anchors.fill: parent
             z: 199
-            visible: headingMenuPopup.isOpen || imageMenuPopup.isOpen || mermaidMenuPopup.isOpen || mathMenuPopup.isOpen
+            visible: headingMenuPopup.isOpen || imageMenuPopup.isOpen || mermaidMenuPopup.isOpen || mathMenuPopup.isOpen || (linkSuggestionMenu && linkSuggestionMenu.isOpen)
             onClicked: {
+                if (linkSuggestionMenu && linkSuggestionMenu.isOpen) linkSuggestionMenu.close();
                 headingMenuPopup.isOpen = false;
                 imageMenuPopup.isOpen = false;
                 mermaidMenuPopup.isOpen = false;
@@ -3452,7 +3499,7 @@ Item {
             property bool isOpen: false
             visible: isOpen || scale > 0.02
             z: 200
-            width: 190
+            width: 220
             height: imageMenuCol.implicitHeight + 12
             radius: 8
             color: Theme.color0
@@ -3461,6 +3508,19 @@ Item {
             transformOrigin: Item.Top
             scale: isOpen ? 1.0 : 0.0
             opacity: isOpen ? 1.0 : 0.0
+
+            function updatePosition() {
+                if (!imgToolbarBtn || !imageMenuPopup.parent) return;
+                try {
+                    var pt = imgToolbarBtn.mapToItem(imageMenuPopup.parent, 0, imgToolbarBtn.height + 6);
+                    imageMenuPopup.x = Math.max(16, Math.min(imageMenuPopup.parent.width - width - 16, pt.x + (imgToolbarBtn.width - width) / 2));
+                    imageMenuPopup.y = pt.y;
+                } catch(e) {}
+            }
+
+            onIsOpenChanged: {
+                if (isOpen) updatePosition();
+            }
 
             Behavior on scale {
                 enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
@@ -3494,8 +3554,8 @@ Item {
             y: {
                 if (!imgToolbarBtn || !imageMenuPopup.parent) return toolbarRect.y + toolbarRect.height + 4;
                 try {
-                    var pt = imgToolbarBtn.mapToItem(imageMenuPopup.parent, 0, 0);
-                    return pt.y + imgToolbarBtn.height + 6;
+                    var pt = imgToolbarBtn.mapToItem(imageMenuPopup.parent, 0, imgToolbarBtn.height + 6);
+                    return pt.y;
                 } catch(e) {
                     return toolbarRect.y + toolbarRect.height + 4;
                 }
@@ -3601,7 +3661,7 @@ Item {
             property bool isOpen: false
             visible: isOpen || scale > 0.02
             z: 200
-            width: 190
+            width: 260
             height: headingMenuCol.implicitHeight + 12
             radius: 8
             color: Theme.color0
@@ -3610,6 +3670,19 @@ Item {
             transformOrigin: Item.Top
             scale: isOpen ? 1.0 : 0.0
             opacity: isOpen ? 1.0 : 0.0
+
+            function updatePosition() {
+                if (!headingToolbarBtn || !headingMenuPopup.parent) return;
+                try {
+                    var pt = headingToolbarBtn.mapToItem(headingMenuPopup.parent, 0, headingToolbarBtn.height + 6);
+                    headingMenuPopup.x = Math.max(16, Math.min(headingMenuPopup.parent.width - width - 16, pt.x + (headingToolbarBtn.width - width) / 2));
+                    headingMenuPopup.y = pt.y;
+                } catch(e) {}
+            }
+
+            onIsOpenChanged: {
+                if (isOpen) updatePosition();
+            }
 
             Behavior on scale {
                 enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
@@ -3643,8 +3716,8 @@ Item {
             y: {
                 if (!headingToolbarBtn || !headingMenuPopup.parent) return toolbarRect.y + toolbarRect.height + 4;
                 try {
-                    var pt = headingToolbarBtn.mapToItem(headingMenuPopup.parent, 0, 0);
-                    return pt.y + headingToolbarBtn.height + 6;
+                    var pt = headingToolbarBtn.mapToItem(headingMenuPopup.parent, 0, headingToolbarBtn.height + 6);
+                    return pt.y;
                 } catch(e) {
                     return toolbarRect.y + toolbarRect.height + 4;
                 }
@@ -3741,6 +3814,21 @@ Item {
             color: Theme.color0
             border.width: 0
 
+            function updatePosition() {
+                if (!mermaidToolbarBtn || !mermaidMenuPopup.parent) return;
+                try {
+                    var pt = mermaidToolbarBtn.mapToItem(mermaidMenuPopup.parent, 0, mermaidToolbarBtn.height + 6);
+                    mermaidMenuPopup.x = Math.max(16, Math.min(mermaidMenuPopup.parent.width - width - 16, pt.x + (mermaidToolbarBtn.width - width) / 2));
+                    mermaidMenuPopup.y = pt.y;
+                } catch(e) {
+                    // ignore
+                }
+            }
+
+            onIsOpenChanged: {
+                if (isOpen) updatePosition();
+            }
+
             transformOrigin: Item.Top
             scale: isOpen ? 1.0 : 0.0
             opacity: isOpen ? 1.0 : 0.0
@@ -3777,8 +3865,8 @@ Item {
             y: {
                 if (!mermaidToolbarBtn || !mermaidMenuPopup.parent) return toolbarRect.y + toolbarRect.height + 4;
                 try {
-                    var pt = mermaidToolbarBtn.mapToItem(mermaidMenuPopup.parent, 0, 0);
-                    return pt.y + mermaidToolbarBtn.height + 6;
+                    var pt = mermaidToolbarBtn.mapToItem(mermaidMenuPopup.parent, 0, mermaidToolbarBtn.height + 6);
+                    return pt.y;
                 } catch(e) {
                     return toolbarRect.y + toolbarRect.height + 4;
                 }
@@ -3852,6 +3940,21 @@ Item {
             color: Theme.color0
             border.width: 0
 
+            function updatePosition() {
+                if (!mathToolbarBtn || !mathMenuPopup.parent) return;
+                try {
+                    var pt = mathToolbarBtn.mapToItem(mathMenuPopup.parent, 0, mathToolbarBtn.height + 6);
+                    mathMenuPopup.x = Math.max(16, Math.min(mathMenuPopup.parent.width - width - 16, pt.x + (mathToolbarBtn.width - width) / 2));
+                    mathMenuPopup.y = pt.y;
+                } catch(e) {
+                    // ignore
+                }
+            }
+
+            onIsOpenChanged: {
+                if (isOpen) updatePosition();
+            }
+
             transformOrigin: Item.Top
             scale: isOpen ? 1.0 : 0.0
             opacity: isOpen ? 1.0 : 0.0
@@ -3888,8 +3991,8 @@ Item {
             y: {
                 if (!mathToolbarBtn || !mathMenuPopup.parent) return toolbarRect.y + toolbarRect.height + 4;
                 try {
-                    var pt = mathToolbarBtn.mapToItem(mathMenuPopup.parent, 0, 0);
-                    return pt.y + mathToolbarBtn.height + 6;
+                    var pt = mathToolbarBtn.mapToItem(mathMenuPopup.parent, 0, mathToolbarBtn.height + 6);
+                    return pt.y;
                 } catch(e) {
                     return toolbarRect.y + toolbarRect.height + 4;
                 }
@@ -3957,6 +4060,151 @@ Item {
         id: slashMenu
         onCommandSelected: (cmd, triggerInfo) => {
             blockEditor.handleSlashCommandExecution(cmd, triggerInfo);
+        }
+    }
+
+    // Menú flotante de sugerencias de Wikilinks y Anclas
+    LinkSuggestionMenu {
+        id: linkSuggestionMenu
+        onSuggestionSelected: (item, triggerInfo) => {
+            root.handleLinkSuggestionSelected(item, triggerInfo);
+        }
+    }
+
+    function openWikilinkSuggestions() {
+        if (root.isTxt) return;
+        var input = null;
+        var curPos = 0;
+        var selText = "";
+        if (root.isSourceMode) {
+            input = sourceCodeEditor;
+            curPos = sourceCodeEditor ? (sourceCodeEditor.cursorPosition || 0) : 0;
+            if (sourceCodeEditor && sourceCodeEditor.selectionStart !== sourceCodeEditor.selectionEnd) {
+                selText = sourceCodeEditor.selectedText;
+            }
+        } else if (blockEditor && blockEditor.activeBlockBid !== -1) {
+            input = blockEditor._getTextEditForBid(blockEditor.activeBlockBid);
+            if (input) {
+                curPos = input.cursorPosition || 0;
+                if (input.selectionStart !== input.selectionEnd) {
+                    selText = input.selectedText;
+                }
+            }
+        }
+        if (!input) {
+            if (blockEditor) blockEditor.focusEnd();
+            input = blockEditor ? blockEditor._getTextEditForBid(blockEditor.activeBlockBid) : null;
+            if (input) curPos = input.cursorPosition || 0;
+        }
+        if (!input) return;
+
+        var trig = {
+            openIndex: curPos,
+            endIndex: curPos,
+            mode: "note",
+            query: "",
+            selectedText: selText
+        };
+        var notesList = (typeof NotesService !== "undefined" && NotesService.notes) ? NotesService.notes : [];
+        var filteredN = ReferenceLogic.filterNotes(notesList, "");
+        linkSuggestionMenu.open(input, trig, "notes", filteredN, "");
+    }
+
+    function openAnchorSuggestions() {
+        if (root.isTxt) return;
+        var input = null;
+        var curPos = 0;
+        var selText = "";
+        if (root.isSourceMode) {
+            input = sourceCodeEditor;
+            curPos = sourceCodeEditor ? (sourceCodeEditor.cursorPosition || 0) : 0;
+            if (sourceCodeEditor && sourceCodeEditor.selectionStart !== sourceCodeEditor.selectionEnd) {
+                selText = sourceCodeEditor.selectedText;
+            }
+        } else if (blockEditor && blockEditor.activeBlockBid !== -1) {
+            input = blockEditor._getTextEditForBid(blockEditor.activeBlockBid);
+            if (input) {
+                curPos = input.cursorPosition || 0;
+                if (input.selectionStart !== input.selectionEnd) {
+                    selText = input.selectedText;
+                }
+            }
+        }
+        if (!input) {
+            if (blockEditor) blockEditor.focusEnd();
+            input = blockEditor ? blockEditor._getTextEditForBid(blockEditor.activeBlockBid) : null;
+            if (input) curPos = input.cursorPosition || 0;
+        }
+        if (!input) return;
+
+        var trig = {
+            openIndex: curPos,
+            endIndex: curPos,
+            mode: "anchor",
+            query: "",
+            isCurrentNote: true,
+            selectedText: selText
+        };
+        var headings = [];
+        if (root.isSourceMode) {
+            headings = ReferenceLogic.extractHeadingsFromMarkdown(sourceCodeEditor ? sourceCodeEditor.text : "");
+        } else if (blockEditor) {
+            headings = blockEditor.getActiveHeadings();
+        }
+        var filteredH = ReferenceLogic.filterHeadings(headings, "");
+        linkSuggestionMenu.open(input, trig, "anchors", filteredH, "");
+    }
+
+    function handleLinkSuggestionSelected(item, triggerInfo) {
+        if (!item || !triggerInfo) return;
+        var input = linkSuggestionMenu.targetInput;
+        if (!input) {
+            if (root.isSourceMode) input = sourceCodeEditor;
+            else if (blockEditor && blockEditor.activeBlockBid !== -1) {
+                input = blockEditor._getTextEditForBid(blockEditor.activeBlockBid);
+            }
+        }
+        if (!input) return;
+
+        var replacement = "";
+        if (linkSuggestionMenu.mode === "anchors") {
+            if (triggerInfo.noteTitle) {
+                replacement = "[[" + triggerInfo.noteTitle + "#" + item.slug + "]]";
+            } else if (triggerInfo.selectedText) {
+                replacement = "[" + triggerInfo.selectedText + "](#" + item.slug + ")";
+            } else if (triggerInfo.mode === "note") {
+                replacement = "[[" + item.slug + "]]";
+            } else {
+                replacement = "[" + (item.title || item.slug) + "](#" + item.slug + ")";
+            }
+        } else {
+            // mode === "notes"
+            replacement = "[[" + item.title + "]]";
+        }
+
+        var s = (typeof triggerInfo.openIndex === "number") ? triggerInfo.openIndex : (input.cursorPosition || 0);
+        var e = (typeof triggerInfo.endIndex === "number") ? triggerInfo.endIndex : s;
+        var maxLen = (typeof input.length === "number") ? input.length : (input.text ? input.text.length : 0);
+        s = Math.max(0, Math.min(s, maxLen));
+        e = Math.max(s, Math.min(e, maxLen));
+
+        if (typeof input.remove === "function" && typeof input.insert === "function") {
+            input.remove(s, e);
+            input.insert(s, replacement);
+            input.cursorPosition = s + replacement.length;
+        } else if (input.text !== undefined) {
+            var full = input.text;
+            input.text = full.substring(0, s) + replacement + full.substring(e);
+            input.cursorPosition = s + replacement.length;
+        }
+
+        if (root.isSourceMode) {
+            root.markDirty();
+        } else if (blockEditor && blockEditor.activeBlockBid !== -1) {
+            var rawClean = Inline.plainText(input);
+            blockEditor.onBlockRawChanged(blockEditor.activeBlockBid, rawClean);
+            blockEditor._saveSnapshot();
+            blockEditor.updateFormatState();
         }
     }
 

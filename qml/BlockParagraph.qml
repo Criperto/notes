@@ -5,6 +5,7 @@ import "Inline.js" as Inline
 import "SpellLogic.js" as SpellLogic
 import "SlashLogic.js" as SlashLogic
 import "SlashCommands.js" as SlashCommands
+import "ReferenceLogic.js" as ReferenceLogic
 
 Item {
     id: root
@@ -301,6 +302,10 @@ Item {
             var sm = root.editor ? root.editor.slashMenu : null;
             if (sm && sm.isOpen && sm.targetInput === editInput) {
                 sm.close();
+            }
+            var lsm = root.editor ? root.editor.linkSuggestionMenu : null;
+            if (lsm && lsm.isOpen && lsm.targetInput === editInput) {
+                lsm.close();
             }
         }
     }
@@ -787,14 +792,33 @@ Item {
             }
             if (root.isEditing && root.editor && !root.editor.readOnly && !root._syncingModel) {
                 var sm = root.editor.slashMenu;
+                var rawCleanCur = Inline.plainText(editInput);
                 if (sm && sm.isOpen) {
-                    var rawClean = Inline.plainText(editInput);
-                    var trigger = SlashLogic.detectTrigger(rawClean, editInput.cursorPosition);
+                    var trigger = SlashLogic.detectTrigger(rawCleanCur, editInput.cursorPosition);
                     if (trigger.triggered) {
                         var cmds = SlashLogic.filterCommands(SlashCommands.getAllCommands(), trigger.query, I18n);
                         sm.update(trigger, cmds);
                     } else {
                         sm.close();
+                    }
+                }
+                var lsm = root.editor.linkSuggestionMenu;
+                if (lsm && lsm.isOpen) {
+                    var wTrigger = ReferenceLogic.detectWikilinkTrigger(rawCleanCur, editInput.cursorPosition);
+                    if (wTrigger.triggered) {
+                        if (wTrigger.mode === "anchor") {
+                            var headings = wTrigger.isCurrentNote
+                                ? (root.editor.getActiveHeadings ? root.editor.getActiveHeadings() : [])
+                                : (root.editor.getNoteHeadings ? root.editor.getNoteHeadings(wTrigger.noteTitle) : []);
+                            var filteredH = ReferenceLogic.filterHeadings(headings, wTrigger.query);
+                            lsm.update(wTrigger, "anchors", filteredH, wTrigger.noteTitle);
+                        } else {
+                            var notesList = (typeof NotesService !== "undefined" && NotesService.notes) ? NotesService.notes : [];
+                            var filteredN = ReferenceLogic.filterNotes(notesList, wTrigger.query);
+                            lsm.update(wTrigger, "notes", filteredN, "");
+                        }
+                    } else {
+                        lsm.close();
                     }
                 }
             }
@@ -832,6 +856,35 @@ Item {
                             sm.close();
                         }
                     }
+
+                    // Detección interactiva de Wikilinks y Anclas
+                    var wTrigger = ReferenceLogic.detectWikilinkTrigger(rawClean, editInput.cursorPosition);
+                    var lsm = root.editor ? root.editor.linkSuggestionMenu : null;
+                    if (wTrigger.triggered) {
+                        if (lsm) {
+                            if (wTrigger.mode === "anchor") {
+                                var headings = wTrigger.isCurrentNote
+                                    ? (root.editor.getActiveHeadings ? root.editor.getActiveHeadings() : [])
+                                    : (root.editor.getNoteHeadings ? root.editor.getNoteHeadings(wTrigger.noteTitle) : []);
+                                var filteredH = ReferenceLogic.filterHeadings(headings, wTrigger.query);
+                                if (lsm.isOpen) {
+                                    lsm.update(wTrigger, "anchors", filteredH, wTrigger.noteTitle);
+                                } else {
+                                    lsm.open(editInput, wTrigger, "anchors", filteredH, wTrigger.noteTitle);
+                                }
+                            } else {
+                                var notesList = (typeof NotesService !== "undefined" && NotesService.notes) ? NotesService.notes : [];
+                                var filteredN = ReferenceLogic.filterNotes(notesList, wTrigger.query);
+                                if (lsm.isOpen) {
+                                    lsm.update(wTrigger, "notes", filteredN, "");
+                                } else {
+                                    lsm.open(editInput, wTrigger, "notes", filteredN, "");
+                                }
+                            }
+                        }
+                    } else if (lsm && lsm.isOpen && lsm.targetInput === editInput) {
+                        lsm.close();
+                    }
                 }
             }
         }
@@ -864,6 +917,16 @@ Item {
 
         Keys.onReturnPressed: (event) => {
             if (root.editor && root.editor.readOnly) {
+                event.accepted = true;
+                return;
+            }
+            var lsm = root.editor ? root.editor.linkSuggestionMenu : null;
+            if (lsm && lsm.isOpen) {
+                if (lsm.triggerSelectedItem()) {
+                    event.accepted = true;
+                    return;
+                }
+                lsm.close();
                 event.accepted = true;
                 return;
             }
@@ -1169,6 +1232,12 @@ Item {
         }
 
         Keys.onUpPressed: (event) => {
+            var lsm = root.editor ? root.editor.linkSuggestionMenu : null;
+            if (lsm && lsm.isOpen) {
+                lsm.selectPreviousItem();
+                event.accepted = true;
+                return;
+            }
             var sm = root.editor ? root.editor.slashMenu : null;
             if (sm && sm.isOpen) {
                 sm.selectPreviousItem();
@@ -1228,6 +1297,12 @@ Item {
         }
 
         Keys.onDownPressed: (event) => {
+            var lsm = root.editor ? root.editor.linkSuggestionMenu : null;
+            if (lsm && lsm.isOpen) {
+                lsm.selectNextItem();
+                event.accepted = true;
+                return;
+            }
             var sm = root.editor ? root.editor.slashMenu : null;
             if (sm && sm.isOpen) {
                 sm.selectNextItem();
@@ -1327,6 +1402,12 @@ Item {
         }
 
         Keys.onEscapePressed: (event) => {
+            var lsm = root.editor ? root.editor.linkSuggestionMenu : null;
+            if (lsm && lsm.isOpen) {
+                lsm.close();
+                event.accepted = true;
+                return;
+            }
             var sm = root.editor ? root.editor.slashMenu : null;
             if (sm && sm.isOpen) {
                 sm.close();

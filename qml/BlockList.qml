@@ -9,6 +9,7 @@ import "ListHeading.js" as LH
 import "Inline.js" as Inline
 import "ImageProbe.js" as ImageProbe
 import "SpellLogic.js" as SpellLogic
+import "ReferenceLogic.js" as ReferenceLogic
 
 Item {
     id: root
@@ -1667,6 +1668,36 @@ Item {
                                 root._notifyRawChanged();
                             }
                             liveFormatTimer.restart();
+
+                            if (!lineEdit.inputMethodComposing) {
+                                var wTrigger = ReferenceLogic.detectWikilinkTrigger(cleanText, lineEdit.cursorPosition);
+                                var lsm = root.editor ? root.editor.linkSuggestionMenu : null;
+                                if (wTrigger.triggered) {
+                                    if (lsm) {
+                                        if (wTrigger.mode === "anchor") {
+                                            var headings = wTrigger.isCurrentNote
+                                                ? (root.editor.getActiveHeadings ? root.editor.getActiveHeadings() : [])
+                                                : (root.editor.getNoteHeadings ? root.editor.getNoteHeadings(wTrigger.noteTitle) : []);
+                                            var filteredH = ReferenceLogic.filterHeadings(headings, wTrigger.query);
+                                            if (lsm.isOpen) {
+                                                lsm.update(wTrigger, "anchors", filteredH, wTrigger.noteTitle);
+                                            } else {
+                                                lsm.open(lineEdit, wTrigger, "anchors", filteredH, wTrigger.noteTitle);
+                                            }
+                                        } else {
+                                            var notesList = (typeof NotesService !== "undefined" && NotesService.notes) ? NotesService.notes : [];
+                                            var filteredN = ReferenceLogic.filterNotes(notesList, wTrigger.query);
+                                            if (lsm.isOpen) {
+                                                lsm.update(wTrigger, "notes", filteredN, "");
+                                            } else {
+                                                lsm.open(lineEdit, wTrigger, "notes", filteredN, "");
+                                            }
+                                        }
+                                    }
+                                } else if (lsm && lsm.isOpen && lsm.targetInput === lineEdit) {
+                                    lsm.close();
+                                }
+                            }
                         }
                     }
 
@@ -1708,6 +1739,16 @@ Item {
                             event.accepted = true;
                             return;
                         }
+                        var lsm = root.editor ? root.editor.linkSuggestionMenu : null;
+                        if (lsm && lsm.isOpen) {
+                            if (lsm.triggerSelectedItem()) {
+                                event.accepted = true;
+                                return;
+                            }
+                            lsm.close();
+                            event.accepted = true;
+                            return;
+                        }
                         if (event.modifiers & Qt.ControlModifier) {
                             if (model.isTask) {
                                 itemsModel.setProperty(itemRow.index, "checked", !model.checked);
@@ -1727,6 +1768,12 @@ Item {
                     }
 
                     Keys.onEscapePressed: (event) => {
+                        var lsm = root.editor ? root.editor.linkSuggestionMenu : null;
+                        if (lsm && lsm.isOpen) {
+                            lsm.close();
+                            event.accepted = true;
+                            return;
+                        }
                         if (root.editor) {
                             root.editor.confirmActiveBlock();
                             event.accepted = true;
@@ -1831,6 +1878,24 @@ Item {
                     }
 
                     Keys.onPressed: (event) => {
+                        var lsm = (itemRow.rootBlock && itemRow.rootBlock.editor) ? itemRow.rootBlock.editor.linkSuggestionMenu : (root.editor ? root.editor.linkSuggestionMenu : null);
+                        if (lsm && lsm.isOpen) {
+                            if (event.key === Qt.Key_Up) {
+                                lsm.selectPreviousItem();
+                                event.accepted = true;
+                                return;
+                            }
+                            if (event.key === Qt.Key_Down) {
+                                lsm.selectNextItem();
+                                event.accepted = true;
+                                return;
+                            }
+                            if (event.key === Qt.Key_Escape) {
+                                lsm.close();
+                                event.accepted = true;
+                                return;
+                            }
+                        }
                         var cm = (itemRow.rootBlock && itemRow.rootBlock.editor) ? itemRow.rootBlock.editor.contextMenu : (root.editor ? root.editor.contextMenu : null);
                         if (cm && cm.visible && !cm.isClosing) {
                             if (event.key === Qt.Key_Menu || event.nativeScanCode === 135 || event.key === Qt.Key_Escape) {

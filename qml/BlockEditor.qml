@@ -12,6 +12,7 @@ import "ListParser.js" as LP
 import "Selection.js" as Sel
 import "MermaidTemplates.js" as MermaidTemplates
 import "MathTemplates.js" as MathTemplates
+import "ReferenceLogic.js" as ReferenceLogic
 
 Flickable {
     id: root
@@ -185,6 +186,9 @@ Flickable {
         if (slashMenu && slashMenu.isOpen) {
             slashMenu.close();
         }
+        if (linkSuggestionMenu && linkSuggestionMenu.isOpen) {
+            linkSuggestionMenu.close();
+        }
         if (blocksModel.count > 35) {
             if (!chunkWindowTimer.running) {
                 chunkWindowTimer.start();
@@ -262,6 +266,39 @@ Flickable {
 
     property var contextMenu: null
     property var slashMenu: null
+    property var linkSuggestionMenu: null
+
+    function getActiveHeadings() {
+        return ReferenceLogic.extractHeadingsFromBlocks(blocksModel);
+    }
+
+    function getNoteHeadings(noteTitleOrSlug) {
+        if (!noteTitleOrSlug) return getActiveHeadings();
+        var curSlug = NotesService.activeNote ? (NotesService.activeNote.slug || NotesService.activeNote.title || "") : "";
+        if (curSlug && (curSlug.toLowerCase() === noteTitleOrSlug.toLowerCase() || (NotesService.activeNote.title && NotesService.activeNote.title.toLowerCase() === noteTitleOrSlug.toLowerCase()))) {
+            return getActiveHeadings();
+        }
+        var targetNote = NotesService.getNote(noteTitleOrSlug);
+        if (!targetNote && NotesService.notes) {
+            var norm = ReferenceLogic.normalizeText(noteTitleOrSlug);
+            for (var i = 0; i < NotesService.notes.length; i++) {
+                var n = NotesService.notes[i];
+                if (ReferenceLogic.normalizeText(n.title) === norm || ReferenceLogic.normalizeText(n.slug) === norm) {
+                    targetNote = n;
+                    break;
+                }
+            }
+        }
+        if (targetNote) {
+            if (targetNote.blocks) {
+                return ReferenceLogic.extractHeadingsFromBlocks(targetNote.blocks);
+            }
+            if (targetNote.body) {
+                return ReferenceLogic.extractHeadingsFromMarkdown(targetNote.body);
+            }
+        }
+        return [];
+    }
     property bool manualSpellActive: true
     readonly property bool spellActive: {
         if (root.readOnly) return false;
@@ -2435,9 +2472,37 @@ Flickable {
             root.updateFormatState();
             return;
         }
+
+        // 9. Ancla a sección
+        if (cmdId === "anchor") {
+            if (root.editorModal && typeof root.editorModal.openAnchorSuggestions === "function") {
+                root.editorModal.openAnchorSuggestions();
+            }
+            return;
+        }
+
+        // 10. Referencia a otra nota (Wikilink)
+        if (cmdId === "wikilink") {
+            if (root.editorModal && typeof root.editorModal.openWikilinkSuggestions === "function") {
+                root.editorModal.openWikilinkSuggestions();
+            }
+            return;
+        }
     }
 
     function applyAction(actionId) {
+        if (actionId === "wikilink") {
+            if (root.editorModal && typeof root.editorModal.openWikilinkSuggestions === "function") {
+                root.editorModal.openWikilinkSuggestions();
+            }
+            return;
+        }
+        if (actionId === "anchor") {
+            if (root.editorModal && typeof root.editorModal.openAnchorSuggestions === "function") {
+                root.editorModal.openAnchorSuggestions();
+            }
+            return;
+        }
         // ── Caso A: Múltiples bloques seleccionados ─────────────────────────
         if (root.hasBlockSelection) {
             var selBidsList = [];

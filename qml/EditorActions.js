@@ -140,6 +140,18 @@ var ACTIONS = {
         fallbackLabel: "Insertar enlace",
         shortcut: "Ctrl+K"
     },
+    "wikilink": {
+        id: "wikilink",
+        labelKey: "notes.editor.action.wikilink",
+        fallbackLabel: "Referencia a otra nota",
+        shortcut: "Ctrl+Shift+K"
+    },
+    "anchor": {
+        id: "anchor",
+        labelKey: "notes.editor.action.anchor",
+        fallbackLabel: "Enlace a sección",
+        shortcut: "Ctrl+Alt+A"
+    },
     "find": {
         id: "find",
         labelKey: "notes.editor.action.find",

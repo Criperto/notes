@@ -138,6 +138,28 @@ var COMMANDS = [
         badge: "/separador",
         keywords: ["separador", "hr", "linea", "divider", "regla"]
     },
+    {
+        id: "anchor",
+        category: "advanced",
+        icon: "link.svg",
+        titleKey: "notes.slash.anchor",
+        fallbackTitle: "Enlace a sección",
+        descKey: "notes.slash.anchor_desc",
+        fallbackDesc: "Saltar a un encabezado de esta nota",
+        badge: "/ancla",
+        keywords: ["ancla", "anchor", "seccion", "salto", "heading", "indice", "#"]
+    },
+    {
+        id: "wikilink",
+        category: "advanced",
+        icon: "edit-note.svg",
+        titleKey: "notes.slash.wikilink",
+        fallbackTitle: "Referencia a otra nota",
+        descKey: "notes.slash.wikilink_desc",
+        fallbackDesc: "Vincular a una nota existente o crear una nueva",
+        badge: "/referencia",
+        keywords: ["referencia", "nota", "wikilink", "enlace", "link", "vinculo", "[["]
+    },
 
     // ── Callouts estilo GitHub ───────────────────────────────────────────────
     {

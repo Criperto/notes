@@ -88,7 +88,8 @@ const catalogs = {
       "create_new": "Nueva nota",
       "new_note": "Nueva nota",
       "import_notes": "Importar notas",
-      "from_clipboard": "Desde portapapeles"
+      "from_clipboard": "Desde portapapeles",
+      "web_clip": "Clipper web"
     },
     "editor": {
       "title_placeholder": "Título de la nota...",
@@ -126,7 +127,13 @@ const catalogs = {
         "delete": "Eliminar nota",
         "preview": "Vista previa",
         "highlight": "Resaltar",
-        "convert_to_md": "Convertir a .md"
+        "convert_to_md": "Convertir a .md",
+        "h4": "Encabezado 4",
+        "h5": "Encabezado 5",
+        "h6": "Encabezado 6",
+        "heading_menu": "Encabezados (H1-H6)",
+        "anchor": "Enlace a sección",
+        "wikilink": "Referencia a otra nota"
       },
       "copy": "Copiar",
       "copied": "Copiado",
@@ -184,7 +191,8 @@ const catalogs = {
       "clipboard_empty": "El portapapeles está vacío",
       "note_from_clipboard": "Nota creada desde portapapeles",
       "path_copied": "Ruta copiada al portapapeles",
-      "rel_path_copied": "Nombre copiado al portapapeles"
+      "rel_path_copied": "Nombre copiado al portapapeles",
+      "clipped_success": "Artículo web guardado en notas"
     },
     "deps": {
       "missing_title": "Faltan dependencias para Notas",
@@ -198,20 +206,6 @@ const catalogs = {
       "missing_desc_generic": "Para convertir este archivo se requiere instalar: "
     },
     "notes.editor.action.mermaid": "Insertar diagrama Mermaid",
-    "notes.editor.action.math": "Insertar fórmula LaTeX",
-    "notes.math.edit": "Editar",
-    "notes.math.done": "Listo",
-    "notes.math.copy_code": "Copiar LaTeX",
-    "notes.math.delete": "Eliminar fórmula",
-    "notes.math.syntax_error": "Error de sintaxis en fórmula LaTeX",
-    "notes.math.template.fraction": "Fracción",
-    "notes.math.template.quadratic": "Ecuación cuadrática",
-    "notes.math.template.integral": "Integral definida",
-    "notes.math.template.sum": "Sumatoria",
-    "notes.math.template.limit": "Límite",
-    "notes.math.template.root": "Raíz cuadrada / n-ésima",
-    "notes.math.template.matrix": "Matriz (2x2)",
-    "notes.math.template.cases": "Función a trozos (Casos)",
     "notes.mermaid.edit": "Editar",
     "notes.mermaid.done": "Listo",
     "notes.mermaid.copy_code": "Copiar código",
@@ -279,6 +273,26 @@ const catalogs = {
         "spellcheck_manual": "Manual (F7 / Botón)",
         "spellcheck_auto": "Automático en tiempo real",
         "spellcheck_mode_comment": "Modo de verificación ortográfica para el editor de notas."
+      },
+      "spellcheck": {
+        "ignore_uppercase": "Ignorar MAYÚSCULAS",
+        "ignore_uppercase_comment": "No marcar siglas o palabras escritas completamente en mayúsculas.",
+        "ignore_digits": "Ignorar palabras con números",
+        "ignore_digits_comment": "No marcar códigos alfanuméricos que contengan dígitos (ej. v2, h1, utf8).",
+        "auto_detect": "Detectar idioma por párrafo",
+        "auto_detect_comment": "Aplica el diccionario adecuado según el texto de cada bloque o párrafo."
+      },
+      "language": {
+        "spell_enabled": "Activar corrector ortográfico",
+        "spell_enabled_desc": "Habilita la revisión ortográfica con subrayado ondulado y sugerencias al hacer clic derecho.",
+        "spell_active_title": "Idiomas activos (Detección simultánea)"
+      },
+      "appearance": {
+        "ui_scale": "Escala global de interfaz (UI)",
+        "ui_scale_desc": "Ajusta proporcionalmente botones, íconos, márgenes y tarjetas para pantallas HiDPI."
+      },
+      "tabs": {
+        "shortcuts": "Atajos"
       }
     },
     "slash": {
@@ -299,8 +313,6 @@ const catalogs = {
       "table_desc": "Insertar cuadrícula con filas y columnas",
       "mermaid": "Diagrama Mermaid",
       "mermaid_desc": "Flujos, secuencias, gráficos y arquitectura",
-      "math": "Fórmula LaTeX",
-      "math_desc": "Ecuación matemática con renderizado TeX",
       "code_block": "Bloque de código",
       "code_block_desc": "Código con resaltado de sintaxis",
       "quote": "Cita",
@@ -316,7 +328,11 @@ const catalogs = {
       "callout_warning": "Advertencia (Callout)",
       "callout_warning_desc": "Caja amarilla para alertar sobre riesgos",
       "callout_caution": "Precaución (Callout)",
-      "callout_caution_desc": "Caja roja para acciones irreversibles"
+      "callout_caution_desc": "Caja roja para acciones irreversibles",
+      "anchor": "Enlace a sección",
+      "anchor_desc": "Saltar a un encabezado de esta nota",
+      "wikilink": "Referencia a otra nota",
+      "wikilink_desc": "Vincular a una nota existente o crear una nueva"
     },
     "menu": {
       "copy_abs_path": "Copiar ruta absoluta",
@@ -325,6 +341,60 @@ const catalogs = {
       "unpin": "Desfijar nota",
       "pin": "Fijar nota",
       "delete": "Eliminar nota"
+    },
+    "clip": {
+      "title": "Clipper web",
+      "subtitle": "Descarga y limpia artículos a Markdown offline",
+      "url_label": "Dirección web (URL)",
+      "placeholder": "https://ejemplo.com/articulo",
+      "opt_images": "Descargar imágenes a la carpeta de la nota (offline)",
+      "opt_readability": "Extraer solo el artículo principal (modo lectura)",
+      "loading": "Descargando y procesando contenido web...",
+      "cancel": "Cancelar",
+      "action": "Recortar",
+      "error_generic": "No se pudo recortar la página web."
+    },
+    "notes.math.template.fraction": "Fracción",
+    "notes.math.template.quadratic": "Ecuación cuadrática",
+    "notes.math.template.integral": "Integral definida",
+    "notes.math.template.sum": "Sumatoria",
+    "notes.math.template.limit": "Límite",
+    "notes.math.template.root": "Raíz cuadrada / n-ésima",
+    "notes.math.template.matrix": "Matriz (2x2)",
+    "notes.math.template.cases": "Función a trozos (Casos)",
+    "shortcuts": {
+      "title": "Atajos de Teclado",
+      "subtitle": "Navegación y productividad con teclado",
+      "cat_nav": "Navegación General",
+      "nav_tab": "Mover foco entre buscador, etiquetas y tarjetas",
+      "nav_enter": "Abrir la nota seleccionada",
+      "nav_delete": "Enviar nota a papelera (con deshacer)",
+      "nav_new": "Crear una nueva nota de inmediato",
+      "nav_search": "Enfocar barra de búsqueda",
+      "nav_settings": "Abrir ajustes y configuración",
+      "nav_help": "Ver esta hoja de atajos de teclado",
+      "nav_esc": "Cerrar modal o volver a la vista principal",
+      "cat_editor": "Edición y Markdown",
+      "edit_bold": "Texto en negrita",
+      "edit_italic": "Texto en cursiva",
+      "edit_link": "Insertar enlace Markdown",
+      "edit_slash": "Menú de comandos rápidos (Slash Menu)",
+      "edit_undo": "Deshacer y rehacer persistente",
+      "edit_save": "Guardar nota de inmediato",
+      "cat_tools": "Herramientas Avanzadas",
+      "tool_spell": "Ejecutar revisión ortográfica manual",
+      "tool_toolbar": "Alternar foco a barra de herramientas del editor",
+      "tool_clip": "Clipper web (recortar URL a Markdown)",
+      "tool_paste": "Capturar nueva nota desde portapapeles"
+    },
+    "suggestions": {
+      "headings_current": "Secciones de esta nota",
+      "headings_of": "Secciones de:",
+      "refer_note": "Vincular a nota",
+      "no_headings": "No hay encabezados disponibles",
+      "no_notes": "No se encontraron notas",
+      "create_note": "Crear nota:",
+      "create_note_desc": "Nueva nota con este título"
     }
   },
   "es_ar": {
@@ -355,7 +425,8 @@ const catalogs = {
       "create_new": "Nueva nota",
       "new_note": "Nueva nota",
       "import_notes": "Importar notas",
-      "from_clipboard": "Desde portapapeles"
+      "from_clipboard": "Desde portapapeles",
+      "web_clip": "Clipper web"
     },
     "editor": {
       "title_placeholder": "Título de la nota...",
@@ -393,7 +464,13 @@ const catalogs = {
         "delete": "Eliminar nota",
         "preview": "Vista previa",
         "highlight": "Resaltar",
-        "convert_to_md": "Convertir a .md"
+        "convert_to_md": "Convertir a .md",
+        "h4": "Encabezado 4",
+        "h5": "Encabezado 5",
+        "h6": "Encabezado 6",
+        "heading_menu": "Encabezados (H1-H6)",
+        "anchor": "Enlace a sección",
+        "wikilink": "Referencia a otra nota"
       },
       "copy": "Copiar",
       "copied": "Copiado",
@@ -451,7 +528,8 @@ const catalogs = {
       "clipboard_empty": "El portapapeles está vacío",
       "note_from_clipboard": "Nota creada desde portapapeles",
       "path_copied": "Ruta copiada al portapapeles",
-      "rel_path_copied": "Nombre copiado al portapapeles"
+      "rel_path_copied": "Nombre copiado al portapapeles",
+      "clipped_success": "Artículo web guardado en notas"
     },
     "deps": {
       "missing_title": "Faltan dependencias para Notas",
@@ -465,20 +543,6 @@ const catalogs = {
       "missing_desc_generic": "Para convertir este archivo se requiere instalar: "
     },
     "notes.editor.action.mermaid": "Insertar diagrama Mermaid",
-    "notes.editor.action.math": "Insertar fórmula LaTeX",
-    "notes.math.edit": "Editar",
-    "notes.math.done": "Listo",
-    "notes.math.copy_code": "Copiar LaTeX",
-    "notes.math.delete": "Eliminar fórmula",
-    "notes.math.syntax_error": "Error de sintaxis en fórmula LaTeX",
-    "notes.math.template.fraction": "Fracción",
-    "notes.math.template.quadratic": "Ecuación cuadrática",
-    "notes.math.template.integral": "Integral definida",
-    "notes.math.template.sum": "Sumatoria",
-    "notes.math.template.limit": "Límite",
-    "notes.math.template.root": "Raíz cuadrada / n-ésima",
-    "notes.math.template.matrix": "Matriz (2x2)",
-    "notes.math.template.cases": "Función a trozos (Casos)",
     "notes.mermaid.edit": "Editar",
     "notes.mermaid.done": "Listo",
     "notes.mermaid.copy_code": "Copiar código",
@@ -546,6 +610,26 @@ const catalogs = {
         "spellcheck_manual": "Manual (F7 / Botón)",
         "spellcheck_auto": "Automático en tiempo real",
         "spellcheck_mode_comment": "Modo de verificación ortográfica para el editor de notas."
+      },
+      "spellcheck": {
+        "ignore_uppercase": "Ignorar MAYÚSCULAS",
+        "ignore_uppercase_comment": "No marcar siglas o palabras escritas completamente en mayúsculas.",
+        "ignore_digits": "Ignorar palabras con números",
+        "ignore_digits_comment": "No marcar códigos alfanuméricos que contengan dígitos (ej. v2, h1, utf8).",
+        "auto_detect": "Detectar idioma por párrafo",
+        "auto_detect_comment": "Aplica el diccionario adecuado según el texto de cada bloque o párrafo."
+      },
+      "language": {
+        "spell_enabled": "Activar corrector ortográfico",
+        "spell_enabled_desc": "Habilita la revisión ortográfica con subrayado ondulado y sugerencias al hacer clic derecho.",
+        "spell_active_title": "Idiomas activos (Detección simultánea)"
+      },
+      "appearance": {
+        "ui_scale": "Escala global de interfaz (UI)",
+        "ui_scale_desc": "Ajusta proporcionalmente botones, íconos, márgenes y tarjetas para pantallas HiDPI."
+      },
+      "tabs": {
+        "shortcuts": "Atajos"
       }
     },
     "slash": {
@@ -566,8 +650,6 @@ const catalogs = {
       "table_desc": "Insertar cuadrícula con filas y columnas",
       "mermaid": "Diagrama Mermaid",
       "mermaid_desc": "Flujos, secuencias, gráficos y arquitectura",
-      "math": "Fórmula LaTeX",
-      "math_desc": "Ecuación matemática con renderizado TeX",
       "code_block": "Bloque de código",
       "code_block_desc": "Código con resaltado de sintaxis",
       "quote": "Cita",
@@ -583,7 +665,11 @@ const catalogs = {
       "callout_warning": "Advertencia (Callout)",
       "callout_warning_desc": "Caja amarilla para alertar sobre riesgos",
       "callout_caution": "Precaución (Callout)",
-      "callout_caution_desc": "Caja roja para acciones irreversibles"
+      "callout_caution_desc": "Caja roja para acciones irreversibles",
+      "anchor": "Enlace a sección",
+      "anchor_desc": "Saltar a un encabezado de esta nota",
+      "wikilink": "Referencia a otra nota",
+      "wikilink_desc": "Vincular a una nota existente o crear una nueva"
     },
     "menu": {
       "copy_abs_path": "Copiar ruta absoluta",
@@ -592,6 +678,60 @@ const catalogs = {
       "unpin": "Desfijar nota",
       "pin": "Fijar nota",
       "delete": "Eliminar nota"
+    },
+    "clip": {
+      "title": "Clipper web",
+      "subtitle": "Descargá y limpiá artículos a Markdown offline",
+      "url_label": "Dirección web (URL)",
+      "placeholder": "https://ejemplo.com/articulo",
+      "opt_images": "Descargar imágenes a la carpeta de la nota (offline)",
+      "opt_readability": "Extraer solo el artículo principal (modo lectura)",
+      "loading": "Descargando y procesando contenido web...",
+      "cancel": "Cancelar",
+      "action": "Recortar",
+      "error_generic": "No se pudo recortar la página web."
+    },
+    "notes.math.template.fraction": "Fracción",
+    "notes.math.template.quadratic": "Ecuación cuadrática",
+    "notes.math.template.integral": "Integral definida",
+    "notes.math.template.sum": "Sumatoria",
+    "notes.math.template.limit": "Límite",
+    "notes.math.template.root": "Raíz cuadrada / n-ésima",
+    "notes.math.template.matrix": "Matriz (2x2)",
+    "notes.math.template.cases": "Función a trozos (Casos)",
+    "shortcuts": {
+      "title": "Atajos de Teclado",
+      "subtitle": "Navegación y productividad con teclado",
+      "cat_nav": "Navegación General",
+      "nav_tab": "Mover foco entre buscador, etiquetas y tarjetas",
+      "nav_enter": "Abrir la nota seleccionada",
+      "nav_delete": "Enviar nota a papelera (con deshacer)",
+      "nav_new": "Crear una nueva nota de inmediato",
+      "nav_search": "Enfocar barra de búsqueda",
+      "nav_settings": "Abrir ajustes y configuración",
+      "nav_help": "Ver esta hoja de atajos de teclado",
+      "nav_esc": "Cerrar modal o volver a la vista principal",
+      "cat_editor": "Edición y Markdown",
+      "edit_bold": "Texto en negrita",
+      "edit_italic": "Texto en cursiva",
+      "edit_link": "Insertar enlace Markdown",
+      "edit_slash": "Menú de comandos rápidos (Slash Menu)",
+      "edit_undo": "Deshacer y rehacer persistente",
+      "edit_save": "Guardar nota de inmediato",
+      "cat_tools": "Herramientas Avanzadas",
+      "tool_spell": "Ejecutar revisión ortográfica manual",
+      "tool_toolbar": "Alternar foco a barra de herramientas del editor",
+      "tool_clip": "Clipper web (recortar URL a Markdown)",
+      "tool_paste": "Capturar nueva nota desde portapapeles"
+    },
+    "suggestions": {
+      "headings_current": "Secciones de esta nota",
+      "headings_of": "Secciones de:",
+      "refer_note": "Vincular a nota",
+      "no_headings": "No hay encabezados disponibles",
+      "no_notes": "No se encontraron notas",
+      "create_note": "Crear nota:",
+      "create_note_desc": "Nueva nota con este título"
     }
   },
   "en": {
@@ -622,7 +762,8 @@ const catalogs = {
       "create_new": "New note",
       "new_note": "New note",
       "import_notes": "Import notes",
-      "from_clipboard": "From clipboard"
+      "from_clipboard": "From clipboard",
+      "web_clip": "Web clipper"
     },
     "editor": {
       "title_placeholder": "Note title...",
@@ -660,7 +801,13 @@ const catalogs = {
         "delete": "Delete note",
         "preview": "Preview",
         "highlight": "Highlight",
-        "convert_to_md": "Convert to .md"
+        "convert_to_md": "Convert to .md",
+        "h4": "Heading 4",
+        "h5": "Heading 5",
+        "h6": "Heading 6",
+        "heading_menu": "Headings (H1-H6)",
+        "anchor": "Section anchor",
+        "wikilink": "Note reference"
       },
       "copy": "Copy",
       "copied": "Copied",
@@ -718,7 +865,8 @@ const catalogs = {
       "clipboard_empty": "Clipboard is empty",
       "note_from_clipboard": "Note created from clipboard",
       "path_copied": "Path copied to clipboard",
-      "rel_path_copied": "Name copied to clipboard"
+      "rel_path_copied": "Name copied to clipboard",
+      "clipped_success": "Web article saved to notes"
     },
     "deps": {
       "missing_title": "Missing dependencies for Notes",
@@ -732,20 +880,6 @@ const catalogs = {
       "missing_desc_generic": "To convert this file, you need to install: "
     },
     "notes.editor.action.mermaid": "Insert Mermaid diagram",
-    "notes.editor.action.math": "Insert LaTeX formula",
-    "notes.math.edit": "Edit",
-    "notes.math.done": "Done",
-    "notes.math.copy_code": "Copy LaTeX",
-    "notes.math.delete": "Delete formula",
-    "notes.math.syntax_error": "Syntax error in LaTeX formula",
-    "notes.math.template.fraction": "Fraction",
-    "notes.math.template.quadratic": "Quadratic equation",
-    "notes.math.template.integral": "Definite integral",
-    "notes.math.template.sum": "Summation",
-    "notes.math.template.limit": "Limit",
-    "notes.math.template.root": "Square / n-th root",
-    "notes.math.template.matrix": "Matrix (2x2)",
-    "notes.math.template.cases": "Piecewise function (Cases)",
     "notes.mermaid.edit": "Edit",
     "notes.mermaid.done": "Done",
     "notes.mermaid.copy_code": "Copy code",
@@ -813,6 +947,26 @@ const catalogs = {
         "spellcheck_manual": "Manual (F7 / Button)",
         "spellcheck_auto": "Real-time automatic",
         "spellcheck_mode_comment": "Spellcheck verification mode for the note editor."
+      },
+      "spellcheck": {
+        "ignore_uppercase": "Ignore UPPERCASE",
+        "ignore_uppercase_comment": "Do not mark acronyms or words written entirely in uppercase.",
+        "ignore_digits": "Ignore words with numbers",
+        "ignore_digits_comment": "Do not mark alphanumeric codes containing digits (e.g. v2, h1, utf8).",
+        "auto_detect": "Detect language per paragraph",
+        "auto_detect_comment": "Applies the matching dictionary based on each block's text."
+      },
+      "language": {
+        "spell_enabled": "Enable spell checker",
+        "spell_enabled_desc": "Enables spell checking with wavy underlines and right-click suggestions.",
+        "spell_active_title": "Active languages (Simultaneous detection)"
+      },
+      "appearance": {
+        "ui_scale": "Global UI scale",
+        "ui_scale_desc": "Proportionally adjusts buttons, icons, margins, and cards for HiDPI displays."
+      },
+      "tabs": {
+        "shortcuts": "Shortcuts"
       }
     },
     "slash": {
@@ -833,8 +987,6 @@ const catalogs = {
       "table_desc": "Insert grid with rows and columns",
       "mermaid": "Mermaid diagram",
       "mermaid_desc": "Flowcharts, sequences, charts and architecture",
-      "math": "LaTeX Formula",
-      "math_desc": "Mathematical equation with TeX rendering",
       "code_block": "Code block",
       "code_block_desc": "Code snippet with syntax highlighting",
       "quote": "Quote",
@@ -850,7 +1002,11 @@ const catalogs = {
       "callout_warning": "Warning (Callout)",
       "callout_warning_desc": "Yellow box for potential risks",
       "callout_caution": "Caution (Callout)",
-      "callout_caution_desc": "Red box for destructive consequences"
+      "callout_caution_desc": "Red box for destructive consequences",
+      "anchor": "Section Anchor",
+      "anchor_desc": "Jump to a heading in this note",
+      "wikilink": "Note Reference",
+      "wikilink_desc": "Link to an existing note or create a new one"
     },
     "menu": {
       "copy_abs_path": "Copy absolute path",
@@ -859,6 +1015,60 @@ const catalogs = {
       "unpin": "Unpin note",
       "pin": "Pin note",
       "delete": "Delete note"
+    },
+    "clip": {
+      "title": "Web clipper",
+      "subtitle": "Download and clean articles to offline Markdown",
+      "url_label": "Web address (URL)",
+      "placeholder": "https://example.com/article",
+      "opt_images": "Download images to note folder (offline)",
+      "opt_readability": "Extract main article only (reader mode)",
+      "loading": "Downloading and processing web content...",
+      "cancel": "Cancel",
+      "action": "Clip",
+      "error_generic": "Failed to clip web page."
+    },
+    "notes.math.template.fraction": "Fraction",
+    "notes.math.template.quadratic": "Quadratic equation",
+    "notes.math.template.integral": "Definite integral",
+    "notes.math.template.sum": "Summation",
+    "notes.math.template.limit": "Limit",
+    "notes.math.template.root": "Square / n-th root",
+    "notes.math.template.matrix": "Matrix (2x2)",
+    "notes.math.template.cases": "Piecewise function (Cases)",
+    "shortcuts": {
+      "title": "Keyboard Shortcuts",
+      "subtitle": "Keyboard navigation and productivity",
+      "cat_nav": "General Navigation",
+      "nav_tab": "Move focus between search, tags, and cards",
+      "nav_enter": "Open selected note",
+      "nav_delete": "Send note to trash (with undo)",
+      "nav_new": "Create a new note immediately",
+      "nav_search": "Focus search bar",
+      "nav_settings": "Open settings and configuration",
+      "nav_help": "View this keyboard shortcuts sheet",
+      "nav_esc": "Close modal or return to main view",
+      "cat_editor": "Editing & Markdown",
+      "edit_bold": "Bold text",
+      "edit_italic": "Italic text",
+      "edit_link": "Insert Markdown link",
+      "edit_slash": "Slash Command Menu",
+      "edit_undo": "Persistent undo and redo",
+      "edit_save": "Save note immediately",
+      "cat_tools": "Advanced Tools",
+      "tool_spell": "Run manual spell check",
+      "tool_toolbar": "Toggle focus to editor toolbar",
+      "tool_clip": "Web Clipper (clip URL to Markdown)",
+      "tool_paste": "Capture new note from clipboard"
+    },
+    "suggestions": {
+      "headings_current": "Sections in this note",
+      "headings_of": "Sections of:",
+      "refer_note": "Link to note",
+      "no_headings": "No headings available",
+      "no_notes": "No notes found",
+      "create_note": "Create note:",
+      "create_note_desc": "New note with this title"
     }
   },
   "pt": {
@@ -889,7 +1099,8 @@ const catalogs = {
       "create_new": "Nova nota",
       "new_note": "Nova nota",
       "import_notes": "Importar notas",
-      "from_clipboard": "Da área de transferência"
+      "from_clipboard": "Da área de transferência",
+      "web_clip": "Web clipper"
     },
     "editor": {
       "title_placeholder": "Título da nota...",
@@ -927,7 +1138,13 @@ const catalogs = {
         "delete": "Excluir nota",
         "preview": "Pré-visualização",
         "highlight": "Destacar",
-        "convert_to_md": "Convert to .md"
+        "convert_to_md": "Convert to .md",
+        "h4": "Título 4",
+        "h5": "Título 5",
+        "h6": "Título 6",
+        "heading_menu": "Cabeçalhos (H1-H6)",
+        "anchor": "Âncora de seção",
+        "wikilink": "Referência de nota"
       },
       "copy": "Copiar",
       "copied": "Copiado",
@@ -985,7 +1202,8 @@ const catalogs = {
       "clipboard_empty": "Área de transferência vazia",
       "note_from_clipboard": "Nota criada da área de transferência",
       "path_copied": "Caminho copiado para a área de transferência",
-      "rel_path_copied": "Nome copiado para a área de transferência"
+      "rel_path_copied": "Nome copiado para a área de transferência",
+      "clipped_success": "Artigo web salvo nas notas"
     },
     "deps": {
       "missing_title": "Dependências ausentes para Notas",
@@ -1066,6 +1284,26 @@ const catalogs = {
         "spellcheck_manual": "Manual (F7 / Botão)",
         "spellcheck_auto": "Automático em tempo real",
         "spellcheck_mode_comment": "Modo de verificação ortográfica no editor."
+      },
+      "spellcheck": {
+        "ignore_uppercase": "Ignorar MAIÚSCULAS",
+        "ignore_uppercase_comment": "Não marcar siglas ou palavras escritas totalmente em maiúsculas.",
+        "ignore_digits": "Ignorar palavras com números",
+        "ignore_digits_comment": "Não marcar códigos alfanuméricos que contenham dígitos (ex. v2, h1, utf8).",
+        "auto_detect": "Detectar idioma por parágrafo",
+        "auto_detect_comment": "Aplica o dicionário adequado de acordo com o texto de cada bloco ou parágrafo."
+      },
+      "language": {
+        "spell_enabled": "Ativar corretor ortográfico",
+        "spell_enabled_desc": "Habilita a verificação ortográfica com sublinhado ondulado e sugestões ao clicar com botão direito.",
+        "spell_active_title": "Idiomas ativos (Deteção simultânea)"
+      },
+      "appearance": {
+        "ui_scale": "Escala global da interface (UI)",
+        "ui_scale_desc": "Ajusta proporcionalmente botões, ícones, margens e cartões para ecrãs HiDPI."
+      },
+      "tabs": {
+        "shortcuts": "Atalhos"
       }
     },
     "slash": {
@@ -1101,7 +1339,11 @@ const catalogs = {
       "callout_warning": "Aviso (Callout)",
       "callout_warning_desc": "Caixa amarela para alertar sobre riscos",
       "callout_caution": "Cuidado (Callout)",
-      "callout_caution_desc": "Caixa vermelha para ações irreversíveis"
+      "callout_caution_desc": "Caixa vermelha para ações irreversíveis",
+      "anchor": "Âncora de seção",
+      "anchor_desc": "Pular para um cabeçalho desta nota",
+      "wikilink": "Referência de nota",
+      "wikilink_desc": "Vincular a uma nota existente ou criar uma nova"
     },
     "menu": {
       "copy_abs_path": "Copiar caminho absoluto",
@@ -1110,6 +1352,60 @@ const catalogs = {
       "unpin": "Desafixar nota",
       "pin": "Fixar nota",
       "delete": "Excluir nota"
+    },
+    "clip": {
+      "title": "Web clipper",
+      "subtitle": "Baixe e limpe artigos para Markdown offline",
+      "url_label": "Endereço web (URL)",
+      "placeholder": "https://exemplo.com/artigo",
+      "opt_images": "Baixar imagens para a pasta da nota (offline)",
+      "opt_readability": "Extrair apenas o artigo principal (modo leitor)",
+      "loading": "Baixando e processando conteúdo web...",
+      "cancel": "Cancelar",
+      "action": "Recortar",
+      "error_generic": "Não foi possível recortar a página web."
+    },
+    "notes.math.template.fraction": "Fração",
+    "notes.math.template.quadratic": "Equação quadrática",
+    "notes.math.template.integral": "Integral definida",
+    "notes.math.template.sum": "Somatório",
+    "notes.math.template.limit": "Limite",
+    "notes.math.template.root": "Raiz quadrada / n-ésima",
+    "notes.math.template.matrix": "Matriz (2x2)",
+    "notes.math.template.cases": "Função por partes (Casos)",
+    "shortcuts": {
+      "title": "Atalhos de Teclado",
+      "subtitle": "Navegação e produtividade com teclado",
+      "cat_nav": "Navegação Geral",
+      "nav_tab": "Mover foco entre pesquisa, etiquetas e cartões",
+      "nav_enter": "Abrir nota selecionada",
+      "nav_delete": "Mover nota para a lixeira (com anular)",
+      "nav_new": "Criar uma nova nota imediatamente",
+      "nav_search": "Focar barra de pesquisa",
+      "nav_settings": "Abrir definições e configuração",
+      "nav_help": "Ver este mapa de atalhos de teclado",
+      "nav_esc": "Fechar modal ou voltar à vista principal",
+      "cat_editor": "Edição e Markdown",
+      "edit_bold": "Texto em negrito",
+      "edit_italic": "Texto em itálico",
+      "edit_link": "Inserir ligação Markdown",
+      "edit_slash": "Menu de comandos rápidos (Slash Menu)",
+      "edit_undo": "Anular e refazer persistente",
+      "edit_save": "Guardar nota imediatamente",
+      "cat_tools": "Ferramentas Avançadas",
+      "tool_spell": "Executar verificação ortográfica manual",
+      "tool_toolbar": "Alternar foco para barra de ferramentas do editor",
+      "tool_clip": "Clipper web (recortar URL para Markdown)",
+      "tool_paste": "Capturar nova nota a partir da área de transferência"
+    },
+    "suggestions": {
+      "headings_current": "Seções nesta nota",
+      "headings_of": "Seções de:",
+      "refer_note": "Vincular à nota",
+      "no_headings": "Nenhum cabeçalho disponível",
+      "no_notes": "Nenhuma nota encontrada",
+      "create_note": "Criar nota:",
+      "create_note_desc": "Nova nota com este título"
     }
   },
   "ja": {
@@ -1140,7 +1436,8 @@ const catalogs = {
       "create_new": "新しいメモ",
       "new_note": "新しいメモ",
       "import_notes": "メモをインポート",
-      "from_clipboard": "クリップボードから"
+      "from_clipboard": "クリップボードから",
+      "web_clip": "ウェブクリッパー"
     },
     "editor": {
       "title_placeholder": "ノートのタイトル...",
@@ -1178,7 +1475,13 @@ const catalogs = {
         "delete": "ノートを削除",
         "preview": "プレビュー",
         "highlight": "ハイライト",
-        "convert_to_md": "Convert to .md"
+        "convert_to_md": "Convert to .md",
+        "h4": "見出し 4",
+        "h5": "見出し 5",
+        "h6": "見出し 6",
+        "heading_menu": "見出し (H1-H6)",
+        "anchor": "セクションアンカー",
+        "wikilink": "ノート参照"
       },
       "copy": "コピー",
       "copied": "コピーしました",
@@ -1236,7 +1539,8 @@ const catalogs = {
       "clipboard_empty": "クリップボードが空です",
       "note_from_clipboard": "クリップボードからノートを作成しました",
       "path_copied": "パスをクリップボードにコピーしました",
-      "rel_path_copied": "名前をクリップボードにコピーしました"
+      "rel_path_copied": "名前をクリップボードにコピーしました",
+      "clipped_success": "ウェブ記事をノートに保存しました"
     },
     "deps": {
       "missing_title": "ノートの依存パッケージが不足しています",
@@ -1317,6 +1621,26 @@ const catalogs = {
         "spellcheck_manual": "手動 (F7 / ボタン)",
         "spellcheck_auto": "リアルタイム自動",
         "spellcheck_mode_comment": "ノートエディターのスペルチェック検証モード。"
+      },
+      "spellcheck": {
+        "ignore_uppercase": "大文字を無視",
+        "ignore_uppercase_comment": "略語やすべて大文字で書かれた単語をマークしません。",
+        "ignore_digits": "数字を含む単語を無視",
+        "ignore_digits_comment": "数字を含む英数字コード（例: v2, h1, utf8）をマークしません。",
+        "auto_detect": "段落ごとに言語を自動検出",
+        "auto_detect_comment": "各ブロックまたは段落のテキストに応じて適切な辞書を適用します。"
+      },
+      "language": {
+        "spell_enabled": "スペルチェックを有効にする",
+        "spell_enabled_desc": "波線のアンダーラインと右クリックによる候補表示を有効にします。",
+        "spell_active_title": "アクティブな言語（同時検出）"
+      },
+      "appearance": {
+        "ui_scale": "UI全体の拡大縮小",
+        "ui_scale_desc": "HiDPI画面に合わせてボタン、アイコン、余白、カードのサイズを調整します。"
+      },
+      "tabs": {
+        "shortcuts": "ショートカット"
       }
     },
     "slash": {
@@ -1352,7 +1676,11 @@ const catalogs = {
       "callout_warning": "警告 (Callout)",
       "callout_warning_desc": "リスク警告の黄色コールアウト",
       "callout_caution": "注意 (Callout)",
-      "callout_caution_desc": "破壊的操作の赤コールアウト"
+      "callout_caution_desc": "破壊的操作の赤コールアウト",
+      "anchor": "セクションアンカー",
+      "anchor_desc": "このノートの見出しにジャンプ",
+      "wikilink": "ノート参照",
+      "wikilink_desc": "既存のノートにリンクするか新規作成"
     },
     "menu": {
       "copy_abs_path": "絶対パスをコピー",
@@ -1361,6 +1689,60 @@ const catalogs = {
       "unpin": "ピン留めを解除",
       "pin": "ノートをピン留め",
       "delete": "ノートを削除"
+    },
+    "clip": {
+      "title": "ウェブクリッパー",
+      "subtitle": "記事をオフラインMarkdownとして保存",
+      "url_label": "ウェブアドレス (URL)",
+      "placeholder": "https://example.com/article",
+      "opt_images": "画像をノートフォルダにダウンロード（オフライン）",
+      "opt_readability": "本文のみを抽出（リーダーモード）",
+      "loading": "ウェブコンテンツをダウンロードおよび処理中...",
+      "cancel": "キャンセル",
+      "action": "クリップ",
+      "error_generic": "ウェブページをクリップできませんでした。"
+    },
+    "notes.math.template.fraction": "分数",
+    "notes.math.template.quadratic": "二次方程式",
+    "notes.math.template.integral": "定積分",
+    "notes.math.template.sum": "総和 (シグマ)",
+    "notes.math.template.limit": "極限",
+    "notes.math.template.root": "平方根 / 累乗根",
+    "notes.math.template.matrix": "行列 (2x2)",
+    "notes.math.template.cases": "区分定義関数 (場合分け)",
+    "shortcuts": {
+      "title": "キーボードショートカット",
+      "subtitle": "キーボードによるナビゲーションと操作",
+      "cat_nav": "全般ナビゲーション",
+      "nav_tab": "検索バー、タグ、カード間でフォーカスを移動",
+      "nav_enter": "選択したノートを開く",
+      "nav_delete": "ノートをゴミ箱に移動（元に戻す可能）",
+      "nav_new": "新しいノートをすぐに作成",
+      "nav_search": "検索バーにフォーカス",
+      "nav_settings": "設定を開く",
+      "nav_help": "ショートカット一覧を表示",
+      "nav_esc": "モーダルを閉じるかメイン画面に戻る",
+      "cat_editor": "編集とMarkdown",
+      "edit_bold": "太字",
+      "edit_italic": "斜体",
+      "edit_link": "Markdownリンクを挿入",
+      "edit_slash": "コマンドメニュー（スラッシュメニュー）",
+      "edit_undo": "永続的な元に戻す・やり直し",
+      "edit_save": "ノートを即座に保存",
+      "cat_tools": "高度なツール",
+      "tool_spell": "手動スペルチェックを実行",
+      "tool_toolbar": "エディターのツールバーにフォーカスを移動",
+      "tool_clip": "Webクリッパー（URLをMarkdownに保存）",
+      "tool_paste": "クリップボードから新しいノートを作成"
+    },
+    "suggestions": {
+      "headings_current": "このノートのセクション",
+      "headings_of": "のセクション:",
+      "refer_note": "ノートにリンク",
+      "no_headings": "利用可能な見出しがありません",
+      "no_notes": "ノートが見つかりません",
+      "create_note": "ノートを作成:",
+      "create_note_desc": "このタイトルの新しいノート"
     }
   },
   "zh": {
@@ -1391,7 +1773,8 @@ const catalogs = {
       "create_new": "新建笔记",
       "new_note": "新建笔记",
       "import_notes": "导入笔记",
-      "from_clipboard": "从剪贴板创建"
+      "from_clipboard": "从剪贴板创建",
+      "web_clip": "网页剪藏"
     },
     "editor": {
       "title_placeholder": "便签标题...",
@@ -1429,7 +1812,13 @@ const catalogs = {
         "delete": "删除笔记",
         "preview": "预览",
         "highlight": "高亮",
-        "convert_to_md": "Convert to .md"
+        "convert_to_md": "Convert to .md",
+        "h4": "标题 4",
+        "h5": "标题 5",
+        "h6": "标题 6",
+        "heading_menu": "标题 (H1-H6)",
+        "anchor": "章节锚点",
+        "wikilink": "笔记引用"
       },
       "copy": "复制",
       "copied": "已复制",
@@ -1487,7 +1876,8 @@ const catalogs = {
       "clipboard_empty": "剪贴板为空",
       "note_from_clipboard": "已从剪贴板创建笔记",
       "path_copied": "路径已复制到剪贴板",
-      "rel_path_copied": "名称已复制到剪贴板"
+      "rel_path_copied": "名称已复制到剪贴板",
+      "clipped_success": "网页文章已保存至笔记"
     },
     "deps": {
       "missing_title": "便签缺少依赖项",
@@ -1568,6 +1958,26 @@ const catalogs = {
         "spellcheck_manual": "手动 (F7 / 按钮)",
         "spellcheck_auto": "实时自动检查",
         "spellcheck_mode_comment": "笔记编辑器的拼写检查模式。"
+      },
+      "spellcheck": {
+        "ignore_uppercase": "忽略大写字母",
+        "ignore_uppercase_comment": "不标记缩写或全大写单词。",
+        "ignore_digits": "忽略包含数字的单词",
+        "ignore_digits_comment": "不标记包含数字的字母数字代码（例如 v2、h1、utf8）。",
+        "auto_detect": "按段落自动识别语言",
+        "auto_detect_comment": "根据每个区块或段落的文本应用匹配的词典。"
+      },
+      "language": {
+        "spell_enabled": "启用拼写检查",
+        "spell_enabled_desc": "启用波浪线拼写检查并在右键单击时提供建议。",
+        "spell_active_title": "启用语言（同时检测）"
+      },
+      "appearance": {
+        "ui_scale": "全局界面缩放 (UI)",
+        "ui_scale_desc": "为高分屏等比例调整按钮、图标、边距和卡片大小。"
+      },
+      "tabs": {
+        "shortcuts": "快捷键"
       }
     },
     "slash": {
@@ -1603,7 +2013,11 @@ const catalogs = {
       "callout_warning": "警告 (Callout)",
       "callout_warning_desc": "黄色潜在风险警示框",
       "callout_caution": "注意 (Callout)",
-      "callout_caution_desc": "红色破坏性操作警告框"
+      "callout_caution_desc": "红色破坏性操作警告框",
+      "anchor": "章节锚点",
+      "anchor_desc": "跳转到当前笔记的标题",
+      "wikilink": "笔记引用",
+      "wikilink_desc": "链接到现有笔记或创建新笔记"
     },
     "menu": {
       "copy_abs_path": "复制绝对路径",
@@ -1612,6 +2026,60 @@ const catalogs = {
       "unpin": "取消固定笔记",
       "pin": "固定笔记",
       "delete": "删除笔记"
+    },
+    "clip": {
+      "title": "网页剪藏",
+      "subtitle": "下载并清理文章保存为离线Markdown",
+      "url_label": "网址 (URL)",
+      "placeholder": "https://example.com/article",
+      "opt_images": "下载图片至笔记文件夹（离线）",
+      "opt_readability": "仅提取正文（阅读模式）",
+      "loading": "正在下载并处理网页内容...",
+      "cancel": "取消",
+      "action": "剪藏",
+      "error_generic": "无法剪藏网页。"
+    },
+    "notes.math.template.fraction": "分数",
+    "notes.math.template.quadratic": "二次方程",
+    "notes.math.template.integral": "定积分",
+    "notes.math.template.sum": "求和",
+    "notes.math.template.limit": "极限",
+    "notes.math.template.root": "平方根 / n次方根",
+    "notes.math.template.matrix": "矩阵 (2x2)",
+    "notes.math.template.cases": "分段函数 (条件分支)",
+    "shortcuts": {
+      "title": "快捷键",
+      "subtitle": "键盘导航与效率快捷键",
+      "cat_nav": "常规导航",
+      "nav_tab": "在搜索栏、标签和卡片之间移动焦点",
+      "nav_enter": "打开选中的笔记",
+      "nav_delete": "将笔记移至回收站（支持撤销）",
+      "nav_new": "立即创建新笔记",
+      "nav_search": "聚焦搜索框",
+      "nav_settings": "打开设置",
+      "nav_help": "查看此快捷键列表",
+      "nav_esc": "关闭弹窗或返回主界面",
+      "cat_editor": "编辑与 Markdown",
+      "edit_bold": "粗体文本",
+      "edit_italic": "斜体文本",
+      "edit_link": "插入 Markdown 链接",
+      "edit_slash": "斜杠命令菜单 (/)",
+      "edit_undo": "持久化撤销与重做",
+      "edit_save": "立即保存笔记",
+      "cat_tools": "高级工具",
+      "tool_spell": "运行手动拼写检查",
+      "tool_toolbar": "将焦点切换至编辑器工具栏",
+      "tool_clip": "网页剪藏（将 URL 转换为 Markdown）",
+      "tool_paste": "从剪贴板捕获新笔记"
+    },
+    "suggestions": {
+      "headings_current": "当前笔记中的章节",
+      "headings_of": "章节：",
+      "refer_note": "链接到笔记",
+      "no_headings": "没有可用的标题",
+      "no_notes": "未找到笔记",
+      "create_note": "创建笔记：",
+      "create_note_desc": "以此标题创建新笔记"
     }
   },
   "de": {
@@ -1642,7 +2110,8 @@ const catalogs = {
       "create_new": "Neue Notiz",
       "new_note": "Neue Notiz",
       "import_notes": "Notizen importieren",
-      "from_clipboard": "Aus Zwischenablage"
+      "from_clipboard": "Aus Zwischenablage",
+      "web_clip": "Web-Clipper"
     },
     "editor": {
       "title_placeholder": "Titel der Notiz...",
@@ -1680,7 +2149,13 @@ const catalogs = {
         "delete": "Notiz löschen",
         "preview": "Vorschau",
         "highlight": "Hervorheben",
-        "convert_to_md": "Convert to .md"
+        "convert_to_md": "Convert to .md",
+        "h4": "Überschrift 4",
+        "h5": "Überschrift 5",
+        "h6": "Überschrift 6",
+        "heading_menu": "Überschriften (H1-H6)",
+        "anchor": "Abschnittsanker",
+        "wikilink": "Notizreferenz"
       },
       "copy": "Kopieren",
       "copied": "Kopiert",
@@ -1738,7 +2213,8 @@ const catalogs = {
       "clipboard_empty": "Zwischenablage ist leer",
       "note_from_clipboard": "Notiz aus Zwischenablage erstellt",
       "path_copied": "Pfad in die Zwischenablage kopiert",
-      "rel_path_copied": "Name in die Zwischenablage kopiert"
+      "rel_path_copied": "Name in die Zwischenablage kopiert",
+      "clipped_success": "Webartikel in Notizen gespeichert"
     },
     "deps": {
       "missing_title": "Fehlende Abhängigkeiten für Notizen",
@@ -1819,6 +2295,26 @@ const catalogs = {
         "spellcheck_manual": "Manuell (F7 / Taste)",
         "spellcheck_auto": "Echtzeit automatisch",
         "spellcheck_mode_comment": "Rechtschreibprüfungsmodus für den Notiz-Editor."
+      },
+      "spellcheck": {
+        "ignore_uppercase": "GROSSBUCHSTABEN ignorieren",
+        "ignore_uppercase_comment": "Akronyme oder Wörter in reinen Großbuchstaben nicht markieren.",
+        "ignore_digits": "Wörter mit Ziffern ignorieren",
+        "ignore_digits_comment": "Alphanumerische Codes mit Ziffern nicht markieren (z. B. v2, h1, utf8).",
+        "auto_detect": "Sprache pro Absatz erkennen",
+        "auto_detect_comment": "Wendet das passende Wörterbuch basierend auf dem Text jedes Blocks oder Absatzes an."
+      },
+      "language": {
+        "spell_enabled": "Rechtschreibprüfung aktivieren",
+        "spell_enabled_desc": "Aktiviert die Rechtschreibprüfung mit gewellter Unterstreichung und Rechtsklick-Vorschlägen.",
+        "spell_active_title": "Aktive Sprachen (Gleichzeitige Erkennung)"
+      },
+      "appearance": {
+        "ui_scale": "Globale UI-Skalierung",
+        "ui_scale_desc": "Passt Schaltflächen, Symbole, Ränder und Karten proportional für HiDPI-Displays an."
+      },
+      "tabs": {
+        "shortcuts": "Tastaturkürzel"
       }
     },
     "slash": {
@@ -1854,7 +2350,11 @@ const catalogs = {
       "callout_warning": "Warnung (Callout)",
       "callout_warning_desc": "Gelbe Warnbox für Risiken",
       "callout_caution": "Achtung (Callout)",
-      "callout_caution_desc": "Rote Box für irreversible Aktionen"
+      "callout_caution_desc": "Rote Box für irreversible Aktionen",
+      "anchor": "Abschnittsanker",
+      "anchor_desc": "Zu einer Überschrift in dieser Notiz springen",
+      "wikilink": "Notizreferenz",
+      "wikilink_desc": "Mit vorhandener Notiz verknüpfen oder neu erstellen"
     },
     "menu": {
       "copy_abs_path": "Absoluten Pfad kopieren",
@@ -1863,6 +2363,60 @@ const catalogs = {
       "unpin": "Notiz lösen",
       "pin": "Notiz anheften",
       "delete": "Notiz löschen"
+    },
+    "clip": {
+      "title": "Web-Clipper",
+      "subtitle": "Artikel herunterladen und als Offline-Markdown speichern",
+      "url_label": "Webadresse (URL)",
+      "placeholder": "https://beispiel.de/artikel",
+      "opt_images": "Bilder in den Notizordner herunterladen (offline)",
+      "opt_readability": "Nur Hauptartikel extrahieren (Lesemodus)",
+      "loading": "Webinhalt wird heruntergeladen und verarbeitet...",
+      "cancel": "Abbrechen",
+      "action": "Clippen",
+      "error_generic": "Webseite konnte nicht geclippt werden."
+    },
+    "notes.math.template.fraction": "Bruch",
+    "notes.math.template.quadratic": "Quadratische Gleichung",
+    "notes.math.template.integral": "Bestimmtes Integral",
+    "notes.math.template.sum": "Summe",
+    "notes.math.template.limit": "Grenzwert",
+    "notes.math.template.root": "Wurzel",
+    "notes.math.template.matrix": "Matrix (2x2)",
+    "notes.math.template.cases": "Fallunterscheidung",
+    "shortcuts": {
+      "title": "Tastaturkürzel",
+      "subtitle": "Navigation und Produktivität per Tastatur",
+      "cat_nav": "Allgemeine Navigation",
+      "nav_tab": "Fokus zwischen Suche, Tags und Karten wechseln",
+      "nav_enter": "Ausgewählte Notiz öffnen",
+      "nav_delete": "Notiz in Papierkorb verschieben (mit Rückgängig)",
+      "nav_new": "Sofort eine neue Notiz erstellen",
+      "nav_search": "Suchleiste fokussieren",
+      "nav_settings": "Einstellungen öffnen",
+      "nav_help": "Tastaturkürzel-Übersicht anzeigen",
+      "nav_esc": "Modal schließen oder zur Hauptansicht zurückkehren",
+      "cat_editor": "Bearbeitung & Markdown",
+      "edit_bold": "Fetter Text",
+      "edit_italic": "Kursiver Text",
+      "edit_link": "Markdown-Link einfügen",
+      "edit_slash": "Befehlsmenü (Slash-Menü)",
+      "edit_undo": "Dauerhaftes Rückgängigmachen und Wiederholen",
+      "edit_save": "Notiz sofort speichern",
+      "cat_tools": "Erweiterte Werkzeuge",
+      "tool_spell": "Manuelle Rechtschreibprüfung starten",
+      "tool_toolbar": "Fokus auf die Editor-Symbolleiste umschalten",
+      "tool_clip": "Web-Clipper (URL in Markdown erfassen)",
+      "tool_paste": "Neue Notiz aus Zwischenablage erstellen"
+    },
+    "suggestions": {
+      "headings_current": "Abschnitte in dieser Notiz",
+      "headings_of": "Abschnitte von:",
+      "refer_note": "Mit Notiz verknüpfen",
+      "no_headings": "Keine Überschriften verfügbar",
+      "no_notes": "Keine Notizen gefunden",
+      "create_note": "Notiz erstellen:",
+      "create_note_desc": "Neue Notiz mit diesem Titel"
     }
   },
   "fr": {
@@ -1893,7 +2447,8 @@ const catalogs = {
       "create_new": "Nouvelle note",
       "new_note": "Nouvelle note",
       "import_notes": "Importer des notes",
-      "from_clipboard": "Depuis le presse-papiers"
+      "from_clipboard": "Depuis le presse-papiers",
+      "web_clip": "Web clipper"
     },
     "editor": {
       "title_placeholder": "Titre de la note...",
@@ -1931,7 +2486,13 @@ const catalogs = {
         "delete": "Supprimer la note",
         "preview": "Aperçu",
         "highlight": "Surligner",
-        "convert_to_md": "Convert to .md"
+        "convert_to_md": "Convert to .md",
+        "h4": "En-tête 4",
+        "h5": "En-tête 5",
+        "h6": "En-tête 6",
+        "heading_menu": "En-têtes (H1-H6)",
+        "anchor": "Ancre de section",
+        "wikilink": "Référence de note"
       },
       "copy": "Copier",
       "copied": "Copié",
@@ -1989,7 +2550,8 @@ const catalogs = {
       "clipboard_empty": "Le presse-papiers est vide",
       "note_from_clipboard": "Note créée depuis le presse-papiers",
       "path_copied": "Chemin copié dans le presse-papiers",
-      "rel_path_copied": "Nom copié dans le presse-papiers"
+      "rel_path_copied": "Nom copié dans le presse-papiers",
+      "clipped_success": "Article web enregistré dans les notes"
     },
     "deps": {
       "missing_title": "Dépendances manquantes pour Notes",
@@ -2070,6 +2632,26 @@ const catalogs = {
         "spellcheck_manual": "Manuel (F7 / Bouton)",
         "spellcheck_auto": "Automatique en temps réel",
         "spellcheck_mode_comment": "Mode de vérification orthographique pour l'éditeur."
+      },
+      "spellcheck": {
+        "ignore_uppercase": "Ignorer les MAJUSCULES",
+        "ignore_uppercase_comment": "Ne pas signaler les sigles ou mots écrits entièrement en majuscules.",
+        "ignore_digits": "Ignorer les mots avec chiffres",
+        "ignore_digits_comment": "Ne pas signaler les codes alphanumériques contenant des chiffres (ex. v2, h1, utf8).",
+        "auto_detect": "Détecter la langue par paragraphe",
+        "auto_detect_comment": "Applique le dictionnaire approprié selon le texte de chaque bloc ou paragraphe."
+      },
+      "language": {
+        "spell_enabled": "Activer le correcteur orthographique",
+        "spell_enabled_desc": "Active la vérification orthographique avec soulignement ondulé et suggestions par clic droit.",
+        "spell_active_title": "Langues actives (Détection simultanée)"
+      },
+      "appearance": {
+        "ui_scale": "Échelle globale de l'interface (UI)",
+        "ui_scale_desc": "Ajuste proportionnellement les boutons, icônes, marges et cartes pour les écrans HiDPI."
+      },
+      "tabs": {
+        "shortcuts": "Raccourcis"
       }
     },
     "slash": {
@@ -2105,7 +2687,11 @@ const catalogs = {
       "callout_warning": "Avertissement (Callout)",
       "callout_warning_desc": "Boîte jaune pour risques potentiels",
       "callout_caution": "Attention (Callout)",
-      "callout_caution_desc": "Boîte rouge pour actions irréversibles"
+      "callout_caution_desc": "Boîte rouge pour actions irréversibles",
+      "anchor": "Ancre de section",
+      "anchor_desc": "Accéder à un en-tête de cette note",
+      "wikilink": "Référence de note",
+      "wikilink_desc": "Lier à une note existante ou en créer une nouvelle"
     },
     "menu": {
       "copy_abs_path": "Copier le chemin absolu",
@@ -2114,6 +2700,60 @@ const catalogs = {
       "unpin": "Détacher la note",
       "pin": "Épingler la note",
       "delete": "Supprimer la note"
+    },
+    "clip": {
+      "title": "Web clipper",
+      "subtitle": "Télécharger et nettoyer des articles en Markdown hors ligne",
+      "url_label": "Adresse web (URL)",
+      "placeholder": "https://exemple.fr/article",
+      "opt_images": "Télécharger les images dans le dossier de la note (hors ligne)",
+      "opt_readability": "Extraire uniquement l'article principal (mode lecture)",
+      "loading": "Téléchargement et traitement du contenu web...",
+      "cancel": "Annuler",
+      "action": "Capturer",
+      "error_generic": "Impossible de capturer la page web."
+    },
+    "notes.math.template.fraction": "Fraction",
+    "notes.math.template.quadratic": "Équation quadratique",
+    "notes.math.template.integral": "Intégrale définie",
+    "notes.math.template.sum": "Somme",
+    "notes.math.template.limit": "Limite",
+    "notes.math.template.root": "Racine carrée / n-ième",
+    "notes.math.template.matrix": "Matrice (2x2)",
+    "notes.math.template.cases": "Fonction par morceaux (Cas)",
+    "shortcuts": {
+      "title": "Raccourcis Clavier",
+      "subtitle": "Navigation et productivité au clavier",
+      "cat_nav": "Navigation Générale",
+      "nav_tab": "Déplacer le focus entre recherche, étiquettes et cartes",
+      "nav_enter": "Ouvrir la note sélectionnée",
+      "nav_delete": "Mettre la note à la corbeille (avec annulation)",
+      "nav_new": "Créer une nouvelle note immédiatement",
+      "nav_search": "Activer la barre de recherche",
+      "nav_settings": "Ouvrir les paramètres et la configuration",
+      "nav_help": "Afficher cette feuille de raccourcis clavier",
+      "nav_esc": "Fermer la boîte de dialogue ou revenir à la vue principale",
+      "cat_editor": "Édition et Markdown",
+      "edit_bold": "Texte en gras",
+      "edit_italic": "Texte en italique",
+      "edit_link": "Insérer un lien Markdown",
+      "edit_slash": "Menu de commandes rapides (Slash Menu)",
+      "edit_undo": "Annuler et rétablir persistant",
+      "edit_save": "Enregistrer la note immédiatement",
+      "cat_tools": "Outils Avancés",
+      "tool_spell": "Lancer la vérification orthographique manuelle",
+      "tool_toolbar": "Basculer le focus sur la barre d'outils de l'éditeur",
+      "tool_clip": "Web Clipper (capturer l'URL en Markdown)",
+      "tool_paste": "Capturer une nouvelle note depuis le presse-papiers"
+    },
+    "suggestions": {
+      "headings_current": "Sections de cette note",
+      "headings_of": "Sections de :",
+      "refer_note": "Lier à la note",
+      "no_headings": "Aucun en-tête disponible",
+      "no_notes": "Aucune note trouvée",
+      "create_note": "Créer la note :",
+      "create_note_desc": "Nouvelle note avec ce titre"
     }
   },
   "ru": {
@@ -2144,7 +2784,8 @@ const catalogs = {
       "create_new": "Новая заметка",
       "new_note": "Новая заметка",
       "import_notes": "Импортировать заметки",
-      "from_clipboard": "Из буфера обмена"
+      "from_clipboard": "Из буфера обмена",
+      "web_clip": "Веб-клиппер"
     },
     "editor": {
       "title_placeholder": "Заголовок заметки...",
@@ -2182,7 +2823,13 @@ const catalogs = {
         "delete": "Удалить заметку",
         "preview": "Предпросмотр",
         "highlight": "Выделение",
-        "convert_to_md": "Convert to .md"
+        "convert_to_md": "Convert to .md",
+        "h4": "Заголовок 4",
+        "h5": "Заголовок 5",
+        "h6": "Заголовок 6",
+        "heading_menu": "Заголовки (H1-H6)",
+        "anchor": "Якорь раздела",
+        "wikilink": "Ссылка на заметку"
       },
       "copy": "Копировать",
       "copied": "Скопировано",
@@ -2240,7 +2887,8 @@ const catalogs = {
       "clipboard_empty": "Буфер обмена пуст",
       "note_from_clipboard": "Заметка создана из буфера обмена",
       "path_copied": "Путь скопирован в буфер обмена",
-      "rel_path_copied": "Имя скопировано в буфер обмена"
+      "rel_path_copied": "Имя скопировано в буфер обмена",
+      "clipped_success": "Веб-статья сохранена в заметки"
     },
     "deps": {
       "missing_title": "Отсутствуют зависимости для Заметок",
@@ -2321,6 +2969,26 @@ const catalogs = {
         "spellcheck_manual": "Вручную (F7 / Кнопка)",
         "spellcheck_auto": "Автоматически в реальном времени",
         "spellcheck_mode_comment": "Режим проверки орфографии в редакторе."
+      },
+      "spellcheck": {
+        "ignore_uppercase": "Игнорировать ЗАГЛАВНЫЕ",
+        "ignore_uppercase_comment": "Не выделять аббревиатуры или слова, написанные заглавными буквами.",
+        "ignore_digits": "Игнорировать слова с цифрами",
+        "ignore_digits_comment": "Не выделять буквенно-цифровые коды с цифрами (напр. v2, h1, utf8).",
+        "auto_detect": "Определять язык для каждого абзаца",
+        "auto_detect_comment": "Применяет подходящий словарь на основе текста каждого блока или абзаца."
+      },
+      "language": {
+        "spell_enabled": "Включить проверку орфографии",
+        "spell_enabled_desc": "Включает проверку правописания с волнистым подчеркиванием и подсказками по правому клику.",
+        "spell_active_title": "Активные языки (Одновременное определение)"
+      },
+      "appearance": {
+        "ui_scale": "Масштаб интерфейса (UI)",
+        "ui_scale_desc": "Пропорционально масштабирует кнопки, значки, отступы и карточки для экранов высокой четкости (HiDPI)."
+      },
+      "tabs": {
+        "shortcuts": "Сочетания клавиш"
       }
     },
     "slash": {
@@ -2356,7 +3024,11 @@ const catalogs = {
       "callout_warning": "Предупреждение (Callout)",
       "callout_warning_desc": "Желтый блок с предупреждением о рисках",
       "callout_caution": "Осторожно (Callout)",
-      "callout_caution_desc": "Красный блок для необратимых действий"
+      "callout_caution_desc": "Красный блок для необратимых действий",
+      "anchor": "Якорь раздела",
+      "anchor_desc": "Перейти к заголовку в этой заметке",
+      "wikilink": "Ссылка на заметку",
+      "wikilink_desc": "Ссылка на существующую заметку или создание новой"
     },
     "menu": {
       "copy_abs_path": "Копировать абсолютный путь",
@@ -2365,6 +3037,60 @@ const catalogs = {
       "unpin": "Открепить заметку",
       "pin": "Закрепить заметку",
       "delete": "Удалить заметку"
+    },
+    "clip": {
+      "title": "Веб-клиппер",
+      "subtitle": "Загрузка и очистка статей в офлайн-Markdown",
+      "url_label": "Веб-адрес (URL)",
+      "placeholder": "https://example.com/article",
+      "opt_images": "Скачивать изображения в папку заметки (офлайн)",
+      "opt_readability": "Извлекать только основной текст (режим чтения)",
+      "loading": "Загрузка и обработка веб-контента...",
+      "cancel": "Отмена",
+      "action": "Сохранить",
+      "error_generic": "Не удалось сохранить веб-страницу."
+    },
+    "notes.math.template.fraction": "Дробь",
+    "notes.math.template.quadratic": "Квадратное уравнение",
+    "notes.math.template.integral": "Определенный интеграл",
+    "notes.math.template.sum": "Сумма (сигма)",
+    "notes.math.template.limit": "Предел",
+    "notes.math.template.root": "Корень n-й степени",
+    "notes.math.template.matrix": "Матрица (2x2)",
+    "notes.math.template.cases": "Кусочная функция (случаи)",
+    "shortcuts": {
+      "title": "Горячие клавиши",
+      "subtitle": "Навигация и продуктивность с клавиатуры",
+      "cat_nav": "Общая навигация",
+      "nav_tab": "Перемещение фокуса между поиском, тегами и карточками",
+      "nav_enter": "Открыть выбранную заметку",
+      "nav_delete": "Отправить заметку в корзину (с отменой)",
+      "nav_new": "Немедленно создать новую заметку",
+      "nav_search": "Фокус на строку поиска",
+      "nav_settings": "Открыть настройки",
+      "nav_help": "Показать эту справку по горячим клавишам",
+      "nav_esc": "Закрыть окно или вернуться на главный экран",
+      "cat_editor": "Редактирование и Markdown",
+      "edit_bold": "Жирный текст",
+      "edit_italic": "Курсив",
+      "edit_link": "Вставить ссылку Markdown",
+      "edit_slash": "Меню быстрых команд (Slash-меню)",
+      "edit_undo": "Постоянная отмена и повтор действий",
+      "edit_save": "Немедленно сохранить заметку",
+      "cat_tools": "Дополнительные инструменты",
+      "tool_spell": "Запустить ручную проверку орфографии",
+      "tool_toolbar": "Переключить фокус на панель инструментов редактора",
+      "tool_clip": "Веб-клиппер (сохранить URL в Markdown)",
+      "tool_paste": "Создать новую заметку из буфера обмена"
+    },
+    "suggestions": {
+      "headings_current": "Разделы в этой заметке",
+      "headings_of": "Разделы:",
+      "refer_note": "Связать с заметкой",
+      "no_headings": "Нет доступных заголовков",
+      "no_notes": "Заметки не найдены",
+      "create_note": "Создать заметку:",
+      "create_note_desc": "Новая заметка с этим названием"
     }
   }
 };

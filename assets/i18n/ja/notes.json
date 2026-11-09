@@ -65,7 +65,13 @@
       "delete": "ノートを削除",
       "preview": "プレビュー",
       "highlight": "ハイライト",
-      "convert_to_md": "Convert to .md"
+      "convert_to_md": "Convert to .md",
+      "h4": "見出し 4",
+      "h5": "見出し 5",
+      "h6": "見出し 6",
+      "heading_menu": "見出し (H1-H6)",
+      "anchor": "セクションアンカー",
+      "wikilink": "ノート参照"
     },
     "copy": "コピー",
     "copied": "コピーしました",
@@ -260,7 +266,11 @@
     "callout_warning": "警告 (Callout)",
     "callout_warning_desc": "リスク警告の黄色コールアウト",
     "callout_caution": "注意 (Callout)",
-    "callout_caution_desc": "破壊的操作の赤コールアウト"
+    "callout_caution_desc": "破壊的操作の赤コールアウト",
+    "anchor": "セクションアンカー",
+    "anchor_desc": "このノートの見出しにジャンプ",
+    "wikilink": "ノート参照",
+    "wikilink_desc": "既存のノートにリンクするか新規作成"
   },
   "menu": {
     "copy_abs_path": "絶対パスをコピー",
@@ -314,5 +324,14 @@
     "tool_toolbar": "エディターのツールバーにフォーカスを移動",
     "tool_clip": "Webクリッパー（URLをMarkdownに保存）",
     "tool_paste": "クリップボードから新しいノートを作成"
+  },
+  "suggestions": {
+    "headings_current": "このノートのセクション",
+    "headings_of": "のセクション:",
+    "refer_note": "ノートにリンク",
+    "no_headings": "利用可能な見出しがありません",
+    "no_notes": "ノートが見つかりません",
+    "create_note": "ノートを作成:",
+    "create_note_desc": "このタイトルの新しいノート"
   }
 }

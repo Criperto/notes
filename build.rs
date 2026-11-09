@@ -51,6 +51,7 @@ fn main() {
         "qml/ClippingRectangle.qml",
         "qml/SettingsTextField.qml",
         "qml/SlashMenu.qml",
+        "qml/LinkSuggestionMenu.qml",
         "qml/WebClipModal.qml",
         "qml/BlockEditor.qml",
         "qml/BlockParagraph.qml",

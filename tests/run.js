@@ -52,6 +52,8 @@ const LangDetect = loadModule('LangDetect.js');
 const Anchors = loadModule('Anchors.js');
 const SlashLogic = loadModule('SlashLogic.js');
 const SlashCommands = loadModule('SlashCommands.js');
+const ReferenceLogic = loadModule('ReferenceLogic.js');
+const EditorActions = loadModule('EditorActions.js');
 
 let passed = 0;
 let failed = 0;
@@ -5000,6 +5002,242 @@ runTest('F104: Fondo translúcido unificado del buscador en el menú de inicio (
         "NotesContent searchBox debe usar fondo translúcido idéntico al buscador interno de la nota");
     assert.ok(notesContentSrc.includes('Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.15)'),
         "NotesContent searchBox debe tener borde suave al desenfocar");
+});
+
+runTest('F105: ReferenceLogic detección de trigger wikilink/ancla, slug GitHub y filtros de búsqueda', () => {
+    // 1. Detección interactiva de triggers wikilink
+    // a. Apertura simple [[ al inicio
+    const t1 = ReferenceLogic.detectWikilinkTrigger('[[', 2);
+    assert.strictEqual(t1.triggered, true);
+    assert.strictEqual(t1.mode, 'note');
+    assert.strictEqual(t1.query, '');
+    assert.strictEqual(t1.noteTitle, '');
+
+    // b. Búsqueda de nota con texto
+    const s2 = 'Ver nota [[Mi Proyecto';
+    const t2 = ReferenceLogic.detectWikilinkTrigger(s2, s2.length);
+    assert.strictEqual(t2.triggered, true);
+    assert.strictEqual(t2.mode, 'note');
+    assert.strictEqual(t2.query, 'Mi Proyecto');
+    assert.strictEqual(t2.openIndex, 9);
+    assert.strictEqual(t2.endIndex, s2.length);
+
+    // c. Wikilink mixto con sección nota#sección
+    const s3 = '[[Documento#Introdu';
+    const t3 = ReferenceLogic.detectWikilinkTrigger(s3, s3.length);
+    assert.strictEqual(t3.triggered, true);
+    assert.strictEqual(t3.mode, 'anchor');
+    assert.strictEqual(t3.query, 'Introdu');
+    assert.strictEqual(t3.noteTitle, 'Documento');
+
+    // d. Ancla local a la nota actual [[#sección
+    const s4 = '[[#Capitulo 1';
+    const t4 = ReferenceLogic.detectWikilinkTrigger(s4, s4.length);
+    assert.strictEqual(t4.triggered, true);
+    assert.strictEqual(t4.mode, 'anchor');
+    assert.strictEqual(t4.query, 'Capitulo 1');
+    assert.strictEqual(t4.isCurrentNote, true);
+
+    // e. Casos inactivos: ya cerrado
+    const sClosed = '[[Nota cerrada]] ';
+    const tClosed = ReferenceLogic.detectWikilinkTrigger(sClosed, sClosed.length);
+    assert.strictEqual(tClosed.triggered, false);
+
+    // f. Casos inactivos: salto de línea intermedio
+    const sNewline = '[[Nota\nsegunda linea';
+    const tNewline = ReferenceLogic.detectWikilinkTrigger(sNewline, sNewline.length);
+    assert.strictEqual(tNewline.triggered, false);
+
+    // 2. Generación determinista de GitHub Slugs (estándar GFM con soporte de letras Unicode)
+    assert.strictEqual(ReferenceLogic.githubSlug('Introducción a QML'), 'introducción-a-qml');
+    assert.strictEqual(ReferenceLogic.githubSlug('¿Qué es esto? (Guía Básica!)'), 'qué-es-esto-guía-básica');
+    assert.strictEqual(ReferenceLogic.githubSlug('Espacios   múltiples - guiones'), 'espacios-múltiples-guiones');
+
+    // 3. Extracción de encabezados desde Markdown
+    const md = '# Título Principal\n\nTexto de prueba...\n\n## Subtítulo 1\n\n### Sección Detalle';
+    const headingsMd = ReferenceLogic.extractHeadingsFromMarkdown(md);
+    assert.strictEqual(headingsMd.length, 3);
+    assert.strictEqual(headingsMd[0].level, 1);
+    assert.strictEqual(headingsMd[0].tag, 'H1');
+    assert.strictEqual(headingsMd[0].title, 'Título Principal');
+    assert.strictEqual(headingsMd[0].slug, 'título-principal');
+    assert.strictEqual(headingsMd[1].level, 2);
+    assert.strictEqual(headingsMd[1].tag, 'H2');
+    assert.strictEqual(headingsMd[2].level, 3);
+
+    // 4. Extracción de encabezados desde bloques de editor
+    const blocks = [
+        { type: 'paragraph', text: 'Intro' },
+        { type: 'heading', level: 2, text: 'Instalación de Componentes' },
+        { type: 'list', items: ['A', 'B'] },
+        { type: 'heading', level: 4, text: 'Detalles Técnicos' }
+    ];
+    const headingsBlocks = ReferenceLogic.extractHeadingsFromBlocks(blocks);
+    assert.strictEqual(headingsBlocks.length, 2);
+    assert.strictEqual(headingsBlocks[0].title, 'Instalación de Componentes');
+    assert.strictEqual(headingsBlocks[0].slug, 'instalación-de-componentes');
+    assert.strictEqual(headingsBlocks[1].level, 4);
+
+    // 5. Filtrado de notas (con opción de creación para notas inexistentes)
+    const mockNotes = [
+        { title: 'Guía de Rust', slug: 'guia-de-rust' },
+        { title: 'Quickshell Wayland', slug: 'quickshell-wayland' }
+    ];
+    const fnExact = ReferenceLogic.filterNotes(mockNotes, 'Guía de Rust', 10);
+    assert.strictEqual(fnExact.length, 1);
+    assert.strictEqual(fnExact[0].title, 'Guía de Rust');
+
+    const fnMatch = ReferenceLogic.filterNotes(mockNotes, 'rust', 10);
+    assert.strictEqual(fnMatch[0].title, 'Guía de Rust');
+    assert.ok(fnMatch.some(n => n.isCreateNew && n.title === 'rust'), "Debe ofrecer opción de crear nueva nota");
+
+    const fnCreate = ReferenceLogic.filterNotes(mockNotes, 'Nota Inédita', 10);
+    assert.strictEqual(fnCreate.length, 1);
+    assert.strictEqual(fnCreate[0].title, 'Nota Inédita');
+    assert.strictEqual(fnCreate[0].isCreateNew, true);
+
+    // 6. Filtrado de encabezados
+    const mockHeadings = [
+        { title: 'Primeros Pasos', slug: 'primeros-pasos', level: 2, tag: 'H2' },
+        { title: 'Configuración Avanzada', slug: 'configuracion-avanzada', level: 3, tag: 'H3' }
+    ];
+    const fhMatch = ReferenceLogic.filterHeadings(mockHeadings, 'avan', 10);
+    assert.strictEqual(fhMatch.length, 1);
+    assert.strictEqual(fhMatch[0].title, 'Configuración Avanzada');
+});
+
+runTest('F106: Comandos slash /ancla y /referencia en catálogo SlashCommands y filtrado SlashLogic', () => {
+    const allCmds = SlashCommands.getAllCommands();
+    const anchorCmd = allCmds.find(c => c.id === 'anchor');
+    const wikilinkCmd = allCmds.find(c => c.id === 'wikilink');
+
+    assert.ok(anchorCmd, "El catálogo de SlashCommands debe contener el comando 'anchor'");
+    assert.strictEqual(anchorCmd.titleKey, 'notes.slash.anchor');
+    assert.strictEqual(anchorCmd.descKey, 'notes.slash.anchor_desc');
+    assert.strictEqual(anchorCmd.badge, '/ancla');
+
+    assert.ok(wikilinkCmd, "El catálogo de SlashCommands debe contener el comando 'wikilink'");
+    assert.strictEqual(wikilinkCmd.titleKey, 'notes.slash.wikilink');
+    assert.strictEqual(wikilinkCmd.descKey, 'notes.slash.wikilink_desc');
+    assert.strictEqual(wikilinkCmd.badge, '/referencia');
+
+    const mockI18n = { t: (k, fb) => fb };
+    // Búsqueda por palabras clave en español
+    const fAncla = SlashLogic.filterCommands(allCmds, 'ancla', mockI18n);
+    assert.ok(fAncla.some(c => c.id === 'anchor'), "Búsqueda 'ancla' debe retornar 'anchor'");
+
+    const fSeccion = SlashLogic.filterCommands(allCmds, 'seccion', mockI18n);
+    assert.ok(fSeccion.some(c => c.id === 'anchor'), "Búsqueda 'seccion' debe retornar 'anchor'");
+
+    const fRef = SlashLogic.filterCommands(allCmds, 'referencia', mockI18n);
+    assert.ok(fRef.some(c => c.id === 'wikilink'), "Búsqueda 'referencia' debe retornar 'wikilink'");
+
+    const fNota = SlashLogic.filterCommands(allCmds, 'nota', mockI18n);
+    assert.ok(fNota.some(c => c.id === 'wikilink'), "Búsqueda 'nota' debe retornar 'wikilink'");
+
+    const fWiki = SlashLogic.filterCommands(allCmds, 'wikilink', mockI18n);
+    assert.ok(fWiki.some(c => c.id === 'wikilink'), "Búsqueda 'wikilink' debe retornar 'wikilink'");
+});
+
+runTest('F107: Barra de herramientas, atajos Ctrl+Shift+K / Ctrl+Alt+A e integración de sugerencias flotantes', () => {
+    // 1. Acciones en EditorActions.js
+    const wikiAction = EditorActions.getAction('wikilink');
+    assert.ok(wikiAction, "EditorActions debe contener la acción 'wikilink'");
+    assert.strictEqual(wikiAction.shortcut, 'Ctrl+Shift+K');
+    assert.strictEqual(wikiAction.labelKey, 'notes.editor.action.wikilink');
+
+    const anchorAction = EditorActions.getAction('anchor');
+    assert.ok(anchorAction, "EditorActions debe contener la acción 'anchor'");
+    assert.strictEqual(anchorAction.shortcut, 'Ctrl+Alt+A');
+    assert.strictEqual(anchorAction.labelKey, 'notes.editor.action.anchor');
+
+    // 2. NoteEditorModal.qml
+    const editorModalSrc = fs.readFileSync(path.resolve(__dirname, '../qml/NoteEditorModal.qml'), 'utf8');
+    assert.ok(editorModalSrc.includes('LinkSuggestionMenu {'), "NoteEditorModal debe instanciar LinkSuggestionMenu");
+    assert.ok(editorModalSrc.includes('id: linkSuggestionMenu'), "NoteEditorModal debe tener id linkSuggestionMenu");
+    assert.ok(editorModalSrc.includes('id: noteLinkToolbarBtn'), "NoteEditorModal debe tener botón noteLinkToolbarBtn");
+    assert.ok(editorModalSrc.includes('id: anchorToolbarBtn'), "NoteEditorModal debe tener botón anchorToolbarBtn");
+    assert.ok(editorModalSrc.includes('event.key === Qt.Key_K') && editorModalSrc.includes('root.applyFormatOrAction("wikilink")'),
+        "NoteEditorModal debe despachar atajo Ctrl+Shift+K a wikilink");
+    assert.ok(editorModalSrc.includes('event.key === Qt.Key_A') && editorModalSrc.includes('root.applyFormatOrAction("anchor")'),
+        "NoteEditorModal debe despachar atajo Ctrl+Alt+A a anchor");
+    assert.ok(editorModalSrc.includes('openWikilinkSuggestions'), "NoteEditorModal debe tener función openWikilinkSuggestions");
+    assert.ok(editorModalSrc.includes('openAnchorSuggestions'), "NoteEditorModal debe tener función openAnchorSuggestions");
+    assert.ok(editorModalSrc.includes('linkSuggestionMenu: linkSuggestionMenu'), "NoteEditorModal debe pasar linkSuggestionMenu a BlockEditor");
+
+    // 3. BlockEditor.qml
+    const blockEditorSrc = fs.readFileSync(path.resolve(__dirname, '../qml/BlockEditor.qml'), 'utf8');
+    assert.ok(blockEditorSrc.includes('property var linkSuggestionMenu: null'), "BlockEditor debe declarar propiedad linkSuggestionMenu");
+    assert.ok(blockEditorSrc.includes('function getActiveHeadings()'), "BlockEditor debe proveer getActiveHeadings");
+    assert.ok(blockEditorSrc.includes('function getNoteHeadings('), "BlockEditor debe proveer getNoteHeadings");
+    assert.ok(blockEditorSrc.includes('cmdId === "anchor"'), "BlockEditor.executeSlashCommand debe soportar anchor");
+    assert.ok(blockEditorSrc.includes('cmdId === "wikilink"'), "BlockEditor.executeSlashCommand debe soportar wikilink");
+
+    // 4. Delegados de edición interactiva
+    const blockParaSrc = fs.readFileSync(path.resolve(__dirname, '../qml/BlockParagraph.qml'), 'utf8');
+    const blockListSrc = fs.readFileSync(path.resolve(__dirname, '../qml/BlockList.qml'), 'utf8');
+    assert.ok(blockParaSrc.includes('ReferenceLogic.detectWikilinkTrigger'), "BlockParagraph debe detectar trigger [[");
+    assert.ok(blockListSrc.includes('ReferenceLogic.detectWikilinkTrigger'), "BlockList debe detectar trigger [[");
+});
+
+runTest('F108: Contratos de build.rs y corrección de posición y ancho de popups en NoteEditorModal', () => {
+    // 1. build.rs registra LinkSuggestionMenu.qml
+    const buildRsSrc = fs.readFileSync(path.resolve(__dirname, '../build.rs'), 'utf8');
+    assert.ok(buildRsSrc.includes('"qml/LinkSuggestionMenu.qml"'), "build.rs debe incluir qml/LinkSuggestionMenu.qml en components");
+
+    // 2. Ancho y posicionamiento de headingMenuPopup y popups de herramientas
+    const editorModalSrc = fs.readFileSync(path.resolve(__dirname, '../qml/NoteEditorModal.qml'), 'utf8');
+    assert.ok(editorModalSrc.includes('id: headingMenuPopup'), "NoteEditorModal debe contener headingMenuPopup");
+    assert.ok(editorModalSrc.includes('width: 260'), "headingMenuPopup debe tener width 260px para evitar elisión con puntos suspensivos");
+    assert.ok(editorModalSrc.includes('transformOrigin: Item.Top'), "Los popups deben desplegarse hacia abajo con transformOrigin: Item.Top");
+    assert.ok(editorModalSrc.includes('headingToolbarBtn.mapToItem(headingMenuPopup.parent, 0, headingToolbarBtn.height + 6)'),
+        "headingMenuPopup debe posicionarse exactamente debajo del botón con margen vertical");
+    assert.ok(editorModalSrc.includes('imgToolbarBtn.mapToItem(imageMenuPopup.parent, 0, imgToolbarBtn.height + 6)'),
+        "imageMenuPopup debe posicionarse debajo del botón de imagen");
+    assert.ok(editorModalSrc.includes('mermaidToolbarBtn.mapToItem(mermaidMenuPopup.parent, 0, mermaidToolbarBtn.height + 6)'),
+        "mermaidMenuPopup debe posicionarse debajo del botón de mermaid");
+    assert.ok(editorModalSrc.includes('mathToolbarBtn.mapToItem(mathMenuPopup.parent, 0, mathToolbarBtn.height + 6)'),
+        "mathMenuPopup debe posicionarse debajo del botón de math");
+});
+
+runTest('F109: Paridad de traducciones en los 9 idiomas para anclas, wikilinks, encabezados y sugerencias', () => {
+    const langs = ['es_es', 'es_ar', 'en', 'pt', 'ja', 'zh', 'de', 'fr', 'ru'];
+    const requiredActionKeys = ['h4', 'h5', 'h6', 'heading_menu', 'anchor', 'wikilink'];
+    const requiredSlashKeys = ['anchor', 'anchor_desc', 'wikilink', 'wikilink_desc'];
+    const requiredSuggestionKeys = [
+        'headings_current', 'headings_of', 'refer_note',
+        'no_headings', 'no_notes', 'create_note', 'create_note_desc'
+    ];
+
+    for (const lang of langs) {
+        const filePath = path.resolve(__dirname, `../assets/i18n/${lang}/notes.json`);
+        assert.ok(fs.existsSync(filePath), `Archivo de idioma ${lang}/notes.json debe existir`);
+        const json = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+
+        // editor.action
+        assert.ok(json.editor && json.editor.action, `Sección editor.action en ${lang}`);
+        for (const k of requiredActionKeys) {
+            assert.ok(json.editor.action[k], `Falta clave editor.action.${k} en ${lang}`);
+        }
+
+        // slash
+        assert.ok(json.slash, `Sección slash en ${lang}`);
+        for (const k of requiredSlashKeys) {
+            assert.ok(json.slash[k], `Falta clave slash.${k} en ${lang}`);
+        }
+
+        // suggestions
+        assert.ok(json.suggestions, `Sección suggestions en ${lang}`);
+        for (const k of requiredSuggestionKeys) {
+            assert.ok(json.suggestions[k], `Falta clave suggestions.${k} en ${lang}`);
+        }
+    }
+
+    // Comprobar catálogo empaquetado en qml/I18nCatalogs.js
+    const catalogsSrc = fs.readFileSync(path.resolve(__dirname, '../qml/I18nCatalogs.js'), 'utf8');
+    assert.ok(catalogsSrc.includes('headings_current'), "I18nCatalogs.js debe contener 'headings_current'");
+    assert.ok(catalogsSrc.includes('create_note_desc'), "I18nCatalogs.js debe contener 'create_note_desc'");
+    assert.ok(catalogsSrc.includes('heading_menu'), "I18nCatalogs.js debe contener 'heading_menu'");
 });
 
 console.log(`\n========================================`);

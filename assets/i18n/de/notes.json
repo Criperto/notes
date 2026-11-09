@@ -65,7 +65,13 @@
       "delete": "Notiz löschen",
       "preview": "Vorschau",
       "highlight": "Hervorheben",
-      "convert_to_md": "Convert to .md"
+      "convert_to_md": "Convert to .md",
+      "h4": "Überschrift 4",
+      "h5": "Überschrift 5",
+      "h6": "Überschrift 6",
+      "heading_menu": "Überschriften (H1-H6)",
+      "anchor": "Abschnittsanker",
+      "wikilink": "Notizreferenz"
     },
     "copy": "Kopieren",
     "copied": "Kopiert",
@@ -260,7 +266,11 @@
     "callout_warning": "Warnung (Callout)",
     "callout_warning_desc": "Gelbe Warnbox für Risiken",
     "callout_caution": "Achtung (Callout)",
-    "callout_caution_desc": "Rote Box für irreversible Aktionen"
+    "callout_caution_desc": "Rote Box für irreversible Aktionen",
+    "anchor": "Abschnittsanker",
+    "anchor_desc": "Zu einer Überschrift in dieser Notiz springen",
+    "wikilink": "Notizreferenz",
+    "wikilink_desc": "Mit vorhandener Notiz verknüpfen oder neu erstellen"
   },
   "menu": {
     "copy_abs_path": "Absoluten Pfad kopieren",
@@ -314,5 +324,14 @@
     "tool_toolbar": "Fokus auf die Editor-Symbolleiste umschalten",
     "tool_clip": "Web-Clipper (URL in Markdown erfassen)",
     "tool_paste": "Neue Notiz aus Zwischenablage erstellen"
+  },
+  "suggestions": {
+    "headings_current": "Abschnitte in dieser Notiz",
+    "headings_of": "Abschnitte von:",
+    "refer_note": "Mit Notiz verknüpfen",
+    "no_headings": "Keine Überschriften verfügbar",
+    "no_notes": "Keine Notizen gefunden",
+    "create_note": "Notiz erstellen:",
+    "create_note_desc": "Neue Notiz mit diesem Titel"
   }
 }

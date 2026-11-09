@@ -65,7 +65,13 @@
       "delete": "Delete note",
       "preview": "Preview",
       "highlight": "Highlight",
-      "convert_to_md": "Convert to .md"
+      "convert_to_md": "Convert to .md",
+      "h4": "Heading 4",
+      "h5": "Heading 5",
+      "h6": "Heading 6",
+      "heading_menu": "Headings (H1-H6)",
+      "anchor": "Section anchor",
+      "wikilink": "Note reference"
     },
     "copy": "Copy",
     "copied": "Copied",
@@ -260,7 +266,11 @@
     "callout_warning": "Warning (Callout)",
     "callout_warning_desc": "Yellow box for potential risks",
     "callout_caution": "Caution (Callout)",
-    "callout_caution_desc": "Red box for destructive consequences"
+    "callout_caution_desc": "Red box for destructive consequences",
+    "anchor": "Section Anchor",
+    "anchor_desc": "Jump to a heading in this note",
+    "wikilink": "Note Reference",
+    "wikilink_desc": "Link to an existing note or create a new one"
   },
   "menu": {
     "copy_abs_path": "Copy absolute path",
@@ -314,5 +324,14 @@
     "tool_toolbar": "Toggle focus to editor toolbar",
     "tool_clip": "Web Clipper (clip URL to Markdown)",
     "tool_paste": "Capture new note from clipboard"
+  },
+  "suggestions": {
+    "headings_current": "Sections in this note",
+    "headings_of": "Sections of:",
+    "refer_note": "Link to note",
+    "no_headings": "No headings available",
+    "no_notes": "No notes found",
+    "create_note": "Create note:",
+    "create_note_desc": "New note with this title"
   }
 }

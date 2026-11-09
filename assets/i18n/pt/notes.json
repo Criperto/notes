@@ -65,7 +65,13 @@
       "delete": "Excluir nota",
       "preview": "Pré-visualização",
       "highlight": "Destacar",
-      "convert_to_md": "Convert to .md"
+      "convert_to_md": "Convert to .md",
+      "h4": "Título 4",
+      "h5": "Título 5",
+      "h6": "Título 6",
+      "heading_menu": "Cabeçalhos (H1-H6)",
+      "anchor": "Âncora de seção",
+      "wikilink": "Referência de nota"
     },
     "copy": "Copiar",
     "copied": "Copiado",
@@ -260,7 +266,11 @@
     "callout_warning": "Aviso (Callout)",
     "callout_warning_desc": "Caixa amarela para alertar sobre riscos",
     "callout_caution": "Cuidado (Callout)",
-    "callout_caution_desc": "Caixa vermelha para ações irreversíveis"
+    "callout_caution_desc": "Caixa vermelha para ações irreversíveis",
+    "anchor": "Âncora de seção",
+    "anchor_desc": "Pular para um cabeçalho desta nota",
+    "wikilink": "Referência de nota",
+    "wikilink_desc": "Vincular a uma nota existente ou criar uma nova"
   },
   "menu": {
     "copy_abs_path": "Copiar caminho absoluto",
@@ -314,5 +324,14 @@
     "tool_toolbar": "Alternar foco para barra de ferramentas do editor",
     "tool_clip": "Clipper web (recortar URL para Markdown)",
     "tool_paste": "Capturar nova nota a partir da área de transferência"
+  },
+  "suggestions": {
+    "headings_current": "Seções nesta nota",
+    "headings_of": "Seções de:",
+    "refer_note": "Vincular à nota",
+    "no_headings": "Nenhum cabeçalho disponível",
+    "no_notes": "Nenhuma nota encontrada",
+    "create_note": "Criar nota:",
+    "create_note_desc": "Nova nota com este título"
   }
 }

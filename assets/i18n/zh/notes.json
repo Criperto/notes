@@ -65,7 +65,13 @@
       "delete": "删除笔记",
       "preview": "预览",
       "highlight": "高亮",
-      "convert_to_md": "Convert to .md"
+      "convert_to_md": "Convert to .md",
+      "h4": "标题 4",
+      "h5": "标题 5",
+      "h6": "标题 6",
+      "heading_menu": "标题 (H1-H6)",
+      "anchor": "章节锚点",
+      "wikilink": "笔记引用"
     },
     "copy": "复制",
     "copied": "已复制",
@@ -260,7 +266,11 @@
     "callout_warning": "警告 (Callout)",
     "callout_warning_desc": "黄色潜在风险警示框",
     "callout_caution": "注意 (Callout)",
-    "callout_caution_desc": "红色破坏性操作警告框"
+    "callout_caution_desc": "红色破坏性操作警告框",
+    "anchor": "章节锚点",
+    "anchor_desc": "跳转到当前笔记的标题",
+    "wikilink": "笔记引用",
+    "wikilink_desc": "链接到现有笔记或创建新笔记"
   },
   "menu": {
     "copy_abs_path": "复制绝对路径",
@@ -314,5 +324,14 @@
     "tool_toolbar": "将焦点切换至编辑器工具栏",
     "tool_clip": "网页剪藏（将 URL 转换为 Markdown）",
     "tool_paste": "从剪贴板捕获新笔记"
+  },
+  "suggestions": {
+    "headings_current": "当前笔记中的章节",
+    "headings_of": "章节：",
+    "refer_note": "链接到笔记",
+    "no_headings": "没有可用的标题",
+    "no_notes": "未找到笔记",
+    "create_note": "创建笔记：",
+    "create_note_desc": "以此标题创建新笔记"
   }
 }
