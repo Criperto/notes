@@ -3217,7 +3217,7 @@ Item {
 
                                 Text {
                                     Layout.alignment: Qt.AlignHCenter
-                                    text: "dev.criperto.Notas • Versión 0.2.0"
+                                    text: "dev.criperto.Notas • Versión 0.2.1"
                                     font.family: Theme.fontFamily
                                     font.pixelSize: Theme.fontSizeSmall
                                     color: Theme.muted
