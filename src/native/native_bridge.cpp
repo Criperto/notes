@@ -1340,7 +1340,7 @@ void Sys::printStartupDiagnostics() const {
 
     fprintf(stdout, "\n");
     fprintf(stdout, "╭─────────────────────────────────────────────────────────────────────────────╮\n");
-    fprintf(stdout, "│ 📝 dev.criperto.Notas v0.1.13 (criperto.notes)                             │\n");
+    fprintf(stdout, "│ 📝 dev.criperto.Notas v0.1.14 (criperto.notes)                             │\n");
     fprintf(stdout, "│    Editor nativo de notas en Markdown para Wayland                          │\n");
     fprintf(stdout, "├─────────────────────────────────────────────────────────────────────────────┤\n");
     fprintf(stdout, "%s", formatRow(QStringLiteral("Configuración"), configPath).toUtf8().constData());
