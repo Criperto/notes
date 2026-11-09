@@ -208,7 +208,10 @@ Item {
     Flow {
         id: imagesFlow
         visible: !root.isRawActive && root.imagesList.length > 0
-        width: parent.width
+        width: (root.imagesList.length === 1 && imagesRepeater.count > 0 && imagesRepeater.itemAt(0) && !imagesRepeater.itemAt(0).isBadge)
+            ? Math.min(parent.width, imagesRepeater.itemAt(0).width)
+            : parent.width
+        anchors.horizontalCenter: parent.horizontalCenter
         spacing: 6
 
         Repeater {
@@ -245,7 +248,9 @@ Item {
                     return false;
                 }
 
-                readonly property real availW: imagesFlow.width > 0 ? imagesFlow.width : 400
+                readonly property real availW: (root.width > 0) ? root.width : (parent ? parent.width : 400)
+                readonly property real zoomFactor: (typeof EditorMetrics !== "undefined" && EditorMetrics.zoom) ? EditorMetrics.zoom : 1.0
+                readonly property real maxH: Math.round(560 * zoomFactor)
                 readonly property real naturalW: {
                     if (imgItem.implicitWidth > 0) return imgItem.implicitWidth;
                     var cachedDim = (root.editor && root.editor._imageDimensions) ? root.editor._imageDimensions[modelData.src] : null;
@@ -261,23 +266,28 @@ Item {
 
                 readonly property real targetW: {
                     if (isBadge) {
-                        return naturalW > 0 ? Math.min(availW, naturalW) : 120;
+                        return naturalW > 0 ? Math.min(availW, Math.round(naturalW * zoomFactor)) : 120;
                     }
-                    if (naturalW > 0) {
-                        if (root.imagesList.length > 1 && naturalW >= availW * 0.45) {
-                            return Math.min((availW - 10) / 2, naturalW);
+                    if (naturalW > 0 && naturalH > 0) {
+                        var maxCardW = (root.imagesList.length > 1 && naturalW >= availW * 0.45)
+                            ? Math.min((availW - 10) / 2, availW) : availW;
+                        var w = Math.min(maxCardW, Math.round(naturalW * zoomFactor));
+                        var h = Math.round(w * (naturalH / naturalW));
+                        if (h > maxH) {
+                            h = maxH;
+                            w = Math.round(h * (naturalW / naturalH));
                         }
-                        return Math.min(availW, naturalW);
+                        return Math.max(24, w);
                     }
                     return root.imagesList.length > 1 ? Math.min((availW - 10) / 2, 400) : Math.min(availW, 600);
                 }
                 readonly property real targetH: {
+                    if (isBadge) return naturalH > 0 ? Math.round(naturalH * zoomFactor) : 24;
                     if (naturalW > 0 && naturalH > 0) {
-                        var scaledH = Math.round(targetW * (naturalH / naturalW));
-                        if (!isBadge && scaledH > 560) return 560;
-                        return Math.max(isBadge ? 16 : 24, scaledH);
+                        var h = Math.round(targetW * (naturalH / naturalW));
+                        return Math.max(24, Math.min(maxH, h));
                     }
-                    return isBadge ? 24 : 180;
+                    return 180;
                 }
 
                 width: targetW
@@ -293,11 +303,13 @@ Item {
                     border.width: (root.isEditing && !root.isRawActive) ? 1.5 : (imgCard.isBadge ? 0 : 1)
                     clip: true
 
-                    Image {
+                    AnimatedImage {
                         id: imgItem
                         anchors.fill: parent
                         asynchronous: true
                         fillMode: Image.PreserveAspectFit
+                        playing: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                        paused: GamemodeService.gamemodeActive
                         source: imgCard.loadable ? root.resolveSource(modelData.src) : ""
 
                         onStatusChanged: {

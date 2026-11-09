@@ -2258,8 +2258,8 @@ Flickable {
         var curItem = blocksModel.get(idx);
         var consume = opts ? Boolean(opts.consumeEmptyBlock) : false;
 
-        // 1. Encabezados (h1, h2, h3)
-        if (cmdId === "h1" || cmdId === "h2" || cmdId === "h3") {
+        // 1. Encabezados (h1..h6)
+        if (cmdId === "h1" || cmdId === "h2" || cmdId === "h3" || cmdId === "h4" || cmdId === "h5" || cmdId === "h6") {
             var lvl = parseInt(cmdId.charAt(1), 10);
             var prefix = "#".repeat(lvl) + " ";
             if (consume && curItem) {
@@ -3019,6 +3019,7 @@ Flickable {
             var bids = Object.keys(root.selectedBids || {});
             if (bids.length > 0) {
                 if (actionId === "h1" || actionId === "h2" || actionId === "h3" ||
+                    actionId === "h4" || actionId === "h5" || actionId === "h6" ||
                     actionId === "bullet_list" || actionId === "ordered_list" || actionId === "task_list" ||
                     actionId === "quote" || actionId === "code_block" || actionId === "table") {
                     var allMatch = true;
@@ -3028,10 +3029,11 @@ Flickable {
                         if (bIdx === -1) { allMatch = false; break; }
                         var bItem = blocksModel.get(bIdx);
                         if (!bItem) { allMatch = false; break; }
-                        // F22: h1/h2/h3 también valen dentro de ítems de lista (y líneas de cita).
-                        if (actionId === "h1" || actionId === "h2" || actionId === "h3") {
-                            var wantLvl = (actionId === "h1") ? 1 : (actionId === "h2" ? 2 : 3);
-                            var wantPfx = (wantLvl === 1) ? "# " : (wantLvl === 2 ? "## " : "### ");
+                        // F22: h1..h6 también valen dentro de ítems de lista (y líneas de cita).
+                        if (actionId === "h1" || actionId === "h2" || actionId === "h3" ||
+                            actionId === "h4" || actionId === "h5" || actionId === "h6") {
+                            var wantLvl = parseInt(actionId.substring(1), 10);
+                            var wantPfx = "#".repeat(wantLvl) + " ";
                             if (bItem.type === "heading") {
                                 if (!((bItem.raw || "").startsWith(wantPfx))) { allMatch = false; break; }
                             } else if (bItem.type === "list") {
@@ -3092,12 +3094,13 @@ Flickable {
             var b = blocksModel.get(idx);
             if (!b) return false;
 
-            // F22: h1/h2/h3 valen para encabezados sueltos Y para ítems de lista
+            // F22: h1..h6 valen para encabezados sueltos Y para ítems de lista
             // (bullet_list y h2 pueden estar activos a la vez; no son excluyentes).
-            if (actionId === "h1" || actionId === "h2" || actionId === "h3") {
-                var wantLvlB = (actionId === "h1") ? 1 : (actionId === "h2" ? 2 : 3);
+            if (actionId === "h1" || actionId === "h2" || actionId === "h3" ||
+                actionId === "h4" || actionId === "h5" || actionId === "h6") {
+                var wantLvlB = parseInt(actionId.substring(1), 10);
                 if (b.type === "heading") {
-                    var wantPfxB = (wantLvlB === 1) ? "# " : (wantLvlB === 2 ? "## " : "### ");
+                    var wantPfxB = "#".repeat(wantLvlB) + " ";
                     return (b.raw || "").startsWith(wantPfxB);
                 }
                 if (b.type === "list") {

@@ -689,12 +689,10 @@ Item {
                         Layout.preferredWidth: Math.min(320, root.width * 0.38)
                         Layout.preferredHeight: 38
                         radius: 10
-                        color: Qt.hsva(Theme.surface.hsvHue,
-                                       Math.min(1, Theme.surface.hsvSaturation),
-                                       Math.min(1, Theme.surface.hsvValue + 0.04), 1)
+                        color: Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.05)
                         border.color: searchInput.activeFocus
                             ? Qt.hsva(Theme.accent.hsvHue, Theme.accent.hsvSaturation, Theme.accent.hsvValue, 0.65)
-                            : Qt.hsva(Theme.text.hsvHue, Theme.text.hsvSaturation, Theme.text.hsvValue, 0.12)
+                            : Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.15)
                         border.width: 1
 
                         Behavior on border.color {

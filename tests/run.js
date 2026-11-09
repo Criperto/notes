@@ -4916,6 +4916,92 @@ runTest('F100: Resaltado de búsqueda en listas con sugerencias ortográficas ac
     assert.strictEqual(plainFromDom, rawLine, "El texto plano no debe alterarse para no desfasar SpellOverlay ni el cursor");
 });
 
+runTest('F101: Menú desplegable H1-H6 y soporte de niveles 1 a 6 en NoteEditorModal, BlockEditor y EditorActions', () => {
+    const editorActionsSrc = fs.readFileSync(path.resolve(__dirname, '../qml/EditorActions.js'), 'utf8');
+    const noteEditorModalSrc = fs.readFileSync(path.resolve(__dirname, '../qml/NoteEditorModal.qml'), 'utf8');
+    const blockEditorSrc = fs.readFileSync(path.resolve(__dirname, '../qml/BlockEditor.qml'), 'utf8');
+
+    // 1. Registro de heading_menu en EditorActions
+    assert.ok(editorActionsSrc.includes('id: "heading_menu"'), "EditorActions debe registrar acción 'heading_menu'");
+
+    // 2. ToolbarButton y dropdown en NoteEditorModal
+    assert.ok(noteEditorModalSrc.includes('id: headingToolbarBtn'), "NoteEditorModal debe definir headingToolbarBtn");
+    assert.ok(noteEditorModalSrc.includes('actionId: "heading_menu"'), "headingToolbarBtn debe vincularse a 'heading_menu'");
+    assert.ok(noteEditorModalSrc.includes('id: headingMenuPopup'), "NoteEditorModal debe tener headingMenuPopup vertical");
+    for (let i = 1; i <= 6; i++) {
+        assert.ok(noteEditorModalSrc.includes(`level: ${i}, tag: "H${i}"`), `headingMenuPopup debe incluir opción H${i}`);
+        assert.ok(noteEditorModalSrc.includes(`action === "h${i}"`), `NoteEditorModal debe contemplar action h${i}`);
+    }
+
+    // 3. BlockEditor soporte completo de h1 hasta h6
+    assert.ok(blockEditorSrc.includes('actionId === "h1" || actionId === "h2" || actionId === "h3" || actionId === "h4" || actionId === "h5" || actionId === "h6"'),
+        "BlockEditor.applyAction debe soportar de h1 hasta h6");
+    assert.ok(blockEditorSrc.includes('cmdId === "h1" || cmdId === "h2" || cmdId === "h3" || cmdId === "h4" || cmdId === "h5" || cmdId === "h6"'),
+        "BlockEditor.executeSlashCommand debe soportar de h1 hasta h6");
+    assert.ok(blockEditorSrc.includes('actionId === "h4"') && blockEditorSrc.includes('actionId === "h5"') && blockEditorSrc.includes('actionId === "h6"'),
+        "BlockEditor.isFormatActive debe verificar h4, h5 y h6");
+});
+
+runTest('F102: Escalado de imágenes con zoom factor y cálculo proporcional de relación de aspecto sin bandas vacías', () => {
+    const blockImageSrc = fs.readFileSync(path.resolve(__dirname, '../qml/BlockImage.qml'), 'utf8');
+    const blockListSrc = fs.readFileSync(path.resolve(__dirname, '../qml/BlockList.qml'), 'utf8');
+
+    // 1. Contratos estáticos en BlockImage.qml
+    assert.ok(blockImageSrc.includes('readonly property real zoomFactor: (typeof EditorMetrics !== "undefined" && EditorMetrics.zoom) ? EditorMetrics.zoom : 1.0'),
+        "BlockImage debe calcular zoomFactor desde EditorMetrics");
+    assert.ok(blockImageSrc.includes('readonly property real maxH: Math.round(560 * zoomFactor)'),
+        "BlockImage debe escalar maxH con zoomFactor");
+    assert.ok(blockImageSrc.includes('w = Math.round(h * (naturalW / naturalH))'),
+        "BlockImage debe re-escalar w proporcionalmente cuando h > maxH para eliminar bandas vacías");
+    assert.ok(blockImageSrc.includes('anchors.horizontalCenter: parent.horizontalCenter'),
+        "BlockImage imagesFlow debe centrarse horizontalmente");
+
+    // 2. Contratos estáticos en BlockList.qml
+    assert.ok(blockListSrc.includes('EditorMetrics.zoom'), "BlockList delegados de imagen deben considerar EditorMetrics.zoom");
+    assert.ok(blockListSrc.includes('width: dispW'), "BlockList delegados de imagen deben acotar width a dispW para alinear a la izquierda");
+
+    // 3. Cálculo funcional de recorte proporcional (caso de imagen vertical 1712x2692 en contenedor de 794px)
+    const naturalW = 1712;
+    const naturalH = 2692;
+    const availW = 794;
+    const zoomFactor = 1.0;
+    const maxH = Math.round(560 * zoomFactor);
+
+    let w = Math.min(availW, Math.round(naturalW * zoomFactor));
+    let h = Math.round(w * (naturalH / naturalW));
+    if (h > maxH) {
+        h = maxH;
+        w = Math.round(h * (naturalW / naturalH));
+    }
+
+    assert.strictEqual(h, 560, "El alto debe quedar recortado exactamente a maxH");
+    assert.strictEqual(w, 356, "El ancho del contenedor debe coincidir con el aspect-ratio escalado (356px) sin dejar bandas vacías de 794px");
+});
+
+runTest('F103: Compatibilidad con GIFs animados mediante AnimatedImage y respeto de Gamemode', () => {
+    const blockImageSrc = fs.readFileSync(path.resolve(__dirname, '../qml/BlockImage.qml'), 'utf8');
+    const blockListSrc = fs.readFileSync(path.resolve(__dirname, '../qml/BlockList.qml'), 'utf8');
+
+    // BlockImage usa AnimatedImage y respeta Gamemode
+    assert.ok(blockImageSrc.includes('AnimatedImage {'), "BlockImage debe usar AnimatedImage para soporte de GIFs animados");
+    assert.ok(blockImageSrc.includes('playing: Theme.animationsEnabled && !GamemodeService.gamemodeActive'), "BlockImage debe pausar reproducción en gamemode");
+    assert.ok(blockImageSrc.includes('paused: GamemodeService.gamemodeActive'), "BlockImage debe congelar AnimatedImage en gamemode");
+
+    // BlockList usa AnimatedImage y respeta Gamemode
+    assert.ok(blockListSrc.includes('AnimatedImage {'), "BlockList debe usar AnimatedImage para soporte de GIFs animados");
+    assert.ok(blockListSrc.includes('playing: Theme.animationsEnabled && !GamemodeService.gamemodeActive'), "BlockList debe pausar reproducción en gamemode");
+    assert.ok(blockListSrc.includes('paused: GamemodeService.gamemodeActive'), "BlockList debe congelar AnimatedImage en gamemode");
+});
+
+runTest('F104: Fondo translúcido unificado del buscador en el menú de inicio (NotesContent.qml)', () => {
+    const notesContentSrc = fs.readFileSync(path.resolve(__dirname, '../qml/NotesContent.qml'), 'utf8');
+
+    assert.ok(notesContentSrc.includes('color: Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.05)'),
+        "NotesContent searchBox debe usar fondo translúcido idéntico al buscador interno de la nota");
+    assert.ok(notesContentSrc.includes('Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.15)'),
+        "NotesContent searchBox debe tener borde suave al desenfocar");
+});
+
 console.log(`\n========================================`);
 console.log(`Resultados: ${passed} OK, ${failed} FAIL`);
 console.log(`========================================`);

@@ -832,6 +832,9 @@ Item {
         if (action === "h1") { targetPrefix = "# "; isHeading = true; }
         else if (action === "h2") { targetPrefix = "## "; isHeading = true; }
         else if (action === "h3") { targetPrefix = "### "; isHeading = true; }
+        else if (action === "h4") { targetPrefix = "#### "; isHeading = true; }
+        else if (action === "h5") { targetPrefix = "##### "; isHeading = true; }
+        else if (action === "h6") { targetPrefix = "###### "; isHeading = true; }
         else if (action === "bullet_list") targetPrefix = "- ";
         else if (action === "ordered_list") targetPrefix = "1. ";
         else if (action === "task_list") targetPrefix = "- [ ] ";
@@ -903,6 +906,7 @@ Item {
             else if (action === "highlight") _applySourceInlineFormat("==");
             else if (action === "inline_code") _applySourceInlineFormat("`");
             else if (action === "h1" || action === "h2" || action === "h3" ||
+                     action === "h4" || action === "h5" || action === "h6" ||
                      action === "bullet_list" || action === "ordered_list" ||
                      action === "task_list" || action === "quote") {
                 _toggleSourceLinePrefix(action);
@@ -1002,6 +1006,9 @@ Item {
             if (actionId === "h1") return /^# [^\n]*/.test(line) || /^# [^\n]*/.test(listStripped);
             if (actionId === "h2") return /^## [^\n]*/.test(line) || /^## [^\n]*/.test(listStripped);
             if (actionId === "h3") return /^### [^\n]*/.test(line) || /^### [^\n]*/.test(listStripped);
+            if (actionId === "h4") return /^#### [^\n]*/.test(line) || /^#### [^\n]*/.test(listStripped);
+            if (actionId === "h5") return /^##### [^\n]*/.test(line) || /^##### [^\n]*/.test(listStripped);
+            if (actionId === "h6") return /^###### [^\n]*/.test(line) || /^###### [^\n]*/.test(listStripped);
             if (actionId === "bullet_list") return /^\s*[-*+] (?!\[[ xX]\])/.test(line);
             if (actionId === "ordered_list") return /^\s*\d+[\.\)] /.test(line);
             if (actionId === "task_list") return /^\s*[-*+]\s*\[[ xX]\] /.test(line);
@@ -1314,7 +1321,9 @@ Item {
 
         if (event.key === Qt.Key_Escape) {
             event.accepted = true;
-            if (imageMenuPopup.isOpen) {
+            if (headingMenuPopup.isOpen) {
+                headingMenuPopup.isOpen = false;
+            } else if (imageMenuPopup.isOpen) {
                 imageMenuPopup.isOpen = false;
             } else if (mermaidMenuPopup.isOpen) {
                 mermaidMenuPopup.isOpen = false;
@@ -2514,34 +2523,33 @@ Item {
 
                         Rectangle { width: 1; height: 18; color: Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.1) }
 
-                        // 6. H1
+                        // Encabezados H1-H6 (menú desplegable de arriba a abajo)
                         ToolbarButton {
-                            actionId: "h1"
+                            id: headingToolbarBtn
+                            actionId: "heading_menu"
                             disabled: root.isTxt
                             tooltipLayer: tooltipLayer
-                            textLabel: "H1"
-                            active: root.isFormatActive("h1")
-                            onClicked: root.applyFormatOrAction("h1")
-                        }
-
-                        // 7. H2
-                        ToolbarButton {
-                            actionId: "h2"
-                            disabled: root.isTxt
-                            tooltipLayer: tooltipLayer
-                            textLabel: "H2"
-                            active: root.isFormatActive("h2")
-                            onClicked: root.applyFormatOrAction("h2")
-                        }
-
-                        // 8. H3
-                        ToolbarButton {
-                            actionId: "h3"
-                            disabled: root.isTxt
-                            tooltipLayer: tooltipLayer
-                            textLabel: "H3"
-                            active: root.isFormatActive("h3")
-                            onClicked: root.applyFormatOrAction("h3")
+                            textLabel: {
+                                for (var i = 1; i <= 6; i++) {
+                                    if (root.isFormatActive("h" + i)) return "H" + i;
+                                }
+                                return "H";
+                            }
+                            active: {
+                                for (var i = 1; i <= 6; i++) {
+                                    if (root.isFormatActive("h" + i)) return true;
+                                }
+                                return headingMenuPopup.isOpen;
+                            }
+                            onClicked: {
+                                var willOpen = !headingMenuPopup.isOpen;
+                                if (willOpen) {
+                                    imageMenuPopup.isOpen = false;
+                                    mermaidMenuPopup.isOpen = false;
+                                    mathMenuPopup.isOpen = false;
+                                }
+                                headingMenuPopup.isOpen = willOpen;
+                            }
                         }
 
                         Rectangle { width: 1; height: 18; color: Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.1) }
@@ -2616,7 +2624,15 @@ Item {
                             tooltipLayer: tooltipLayer
                             iconSource: Theme.iconsPath + "diagram.svg"
                             active: root.isFormatActive("mermaid")
-                            onClicked: mermaidMenuPopup.isOpen = !mermaidMenuPopup.isOpen
+                            onClicked: {
+                                var willOpen = !mermaidMenuPopup.isOpen;
+                                if (willOpen) {
+                                    headingMenuPopup.isOpen = false;
+                                    imageMenuPopup.isOpen = false;
+                                    mathMenuPopup.isOpen = false;
+                                }
+                                mermaidMenuPopup.isOpen = willOpen;
+                            }
                         }
 
                         // 14c. LaTeX Math Formula
@@ -2627,7 +2643,15 @@ Item {
                             tooltipLayer: tooltipLayer
                             iconSource: Theme.iconsPath + "math.svg"
                             active: root.isFormatActive("math")
-                            onClicked: mathMenuPopup.isOpen = !mathMenuPopup.isOpen
+                            onClicked: {
+                                var willOpen = !mathMenuPopup.isOpen;
+                                if (willOpen) {
+                                    headingMenuPopup.isOpen = false;
+                                    imageMenuPopup.isOpen = false;
+                                    mermaidMenuPopup.isOpen = false;
+                                }
+                                mathMenuPopup.isOpen = willOpen;
+                            }
                             onRightClicked: mathMenuPopup.isOpen = !mathMenuPopup.isOpen
                         }
 
@@ -2649,7 +2673,15 @@ Item {
                             disabled: root.isTxt
                             tooltipLayer: tooltipLayer
                             iconSource: Theme.iconsPath + "image.svg"
-                            onClicked: imageMenuPopup.isOpen = !imageMenuPopup.isOpen
+                            onClicked: {
+                                var willOpen = !imageMenuPopup.isOpen;
+                                if (willOpen) {
+                                    headingMenuPopup.isOpen = false;
+                                    mermaidMenuPopup.isOpen = false;
+                                    mathMenuPopup.isOpen = false;
+                                }
+                                imageMenuPopup.isOpen = willOpen;
+                            }
                         }
 
                         // 17. Link
@@ -3349,8 +3381,9 @@ Item {
         MouseArea {
             anchors.fill: parent
             z: 199
-            visible: imageMenuPopup.isOpen || mermaidMenuPopup.isOpen || mathMenuPopup.isOpen
+            visible: headingMenuPopup.isOpen || imageMenuPopup.isOpen || mermaidMenuPopup.isOpen || mathMenuPopup.isOpen
             onClicked: {
+                headingMenuPopup.isOpen = false;
                 imageMenuPopup.isOpen = false;
                 mermaidMenuPopup.isOpen = false;
                 mathMenuPopup.isOpen = false;
@@ -3556,6 +3589,140 @@ Item {
                             webUrlBar.visible = true;
                             webUrlInput.text = "";
                             webUrlInput.forceActiveFocus();
+                        }
+                    }
+                }
+            }
+        }
+
+        // Menú emergente de selección de encabezados H1 a H6
+        Rectangle {
+            id: headingMenuPopup
+            property bool isOpen: false
+            visible: isOpen || scale > 0.02
+            z: 200
+            width: 190
+            height: headingMenuCol.implicitHeight + 12
+            radius: 8
+            color: Theme.color0
+            border.width: 0
+
+            transformOrigin: Item.Top
+            scale: isOpen ? 1.0 : 0.0
+            opacity: isOpen ? 1.0 : 0.0
+
+            Behavior on scale {
+                enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                SpringAnimation {
+                    spring: 5.5
+                    damping: 0.42
+                    epsilon: 0.01
+                }
+            }
+            Behavior on opacity {
+                NumberAnimation { duration: 140; easing.type: Easing.OutCubic }
+            }
+
+            layer.enabled: true
+            layer.effect: MultiEffect {
+                shadowEnabled: true
+                shadowColor: Qt.rgba(0, 0, 0, 0.45)
+                shadowBlur: 0.6
+                shadowVerticalOffset: 3
+            }
+
+            x: {
+                if (!headingToolbarBtn || !headingMenuPopup.parent) return 0;
+                try {
+                    var pt = headingToolbarBtn.mapToItem(headingMenuPopup.parent, 0, 0);
+                    return Math.max(16, Math.min(headingMenuPopup.parent.width - width - 16, pt.x + (headingToolbarBtn.width - width) / 2));
+                } catch(e) {
+                    return Math.max(0, toolbarRect.x);
+                }
+            }
+            y: {
+                if (!headingToolbarBtn || !headingMenuPopup.parent) return toolbarRect.y + toolbarRect.height + 4;
+                try {
+                    var pt = headingToolbarBtn.mapToItem(headingMenuPopup.parent, 0, 0);
+                    return pt.y + headingToolbarBtn.height + 6;
+                } catch(e) {
+                    return toolbarRect.y + toolbarRect.height + 4;
+                }
+            }
+
+            Column {
+                id: headingMenuCol
+                anchors.centerIn: parent
+                width: parent.width - 12
+                spacing: 2
+
+                Repeater {
+                    model: [
+                        { level: 1, tag: "H1", fontPx: Theme.fontSizeBody + 3 },
+                        { level: 2, tag: "H2", fontPx: Theme.fontSizeBody + 2 },
+                        { level: 3, tag: "H3", fontPx: Theme.fontSizeBody + 1 },
+                        { level: 4, tag: "H4", fontPx: Theme.fontSizeBody },
+                        { level: 5, tag: "H5", fontPx: Theme.fontSizeBody - 1 },
+                        { level: 6, tag: "H6", fontPx: Theme.fontSizeSmall }
+                    ]
+                    delegate: Rectangle {
+                        id: hRow
+                        width: headingMenuCol.width
+                        height: 32
+                        radius: 6
+                        readonly property bool isCurrent: root.isFormatActive("h" + modelData.level)
+                        color: isCurrent
+                            ? Qt.hsva(Theme.accent.hsvHue, Theme.accent.hsvSaturation, Theme.accent.hsvValue, 0.22)
+                            : (hRowMa.containsMouse ? Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.08) : "transparent")
+
+                        Behavior on color {
+                            enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                            ColorAnimation { duration: 100 }
+                        }
+
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.leftMargin: 10
+                            anchors.rightMargin: 10
+                            spacing: 8
+
+                            Text {
+                                text: modelData.tag
+                                color: hRow.isCurrent ? Theme.accent : Theme.text
+                                font.family: Theme.fontFamilyDisplay
+                                font.pixelSize: Theme.fontSizeBody
+                                font.bold: true
+                                Layout.preferredWidth: 26
+                            }
+
+                            Text {
+                                text: EA.getLabel("h" + modelData.level, I18n)
+                                color: hRow.isCurrent ? Theme.accent : Theme.text
+                                font.family: Theme.fontFamily
+                                font.pixelSize: modelData.fontPx
+                                font.bold: modelData.level <= 3
+                                Layout.fillWidth: true
+                                elide: Text.ElideRight
+                            }
+
+                            Text {
+                                text: EA.getShortcut("h" + modelData.level)
+                                color: Theme.muted
+                                font.family: Theme.fontFamilyMonospace
+                                font.pixelSize: Theme.fontSizeSmall - 1
+                                opacity: 0.7
+                            }
+                        }
+
+                        MouseArea {
+                            id: hRowMa
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                headingMenuPopup.isOpen = false;
+                                root.applyFormatOrAction("h" + modelData.level);
+                            }
                         }
                     }
                 }

@@ -74,6 +74,12 @@ var ACTIONS = {
         fallbackLabel: "Encabezado 6",
         shortcut: "Ctrl+Alt+6"
     },
+    "heading_menu": {
+        id: "heading_menu",
+        labelKey: "notes.editor.action.heading_menu",
+        fallbackLabel: "Encabezados (H1-H6)",
+        shortcut: ""
+    },
     "bullet_list": {
         id: "bullet_list",
         labelKey: "notes.editor.action.bullet_list",

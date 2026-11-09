@@ -2257,7 +2257,15 @@ Item {
                         model: itemRow.itemImages
                         delegate: Item {
                             id: imgWrap
-                            width: textCol.width
+                            readonly property real availW: textCol.width
+                            // Tamaño natural capturado una sola vez al cargar (no reactivo a
+                            // imgItem.implicit*, que dependía de nuestro propio alto -> binding loop)
+                            property real natW: 0
+                            property real natH: 0
+                            readonly property real dispW: (natW > 0 && !failed)
+                                ? Math.min(natW * (typeof EditorMetrics !== "undefined" && EditorMetrics.zoom ? EditorMetrics.zoom : 1.0), availW)
+                                : availW
+                            width: dispW
                             visible: !root.isEditing && !itemRow.isSelected
 
                             readonly property var imgRef: modelData
@@ -2278,14 +2286,6 @@ Item {
                                 return st === "yes" || st === "remote";
                             }
                             readonly property bool failed: !attempt || imgItem.status === Image.Error
-                            readonly property real availW: width
-                            // Tamaño natural capturado una sola vez al cargar (no reactivo a
-                            // imgItem.implicit*, que dependía de nuestro propio alto -> binding loop)
-                            property real natW: 0
-                            property real natH: 0
-                            readonly property real dispW: (natW > 0 && !failed)
-                                ? Math.min(natW * EditorMetrics.zoom, availW)
-                                : availW
 
                             height: {
                                 if (failed) return errCol.implicitHeight + 8;
@@ -2295,13 +2295,15 @@ Item {
                                 return 200;
                             }
 
-                            Image {
+                            AnimatedImage {
                                 id: imgItem
                                 anchors.fill: parent
                                 visible: !parent.failed
                                 fillMode: Image.PreserveAspectFit
                                 asynchronous: true
                                 cache: true
+                                playing: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                                paused: GamemodeService.gamemodeActive
                                 sourceSize.width: Math.max(1, Math.ceil(parent.availW * (Screen.devicePixelRatio || 1)))
                                 source: parent.attempt ? parent.fileUrl : ""
 
