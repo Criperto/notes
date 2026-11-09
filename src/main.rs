@@ -108,6 +108,10 @@ struct Cli {
     #[arg(long = "no-sync", alias = "standalone")]
     no_sync: bool,
 
+    /// Forzar o configurar controles de ventana CSD (- [] X): 'always', 'never', 'auto' (alias rápido: --csd)
+    #[arg(long = "window-controls", alias = "csd", num_args = 0..=1, default_missing_value = "always")]
+    window_controls: Option<String>,
+
     /// Verificar carga y salir (para tests y headless CI)
     #[arg(long = "check")]
     check_only: bool,
@@ -379,6 +383,10 @@ fn main() {
 
     if cli.no_sync || sync_cli::is_forced_no_sync() {
         std::env::set_var("NOTAS_NO_SYNC", "1");
+    }
+
+    if let Some(ref wc) = cli.window_controls {
+        std::env::set_var("NOTAS_WINDOW_CONTROLS", wc);
     }
 
     std::env::set_var("NOTAS_INITIAL_ACTION", &action);

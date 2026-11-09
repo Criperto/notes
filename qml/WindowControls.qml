@@ -13,20 +13,20 @@ Item {
 
     visible: shouldShow
     implicitWidth: shouldShow ? 104 : 0
-    implicitHeight: 34
+    implicitHeight: 32
 
     Row {
         id: buttonsRow
         anchors.right: parent.right
-        anchors.top: parent.top
-        anchors.bottom: parent.bottom
-        spacing: 0
+        anchors.verticalCenter: parent.verticalCenter
+        spacing: 4
 
         // 1. Botón Minimizar (-)
         Rectangle {
             id: minBtn
-            width: 34
-            height: root.height
+            width: 32
+            height: 32
+            radius: 8
             color: minMa.containsMouse ? Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.12) : "transparent"
 
             Behavior on color {
@@ -58,8 +58,9 @@ Item {
         // 2. Botón Maximizar / Restaurar (□)
         Rectangle {
             id: maxBtn
-            width: 34
-            height: root.height
+            width: 32
+            height: 32
+            radius: 8
             color: maxMa.containsMouse ? Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.12) : "transparent"
 
             Behavior on color {
@@ -127,8 +128,9 @@ Item {
         // 3. Botón Cerrar (×)
         Rectangle {
             id: closeBtn
-            width: 36
-            height: root.height
+            width: 32
+            height: 32
+            radius: 8
             color: closeMa.containsMouse ? Theme.danger : "transparent"
 
             Behavior on color {

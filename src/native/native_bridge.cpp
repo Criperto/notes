@@ -16,6 +16,9 @@
 #include <QPalette>
 #include <QColor>
 #include <QStandardPaths>
+#include <QWindow>
+#include <QQuickItem>
+#include <QQuickWindow>
 #include <cmath>
 #include <iostream>
 
@@ -1092,6 +1095,10 @@ bool Sys::hasQuickshellConfig() const {
 }
 
 bool Sys::wmNeedsWindowControls() const {
+    const QString cli = QString::fromUtf8(qgetenv("NOTAS_WINDOW_CONTROLS")).trimmed().toLower();
+    if (cli == QStringLiteral("always")) return true;
+    if (cli == QStringLiteral("never")) return false;
+
     if (qEnvironmentVariableIsSet("HYPRLAND_INSTANCE_SIGNATURE") ||
         qEnvironmentVariableIsSet("SWAYSOCK") ||
         qEnvironmentVariableIsSet("NIRI_SOCKET")) {
@@ -1107,6 +1114,18 @@ bool Sys::wmNeedsWindowControls() const {
         return true;
     }
     return true;
+}
+
+void Sys::startSystemMove(QObject *windowObj) {
+    if (!windowObj) return;
+    auto *win = qobject_cast<QWindow*>(windowObj);
+    if (!win) {
+        auto *item = qobject_cast<QQuickItem*>(windowObj);
+        if (item) win = item->window();
+    }
+    if (win) {
+        win->startSystemMove();
+    }
 }
 
 namespace {
@@ -2073,6 +2092,14 @@ QString ConfigBackend::resolvedNotasDir() const {
     p.replace(QStringLiteral("$XDG_DOCUMENTS_DIR"), docs);
     if (p.length() > 1 && p.endsWith('/')) p.chop(1);
     return p;
+}
+
+QString ConfigBackend::windowControlsMode() const {
+    const QString cli = QString::fromUtf8(qgetenv("NOTAS_WINDOW_CONTROLS")).trimmed().toLower();
+    if (!cli.isEmpty()) {
+        return cli;
+    }
+    return m_windowControlsMode;
 }
 
 void ConfigBackend::setWindowControlsMode(const QString &val) {

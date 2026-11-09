@@ -273,6 +273,7 @@ public:
     Q_INVOKABLE void claimEditLock(const QString &notePath);
     Q_INVOKABLE void broadcastNoteSaved(const QString &notePath);
     Q_INVOKABLE void broadcastNoteDeleted(const QString &notePath);
+    Q_INVOKABLE void startSystemMove(QObject *windowObj);
 
 signals:
     void clipboardTextChanged();
@@ -360,7 +361,7 @@ public:
     void setNotasDir(const QString &val);
     QString resolvedNotasDir() const;
 
-    QString windowControlsMode() const { return m_windowControlsMode; }
+    QString windowControlsMode() const;
     void setWindowControlsMode(const QString &val);
 
     int editorFontSize() const { return m_editorFontSize; }

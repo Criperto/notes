@@ -5331,6 +5331,60 @@ runTest("F115: packaging/arch/build-arch.sh genera .pkg.tar.zst y se integra en 
     }
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// F116: Flag CLI --csd / --window-controls, NOTAS_WINDOW_CONTROLS y Sys::startSystemMove
+// ─────────────────────────────────────────────────────────────────────────────
+runTest("F116: Flags CLI --csd / --window-controls y soporte nativo Sys::startSystemMove", () => {
+    const mainRs = fs.readFileSync(path.resolve(__dirname, '../src/main.rs'), 'utf8');
+    assert.ok(mainRs.includes('window_controls'), "main.rs debe declarar argumento window_controls");
+    assert.ok(mainRs.includes('alias = "csd"'), "main.rs debe incluir alias 'csd' para window-controls");
+    assert.ok(mainRs.includes('NOTAS_WINDOW_CONTROLS'), "main.rs debe asignar variable de entorno NOTAS_WINDOW_CONTROLS");
+
+    const bridgeH = fs.readFileSync(path.resolve(__dirname, '../src/native/native_bridge.h'), 'utf8');
+    assert.ok(bridgeH.includes('startSystemMove(QObject *windowObj)'), "native_bridge.h debe declarar Sys::startSystemMove");
+
+    const bridgeCpp = fs.readFileSync(path.resolve(__dirname, '../src/native/native_bridge.cpp'), 'utf8');
+    assert.ok(bridgeCpp.includes('NOTAS_WINDOW_CONTROLS'), "native_bridge.cpp debe consultar NOTAS_WINDOW_CONTROLS");
+    assert.ok(bridgeCpp.includes('win->startSystemMove()'), "native_bridge.cpp debe invocar startSystemMove");
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// F117: Supresión de decoración duplicada mediante Qt.FramelessWindowHint en Main.qml
+// ─────────────────────────────────────────────────────────────────────────────
+runTest("F117: ApplicationWindow aplica Qt.FramelessWindowHint cuando winControls.visible está activo", () => {
+    const mainQml = fs.readFileSync(path.resolve(__dirname, '../qml/Main.qml'), 'utf8');
+    assert.ok(mainQml.includes('flags: Qt.Window | (winControls.visible ? Qt.FramelessWindowHint : 0)'),
+        "Main.qml debe configurar FramelessWindowHint condicionado a los controles CSD");
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// F118: Alineación y diseño de botones redondeados en WindowControls.qml
+// ─────────────────────────────────────────────────────────────────────────────
+runTest("F118: WindowControls alineado con buscador/píldora, margen derecho y botones radius 8", () => {
+    const mainQml = fs.readFileSync(path.resolve(__dirname, '../qml/Main.qml'), 'utf8');
+    assert.ok(mainQml.includes('y: (typeof NotesService !== "undefined" && NotesService.isEditing) ? 20 : 15'),
+        "Main.qml debe posicionar dinámicamente winControls en y: 15 (inicio) y 20 (editor)");
+    assert.ok(mainQml.includes('anchors.rightMargin: 16'),
+        "Main.qml debe tener un margen derecho de 16px para no quedar pegado al borde");
+
+    const winControlsQml = fs.readFileSync(path.resolve(__dirname, '../qml/WindowControls.qml'), 'utf8');
+    assert.ok(winControlsQml.includes('radius: 8'), "WindowControls debe usar botones redondeados con radius: 8");
+    assert.ok(winControlsQml.includes('spacing: 4'), "WindowControls debe tener espaciado entre botones de 4px");
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// F119: Arrastre de ventana (startSystemMove) y maximizado en cabeceras
+// ─────────────────────────────────────────────────────────────────────────────
+runTest("F119: Cabeceras de NotesContent y NoteEditorModal soportan startSystemMove y doble clic", () => {
+    const contentQml = fs.readFileSync(path.resolve(__dirname, '../qml/NotesContent.qml'), 'utf8');
+    assert.ok(contentQml.includes('startSystemMove()'), "NotesContent.qml debe invocar startSystemMove()");
+    assert.ok(contentQml.includes('showMaximized()'), "NotesContent.qml debe alternar showMaximized()");
+
+    const editorQml = fs.readFileSync(path.resolve(__dirname, '../qml/NoteEditorModal.qml'), 'utf8');
+    assert.ok(editorQml.includes('startSystemMove()'), "NoteEditorModal.qml debe invocar startSystemMove()");
+    assert.ok(editorQml.includes('showMaximized()'), "NoteEditorModal.qml debe alternar showMaximized()");
+});
+
 console.log(`\n========================================`);
 console.log(`Resultados: ${passed} OK, ${failed} FAIL`);
 console.log(`========================================`);

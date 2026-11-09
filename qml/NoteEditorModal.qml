@@ -1587,8 +1587,32 @@ Item {
 
             // ── Barra superior (Volver, Título, Subtítulo, Fijar, Borrar, Guardado) ──
             RowLayout {
+                id: editorHeaderRow
                 Layout.fillWidth: true
                 spacing: 12
+
+                MouseArea {
+                    anchors.fill: parent
+                    z: -1
+                    onPressed: (mouse) => {
+                        if (mouse.button === Qt.LeftButton) {
+                            var w = root.Window.window;
+                            if (w) {
+                                if (typeof w.startSystemMove === "function") w.startSystemMove();
+                                else if (typeof Sys !== "undefined") Sys.startSystemMove(w);
+                            }
+                        }
+                    }
+                    onDoubleClicked: (mouse) => {
+                        if (mouse.button === Qt.LeftButton) {
+                            var w = root.Window.window;
+                            if (w) {
+                                if (w.visibility === Window.Maximized) w.showNormal();
+                                else w.showMaximized();
+                            }
+                        }
+                    }
+                }
 
                 // Botón volver / cerrar
                 Rectangle {
@@ -1903,7 +1927,7 @@ Item {
 
                 // Espacio fijo para los controles de ventana CSD cuando están activos
                 Item {
-                    Layout.preferredWidth: root.windowControlsWidth > 0 ? (root.windowControlsWidth + 4) : 0
+                    Layout.preferredWidth: root.windowControlsWidth > 0 ? (root.windowControlsWidth + 8) : 0
                     Layout.preferredHeight: 1
                     visible: root.windowControlsWidth > 0
                 }

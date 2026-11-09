@@ -21,6 +21,7 @@ ApplicationWindow {
     minimumWidth: 680
     minimumHeight: 500
     color: "transparent"
+    flags: Qt.Window | (winControls.visible ? Qt.FramelessWindowHint : 0)
 
     NotesContent {
         id: content
@@ -35,10 +36,16 @@ ApplicationWindow {
 
     WindowControls {
         id: winControls
-        anchors.top: parent.top
+        y: (typeof NotesService !== "undefined" && NotesService.isEditing) ? 20 : 15
         anchors.right: parent.right
+        anchors.rightMargin: 16
         targetWindow: root
         z: 500
+
+        Behavior on y {
+            enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+            NumberAnimation { duration: 180; easing.type: Easing.OutCubic }
+        }
     }
 
     NotesSettingsModal {

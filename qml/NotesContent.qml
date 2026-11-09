@@ -504,12 +504,34 @@ Item {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 64
 
+                MouseArea {
+                    anchors.fill: parent
+                    z: -1
+                    onPressed: (mouse) => {
+                        if (mouse.button === Qt.LeftButton) {
+                            var w = root.Window.window;
+                            if (w) {
+                                if (typeof w.startSystemMove === "function") w.startSystemMove();
+                                else if (typeof Sys !== "undefined") Sys.startSystemMove(w);
+                            }
+                        }
+                    }
+                    onDoubleClicked: (mouse) => {
+                        if (mouse.button === Qt.LeftButton) {
+                            var w = root.Window.window;
+                            if (w) {
+                                if (w.visibility === Window.Maximized) w.showNormal();
+                                else w.showMaximized();
+                            }
+                        }
+                    }
+                }
+
                 RowLayout {
                     anchors.fill: parent
                     anchors.leftMargin: 22
-                    anchors.rightMargin: root.windowControlsWidth > 0 ? (root.windowControlsWidth + 14) : 20
+                    anchors.rightMargin: root.windowControlsWidth > 0 ? (root.windowControlsWidth + 24) : 20
                     spacing: 14
-
 
                     // Título de la aplicación y contador
                     ColumnLayout {
@@ -533,7 +555,32 @@ Item {
                         }
                     }
 
-                    Item { Layout.fillWidth: true }
+                    Item {
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+
+                        MouseArea {
+                            anchors.fill: parent
+                            onPressed: (mouse) => {
+                                if (mouse.button === Qt.LeftButton) {
+                                    var w = root.Window.window;
+                                    if (w) {
+                                        if (typeof w.startSystemMove === "function") w.startSystemMove();
+                                        else if (typeof Sys !== "undefined") Sys.startSystemMove(w);
+                                    }
+                                }
+                            }
+                            onDoubleClicked: (mouse) => {
+                                if (mouse.button === Qt.LeftButton) {
+                                    var w = root.Window.window;
+                                    if (w) {
+                                        if (w.visibility === Window.Maximized) w.showNormal();
+                                        else w.showMaximized();
+                                    }
+                                }
+                            }
+                        }
+                    }
 
                     // Selector de ordenación
                     Rectangle {
