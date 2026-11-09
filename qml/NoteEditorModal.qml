@@ -1586,10 +1586,9 @@ Item {
             spacing: 12
 
             // ── Barra superior (Volver, Título, Subtítulo, Fijar, Borrar, Guardado) ──
-            RowLayout {
-                id: editorHeaderRow
+            Item {
                 Layout.fillWidth: true
-                spacing: 12
+                Layout.preferredHeight: editorHeaderRow.implicitHeight
 
                 MouseArea {
                     anchors.fill: parent
@@ -1613,6 +1612,11 @@ Item {
                         }
                     }
                 }
+
+                RowLayout {
+                    id: editorHeaderRow
+                    anchors.fill: parent
+                    spacing: 12
 
                 // Botón volver / cerrar
                 Rectangle {
@@ -1931,6 +1935,7 @@ Item {
                     Layout.preferredHeight: 1
                     visible: root.windowControlsWidth > 0
                 }
+            }
             }
 
             // ── Fila de etiquetas del front matter ────────────────────
