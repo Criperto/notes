@@ -1301,7 +1301,7 @@ Item {
                 Layout.fillHeight: true
                 clip: true
                 boundsBehavior: Flickable.StopAtBounds
-                contentWidth: Math.max(100, width - vbar.reservedSpace)
+                contentWidth: Math.max(100, width - 8)
                 contentHeight: activeTabCol.implicitHeight + 20
 
                 ScrollBar.vertical: CustomScrollBar { id: vbar }
@@ -1945,6 +1945,40 @@ Item {
                                     comment: I18n.t("config.general.hide_scrollbars_comment", "Mantiene el desplazamiento con rueda o gestos ocultando las barras visuales.")
                                     checked: ConfigBackend.hideScrollbars
                                     onToggled: (v) => { ConfigBackend.hideScrollbars = v; }
+                                }
+
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 6
+
+                                    Text {
+                                        text: I18n.t("config.window.controls_title", "Botones de ventana (CSD)")
+                                        color: Theme.text
+                                        font.family: Theme.fontFamily
+                                        font.pixelSize: Theme.fontSizeBody
+                                        font.bold: true
+                                    }
+
+                                    Text {
+                                        text: I18n.t("config.window.controls_comment", "Muestra los botones de minimizar, maximizar y cerrar en la barra superior.")
+                                        color: Theme.muted
+                                        font.family: Theme.fontFamily
+                                        font.pixelSize: Theme.fontSizeSmall
+                                    }
+
+                                    SegmentedPicker {
+                                        options: [
+                                            { value: "auto",   label: I18n.t("config.window.controls_auto", "Automático (según WM)") },
+                                            { value: "always", label: I18n.t("config.window.controls_always", "Siempre") },
+                                            { value: "never",  label: I18n.t("config.window.controls_never", "Nunca") }
+                                        ]
+                                        currentValue: (typeof ConfigBackend !== "undefined" && ConfigBackend.windowControlsMode) ? ConfigBackend.windowControlsMode : "auto"
+                                        onSelected: (val) => {
+                                            if (typeof ConfigBackend !== "undefined" && ConfigBackend.windowControlsMode !== val) {
+                                                ConfigBackend.windowControlsMode = val;
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -3365,7 +3399,7 @@ Item {
                                     Text { text: "~/.config/notas/config.json"; color: Theme.text; font.family: Theme.fontFamilyMonospace; font.pixelSize: Theme.fontSizeBodySecondary }
 
                                     Text { text: "Diccionarios Hunspell:"; color: Theme.muted; font.family: Theme.fontFamily; font.pixelSize: Theme.fontSizeBodySecondary }
-                                    Text { text: "~/.local/share/notas/dictionaries/"; color: Theme.text; font.family: Theme.fontFamilyMonospace; font.pixelSize: Theme.fontSizeBodySecondary }
+                                    Text { text: "~/.local/share/criperto.notes/dictionaries/"; color: Theme.text; font.family: Theme.fontFamilyMonospace; font.pixelSize: Theme.fontSizeBodySecondary }
 
                                     Text { text: "Diccionario personal:"; color: Theme.muted; font.family: Theme.fontFamily; font.pixelSize: Theme.fontSizeBodySecondary }
                                     Text { text: "~/.config/notas/personal.dic"; color: Theme.text; font.family: Theme.fontFamilyMonospace; font.pixelSize: Theme.fontSizeBodySecondary }

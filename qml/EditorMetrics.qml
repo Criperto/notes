@@ -29,7 +29,7 @@ Item {
                 lightMode: Boolean(Theme.lightMode),
                 surface: "" + Theme.surface,
                 color15: "" + Theme.color15,
-                fontFamilyMonospace: Theme.fontFamilyMonospace || "Google Sans Code"
+                fontFamilyMonospace: Theme.fontFamilyMonospace || "JetBrains Mono"
             });
         }
     }

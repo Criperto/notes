@@ -37,6 +37,7 @@ Item {
     property bool morphReady: true
     property string _pendingBody: ""
     property bool isSettingsOpen: false
+    property real windowControlsWidth: 0
 
     // Carga diferida pendiente (llamado por toggle/foco/guardado/búsqueda).
     function _flushPendingBody() {
@@ -1772,101 +1773,6 @@ Item {
                     }
                 }
 
-                // Botón Fijar
-                Rectangle {
-                    width: 34
-                    height: 34
-                    radius: 10
-                    opacity: root.isExpanded ? 1.0 : 0.0
-                    visible: opacity > 0.0 && !root.isPreviewMode
-                    color: root.isPinned
-                        ? Qt.hsva(Theme.accent.hsvHue, Theme.accent.hsvSaturation, Theme.accent.hsvValue, 0.22)
-                        : (pinBtnMa.containsMouse ? Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.12) : "transparent")
-
-                    Behavior on color {
-                        enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
-                        ColorAnimation { duration: 140 }
-                    }
-
-                    Image {
-                        anchors.centerIn: parent
-                        width: 16
-                        height: 16
-                        source: Theme.iconsPath + "push-pin.svg"
-                        sourceSize: Qt.size(16, 16)
-                        layer.enabled: true
-                        layer.effect: MultiEffect {
-                            colorization: 1.0
-                            colorizationColor: root.isPinned
-                                ? Theme.accent
-                                : (pinBtnMa.containsMouse ? Theme.accent : Theme.muted)
-                        }
-                    }
-
-                    MouseArea {
-                        id: pinBtnMa
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        preventStealing: true
-                        cursorShape: Qt.PointingHandCursor
-                        onEntered: tooltipLayer.showTooltip(parent, root.isPinned ? I18n.t("notes.editor.action.unpin", "Desfijar nota") : I18n.t("notes.editor.action.pin", "Fijar nota"), "")
-                        onExited: tooltipLayer.hideTooltip()
-                        onClicked: {
-                            tooltipLayer.hideTooltip();
-                            root.isPinned = !root.isPinned;
-                            root.performSave(null, true);
-                        }
-                    }
-                }
-
-                // Botón Borrar
-                Rectangle {
-                    width: 34
-                    height: 34
-                    radius: 10
-                    opacity: root.isExpanded ? 1.0 : 0.0
-                    visible: opacity > 0.0 && !root.isPreviewMode
-                    color: delBtnMa.containsMouse ? Qt.rgba(1, 0.2, 0.2, 0.22) : "transparent"
-
-                    Behavior on color {
-                        enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
-                        ColorAnimation { duration: 140 }
-                    }
-
-                    Image {
-                        anchors.centerIn: parent
-                        width: 16
-                        height: 16
-                        source: Theme.iconsPath + "delete.svg"
-                        sourceSize: Qt.size(16, 16)
-                        layer.enabled: true
-                        layer.effect: MultiEffect {
-                            colorization: 1.0
-                            colorizationColor: delBtnMa.containsMouse ? Theme.danger : Theme.muted
-                        }
-                    }
-
-                    MouseArea {
-                        id: delBtnMa
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        preventStealing: true
-                        cursorShape: Qt.PointingHandCursor
-                        onEntered: tooltipLayer.showTooltip(parent, I18n.t("notes.editor.action.delete", "Eliminar nota"), "")
-                        onExited: tooltipLayer.hideTooltip()
-                        onClicked: {
-                            tooltipLayer.hideTooltip();
-                            var slugToDelete = root.loadedSlug || (root.noteData ? (root.noteData.slug || root.noteData.id) : "");
-                            if (NotesService._pendingSlug === slugToDelete) {
-                                NotesService._pendingSave = null;
-                                NotesService._pendingSlug = "";
-                            }
-                            root.dirty = false;
-                            root.deleteRequested(slugToDelete);
-                        }
-                    }
-                }
-
                 // Botón "Importar a Notas" (cuando se edita un archivo externo directamente)
                 Rectangle {
                     height: 30
@@ -1993,6 +1899,13 @@ Item {
                             }
                         }
                     }
+                }
+
+                // Espacio fijo para los controles de ventana CSD cuando están activos
+                Item {
+                    Layout.preferredWidth: root.windowControlsWidth > 0 ? (root.windowControlsWidth + 4) : 0
+                    Layout.preferredHeight: 1
+                    visible: root.windowControlsWidth > 0
                 }
             }
 
@@ -2834,6 +2747,47 @@ Item {
                             tooltipLayer.hideTooltip();
                             root.convertToMarkdown();
                         }
+                    }
+                }
+
+                // Separador vertical sutil
+                Rectangle {
+                    Layout.preferredWidth: 1
+                    Layout.preferredHeight: Theme.s(20)
+                    Layout.alignment: Qt.AlignVCenter
+                    color: Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.12)
+                    visible: !root.isPreviewMode
+                }
+
+                // Botón Fijar Nota
+                ToolbarButton {
+                    id: tbPinBtn
+                    iconSource: Theme.iconsPath + "push-pin.svg"
+                    tooltipLabel: root.isPinned ? I18n.t("notes.editor.action.unpin", "Desfijar nota") : I18n.t("notes.editor.action.pin", "Fijar nota")
+                    tooltipLayer: tooltipLayer
+                    active: root.isPinned
+                    visible: !root.isPreviewMode
+                    onClicked: {
+                        root.isPinned = !root.isPinned;
+                        root.performSave(null, true);
+                    }
+                }
+
+                // Botón Borrar Nota
+                ToolbarButton {
+                    id: tbDeleteBtn
+                    iconSource: Theme.iconsPath + "delete.svg"
+                    tooltipLabel: I18n.t("notes.editor.action.delete", "Eliminar nota")
+                    tooltipLayer: tooltipLayer
+                    visible: !root.isPreviewMode
+                    onClicked: {
+                        var slugToDelete = root.loadedSlug || (root.noteData ? (root.noteData.slug || root.noteData.id) : "");
+                        if (NotesService._pendingSlug === slugToDelete) {
+                            NotesService._pendingSave = null;
+                            NotesService._pendingSlug = "";
+                        }
+                        root.dirty = false;
+                        root.deleteRequested(slugToDelete);
                     }
                 }
             }

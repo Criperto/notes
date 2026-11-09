@@ -22,7 +22,18 @@ rm -rf "${APP_DIR}"
 mkdir -p "${APP_DIR}"
 
 echo "==> Instalando estructura de sistema en AppDir..."
-PREFIX="/usr" DESTDIR="${APP_DIR}" bash "${REPO_DIR}/scripts/install-system.sh"
+PREFIX="/usr" DESTDIR="${APP_DIR}" bash "${REPO_DIR}/scripts/install.sh" --system
+
+# 2.1 Empaquetar binario hunspell para corrector autónomo dentro del AppImage
+if command -v hunspell &>/dev/null; then
+    mkdir -p "${APP_DIR}/usr/bin"
+    cp "$(command -v hunspell)" "${APP_DIR}/usr/bin/"
+    HUNSPELL_LIB=$(ldd "$(command -v hunspell)" 2>/dev/null | grep libhunspell | awk '{print $3}' || true)
+    if [[ -n "${HUNSPELL_LIB}" && -f "${HUNSPELL_LIB}" ]]; then
+        mkdir -p "${APP_DIR}/usr/lib"
+        cp -L "${HUNSPELL_LIB}" "${APP_DIR}/usr/lib/"
+    fi
+fi
 
 # 3. Enlaces estándar en la raíz de AppDir (Desktop Entry, Icono y .DirIcon)
 cd "${APP_DIR}"

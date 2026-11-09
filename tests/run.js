@@ -3731,8 +3731,10 @@ runTest('F75: Renderizado visual de teclas kbd y modo configurable para archivos
     assert.strictEqual(parseInt(h15Match[1], 10), 39, "Altura escalada a 1.5x debe ser 39px (26 * 1.5)");
 
     // Adaptación de tipografía mono del tema
-    const svgFont = decodeURIComponent(Inline.renderKeycapSvg("ESC", { fontFamilyMonospace: "Google Sans Code" }));
-    assert.ok(svgFont.indexOf("font-family=\"'Google Sans Code', monospace\"") !== -1, "El texto interior debe usar la tipografía monospace configurada");
+    const svgDefaultFont = decodeURIComponent(Inline.renderKeycapSvg("ESC"));
+    assert.ok(svgDefaultFont.indexOf("font-family=\"'JetBrains Mono', monospace\"") !== -1, "El texto interior debe usar JetBrains Mono por defecto");
+    const svgFont = decodeURIComponent(Inline.renderKeycapSvg("ESC", { fontFamilyMonospace: "Fira Code" }));
+    assert.ok(svgFont.indexOf("font-family=\"'Fira Code', monospace\"") !== -1, "El texto interior debe usar la tipografía monospace configurada");
 
     // 4. SearchLogic stripForSearch con <kbd>
     const searchStripped = SearchLogic.stripForSearch("Presione <kbd>Ctrl</kbd> + <kbd>S</kbd>");
@@ -5238,6 +5240,91 @@ runTest('F109: Paridad de traducciones en los 9 idiomas para anclas, wikilinks, 
     assert.ok(catalogsSrc.includes('headings_current'), "I18nCatalogs.js debe contener 'headings_current'");
     assert.ok(catalogsSrc.includes('create_note_desc'), "I18nCatalogs.js debe contener 'create_note_desc'");
     assert.ok(catalogsSrc.includes('heading_menu'), "I18nCatalogs.js debe contener 'heading_menu'");
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// F110: Tipografías de Código Abierto SIL OFL (sin fuentes propietarias)
+// ─────────────────────────────────────────────────────────────────────────────
+runTest("F110: Fuentes abiertas SIL OFL como fallback en Theme, bridge e Inline", () => {
+    const themeSrc = fs.readFileSync(path.resolve(__dirname, '../qml/Theme.qml'), 'utf8');
+    assert.ok(!themeSrc.includes('"Google Sans"'), "Theme.qml no debe contener Google Sans propietario");
+    assert.ok(themeSrc.includes('"Plus Jakarta Sans"'), "Theme.qml debe usar Plus Jakarta Sans como fallback abierto");
+    assert.ok(themeSrc.includes('"Outfit"'), "Theme.qml debe usar Outfit como fallback display abierto");
+    assert.ok(themeSrc.includes('"JetBrains Mono"'), "Theme.qml debe usar JetBrains Mono como fallback mono abierto");
+
+    const bridgeSrc = fs.readFileSync(path.resolve(__dirname, '../src/native/native_bridge.cpp'), 'utf8');
+    assert.ok(!bridgeSrc.includes('QStringLiteral("Google Sans")'), "native_bridge.cpp no debe hardcodear Google Sans");
+    assert.ok(bridgeSrc.includes('QStringLiteral("Plus Jakarta Sans")'), "native_bridge.cpp debe incluir Plus Jakarta Sans");
+    assert.ok(bridgeSrc.includes('QStringLiteral("Outfit")'), "native_bridge.cpp debe incluir Outfit");
+    assert.ok(bridgeSrc.includes('QStringLiteral("JetBrains Mono")'), "native_bridge.cpp debe incluir JetBrains Mono");
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// F111: Directorio de Notas por Defecto $XDG_DOCUMENTS_DIR/notes
+// ─────────────────────────────────────────────────────────────────────────────
+runTest("F111: Directorio por defecto literal $XDG_DOCUMENTS_DIR/notes y resolución dinámica", () => {
+    const bridgeSrc = fs.readFileSync(path.resolve(__dirname, '../src/native/native_bridge.cpp'), 'utf8');
+    assert.ok(bridgeSrc.includes('m_notasDir = QStringLiteral("$XDG_DOCUMENTS_DIR/notes");'), "El valor inicial en C++ debe ser literal $XDG_DOCUMENTS_DIR/notes");
+    assert.ok(bridgeSrc.includes('QString ConfigBackend::resolvedNotasDir() const'), "ConfigBackend debe exponer resolvedNotasDir()");
+
+    const notesCfgSrc = fs.readFileSync(path.resolve(__dirname, '../qml/NotesConfig.qml'), 'utf8');
+    assert.ok(notesCfgSrc.includes('function resolveNotesDir'), "NotesConfig.qml debe tener la función resolveNotesDir");
+    assert.ok(notesCfgSrc.includes('$XDG_DOCUMENTS_DIR'), "resolveNotesDir debe expandir $XDG_DOCUMENTS_DIR");
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// F112: Controles de Ventana CSD integrados y configuración
+// ─────────────────────────────────────────────────────────────────────────────
+runTest("F112: WindowControls.qml, registro en build.rs y modos CSD", () => {
+    assert.ok(fs.existsSync(path.resolve(__dirname, '../qml/WindowControls.qml')), "qml/WindowControls.qml debe existir");
+    const buildRs = fs.readFileSync(path.resolve(__dirname, '../build.rs'), 'utf8');
+    assert.ok(buildRs.includes('"qml/WindowControls.qml"'), "build.rs debe registrar qml/WindowControls.qml");
+
+    const bridgeH = fs.readFileSync(path.resolve(__dirname, '../src/native/native_bridge.h'), 'utf8');
+    assert.ok(bridgeH.includes('windowControlsMode'), "native_bridge.h debe declarar windowControlsMode");
+    assert.ok(bridgeH.includes('wmNeedsWindowControls'), "native_bridge.h debe declarar wmNeedsWindowControls");
+
+    const settingsModalSrc = fs.readFileSync(path.resolve(__dirname, '../qml/NotesSettingsModal.qml'), 'utf8');
+    assert.ok(settingsModalSrc.includes('ConfigBackend.windowControlsMode'), "NotesSettingsModal debe contener selector de modo CSD");
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// F113: Morphing FAB texto completo y componente de marquee en hover
+// ─────────────────────────────────────────────────────────────────────────────
+runTest("F113: MorphingFab ancho dinámico ampliado y FabOptionText con marquee", () => {
+    const fabSrc = fs.readFileSync(path.resolve(__dirname, '../qml/MorphingFab.qml'), 'utf8');
+    assert.ok(fabSrc.includes('component FabOptionText'), "MorphingFab debe definir el componente FabOptionText");
+    assert.ok(fabSrc.includes('SequentialAnimation on x'), "FabOptionText debe animar x en bucle para texto desbordado");
+    assert.ok(fabSrc.includes('Math.max(220'), "dynamicExpandedWidth debe tener un mínimo de 220px para no truncar");
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// F114: Script unificado install.sh y preservación de documentos
+// ─────────────────────────────────────────────────────────────────────────────
+runTest("F114: Script unificado scripts/install.sh con --user, --uninstall y protección de notas", () => {
+    assert.ok(fs.existsSync(path.resolve(__dirname, '../scripts/install.sh')), "scripts/install.sh debe existir");
+    const installSrc = fs.readFileSync(path.resolve(__dirname, '../scripts/install.sh'), 'utf8');
+    assert.ok(installSrc.includes('--user'), "install.sh debe soportar el flag --user");
+    assert.ok(installSrc.includes('--uninstall'), "install.sh debe soportar el flag --uninstall");
+    assert.ok(installSrc.includes('Documentos/notes NUNCA fueron modificados ni eliminados'), "install.sh debe garantizar la preservación de documentos de usuario");
+    assert.ok(installSrc.includes('/usr/share/criperto.notes'), "install.sh debe usar /usr/share/criperto.notes (no nombres genéricos)");
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// F115: Paquete nativo de Arch Linux .pkg.tar.zst y pipeline CI
+// ─────────────────────────────────────────────────────────────────────────────
+runTest("F115: packaging/arch/build-arch.sh genera .pkg.tar.zst y se integra en releases", () => {
+    assert.ok(fs.existsSync(path.resolve(__dirname, '../packaging/arch/build-arch.sh')), "packaging/arch/build-arch.sh debe existir");
+    const buildArchSrc = fs.readFileSync(path.resolve(__dirname, '../packaging/arch/build-arch.sh'), 'utf8');
+    assert.ok(buildArchSrc.includes('.PKGINFO'), "build-arch.sh debe generar metadatos .PKGINFO");
+    assert.ok(buildArchSrc.includes('.pkg.tar.zst'), "build-arch.sh debe comprimir con extensión .pkg.tar.zst");
+
+    const releaseYml = fs.readFileSync(path.resolve(__dirname, '../.github/workflows/release.yml'), 'utf8');
+    assert.ok(releaseYml.includes('build-arch.sh'), "release.yml debe invocar build-arch.sh");
+    assert.ok(releaseYml.includes('dist/*.pkg.tar.zst'), "release.yml debe subir *.pkg.tar.zst a GitHub Releases");
+
+    const releaseSh = fs.readFileSync(path.resolve(__dirname, '../scripts/release.sh'), 'utf8');
+    assert.ok(releaseSh.includes('build-arch.sh'), "scripts/release.sh debe incluir build-arch.sh");
 });
 
 console.log(`\n========================================`);

@@ -7,9 +7,13 @@
 #include <QtCore/QLoggingCategory>
 
 extern "C" void notas_init_qt(void) {
-    QLoggingCategory::setFilterRules(QStringLiteral("qt.qpa.wayland.textinput.warning=false\n"));
+    QLoggingCategory::setFilterRules(QStringLiteral(
+        "qt.qpa.wayland.textinput.warning=false\n"
+        "qt.qpa.services.warning=false\n"
+    ));
     QQuickStyle::setStyle(QStringLiteral("Basic"));
     QGuiApplication::setDesktopFileName(QStringLiteral("dev.criperto.Notas"));
+    QGuiApplication::setApplicationDisplayName(QStringLiteral("Notas"));
 
     // Habilitar soporte de transparencia y búfer alfa en Wayland/X11
     QQuickWindow::setDefaultAlphaBuffer(true);

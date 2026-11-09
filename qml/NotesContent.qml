@@ -15,6 +15,7 @@ Item {
     signal closeRequested
     signal openSettingsRequested(var originRect, string initialTab)
     property bool isSettingsOpen: false
+    property real windowControlsWidth: 0
 
     function getSettingsButtonRect() {
         if (!settingsBtn) return null;
@@ -468,7 +469,7 @@ Item {
     Rectangle {
         id: bgCard
         anchors.fill: parent
-        radius: 20
+        radius: 0
         color: Qt.hsva(Theme.surface.hsvHue,
                        Math.min(1, Theme.surface.hsvSaturation),
                        Math.min(1, Theme.surface.hsvValue + 0.04),
@@ -476,22 +477,14 @@ Item {
         border.color: Qt.hsva(Theme.text.hsvHue, Theme.text.hsvSaturation, Theme.text.hsvValue, 0.08)
         border.width: 1
 
-        layer.enabled: true
-        layer.effect: MultiEffect {
-            shadowEnabled: true
-            shadowColor:   "#D0000000"
-            shadowBlur:    0.85
-            shadowVerticalOffset: 12
-            shadowHorizontalOffset: 0
-        }
-
+        layer.enabled: false
     }
 
     // ── Contenedor recortado ──────────────────────────────────────────────
     ClippingRectangle {
         id: clippingRoot
         anchors.fill: parent
-        radius: 20
+        radius: 0
         color: "transparent"
 
         ColumnLayout {
@@ -514,7 +507,7 @@ Item {
                 RowLayout {
                     anchors.fill: parent
                     anchors.leftMargin: 22
-                    anchors.rightMargin: 20
+                    anchors.rightMargin: root.windowControlsWidth > 0 ? (root.windowControlsWidth + 14) : 20
                     spacing: 14
 
 
@@ -1021,6 +1014,7 @@ Item {
                     ColumnLayout {
                         anchors.centerIn: parent
                         spacing: 14
+                        z: 5
                         visible: !NotesService.loading && NotesService.filteredNotes.length === 0
 
                         Image {
@@ -1059,6 +1053,7 @@ Item {
                         }
 
                         Rectangle {
+                            id: emptyBtnRect
                             Layout.alignment: Qt.AlignHCenter
                             Layout.preferredHeight: 36
                             Layout.preferredWidth: emptyBtnText.implicitWidth + 24
@@ -1088,13 +1083,11 @@ Item {
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
                                 onClicked: {
-                                    if (NotesService.searchQuery.trim() !== "") {
-                                        var title = NotesService.searchQuery.trim();
-                                        NotesService.searchQuery = "";
-                                        root.requestNewNoteWithTitle(title);
-                                    } else {
-                                        root.requestNewNote();
-                                    }
+                                    if (root._morphTransitioning || morphContainer.isVisible || NotesService.isEditing) return;
+                                    var origin = emptyBtnRect.mapToItem(clippingRoot, 0, 0, emptyBtnRect.width, emptyBtnRect.height);
+                                    var title = (NotesService.searchQuery.trim() !== "") ? NotesService.searchQuery.trim() : "";
+                                    if (title !== "") NotesService.searchQuery = "";
+                                    root.createNoteWithMorph("text", origin, title);
                                 }
                             }
                         }
@@ -1106,6 +1099,7 @@ Item {
                         anchors.fill: parent
                         anchors.margins: 18
                         clip: true
+                        visible: !NotesService.loading && NotesService.filteredNotes.length > 0
                         contentWidth: width
                         contentHeight: scrollMainCol.implicitHeight + 96
                         boundsBehavior: Flickable.StopAtBounds
@@ -1338,7 +1332,7 @@ Item {
             y: isExpanded ? 0 : startY
             width: isExpanded ? clippingRoot.width : startW
             height: isExpanded ? clippingRoot.height : startH
-            radius: isExpanded ? 20 : startRadius
+            radius: isExpanded ? 0 : startRadius
 
             color: isExpanded ? "transparent" : startColor
             border.color: isExpanded ? "transparent" : startBorderColor
@@ -1399,6 +1393,7 @@ Item {
             NoteEditorModal {
                 id: editorModal
                 anchors.fill: parent
+                windowControlsWidth: root.windowControlsWidth
                 isExpanded: morphContainer.isExpanded
                 noteData: NotesService.activeNote
                 isSettingsOpen: root.isSettingsOpen
@@ -1615,7 +1610,7 @@ Item {
     Rectangle {
         id: importDim
         anchors.fill: parent
-        radius: 20
+        radius: 0
         color: "#000000"
         z: 400
         opacity: root.importHintActive ? 0.35 : 0.0
@@ -2195,7 +2190,7 @@ Item {
     Rectangle {
         id: startupDepsDim
         anchors.fill: parent
-        radius: 20
+        radius: 0
         color: "#000000"
         z: 600
         opacity: root.startupDepsDialogVisible ? 0.45 : 0.0

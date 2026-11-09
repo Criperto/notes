@@ -18,11 +18,11 @@ para Wayland.
 %install
 rm -rf %{buildroot}
 mkdir -p %{buildroot}
-PREFIX=/usr DESTDIR=%{buildroot} bash %{_sourcedir}/scripts/install-system.sh
+PREFIX=/usr DESTDIR=%{buildroot} bash %{_sourcedir}/scripts/install.sh --system
 
 %files
 /usr/bin/criperto.notes
 /usr/share/applications/dev.criperto.Notas.desktop
 /usr/share/icons/hicolor/scalable/apps/dev.criperto.Notas.svg
 /usr/share/metainfo/dev.criperto.Notas.metainfo.xml
-/usr/share/notas
+/usr/share/criperto.notes

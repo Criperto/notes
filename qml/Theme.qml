@@ -294,10 +294,10 @@ QtObject {
     readonly property string systemFont: (typeof Sys !== "undefined" && Sys.systemFontFamily) ? Sys.systemFontFamily : ""
     readonly property string systemMonospace: (typeof Sys !== "undefined" && Sys.systemMonospaceFontFamily) ? Sys.systemMonospaceFontFamily : ""
 
-    readonly property string fontFamily:          systemFont ? systemFont : "Google Sans"
-    readonly property string fontFamilyDisplay:   (typeof Sys !== "undefined" && Sys.systemFontFamilyDisplay) ? Sys.systemFontFamilyDisplay : (systemFont ? systemFont : "Google Sans Display")
-    readonly property string fontFamilyRounded:   (typeof Sys !== "undefined" && Sys.systemFontFamilyRounded) ? Sys.systemFontFamilyRounded : (systemFont ? systemFont : "Google Sans")
-    readonly property string fontFamilyMonospace: systemMonospace ? systemMonospace : "Google Sans Code"
+    readonly property string fontFamily:          systemFont ? systemFont : "Plus Jakarta Sans"
+    readonly property string fontFamilyDisplay:   (typeof Sys !== "undefined" && Sys.systemFontFamilyDisplay) ? Sys.systemFontFamilyDisplay : (systemFont ? systemFont : "Outfit")
+    readonly property string fontFamilyRounded:   (typeof Sys !== "undefined" && Sys.systemFontFamilyRounded) ? Sys.systemFontFamilyRounded : (systemFont ? systemFont : "Plus Jakarta Sans")
+    readonly property string fontFamilyMonospace: systemMonospace ? systemMonospace : "JetBrains Mono"
 
     readonly property real fontSizeScale: (typeof ConfigBackend !== "undefined" && ConfigBackend.fontSizeScale > 0) ? ConfigBackend.fontSizeScale : 1.0
     readonly property real uiScale:       (typeof ConfigBackend !== "undefined" && ConfigBackend.uiScale > 0) ? ConfigBackend.uiScale : 1.0

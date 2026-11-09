@@ -12,7 +12,7 @@ rm -rf "${STAGE_DIR}"
 mkdir -p "${STAGE_DIR}/DEBIAN"
 
 echo "==> Preparando estructura de paquete Debian para Notas v${VERSION}..."
-PREFIX="/usr" DESTDIR="${STAGE_DIR}" bash "${REPO_DIR}/scripts/install-system.sh" >/dev/null 2>&1
+PREFIX="/usr" DESTDIR="${STAGE_DIR}" bash "${REPO_DIR}/scripts/install.sh" --system >/dev/null 2>&1
 
 INSTALLED_SIZE=$(du -sk "${STAGE_DIR}" | cut -f1)
 

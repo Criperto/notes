@@ -221,6 +221,7 @@ class Sys : public QObject {
     Q_PROPERTY(qreal lastMouseY READ lastMouseY NOTIFY lastMousePosChanged)
     Q_PROPERTY(QJsonObject qtColors READ qtColors NOTIFY qtColorsChanged)
     Q_PROPERTY(bool hasQuickshellConfig READ hasQuickshellConfig NOTIFY quickshellConfigChanged)
+    Q_PROPERTY(bool wmNeedsWindowControls READ wmNeedsWindowControls CONSTANT)
     Q_PROPERTY(QString systemFontFamily READ systemFontFamily NOTIFY systemFontChanged)
     Q_PROPERTY(QString systemFontFamilyDisplay READ systemFontFamilyDisplay NOTIFY systemFontChanged)
     Q_PROPERTY(QString systemFontFamilyRounded READ systemFontFamilyRounded NOTIFY systemFontChanged)
@@ -245,6 +246,7 @@ public:
     qreal lastMouseY() const { return m_lastMousePos.y(); }
     QJsonObject qtColors() const { return m_qtColors; }
     bool hasQuickshellConfig() const;
+    bool wmNeedsWindowControls() const;
     QString systemFontFamily() const;
     QString systemFontFamilyDisplay() const;
     QString systemFontFamilyRounded() const;
@@ -309,6 +311,8 @@ class ConfigBackend : public QObject {
     QML_SINGLETON
 
     Q_PROPERTY(QString notasDir READ notasDir WRITE setNotasDir NOTIFY notasDirChanged)
+    Q_PROPERTY(QString resolvedNotasDir READ resolvedNotasDir NOTIFY notasDirChanged)
+    Q_PROPERTY(QString windowControlsMode READ windowControlsMode WRITE setWindowControlsMode NOTIFY windowControlsModeChanged)
     Q_PROPERTY(int editorFontSize READ editorFontSize WRITE setEditorFontSize NOTIFY editorFontSizeChanged)
     Q_PROPERTY(int editorZoom READ editorZoom WRITE setEditorZoom NOTIFY editorZoomChanged)
     Q_PROPERTY(bool showImagePreviews READ showImagePreviews WRITE setShowImagePreviews NOTIFY showImagePreviewsChanged)
@@ -354,6 +358,10 @@ public:
 
     QString notasDir() const { return m_notasDir; }
     void setNotasDir(const QString &val);
+    QString resolvedNotasDir() const;
+
+    QString windowControlsMode() const { return m_windowControlsMode; }
+    void setWindowControlsMode(const QString &val);
 
     int editorFontSize() const { return m_editorFontSize; }
     void setEditorFontSize(int val);
@@ -487,6 +495,7 @@ signals:
     void versionHistoryMaxMbChanged();
     void persistUndoChanged();
     void showSourceModeButtonChanged();
+    void windowControlsModeChanged();
 
 private:
     void load();
@@ -497,6 +506,7 @@ private:
     QString legacyConfigFilePath() const;
 
     QString m_notasDir;
+    QString m_windowControlsMode = QStringLiteral("auto");
     int m_editorFontSize = 16;
     int m_editorZoom = 100;
     bool m_showImagePreviews = true;

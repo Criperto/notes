@@ -327,7 +327,7 @@ Item {
                                     id: badgeText
                                     anchors.centerIn: parent
                                     text: modelData.badge || ""
-                                    font.family: Theme.fontFamilyMonospace || "Google Sans Code"
+                                    font.family: Theme.fontFamilyMonospace || "JetBrains Mono"
                                     font.pixelSize: 10
                                     font.bold: true
                                     color: itemDelegate.isHighlighted ? Theme.accent : Theme.muted

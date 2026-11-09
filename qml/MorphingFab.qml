@@ -64,8 +64,50 @@ ClippingRectangle {
 
     // Ancho dinámico basado en las opciones de texto (+ márgenes e íconos)
     readonly property real dynamicExpandedWidth: {
-        var maxTextWidth = Math.max(importText.implicitWidth, Math.max(clipText.implicitWidth, Math.max(webClipText.implicitWidth, newNoteText.implicitWidth)));
-        return Math.max(195, Math.ceil(maxTextWidth + 64));
+        var maxTextWidth = Math.max(importText.implicitTextWidth, Math.max(clipText.implicitTextWidth, Math.max(webClipText.implicitTextWidth, newNoteText.implicitTextWidth)));
+        return Math.max(220, Math.min(290, Math.ceil(maxTextWidth + 88)));
+    }
+
+    component FabOptionText: Item {
+        id: optContainer
+        property alias text: optLabel.text
+        property bool isHovered: false
+        readonly property real implicitTextWidth: optLabel.implicitWidth
+        Layout.fillWidth: true
+        Layout.preferredHeight: optLabel.implicitHeight
+        clip: true
+
+        readonly property real overflow: Math.max(0, optLabel.implicitWidth - width)
+        readonly property bool shouldMarquee: isHovered && overflow > 2
+
+        Text {
+            id: optLabel
+            x: 0
+            color: root.contentColor
+            font.family: Theme.fontFamilyDisplay
+            font.pixelSize: Theme.fontSizeTitle - 1
+            font.bold: true
+            elide: optContainer.shouldMarquee ? Text.ElideNone : Text.ElideRight
+
+            SequentialAnimation on x {
+                running: optContainer.shouldMarquee && Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                loops: Animation.Infinite
+
+                PauseAnimation { duration: 600 }
+                NumberAnimation {
+                    to: -optContainer.overflow
+                    duration: Math.max(1000, optContainer.overflow * 28)
+                    easing.type: Easing.InOutQuad
+                }
+                PauseAnimation { duration: 800 }
+                NumberAnimation {
+                    to: 0
+                    duration: Math.max(1000, optContainer.overflow * 28)
+                    easing.type: Easing.InOutQuad
+                }
+                PauseAnimation { duration: 600 }
+            }
+        }
     }
 
     width: expanded ? dynamicExpandedWidth : 56
@@ -157,15 +199,10 @@ ClippingRectangle {
                     }
                 }
 
-                Text {
+                FabOptionText {
                     id: importText
-                    Layout.fillWidth: true
                     text: I18n.t("notes.fab.import_notes", "Importar notas")
-                    color: root.contentColor
-                    font.family: Theme.fontFamilyDisplay
-                    font.pixelSize: Theme.fontSizeTitle - 1
-                    font.bold: true
-                    elide: Text.ElideRight
+                    isHovered: importMa.containsMouse || (root.expanded && root.activeFocus && root.keyboardOptionIndex === 0)
                 }
             }
 
@@ -214,15 +251,10 @@ ClippingRectangle {
                     }
                 }
 
-                Text {
+                FabOptionText {
                     id: clipText
-                    Layout.fillWidth: true
                     text: I18n.t("notes.fab.from_clipboard", "Desde portapapeles")
-                    color: root.contentColor
-                    font.family: Theme.fontFamilyDisplay
-                    font.pixelSize: Theme.fontSizeTitle - 1
-                    font.bold: true
-                    elide: Text.ElideRight
+                    isHovered: clipMa.containsMouse || (root.expanded && root.activeFocus && root.keyboardOptionIndex === 1)
                 }
             }
 
@@ -271,15 +303,10 @@ ClippingRectangle {
                     }
                 }
 
-                Text {
+                FabOptionText {
                     id: webClipText
-                    Layout.fillWidth: true
                     text: I18n.t("notes.fab.web_clip", "Clipper web")
-                    color: root.contentColor
-                    font.family: Theme.fontFamilyDisplay
-                    font.pixelSize: Theme.fontSizeTitle - 1
-                    font.bold: true
-                    elide: Text.ElideRight
+                    isHovered: webClipMa.containsMouse || (root.expanded && root.activeFocus && root.keyboardOptionIndex === 2)
                 }
             }
 
@@ -328,15 +355,10 @@ ClippingRectangle {
                     }
                 }
 
-                Text {
+                FabOptionText {
                     id: newNoteText
-                    Layout.fillWidth: true
                     text: I18n.t("notes.fab.new_note", "Nueva nota")
-                    color: root.contentColor
-                    font.family: Theme.fontFamilyDisplay
-                    font.pixelSize: Theme.fontSizeTitle - 1
-                    font.bold: true
-                    elide: Text.ElideRight
+                    isHovered: newNoteMa.containsMouse || (root.expanded && root.activeFocus && root.keyboardOptionIndex === 3)
                 }
             }
 

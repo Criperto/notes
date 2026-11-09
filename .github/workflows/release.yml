@@ -82,6 +82,11 @@ jobs:
         run: |
           bash packaging/rpm/build-rpm.sh
 
+      - name: Build Arch Linux Package (.pkg.tar.zst)
+        run: |
+          sudo apt-get install -y zstd
+          bash packaging/arch/build-arch.sh
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -94,6 +99,8 @@ jobs:
             dist/*.deb.sha256
             dist/*.rpm
             dist/*.rpm.sha256
+            dist/*.pkg.tar.zst
+            dist/*.pkg.tar.zst.sha256
           generate_release_notes: true
           draft: false
           prerelease: true

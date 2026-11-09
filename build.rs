@@ -69,6 +69,7 @@ fn main() {
         "qml/BlockRaw.qml",
         "qml/SpellOverlay.qml",
         "qml/FocusRing.qml",
+        "qml/WindowControls.qml",
     ];
 
     let mut module = QmlModule::new("Notas");

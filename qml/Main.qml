@@ -7,7 +7,15 @@ import Notas
 ApplicationWindow {
     id: root
     visible: content.isReadyToShow
-    title: "Notas"
+    title: {
+        if (typeof NotesService !== "undefined" && NotesService.isEditing && NotesService.activeNote) {
+            var t = (NotesService.activeNote.title && NotesService.activeNote.title.trim() !== "")
+                ? NotesService.activeNote.title.trim()
+                : (NotesService.activeNote.fileName || "Sin título");
+            return "Notas - " + t;
+        }
+        return "Notas";
+    }
     width: 1080
     height: 760
     minimumWidth: 680
@@ -17,11 +25,20 @@ ApplicationWindow {
     NotesContent {
         id: content
         anchors.fill: parent
+        windowControlsWidth: winControls.visible ? winControls.implicitWidth : 0
         initialAction: (typeof Sys !== "undefined") ? Sys.initialAction : ""
         initialTarget: (typeof Sys !== "undefined") ? Sys.initialTarget : ""
         isSettingsOpen: settingsModal.isOpen || settingsModal.isClosing
         onCloseRequested: root.close()
         onOpenSettingsRequested: (originRect, initialTab) => settingsModal.open(originRect, initialTab)
+    }
+
+    WindowControls {
+        id: winControls
+        anchors.top: parent.top
+        anchors.right: parent.right
+        targetWindow: root
+        z: 500
     }
 
     NotesSettingsModal {

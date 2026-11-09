@@ -88,7 +88,7 @@ var _defaultTheme = {
     surface: "#1c1815",
     textColor: "#ffffff",
     color15: "#ffffff",
-    fontFamilyMonospace: "Google Sans Code, monospace"
+    fontFamilyMonospace: "JetBrains Mono, monospace"
 };
 function setThemeConfig(cfg) {
     if (!cfg || typeof cfg !== "object") return;
@@ -141,9 +141,9 @@ function renderKeycapSvg(label, opts) {
     var plateColor = options.kbdPlate || (isLight ? "#ffffff" : _defaultTheme.surface);
     var textColor = options.kbdText || (isLight ? "#1c1c1c" : (options.kbdColor || _defaultTheme.color15));
 
-    // Tipografía mono / code del tema (Google Sans Code con fallback a monospace)
+    // Tipografía mono / code del tema (JetBrains Mono con fallback a monospace)
     var rawFont = options.fontFamilyMonospace || options.fontFamily || _defaultTheme.fontFamilyMonospace;
-    var cleanFont = rawFont ? String(rawFont).replace(/['"]/g, "").trim() : "Google Sans Code";
+    var cleanFont = rawFont ? String(rawFont).replace(/['"]/g, "").trim() : "JetBrains Mono";
     if (cleanFont.toLowerCase().indexOf("monospace") === -1) {
         cleanFont = "'" + cleanFont + "', monospace";
     } else if (cleanFont.indexOf("'") === -1 && cleanFont.indexOf('"') === -1) {

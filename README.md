@@ -40,15 +40,18 @@
 
 - **Rust:** `rustc` y `cargo` 1.80 o superior.
 - **Qt 6:** Versión 6.5+ con módulos:
-  - `qt6-declarative` (QML / Quick)
-  - `qt6-quickcontrols2`
+  - `qt6-base`
+  - `qt6-declarative` (QML / Quick / QuickControls 2)
+  - `qt6-svg`
   - `qt6-wayland`
 - **Compilador C++:** `clang++` o `g++` con soporte C++17.
 - **CMake** y **pkg-config**.
 - **Hunspell:** Motor del corrector ortográfico multilingüe en tiempo real (**obligatorio**).
-  - Arch Linux: `sudo pacman -S hunspell`
-  - Fedora: `sudo dnf install hunspell`
-  - Debian / Ubuntu: `sudo apt install hunspell`
+
+### Comando único de dependencias para Arch Linux:
+```bash
+sudo pacman -S --needed base-devel rust cmake clang qt6-base qt6-declarative qt6-svg qt6-wayland hunspell
+```
 
 ---
 
@@ -64,40 +67,48 @@ cargo build --release
 cargo build
 ```
 
-### 2. Instalar en el Sistema Local (`~/.local/`)
+### 2. Instalar con el Script Unificado (`install.sh`)
 
-El script de instalación crea los enlaces simbólicos al binario, icono SVG y archivo `.desktop`:
+El instalador unificado detecta automáticamente el entorno e idioma del sistema:
 
 ```bash
+# Instalación global en el sistema (por defecto en /usr, solicita sudo si es necesario):
 ./scripts/install.sh
-```
 
-### 3. Instalación a Nivel de Sistema (`/usr` o `DESTDIR`)
+# O instalación local sólo para tu usuario actual (~/.local/):
+./scripts/install.sh --user
 
-Para administradores de sistemas y creadores de paquetes:
-
-```bash
-cargo build --release
-sudo PREFIX=/usr bash scripts/install-system.sh
+# Desinstalación completa (detecta y limpia tanto /usr como ~/.local, sin tocar tus notas):
+./scripts/install.sh --uninstall
 ```
 
 ---
 
 ## 📦 Paquetes y Distribución
 
-### Arch Linux (AUR)
+En cada [Release de GitHub](https://github.com/Criperto/notes/releases) se publican paquetes binarios nativos precompilados listos para instalar:
 
-Notas se encuentra disponible en el Arch User Repository (AUR):
-
+### Arch Linux (`.pkg.tar.zst`)
 ```bash
-# Versión estable:
-paru -S notas
+sudo pacman -U criperto-notes-0.1.13-1-x86_64.pkg.tar.zst
+```
+Archivos PKGBUILD disponibles en [`packaging/arch/PKGBUILD`](packaging/arch/PKGBUILD) y [`packaging/arch/notas-git/PKGBUILD`](packaging/arch/notas-git/PKGBUILD).
 
-# Versión VCS en desarrollo:
-paru -S notas-git
+### Debian / Ubuntu (`.deb`)
+```bash
+sudo dpkg -i criperto-notes_0.1.13_amd64.deb
 ```
 
-Archivos PKGBUILD disponibles en [`packaging/arch/PKGBUILD`](packaging/arch/PKGBUILD) y [`packaging/arch/notas-git/PKGBUILD`](packaging/arch/notas-git/PKGBUILD).
+### Fedora / RHEL (`.rpm`)
+```bash
+sudo dnf install criperto-notes-0.1.13-1.x86_64.rpm
+```
+
+### AppImage autónomo
+```bash
+chmod +x criperto-notes-0.1.13-x86_64.AppImage
+./criperto-notes-0.1.13-x86_64.AppImage
+```
 
 ### Flatpak
 
@@ -106,14 +117,6 @@ Manifiesto oficial para Flatpak basado en `org.kde.Platform`:
 ```bash
 # Compilar e instalar localmente:
 flatpak-builder --user --install --force-clean build-flatpak packaging/flatpak/dev.criperto.Notas.yml
-```
-
-### AppImage
-
-Generador automatizado de AppImage autónomo:
-
-```bash
-bash packaging/appimage/build-appimage.sh
 ```
 
 Una vez instalado, la aplicación estará disponible en tu lanzador de aplicaciones favorito (Wofi, Rofi, Anyrun, etc.) y como comando `notas` en cualquier terminal.

@@ -363,7 +363,7 @@ echo "   ✓ Binario generado en target/release/criperto.notes (versión ${NEW_V
 # 6. Instalación local en el sistema del usuario
 if [[ "${DO_INSTALL}" == true ]]; then
     echo -e "\n${BLUE}💻 [4/6] Instalando en el entorno local (~/.local/bin/criperto.notes)...${NC}"
-    "${ROOT_DIR}/scripts/install.sh"
+    "${ROOT_DIR}/scripts/install.sh" --user
 else
     echo -e "\n${DIM}💻 [4/6] Instalación local omitida (--no-install)${NC}"
 fi
@@ -400,6 +400,10 @@ if [[ "${DO_PACKAGE}" == true ]]; then
 
     if [[ -f "${ROOT_DIR}/packaging/rpm/build-rpm.sh" ]]; then
         bash "${ROOT_DIR}/packaging/rpm/build-rpm.sh" >/dev/null 2>&1 || true
+    fi
+
+    if [[ -f "${ROOT_DIR}/packaging/arch/build-arch.sh" ]]; then
+        bash "${ROOT_DIR}/packaging/arch/build-arch.sh" >/dev/null 2>&1 || true
     fi
 else
     echo -e "\n${DIM}🎁 [5/6] Empaquetado de distribución dist/ omitido (usar --package o --github)${NC}"

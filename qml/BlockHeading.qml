@@ -591,7 +591,7 @@ Item {
             textColor: "" + Theme.text,
             mathColor: "" + Theme.text,
             mathPtSize: Math.max(8.0, root.headingPixelSize * 0.75),
-            fontFamilyMonospace: Theme.fontFamilyMonospace || "Google Sans Code",
+            fontFamilyMonospace: Theme.fontFamilyMonospace || "JetBrains Mono",
             linkColor: "" + Theme.accent, highlightBg: EditorMetrics.highlightBg,
             baseFolder: root.editor ? root.editor.imgBaseFolder : "",
             imageSkipMissing: true,

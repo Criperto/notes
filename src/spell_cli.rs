@@ -37,22 +37,38 @@ pub struct DictInfo {
 
 pub fn get_dicts_dir() -> PathBuf {
     let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-    PathBuf::from(home).join(".local").join("share").join("notas").join("dictionaries")
+    let primary = PathBuf::from(&home).join(".local").join("share").join("criperto.notes").join("dictionaries");
+    if primary.exists() {
+        return primary;
+    }
+    let legacy = PathBuf::from(&home).join(".local").join("share").join("notas").join("dictionaries");
+    if legacy.exists() {
+        return legacy;
+    }
+    primary
 }
 
 pub fn get_catalog_path() -> PathBuf {
     let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-    let installed_cat = PathBuf::from(&home).join(".local").join("share").join("notas").join("catalog.json");
+    let installed_cat = PathBuf::from(&home).join(".local").join("share").join("criperto.notes").join("catalog.json");
     if installed_cat.exists() {
         return installed_cat;
+    }
+    let legacy_cat = PathBuf::from(&home).join(".local").join("share").join("notas").join("catalog.json");
+    if legacy_cat.exists() {
+        return legacy_cat;
     }
     let dev_cat = PathBuf::from("assets").join("spellcheck").join("catalog.json");
     if dev_cat.exists() {
         return dev_cat;
     }
-    let sys_cat = PathBuf::from("/usr/share/notas/catalog.json");
+    let sys_cat = PathBuf::from("/usr/share/criperto.notes/catalog.json");
     if sys_cat.exists() {
         return sys_cat;
+    }
+    let sys_legacy = PathBuf::from("/usr/share/notas/catalog.json");
+    if sys_legacy.exists() {
+        return sys_legacy;
     }
     // Fallback to quickshell catalog if present
     let qs_cat = PathBuf::from(&home).join(".config").join("quickshell").join("languages").join("spellcheck").join("catalog.json");

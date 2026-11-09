@@ -1454,7 +1454,7 @@ Item {
                             textColor: "" + Theme.text,
                             mathColor: "" + Theme.text,
                             mathPtSize: Math.max(8.0, EditorMetrics.body * 0.75),
-                            fontFamilyMonospace: Theme.fontFamilyMonospace || "Google Sans Code",
+                            fontFamilyMonospace: Theme.fontFamilyMonospace || "JetBrains Mono",
                             headingSizes: root.headingSizes,
                             linkColor: "" + Theme.accent, highlightBg: EditorMetrics.highlightBg,
                             searchQuery: root.editor ? root.editor.searchQuery : "",

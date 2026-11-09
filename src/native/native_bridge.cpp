@@ -3,6 +3,7 @@
 #include <QCoreApplication>
 #include <QGuiApplication>
 #include <QFont>
+#include <QFontDatabase>
 #include <QClipboard>
 #include <QMimeData>
 #include <QImage>
@@ -946,12 +947,17 @@ QString Sys::clipboardText() const {
 
     // Fallback nativo para Wayland cuando la ventana aún no tiene foco activo
     QProcess proc;
-    proc.start(QStringLiteral("wl-paste"), {QStringLiteral("-n")});
-    if (proc.waitForFinished(120) && proc.exitCode() == 0) {
-        QString out = QString::fromUtf8(proc.readAllStandardOutput());
-        if (!out.trimmed().isEmpty()) {
-            return out;
+    proc.start(QStringLiteral("wl-paste"), {QStringLiteral("-n"), QStringLiteral("--type"), QStringLiteral("text/plain")});
+    if (proc.waitForFinished(120)) {
+        if (proc.exitCode() == 0) {
+            QString out = QString::fromUtf8(proc.readAllStandardOutput());
+            if (!out.trimmed().isEmpty()) {
+                return out;
+            }
         }
+    } else {
+        proc.kill();
+        proc.waitForFinished(50);
     }
 
     return QString();
@@ -997,11 +1003,18 @@ QString Sys::dataShareDir() const {
     if (QFile::exists(devDir + QStringLiteral("/qml/Main.qml"))) {
         return devDir;
     }
-    QString userShare = QDir::homePath() + QStringLiteral("/.local/share/notas");
+    QString userShare = QDir::homePath() + QStringLiteral("/.local/share/criperto.notes");
     if (QFile::exists(userShare)) {
         return userShare;
     }
-    return QStringLiteral("/usr/share/notas");
+    QString legacyShare = QDir::homePath() + QStringLiteral("/.local/share/notas");
+    if (QFile::exists(legacyShare)) {
+        return legacyShare;
+    }
+    if (QFile::exists(QStringLiteral("/usr/share/criperto.notes"))) {
+        return QStringLiteral("/usr/share/criperto.notes");
+    }
+    return QStringLiteral("/usr/share/criperto.notes");
 }
 
 QString Sys::appExecutable() const {
@@ -1078,7 +1091,31 @@ bool Sys::hasQuickshellConfig() const {
         || QFile::exists(home + QStringLiteral("/.config/quickshell/config/theme.conf"));
 }
 
-QString Sys::systemFontFamily() const {
+bool Sys::wmNeedsWindowControls() const {
+    if (qEnvironmentVariableIsSet("HYPRLAND_INSTANCE_SIGNATURE") ||
+        qEnvironmentVariableIsSet("SWAYSOCK") ||
+        qEnvironmentVariableIsSet("NIRI_SOCKET")) {
+        return false;
+    }
+    const QString desktop = QString::fromUtf8(qgetenv("XDG_CURRENT_DESKTOP")).toLower();
+    const QString session = QString::fromUtf8(qgetenv("DESKTOP_SESSION")).toLower();
+    if (desktop.contains(QStringLiteral("wayfire")) ||
+        desktop.contains(QStringLiteral("quantum")) ||
+        session.contains(QStringLiteral("wayfire")) ||
+        session.contains(QStringLiteral("quantum")) ||
+        qEnvironmentVariableIsSet("WAYFIRE_CONFIG_FILE")) {
+        return true;
+    }
+    return true;
+}
+
+namespace {
+struct FontResolution {
+    QString family;
+    QString provenance;
+};
+
+FontResolution resolveBodyFont() {
     const QString home = QDir::homePath();
     // 1. Quickshell font config
     QFile qsFontFile(home + QStringLiteral("/.config/quickshell/config/font.conf"));
@@ -1088,7 +1125,7 @@ QString Sys::systemFontFamily() const {
             QString line = in.readLine().trimmed();
             if (line.startsWith(QStringLiteral("fontFamily")) && line.contains('=')) {
                 QString val = line.section('=', 1).trimmed();
-                if (!val.isEmpty()) return val;
+                if (!val.isEmpty()) return { val, QStringLiteral("[Quickshell font.conf]") };
             }
         }
     }
@@ -1105,18 +1142,38 @@ QString Sys::systemFontFamily() const {
                 }
                 const QStringList parts = val.split(',');
                 if (!parts.isEmpty() && !parts[0].trimmed().isEmpty()) {
-                    return parts[0].trimmed();
+                    return { parts[0].trimmed(), QStringLiteral("[Tema Qt / qt6ct]") };
                 }
             }
         }
     }
+    // 3. Qt application font
     QString appFont = QGuiApplication::font().family();
-    if (!appFont.isEmpty()) return appFont;
-    return QStringLiteral("Google Sans");
+    if (!appFont.isEmpty() && appFont != QStringLiteral("Sans Serif") && appFont != QStringLiteral("Sans")) {
+        return { appFont, QStringLiteral("[Tema Qt / QGuiApplication]") };
+    }
+
+    // 4. Fallback de código abierto (SIL Open Font License 1.1)
+    const QStringList openSourceCandidates = {
+        QStringLiteral("Plus Jakarta Sans"),
+        QStringLiteral("Outfit"),
+        QStringLiteral("Inter"),
+        QStringLiteral("Noto Sans"),
+        QStringLiteral("Roboto"),
+        QStringLiteral("DejaVu Sans")
+    };
+    const QStringList installed = QFontDatabase::families();
+    for (const QString &cand : openSourceCandidates) {
+        if (installed.contains(cand, Qt::CaseInsensitive)) {
+            return { cand, QStringLiteral("[Fallback SIL OFL]") };
+        }
+    }
+    return { QStringLiteral("Plus Jakarta Sans"), QStringLiteral("[Fallback SIL OFL]") };
 }
 
-QString Sys::systemFontFamilyDisplay() const {
+FontResolution resolveDisplayFont() {
     const QString home = QDir::homePath();
+    // 1. Quickshell font config
     QFile qsFontFile(home + QStringLiteral("/.config/quickshell/config/font.conf"));
     if (qsFontFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
         QTextStream in(&qsFontFile);
@@ -1124,14 +1181,32 @@ QString Sys::systemFontFamilyDisplay() const {
             QString line = in.readLine().trimmed();
             if (line.startsWith(QStringLiteral("fontFamilyDisplay")) && line.contains('=')) {
                 QString val = line.section('=', 1).trimmed();
-                if (!val.isEmpty()) return val;
+                if (!val.isEmpty()) return { val, QStringLiteral("[Quickshell font.conf]") };
             }
         }
     }
-    return QStringLiteral("Google Sans Display");
+
+    // 2. Fallback de código abierto
+    const QStringList openSourceCandidates = {
+        QStringLiteral("Outfit"),
+        QStringLiteral("Plus Jakarta Sans"),
+        QStringLiteral("Inter"),
+        QStringLiteral("Noto Sans")
+    };
+    const QStringList installed = QFontDatabase::families();
+    for (const QString &cand : openSourceCandidates) {
+        if (installed.contains(cand, Qt::CaseInsensitive)) {
+            return { cand, QStringLiteral("[Fallback SIL OFL]") };
+        }
+    }
+    FontResolution body = resolveBodyFont();
+    if (!body.family.isEmpty() && body.family != QStringLiteral("Plus Jakarta Sans")) {
+        return { body.family, body.provenance };
+    }
+    return { QStringLiteral("Outfit"), QStringLiteral("[Fallback SIL OFL]") };
 }
 
-QString Sys::systemFontFamilyRounded() const {
+FontResolution resolveRoundedFont() {
     const QString home = QDir::homePath();
     QFile qsFontFile(home + QStringLiteral("/.config/quickshell/config/font.conf"));
     if (qsFontFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
@@ -1140,15 +1215,16 @@ QString Sys::systemFontFamilyRounded() const {
             QString line = in.readLine().trimmed();
             if (line.startsWith(QStringLiteral("fontFamilyRounded")) && line.contains('=')) {
                 QString val = line.section('=', 1).trimmed();
-                if (!val.isEmpty()) return val;
+                if (!val.isEmpty()) return { val, QStringLiteral("[Quickshell font.conf]") };
             }
         }
     }
-    return systemFontFamily();
+    return resolveBodyFont();
 }
 
-QString Sys::systemMonospaceFontFamily() const {
+FontResolution resolveMonospaceFont() {
     const QString home = QDir::homePath();
+    // 1. Quickshell font config
     QFile qsFontFile(home + QStringLiteral("/.config/quickshell/config/font.conf"));
     if (qsFontFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
         QTextStream in(&qsFontFile);
@@ -1156,10 +1232,11 @@ QString Sys::systemMonospaceFontFamily() const {
             QString line = in.readLine().trimmed();
             if (line.startsWith(QStringLiteral("systemMonospaceFontFamily")) && line.contains('=')) {
                 QString val = line.section('=', 1).trimmed();
-                if (!val.isEmpty()) return val;
+                if (!val.isEmpty()) return { val, QStringLiteral("[Quickshell font.conf]") };
             }
         }
     }
+    // 2. qt6ct fixed font
     QFile qt6ctFile(home + QStringLiteral("/.config/qt6ct/qt6ct.conf"));
     if (qt6ctFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
         QTextStream in(&qt6ctFile);
@@ -1172,40 +1249,87 @@ QString Sys::systemMonospaceFontFamily() const {
                 }
                 const QStringList parts = val.split(',');
                 if (!parts.isEmpty() && !parts[0].trimmed().isEmpty()) {
-                    return parts[0].trimmed();
+                    return { parts[0].trimmed(), QStringLiteral("[Tema Qt / qt6ct]") };
                 }
             }
         }
     }
-    return QStringLiteral("Google Sans Code");
+    // 3. Qt Fixed Font
+    QString fixed = QFontDatabase::systemFont(QFontDatabase::FixedFont).family();
+    if (!fixed.isEmpty() && fixed != QStringLiteral("Monospace") && fixed != QStringLiteral("Courier")) {
+        return { fixed, QStringLiteral("[Tema Qt / QGuiApplication]") };
+    }
+    // 4. Open source monospace
+    const QStringList monoCandidates = {
+        QStringLiteral("JetBrains Mono"),
+        QStringLiteral("JetBrainsMono Nerd Font"),
+        QStringLiteral("Fira Code"),
+        QStringLiteral("Cascadia Code"),
+        QStringLiteral("Source Code Pro"),
+        QStringLiteral("DejaVu Sans Mono")
+    };
+    const QStringList installed = QFontDatabase::families();
+    for (const QString &cand : monoCandidates) {
+        if (installed.contains(cand, Qt::CaseInsensitive)) {
+            return { cand, QStringLiteral("[Fallback SIL OFL]") };
+        }
+    }
+    return { QStringLiteral("JetBrains Mono"), QStringLiteral("[Fallback SIL OFL]") };
+}
+} // namespace
+
+QString Sys::systemFontFamily() const {
+    return resolveBodyFont().family;
+}
+
+QString Sys::systemFontFamilyDisplay() const {
+    return resolveDisplayFont().family;
+}
+
+QString Sys::systemFontFamilyRounded() const {
+    return resolveRoundedFont().family;
+}
+
+QString Sys::systemMonospaceFontFamily() const {
+    return resolveMonospaceFont().family;
 }
 
 void Sys::printStartupDiagnostics() const {
     if (qEnvironmentVariableIsSet("NOTAS_QUIET")) return;
     const QString home = QDir::homePath();
     const QString configPath = home + QStringLiteral("/.config/notas/config.json");
-    const QString qsPath = home + QStringLiteral("/.config/quickshell");
     const bool forcedNoSync = isForcedNoSyncConfigured();
     const bool qsDetected = hasQuickshellConfig();
     const QString qsStatus = qsDetected
         ? QStringLiteral("Detectado e integrado (~/.config/quickshell)")
         : (forcedNoSync ? QStringLiteral("Desactivado por config (noSync / standalone)") : QStringLiteral("No detectado (Modo Standalone)"));
-    const QString fontBody = systemFontFamily();
-    const QString fontDisplay = systemFontFamilyDisplay();
-    const QString fontMono = systemMonospaceFontFamily();
+
+    const FontResolution bodyInfo = resolveBodyFont();
+    const FontResolution dispInfo = resolveDisplayFont();
+    const FontResolution monoInfo = resolveMonospaceFont();
+
     const QString hunspellBin = QStandardPaths::findExecutable(QStringLiteral("hunspell"));
+
+    auto formatRow = [](const QString &label, const QString &value) -> QString {
+        QString val = value;
+        if (val.length() > 57) {
+            val = val.left(54) + QStringLiteral("...");
+        }
+        QString paddedVal = val.leftJustified(57, ' ', true);
+        return QStringLiteral("│ • ") + label.leftJustified(14, ' ', true) + QStringLiteral(": ") + paddedVal + QStringLiteral(" │\n");
+    };
 
     fprintf(stdout, "\n");
     fprintf(stdout, "╭─────────────────────────────────────────────────────────────────────────────╮\n");
-    fprintf(stdout, "│ 📝 dev.criperto.Notas v0.1.12 (criperto.notes)                             │\n");
+    fprintf(stdout, "│ 📝 dev.criperto.Notas v0.1.13 (criperto.notes)                             │\n");
     fprintf(stdout, "│    Editor nativo de notas en Markdown para Wayland                          │\n");
     fprintf(stdout, "├─────────────────────────────────────────────────────────────────────────────┤\n");
-    fprintf(stdout, "│ • Configuración : %-57s │\n", configPath.toUtf8().constData());
-    fprintf(stdout, "│ • Quickshell    : %-57s │\n", qsStatus.toUtf8().constData());
-    fprintf(stdout, "│ • Fuente Texto  : %-57s │\n", fontBody.toUtf8().constData());
-    fprintf(stdout, "│ • Fuente Display: %-57s │\n", fontDisplay.toUtf8().constData());
-    fprintf(stdout, "│ • Fuente Mono   : %-57s │\n", fontMono.toUtf8().constData());
-    fprintf(stdout, "│ • Motor Spell   : %-57s │\n", hunspellBin.isEmpty() ? "No encontrado (Desactivado)" : hunspellBin.toUtf8().constData());
+    fprintf(stdout, "%s", formatRow(QStringLiteral("Configuración"), configPath).toUtf8().constData());
+    fprintf(stdout, "%s", formatRow(QStringLiteral("Quickshell"), qsStatus).toUtf8().constData());
+    fprintf(stdout, "%s", formatRow(QStringLiteral("Fuente Texto"), bodyInfo.family + QStringLiteral(" ") + bodyInfo.provenance).toUtf8().constData());
+    fprintf(stdout, "%s", formatRow(QStringLiteral("Fuente Display"), dispInfo.family + QStringLiteral(" ") + dispInfo.provenance).toUtf8().constData());
+    fprintf(stdout, "%s", formatRow(QStringLiteral("Fuente Mono"), monoInfo.family + QStringLiteral(" ") + monoInfo.provenance).toUtf8().constData());
+    fprintf(stdout, "%s", formatRow(QStringLiteral("Motor Spell"), hunspellBin.isEmpty() ? QStringLiteral("No encontrado (Desactivado)") : hunspellBin).toUtf8().constData());
     fprintf(stdout, "╰─────────────────────────────────────────────────────────────────────────────╯\n\n");
     fflush(stdout);
 }
@@ -1553,11 +1677,7 @@ QJsonObject Sys::indexNotes(const QString &notesDirStr) const {
 ConfigBackend::ConfigBackend(QObject *parent)
     : QObject(parent)
 {
-    QString docs = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
-    if (docs.isEmpty()) {
-        docs = QDir::homePath() + QStringLiteral("/Documentos");
-    }
-    m_notasDir = docs + QStringLiteral("/notes");
+    m_notasDir = QStringLiteral("$XDG_DOCUMENTS_DIR/notes");
     if (!QFile::exists(QDir::homePath() + QStringLiteral("/.cache/wal/colors.json"))) {
         m_themeMode = QStringLiteral("qt");
     }
@@ -1941,6 +2061,27 @@ void ConfigBackend::setNotasDir(const QString &val) {
     scheduleSave();
 }
 
+QString ConfigBackend::resolvedNotasDir() const {
+    QString p = m_notasDir.trimmed();
+    if (p.isEmpty()) p = QStringLiteral("$XDG_DOCUMENTS_DIR/notes");
+    const QString home = QDir::homePath();
+    if (p == QStringLiteral("~")) return home;
+    if (p.startsWith(QStringLiteral("~/"))) p = home + p.mid(1);
+    p.replace(QStringLiteral("$HOME"), home);
+    QString docs = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
+    if (docs.isEmpty()) docs = home + QStringLiteral("/Documentos");
+    p.replace(QStringLiteral("$XDG_DOCUMENTS_DIR"), docs);
+    if (p.length() > 1 && p.endsWith('/')) p.chop(1);
+    return p;
+}
+
+void ConfigBackend::setWindowControlsMode(const QString &val) {
+    if (m_windowControlsMode == val) return;
+    m_windowControlsMode = val;
+    emit windowControlsModeChanged();
+    scheduleSave();
+}
+
 void ConfigBackend::setEditorFontSize(int val) {
     if (m_editorFontSize == val) return;
     m_editorFontSize = val;
@@ -2210,6 +2351,7 @@ void ConfigBackend::load() {
                 if (obj.contains("versionHistoryMaxMb")) m_versionHistoryMaxMb = qBound(1, obj["versionHistoryMaxMb"].toInt(5), 100);
                 if (obj.contains("persistUndo")) m_persistUndo = obj["persistUndo"].toBool(true);
                 if (obj.contains("showSourceModeButton")) m_showSourceModeButton = obj["showSourceModeButton"].toBool(false);
+                if (obj.contains("windowControlsMode")) m_windowControlsMode = obj["windowControlsMode"].toString("auto");
                 if (isForcedNoSyncConfigured()) m_syncWithQuickshell = false;
 
                 // Migrar modos antiguos inexistentes ("dark", "light", "system")
@@ -2313,6 +2455,7 @@ void ConfigBackend::save() {
     obj[QStringLiteral("versionHistoryMaxMb")] = m_versionHistoryMaxMb;
     obj[QStringLiteral("persistUndo")] = m_persistUndo;
     obj[QStringLiteral("showSourceModeButton")] = m_showSourceModeButton;
+    obj[QStringLiteral("windowControlsMode")] = m_windowControlsMode;
 
     if (isForcedNoSyncConfigured()) {
         obj[QStringLiteral("syncWithQuickshell")] = false;
@@ -2383,6 +2526,7 @@ QString SpellBackend::personalDicPath() const {
 void SpellBackend::discoverDictionaries() {
     m_availableDictionaries.clear();
     const QStringList paths = {
+        QDir::homePath() + QStringLiteral("/.local/share/criperto.notes/dictionaries"),
         QDir::homePath() + QStringLiteral("/.local/share/notas/dictionaries"),
         QStringLiteral("/usr/share/hunspell"),
         QStringLiteral("/usr/share/myspell"),
@@ -2483,6 +2627,7 @@ QJsonObject SpellBackend::checkWords(const QString &lang, const QStringList &wor
 
     QString dictArg = dict;
     const QStringList searchDirs = {
+        QDir::homePath() + QStringLiteral("/.local/share/criperto.notes/dictionaries"),
         QDir::homePath() + QStringLiteral("/.local/share/notas/dictionaries"),
         QStringLiteral("/usr/share/hunspell"),
         QStringLiteral("/usr/share/myspell"),
