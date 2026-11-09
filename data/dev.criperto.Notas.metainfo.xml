@@ -28,6 +28,11 @@
   </screenshots>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.1.13" date="2026-11-09">
+      <description>
+        <p>feat: release v0.1.13 - native arch pkg, integrated csd, sil ofl fonts, unified installer and wm fixes</p>
+      </description>
+    </release>
     <release version="0.1.12" date="2026-11-07">
       <description>
         <p>v0.1.12: Migración nativa a Rust (Diff y Detección de idioma), nuevo icono y paquetes oficiales</p>
