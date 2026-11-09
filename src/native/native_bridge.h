@@ -222,6 +222,7 @@ class Sys : public QObject {
     Q_PROPERTY(QJsonObject qtColors READ qtColors NOTIFY qtColorsChanged)
     Q_PROPERTY(bool hasQuickshellConfig READ hasQuickshellConfig NOTIFY quickshellConfigChanged)
     Q_PROPERTY(bool wmNeedsWindowControls READ wmNeedsWindowControls CONSTANT)
+    Q_PROPERTY(bool windowControlsOnLeft READ windowControlsOnLeft CONSTANT)
     Q_PROPERTY(QString systemFontFamily READ systemFontFamily NOTIFY systemFontChanged)
     Q_PROPERTY(QString systemFontFamilyDisplay READ systemFontFamilyDisplay NOTIFY systemFontChanged)
     Q_PROPERTY(QString systemFontFamilyRounded READ systemFontFamilyRounded NOTIFY systemFontChanged)
@@ -247,6 +248,7 @@ public:
     QJsonObject qtColors() const { return m_qtColors; }
     bool hasQuickshellConfig() const;
     bool wmNeedsWindowControls() const;
+    bool windowControlsOnLeft() const;
     QString systemFontFamily() const;
     QString systemFontFamilyDisplay() const;
     QString systemFontFamilyRounded() const;

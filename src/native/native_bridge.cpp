@@ -1116,6 +1116,91 @@ bool Sys::wmNeedsWindowControls() const {
     return true;
 }
 
+bool Sys::windowControlsOnLeft() const {
+    const QString cli = QString::fromUtf8(qgetenv("NOTAS_WINDOW_CONTROLS_SIDE")).trimmed().toLower();
+    if (cli == QStringLiteral("left")) return true;
+    if (cli == QStringLiteral("right")) return false;
+
+    const QString home = QDir::homePath();
+
+    // 1. GSettings / dconf (GNOME, Pantheon, elementary, MATE, Cinnamon, Budgie)
+    QProcess gsettings;
+    gsettings.start(QStringLiteral("gsettings"), {QStringLiteral("get"), QStringLiteral("org.gnome.desktop.wm.preferences"), QStringLiteral("button-layout")});
+    if (gsettings.waitForFinished(120)) {
+        QString layout = QString::fromUtf8(gsettings.readAllStandardOutput()).trimmed();
+        layout.remove(QLatin1Char('\''));
+        layout.remove(QLatin1Char('"'));
+        if (!layout.isEmpty() && layout.contains(QLatin1Char(':'))) {
+            const QString leftPart = layout.section(QLatin1Char(':'), 0, 0).toLower();
+            if (leftPart.contains(QStringLiteral("close")) ||
+                leftPart.contains(QStringLiteral("minimize")) ||
+                leftPart.contains(QStringLiteral("maximize"))) {
+                return true;
+            }
+            return false;
+        }
+    }
+
+    // 2. KDE Plasma (~/.config/kwinrc [org.kde.kdecoration2] ButtonsOnLeft)
+    QFile kwinFile(home + QStringLiteral("/.config/kwinrc"));
+    if (kwinFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        QTextStream in(&kwinFile);
+        bool inSection = false;
+        while (!in.atEnd()) {
+            const QString line = in.readLine().trimmed();
+            if (line.startsWith(QLatin1Char('['))) {
+                inSection = (line == QStringLiteral("[org.kde.kdecoration2]"));
+            } else if (inSection && line.startsWith(QStringLiteral("ButtonsOnLeft="))) {
+                const QString val = line.section(QLatin1Char('='), 1).trimmed();
+                if (val.contains(QLatin1Char('X')) || val.contains(QLatin1Char('M')) || val.contains(QLatin1Char('I'))) {
+                    return true;
+                }
+            }
+        }
+    }
+
+    // 3. XFCE (~/.config/xfce4/xfconf/xfce-perchannel-xml/xfwm4.xml)
+    QFile xfceFile(home + QStringLiteral("/.config/xfce4/xfconf/xfce-perchannel-xml/xfwm4.xml"));
+    if (xfceFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        QTextStream in(&xfceFile);
+        while (!in.atEnd()) {
+            const QString line = in.readLine();
+            if (line.contains(QStringLiteral("button_layout"))) {
+                const int valIdx = line.indexOf(QStringLiteral("value=\""));
+                if (valIdx != -1) {
+                    const int endIdx = line.indexOf(QLatin1Char('"'), valIdx + 7);
+                    if (endIdx != -1) {
+                        const QString bl = line.mid(valIdx + 7, endIdx - (valIdx + 7));
+                        const QString leftPart = bl.section(QLatin1Char('|'), 0, 0);
+                        if (leftPart.contains(QLatin1Char('C')) || leftPart.contains(QLatin1Char('H')) || leftPart.contains(QLatin1Char('M'))) {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // 4. Wayfire (~/.config/wayfire.ini)
+    QFile wayfireFile(home + QStringLiteral("/.config/wayfire.ini"));
+    if (wayfireFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        QTextStream in(&wayfireFile);
+        while (!in.atEnd()) {
+            const QString line = in.readLine().trimmed().toLower();
+            if (line.startsWith(QStringLiteral("button_order")) || line.startsWith(QStringLiteral("titlebar_layout"))) {
+                if (line.contains(QStringLiteral("left")) || (line.contains(QStringLiteral("close")) && line.indexOf(QStringLiteral("close")) < line.indexOf(QStringLiteral("minimize")))) {
+                    // Si declara explícitamente close a la izquierda
+                    if (line.contains(QLatin1Char(':')) && line.section(QLatin1Char(':'), 0, 0).contains(QStringLiteral("close"))) {
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+
+    return false;
+}
+
 void Sys::startSystemMove(QObject *windowObj) {
     if (!windowObj) return;
     auto *win = qobject_cast<QWindow*>(windowObj);
@@ -1340,7 +1425,7 @@ void Sys::printStartupDiagnostics() const {
 
     fprintf(stdout, "\n");
     fprintf(stdout, "╭─────────────────────────────────────────────────────────────────────────────╮\n");
-    fprintf(stdout, "│ 📝 dev.criperto.Notas v0.1.14 (criperto.notes)                             │\n");
+    fprintf(stdout, "│ 📝 dev.criperto.Notas v0.2.0 (criperto.notes)                             │\n");
     fprintf(stdout, "│    Editor nativo de notas en Markdown para Wayland                          │\n");
     fprintf(stdout, "├─────────────────────────────────────────────────────────────────────────────┤\n");
     fprintf(stdout, "%s", formatRow(QStringLiteral("Configuración"), configPath).toUtf8().constData());

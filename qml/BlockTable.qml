@@ -842,6 +842,15 @@ Item {
 
                                     readonly property real cellHeight: Math.max(headerContainer.minHeaderHeight, (isCurrentCell ? hInput.paintedHeight : hViewText.paintedHeight) + 14)
                                     onCellHeightChanged: headerContainer.updateHeaderHeight()
+                                    property bool _isDestroyed: false
+                                    Component.onDestruction: {
+                                        headerCell._isDestroyed = true;
+                                        hSpellTimer.stop();
+                                        if (typeof SpellService !== "undefined") {
+                                            SpellService.cancelOwner(headerCell);
+                                        }
+                                    }
+
                                     Component.onCompleted: headerContainer.updateHeaderHeight()
 
                                     Timer {
@@ -881,7 +890,7 @@ Item {
                                         }
                                         var words = tokens.map(function(t) { return t.word; });
                                         SpellService.checkWordsBatch(words, function(results) {
-                                            if (root._isDestroyed || !headerCell) return;
+                                            if (root._isDestroyed || headerCell._isDestroyed) return;
                                             var badRanges = [];
                                             for (var i = 0; i < tokens.length; i++) {
                                                 var t = tokens[i];
@@ -897,7 +906,7 @@ Item {
                                             }
                                             headerCell.spellRanges = badRanges;
                                             if (hSpellOverlay) hSpellOverlay.requestUpdate();
-                                        }, root, { text: plain });
+                                        }, headerCell, { text: plain });
                                     }
 
                                     function _openContextMenuAt(targetItem, clickPos, fromKeyboard) {
@@ -1266,6 +1275,15 @@ Item {
                                 onCellHeightChanged: rowRect.updateRowHeight()
                                 Component.onCompleted: rowRect.updateRowHeight()
 
+                                property bool _isDestroyed: false
+                                Component.onDestruction: {
+                                    dataCell._isDestroyed = true;
+                                    cellSpellTimer.stop();
+                                    if (typeof SpellService !== "undefined") {
+                                        SpellService.cancelOwner(dataCell);
+                                    }
+                                }
+
                                 Timer {
                                     id: cellSpellTimer
                                     interval: 300
@@ -1303,7 +1321,7 @@ Item {
                                     }
                                     var words = tokens.map(function(t) { return t.word; });
                                     SpellService.checkWordsBatch(words, function(results) {
-                                        if (root._isDestroyed || !dataCell) return;
+                                        if (root._isDestroyed || dataCell._isDestroyed) return;
                                         var badRanges = [];
                                         for (var i = 0; i < tokens.length; i++) {
                                             var t = tokens[i];
@@ -1319,7 +1337,7 @@ Item {
                                         }
                                         dataCell.spellRanges = badRanges;
                                         if (cellSpellOverlay) cellSpellOverlay.requestUpdate();
-                                    }, root, { text: plain });
+                                    }, dataCell, { text: plain });
                                 }
 
                                 function _openContextMenuAt(targetItem, clickPos, fromKeyboard) {

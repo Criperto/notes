@@ -51,6 +51,28 @@ QtObject {
         return cur;
     }
 
+    function _resolveInCatalog(cat, path, key, parts, pathParts) {
+        if (!cat || typeof cat !== "object") return undefined;
+        var val = _lookup(cat, parts);
+        if (typeof val === "string") return val;
+        val = _lookup(cat, pathParts);
+        if (typeof val === "string") return val;
+        if (typeof cat[path] === "string") return cat[path];
+        if (typeof cat[key] === "string") return cat[key];
+        return undefined;
+    }
+
+    function _resolveArrayInCatalog(cat, path, key, parts, pathParts) {
+        if (!cat || typeof cat !== "object") return undefined;
+        var val = _lookup(cat, parts);
+        if (Array.isArray(val)) return val;
+        val = _lookup(cat, pathParts);
+        if (Array.isArray(val)) return val;
+        if (Array.isArray(cat[path])) return cat[path];
+        if (Array.isArray(cat[key])) return cat[key];
+        return undefined;
+    }
+
     function t(path, fallback) {
         if (!path) return fallback !== undefined ? fallback : "";
 
@@ -64,17 +86,25 @@ QtObject {
 
         var key = path.startsWith("notes.") ? path.substring(6) : path;
         var parts = key.split(".");
+        var pathParts = path.split(".");
 
         // 1. Idioma activo
         var activeCatalog = Catalogs.catalogs[currentLanguage] || Catalogs.catalogs["es_ar"];
-        var val = _lookup(activeCatalog, parts);
-        if (typeof val === "string") return val;
+        var res = _resolveInCatalog(activeCatalog, path, key, parts, pathParts);
+        if (typeof res === "string") return res;
 
         // 2. Fallback a inglés
         var enCatalog = Catalogs.catalogs["en"];
-        if (enCatalog) {
-            val = _lookup(enCatalog, parts);
-            if (typeof val === "string") return val;
+        if (enCatalog && currentLanguage !== "en") {
+            res = _resolveInCatalog(enCatalog, path, key, parts, pathParts);
+            if (typeof res === "string") return res;
+        }
+
+        // 3. Fallback a español si el idioma no es español ni inglés
+        var esCatalog = Catalogs.catalogs["es_ar"];
+        if (esCatalog && currentLanguage !== "es_ar" && currentLanguage !== "es_es") {
+            res = _resolveInCatalog(esCatalog, path, key, parts, pathParts);
+            if (typeof res === "string") return res;
         }
 
         return fallback !== undefined ? fallback : path;
@@ -84,15 +114,16 @@ QtObject {
         if (!path) return fallback !== undefined ? fallback : [];
         var key = path.startsWith("notes.") ? path.substring(6) : path;
         var parts = key.split(".");
+        var pathParts = path.split(".");
 
         var activeCatalog = Catalogs.catalogs[currentLanguage] || Catalogs.catalogs["es_ar"];
-        var val = _lookup(activeCatalog, parts);
-        if (Array.isArray(val)) return val;
+        var res = _resolveArrayInCatalog(activeCatalog, path, key, parts, pathParts);
+        if (Array.isArray(res)) return res;
 
         var enCatalog = Catalogs.catalogs["en"];
-        if (enCatalog) {
-            val = _lookup(enCatalog, parts);
-            if (Array.isArray(val)) return val;
+        if (enCatalog && currentLanguage !== "en") {
+            res = _resolveArrayInCatalog(enCatalog, path, key, parts, pathParts);
+            if (Array.isArray(res)) return res;
         }
 
         return fallback !== undefined ? fallback : [];

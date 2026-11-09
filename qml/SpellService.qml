@@ -49,19 +49,28 @@ QtObject {
             if (b && b.owner === owner) {
                 b.cancelled = true;
                 b.callback = null;
-            } else if (b) {
+            } else if (b && !b.cancelled && b.callback) {
                 remaining.push(b);
             }
         }
         root._activeBatches = remaining;
     }
 
+    function cancelAll() {
+        for (var i = 0; i < root._activeBatches.length; i++) {
+            var b = root._activeBatches[i];
+            if (b) {
+                b.cancelled = true;
+                b.callback = null;
+            }
+        }
+        root._activeBatches = [];
+    }
+
     function _isOwnerValid(owner) {
         if (!owner) return false;
         try {
-            if (owner._isDestroyed === true) return false;
-            var s = "" + owner;
-            if (s === "null" || s === "undefined") return false;
+            if (owner._isDestroyed) return false;
             return true;
         } catch (e) {
             return false;

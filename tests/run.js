@@ -5385,6 +5385,92 @@ runTest("F119: Cabeceras de NotesContent y NoteEditorModal soportan startSystemM
     assert.ok(editorQml.includes('showMaximized()'), "NoteEditorModal.qml debe alternar showMaximized()");
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// F120: BlockCode import de BlockModel y avance de cursor en saltos de línea y tabulación
+// ─────────────────────────────────────────────────────────────────────────────
+runTest("F120: BlockCode import de BlockModel y avance de cursor en saltos de línea y tabulación", () => {
+    const codeQml = fs.readFileSync(path.resolve(__dirname, '../qml/BlockCode.qml'), 'utf8');
+    assert.ok(codeQml.includes('import "BlockModel.js" as BlockModel'), "BlockCode.qml debe importar BlockModel.js");
+    assert.ok(codeQml.includes('cursorPosition = cp + 1'), "BlockCode.qml debe avanzar cursorPosition tras insertar salto de línea");
+    assert.ok(codeQml.includes('cursorPosition = tp + 4'), "BlockCode.qml debe avanzar cursorPosition tras insertar 4 espacios de tabulación");
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// F121: BlockQuote soporte multilínea con enter, shift+enter y avance de cursor
+// ─────────────────────────────────────────────────────────────────────────────
+runTest("F121: BlockQuote soporte multilínea con enter, shift+enter y avance de cursor", () => {
+    const quoteQml = fs.readFileSync(path.resolve(__dirname, '../qml/BlockQuote.qml'), 'utf8');
+    assert.ok(quoteQml.includes('cursorPosition = pos + 1'), "BlockQuote.qml debe avanzar cursorPosition tras insertar salto de línea en Return");
+    assert.ok(quoteQml.includes('cursorPosition = sPos + 1'), "BlockQuote.qml debe avanzar cursorPosition tras Shift+Return");
+    assert.ok(quoteQml.includes('cursorPosition = tbPos + 2'), "BlockQuote.qml debe avanzar cursorPosition tras Tab");
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// F122: BlockEditor acciones de listas y citas con convertBlockType y protección contra destrucciones
+// ─────────────────────────────────────────────────────────────────────────────
+runTest("F122: BlockEditor acciones de listas y citas con convertBlockType y protección contra destrucciones", () => {
+    const editorQml = fs.readFileSync(path.resolve(__dirname, '../qml/BlockEditor.qml'), 'utf8');
+    assert.ok(editorQml.includes('root.convertBlockType(curItem.bid, "list", newRawList, 0)'), "Toolbar bullet_list debe usar convertBlockType");
+    assert.ok(editorQml.includes('property bool _isDestroyed: false'), "BlockEditor debe contar con bandera defensiva _isDestroyed");
+
+    const listQml = fs.readFileSync(path.resolve(__dirname, '../qml/BlockList.qml'), 'utf8');
+    assert.ok(listQml.includes('focusRetryTimer'), "BlockList.qml debe implementar focusRetryTimer para retener el foco tras conversiones");
+    assert.ok(listQml.includes('SpellService.cancelOwner(itemRow)'), "BlockList delegados deben cancelar SpellService al destruirse");
+
+    const spellQml = fs.readFileSync(path.resolve(__dirname, '../qml/SpellService.qml'), 'utf8');
+    assert.ok(spellQml.includes('cancelOwner(owner)'), "SpellService.qml debe ofrecer método cancelOwner");
+    assert.ok(spellQml.includes('cancelAll()'), "SpellService.qml debe ofrecer método cancelAll");
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// F123: Auditoría integral de traducciones y paridad en 9 idiomas
+// ─────────────────────────────────────────────────────────────────────────────
+runTest("F123: Auditoría integral de traducciones y paridad en 9 idiomas", () => {
+    const i18nQml = fs.readFileSync(path.resolve(__dirname, '../qml/I18n.qml'), 'utf8');
+    assert.ok(i18nQml.includes('_resolveInCatalog'), "I18n.qml debe resolver claves con _resolveInCatalog");
+
+    const i18nDir = path.resolve(__dirname, '../assets/i18n');
+    const languages = ['es_es', 'es_ar', 'en', 'pt', 'ja', 'zh', 'de', 'fr', 'ru'];
+    for (const lang of languages) {
+        const langPath = path.join(i18nDir, lang, 'notes.json');
+        assert.ok(fs.existsSync(langPath), `Archivo de idioma ${lang} debe existir`);
+        const parsed = JSON.parse(fs.readFileSync(langPath, 'utf8'));
+        assert.ok(parsed['notes.table_col1'] || (parsed.notes && parsed.notes.table_col1), `${lang} debe contener table_col1`);
+        assert.ok(parsed['config.window.controls_title'] || (parsed.config && parsed.config.window && parsed.config.window.controls_title), `${lang} debe contener controls_title`);
+    }
+
+    const catalogsSrc = fs.readFileSync(path.resolve(__dirname, '../qml/I18nCatalogs.js'), 'utf8');
+    assert.ok(catalogsSrc.includes('Column 1'), "I18nCatalogs.js debe contener traducción en inglés Column 1");
+    assert.ok(catalogsSrc.includes('LaTeX syntax error'), "I18nCatalogs.js debe contener LaTeX syntax error");
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// F124: Detección y layout adaptativo CSD izquierda/derecha según entorno de escritorio
+// ─────────────────────────────────────────────────────────────────────────────
+runTest("F124: Detección y layout adaptativo CSD izquierda/derecha según entorno de escritorio", () => {
+    const bridgeH = fs.readFileSync(path.resolve(__dirname, '../src/native/native_bridge.h'), 'utf8');
+    assert.ok(bridgeH.includes('windowControlsOnLeft'), "native_bridge.h debe declarar windowControlsOnLeft");
+
+    const bridgeCpp = fs.readFileSync(path.resolve(__dirname, '../src/native/native_bridge.cpp'), 'utf8');
+    assert.ok(bridgeCpp.includes('bool Sys::windowControlsOnLeft() const'), "native_bridge.cpp debe implementar Sys::windowControlsOnLeft()");
+    assert.ok(bridgeCpp.includes('NOTAS_WINDOW_CONTROLS_SIDE'), "Sys::windowControlsOnLeft debe consultar NOTAS_WINDOW_CONTROLS_SIDE");
+
+    const mainRs = fs.readFileSync(path.resolve(__dirname, '../src/main.rs'), 'utf8');
+    assert.ok(mainRs.includes('window-controls-side'), "main.rs debe aceptar bandera --window-controls-side");
+    assert.ok(mainRs.includes('csd-left'), "main.rs debe aceptar bandera --csd-left");
+    assert.ok(mainRs.includes('csd-right'), "main.rs debe aceptar bandera --csd-right");
+
+    const winControlsQml = fs.readFileSync(path.resolve(__dirname, '../qml/WindowControls.qml'), 'utf8');
+    assert.ok(winControlsQml.includes('readonly property bool onLeft'), "WindowControls.qml debe definir propiedad onLeft");
+    assert.ok(winControlsQml.includes('root.onLeft ? ["close", "min", "max"] : ["min", "max", "close"]'), "WindowControls.qml debe ordenar botones según onLeft");
+
+    const contentQml = fs.readFileSync(path.resolve(__dirname, '../qml/NotesContent.qml'), 'utf8');
+    assert.ok(contentQml.includes('property bool windowControlsOnLeft'), "NotesContent.qml debe propagar windowControlsOnLeft");
+
+    const editorQml = fs.readFileSync(path.resolve(__dirname, '../qml/NoteEditorModal.qml'), 'utf8');
+    assert.ok(editorQml.includes('property bool windowControlsOnLeft'), "NoteEditorModal.qml debe adaptar espaciadores CSD con windowControlsOnLeft");
+});
+
 console.log(`\n========================================`);
 console.log(`Resultados: ${passed} OK, ${failed} FAIL`);
 console.log(`========================================`);

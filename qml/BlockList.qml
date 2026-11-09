@@ -62,6 +62,16 @@ Item {
         id: itemsModel
     }
 
+    Timer {
+        id: focusRetryTimer
+        interval: 20
+        repeat: false
+        property var retryAction: null
+        onTriggered: {
+            if (retryAction && !root._isDestroyed) retryAction();
+        }
+    }
+
     function _reloadFromRaw() {
         if (!root.blockData || !root.blockData.raw) {
             root._itemsRawArray = [];
@@ -350,13 +360,21 @@ Item {
     }
 
     function _focusItem(idx, pos) {
-        if (idx < 0) return;
+        if (idx < 0 || root._isDestroyed) return;
         var attempts = 0;
         var attemptFocus = function() {
+            if (!root || root._isDestroyed) return;
             var itemDelegate = (idx < itemsRepeater.count) ? itemsRepeater.itemAt(idx) : null;
             if (!itemDelegate || typeof itemDelegate.focusInput !== "function") {
                 attempts++;
-                if (attempts < 10) Qt.callLater(attemptFocus);
+                if (attempts < 25) {
+                    if (attempts % 2 === 0) {
+                        focusRetryTimer.retryAction = attemptFocus;
+                        focusRetryTimer.restart();
+                    } else {
+                        Qt.callLater(attemptFocus);
+                    }
+                }
                 return;
             }
             if (root.editor && root.blockData && root.editor.activeBlockBid !== root.blockData.bid) {
@@ -980,12 +998,21 @@ Item {
                 required property string text
 
                 property var spellRanges: []
+                property bool _isDestroyed: false
 
                 Timer {
                     id: itemSpellCheckTimer
                     interval: 350
                     repeat: false
                     onTriggered: itemRow.runSpellCheck()
+                }
+
+                Component.onDestruction: {
+                    itemRow._isDestroyed = true;
+                    itemSpellCheckTimer.stop();
+                    if (typeof SpellService !== "undefined") {
+                        SpellService.cancelOwner(itemRow);
+                    }
                 }
 
                 Component.onCompleted: {
@@ -1031,7 +1058,7 @@ Item {
                     }
                     var words = tokens.map(function(t) { return t.word; });
                     SpellService.checkWordsBatch(words, function(results) {
-                        if (root._isDestroyed || !itemRow) return;
+                        if (root._isDestroyed || itemRow._isDestroyed) return;
                         var badRanges = [];
                         for (var i = 0; i < tokens.length; i++) {
                             var t = tokens[i];
@@ -1047,7 +1074,7 @@ Item {
                         }
                         itemRow.spellRanges = badRanges;
                         if (spellOverlay) spellOverlay.requestUpdate();
-                    }, root, { text: rawText });
+                    }, itemRow, { text: rawText });
                 }
 
                 function _openContextMenuAt(targetItem, clickPos, fromKeyboard) {

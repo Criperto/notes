@@ -38,6 +38,7 @@ Item {
     property string _pendingBody: ""
     property bool isSettingsOpen: false
     property real windowControlsWidth: 0
+    property bool windowControlsOnLeft: false
 
     // Carga diferida pendiente (llamado por toggle/foco/guardado/búsqueda).
     function _flushPendingBody() {
@@ -1618,6 +1619,13 @@ Item {
                     anchors.fill: parent
                     spacing: 12
 
+                // Espacio fijo para los controles de ventana CSD cuando están a la izquierda
+                Item {
+                    Layout.preferredWidth: (root.windowControlsWidth > 0 && root.windowControlsOnLeft) ? (root.windowControlsWidth + 8) : 0
+                    Layout.preferredHeight: 1
+                    visible: root.windowControlsWidth > 0 && root.windowControlsOnLeft
+                }
+
                 // Botón volver / cerrar
                 Rectangle {
                     id: backBtnRect
@@ -1929,11 +1937,11 @@ Item {
                     }
                 }
 
-                // Espacio fijo para los controles de ventana CSD cuando están activos
+                // Espacio fijo para los controles de ventana CSD cuando están a la derecha
                 Item {
-                    Layout.preferredWidth: root.windowControlsWidth > 0 ? (root.windowControlsWidth + 8) : 0
+                    Layout.preferredWidth: (root.windowControlsWidth > 0 && !root.windowControlsOnLeft) ? (root.windowControlsWidth + 8) : 0
                     Layout.preferredHeight: 1
-                    visible: root.windowControlsWidth > 0
+                    visible: root.windowControlsWidth > 0 && !root.windowControlsOnLeft
                 }
             }
             }

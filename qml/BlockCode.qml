@@ -4,6 +4,7 @@ import QtQuick.Effects
 import QtQuick.Controls
 import Notas
 import "Inline.js" as Inline
+import "BlockModel.js" as BlockModel
 import "."
 
 Rectangle {
@@ -414,7 +415,9 @@ Rectangle {
                 event.accepted = true;
                 return;
             }
-            editInput.insert(editInput.cursorPosition, "\n");
+            var cp = editInput.cursorPosition;
+            editInput.insert(cp, "\n");
+            editInput.cursorPosition = cp + 1;
             event.accepted = true;
         }
 
@@ -440,7 +443,9 @@ Rectangle {
                 editInput.insert(lineStart, indented);
                 editInput.select(s + 4, e + (indented.length - sub.length));
             } else {
-                editInput.insert(editInput.cursorPosition, "    ");
+                var tp = editInput.cursorPosition;
+                editInput.insert(tp, "    ");
+                editInput.cursorPosition = tp + 4;
             }
             event.accepted = true;
         }

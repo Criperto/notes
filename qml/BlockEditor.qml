@@ -22,6 +22,17 @@ Flickable {
     signal markdownEdited(string md)
     signal contentModified()
 
+    property bool _isDestroyed: false
+    Component.onDestruction: {
+        _isDestroyed = true;
+        debouncedMarkdownTimer.stop();
+        typingSnapshotTimer.stop();
+        chunkWindowTimer.stop();
+        if (typeof SpellService !== "undefined") {
+            SpellService.cancelOwner(root);
+        }
+    }
+
     property bool isDirty: false
     readonly property bool hasPendingChanges: isDirty || (activeBlockBid !== -1 && _activeBlockDirty)
     onContentModified: root.isDirty = true
@@ -2870,10 +2881,7 @@ Flickable {
                 if (isSame) {
                     // TOGGLE OFF: Quitar lista y convertir a párrafo
                     var unlisted = curParsed.map(function(it) { return it.text; }).join("\n");
-                    blocksModel.setProperty(idx, "type", "paragraph");
-                    blocksModel.setProperty(idx, "raw", unlisted);
-                    root.onBlockRawChanged(curItem.bid, unlisted);
-                    root.safeFocusDelegate(curItem.bid, 0);
+                    root.convertBlockType(curItem.bid, "paragraph", unlisted, 0);
                 } else {
                     // Cambiar tipo de lista (ej: de viñeta a checklist, o viceversa)
                     for (var li = 0; li < curParsed.length; li++) {
@@ -2911,10 +2919,7 @@ Flickable {
                     return l;
                 });
                 var newRawList = listLines.join("\n");
-                blocksModel.setProperty(idx, "type", "list");
-                blocksModel.setProperty(idx, "raw", newRawList);
-                root.onBlockRawChanged(curItem.bid, newRawList);
-                root.safeFocusDelegate(curItem.bid, 0);
+                root.convertBlockType(curItem.bid, "list", newRawList, 0);
             }
             _saveSnapshot();
             root.updateFormatState();
@@ -2923,20 +2928,12 @@ Flickable {
             if (curItem && curItem.type === "quote") {
                 // TOGGLE OFF
                 var unquoted = (curItem.raw || "").replace(/^[ \t]*>[ \t]?/gm, "");
-                blocksModel.setProperty(idx, "type", "paragraph");
-                blocksModel.setProperty(idx, "raw", unquoted);
-                root.onBlockRawChanged(curItem.bid, unquoted);
-                root.safeFocusDelegate(curItem.bid, 0);
+                root.convertBlockType(curItem.bid, "paragraph", unquoted, 0);
             } else {
                 var text = (curItem && curItem.raw) ? curItem.raw : _getPlainText(textEdit);
                 var clean = text.replace(/^[ \t]*>[ \t]?/gm, "");
                 var newRaw = "> " + clean;
-                if (idx !== -1) {
-                    blocksModel.setProperty(idx, "type", "quote");
-                    blocksModel.setProperty(idx, "raw", newRaw);
-                }
-                root.onBlockRawChanged(root.activeBlockBid, newRaw);
-                root.safeFocusDelegate(root.activeBlockBid, 0);
+                root.convertBlockType(curItem.bid, "quote", newRaw, 2);
             }
             _saveSnapshot();
             root.updateFormatState();

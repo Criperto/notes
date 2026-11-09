@@ -1052,7 +1052,9 @@ Item {
             if (editInput.selectionStart !== editInput.selectionEnd) {
                 editInput.remove(editInput.selectionStart, editInput.selectionEnd);
             }
-            editInput.insert(editInput.cursorPosition, "  ");
+            var tbPos = editInput.cursorPosition;
+            editInput.insert(tbPos, "  ");
+            editInput.cursorPosition = tbPos + 2;
             event.accepted = true;
         }
 
@@ -1072,7 +1074,9 @@ Item {
                 return;
             }
             if (event.modifiers & Qt.ShiftModifier) {
-                editInput.insert(editInput.cursorPosition, "\n");
+                var sPos = editInput.cursorPosition;
+                editInput.insert(sPos, "\n");
+                editInput.cursorPosition = sPos + 1;
                 event.accepted = true;
                 return;
             }
@@ -1115,6 +1119,7 @@ Item {
 
             // Caso 3: Enter en una línea con texto -> continuar la cita en la siguiente línea sin recortar caracteres
             editInput.insert(pos, "\n");
+            editInput.cursorPosition = pos + 1;
             event.accepted = true;
         }
 

@@ -112,6 +112,18 @@ struct Cli {
     #[arg(long = "window-controls", alias = "csd", num_args = 0..=1, default_missing_value = "always")]
     window_controls: Option<String>,
 
+    /// Posición de controles de ventana CSD ('left', 'right', 'auto')
+    #[arg(long = "window-controls-side", alias = "csd-side")]
+    window_controls_side: Option<String>,
+
+    /// Atajo para forzar controles de ventana CSD a la izquierda
+    #[arg(long = "csd-left")]
+    csd_left: bool,
+
+    /// Atajo para forzar controles de ventana CSD a la derecha
+    #[arg(long = "csd-right")]
+    csd_right: bool,
+
     /// Verificar carga y salir (para tests y headless CI)
     #[arg(long = "check")]
     check_only: bool,
@@ -387,6 +399,14 @@ fn main() {
 
     if let Some(ref wc) = cli.window_controls {
         std::env::set_var("NOTAS_WINDOW_CONTROLS", wc);
+    }
+
+    if cli.csd_left {
+        std::env::set_var("NOTAS_WINDOW_CONTROLS_SIDE", "left");
+    } else if cli.csd_right {
+        std::env::set_var("NOTAS_WINDOW_CONTROLS_SIDE", "right");
+    } else if let Some(ref wcs) = cli.window_controls_side {
+        std::env::set_var("NOTAS_WINDOW_CONTROLS_SIDE", wcs);
     }
 
     std::env::set_var("NOTAS_INITIAL_ACTION", &action);

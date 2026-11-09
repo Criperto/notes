@@ -16,6 +16,7 @@ Item {
     signal openSettingsRequested(var originRect, string initialTab)
     property bool isSettingsOpen: false
     property real windowControlsWidth: 0
+    property bool windowControlsOnLeft: false
 
     function getSettingsButtonRect() {
         if (!settingsBtn) return null;
@@ -529,8 +530,8 @@ Item {
 
                 RowLayout {
                     anchors.fill: parent
-                    anchors.leftMargin: 22
-                    anchors.rightMargin: root.windowControlsWidth > 0 ? (root.windowControlsWidth + 24) : 20
+                    anchors.leftMargin: (root.windowControlsWidth > 0 && root.windowControlsOnLeft) ? (root.windowControlsWidth + 24) : 22
+                    anchors.rightMargin: (root.windowControlsWidth > 0 && !root.windowControlsOnLeft) ? (root.windowControlsWidth + 24) : 20
                     spacing: 14
 
                     // Título de la aplicación y contador
@@ -1441,6 +1442,7 @@ Item {
                 id: editorModal
                 anchors.fill: parent
                 windowControlsWidth: root.windowControlsWidth
+                windowControlsOnLeft: root.windowControlsOnLeft
                 isExpanded: morphContainer.isExpanded
                 noteData: NotesService.activeNote
                 isSettingsOpen: root.isSettingsOpen

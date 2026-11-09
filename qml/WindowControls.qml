@@ -10,18 +10,14 @@ Item {
     readonly property string mode: (typeof ConfigBackend !== "undefined" && ConfigBackend.windowControlsMode) ? ConfigBackend.windowControlsMode : "auto"
     readonly property bool isWmFloating: (typeof Sys !== "undefined") ? Sys.wmNeedsWindowControls : false
     readonly property bool shouldShow: mode === "always" || (mode === "auto" && isWmFloating)
+    readonly property bool onLeft: (typeof Sys !== "undefined" && typeof Sys.windowControlsOnLeft !== "undefined") ? Sys.windowControlsOnLeft : false
 
     visible: shouldShow
     implicitWidth: shouldShow ? 104 : 0
     implicitHeight: 32
 
-    Row {
-        id: buttonsRow
-        anchors.right: parent.right
-        anchors.verticalCenter: parent.verticalCenter
-        spacing: 4
-
-        // 1. Botón Minimizar (-)
+    Component {
+        id: minBtnComp
         Rectangle {
             id: minBtn
             width: 32
@@ -54,8 +50,10 @@ Item {
                 }
             }
         }
+    }
 
-        // 2. Botón Maximizar / Restaurar (□)
+    Component {
+        id: maxBtnComp
         Rectangle {
             id: maxBtn
             width: 32
@@ -124,8 +122,10 @@ Item {
                 }
             }
         }
+    }
 
-        // 3. Botón Cerrar (×)
+    Component {
+        id: closeBtnComp
         Rectangle {
             id: closeBtn
             width: 32
@@ -171,6 +171,21 @@ Item {
                         root.targetWindow.close();
                     }
                 }
+            }
+        }
+    }
+
+    Row {
+        id: buttonsRow
+        anchors.left: root.onLeft ? parent.left : undefined
+        anchors.right: root.onLeft ? undefined : parent.right
+        anchors.verticalCenter: parent.verticalCenter
+        spacing: 4
+
+        Repeater {
+            model: root.onLeft ? ["close", "min", "max"] : ["min", "max", "close"]
+            Loader {
+                sourceComponent: modelData === "close" ? closeBtnComp : (modelData === "min" ? minBtnComp : maxBtnComp)
             }
         }
     }

@@ -27,6 +27,7 @@ ApplicationWindow {
         id: content
         anchors.fill: parent
         windowControlsWidth: winControls.visible ? winControls.implicitWidth : 0
+        windowControlsOnLeft: winControls.visible ? winControls.onLeft : false
         initialAction: (typeof Sys !== "undefined") ? Sys.initialAction : ""
         initialTarget: (typeof Sys !== "undefined") ? Sys.initialTarget : ""
         isSettingsOpen: settingsModal.isOpen || settingsModal.isClosing
@@ -37,7 +38,9 @@ ApplicationWindow {
     WindowControls {
         id: winControls
         y: (typeof NotesService !== "undefined" && NotesService.isEditing) ? 20 : 15
-        anchors.right: parent.right
+        anchors.left: onLeft ? parent.left : undefined
+        anchors.right: onLeft ? undefined : parent.right
+        anchors.leftMargin: 16
         anchors.rightMargin: 16
         targetWindow: root
         z: 500
