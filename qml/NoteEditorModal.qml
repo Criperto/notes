@@ -22,6 +22,8 @@ Item {
     id: root
     focus: true
 
+    property bool _isDestroyed: false
+
     property var noteData: null
     property bool remoteLocked: false
     readonly property bool isPreviewMode: Boolean((noteData && noteData.readOnly) || remoteLocked)
@@ -133,6 +135,7 @@ Item {
     }
 
     Component.onDestruction: {
+        root._isDestroyed = true;
         if (root.loadedSlug) {
             if (root.isSourceMode) {
                 root._currentBody = sourceCodeEditor ? sourceCodeEditor.text : root._currentBody;
@@ -242,10 +245,9 @@ Item {
                     } else if (blockEditor) {
                         blockEditor.loadMarkdown(incomingClean);
                         Qt.callLater(() => {
-                            if (blockEditor) {
-                                blockEditor.contentY = savedContentY;
-                                if (savedBid !== -1) blockEditor.activeBlockBid = savedBid;
-                            }
+                            if (!root || root._isDestroyed || !blockEditor) return;
+                            blockEditor.contentY = savedContentY;
+                            if (savedBid !== -1) blockEditor.activeBlockBid = savedBid;
                         });
                     }
                 } else {
@@ -748,6 +750,7 @@ Item {
             root._currentBody = fullMd;
             root.isSourceMode = true;
             Qt.callLater(() => {
+                if (!root || root._isDestroyed || !sourceCodeEditor) return;
                 sourceCodeEditor.cursorPosition = Math.min(sourceCodeEditor.text.length, targetCursor);
                 if (sourceFlickable && sourceFlickable.contentHeight > 0) {
                     sourceFlickable.contentY = scrollRatio * sourceFlickable.contentHeight;
@@ -765,6 +768,7 @@ Item {
             root.isSourceMode = false;
 
             Qt.callLater(() => {
+                if (!root || root._isDestroyed || !blockEditor) return;
                 var running = (blockEditor.documentLead || "").length;
                 var foundBid = -1;
                 var foundInnerPos = 0;
@@ -1067,6 +1071,7 @@ Item {
         root.isFindActive = true;
         root._matchEverNavigated = false;
         Qt.callLater(() => {
+            if (!root || root._isDestroyed || !findInput) return;
             findInput.forceActiveFocus();
             findInput.selectAll();
             root._updateFindMatches();
@@ -1287,7 +1292,7 @@ Item {
         root._flushPendingBody();
         blockEditor.requestEditBlock(m.bid);
         Qt.callLater(() => {
-            if (!blockEditor) return;
+            if (!root || root._isDestroyed || !blockEditor) return;
             var loader = blockEditor._getDelegateItemForBid(m.bid);
             var del = (loader && loader.item) ? loader.item : null;
             if (!del) return;

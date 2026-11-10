@@ -5687,6 +5687,35 @@ runTest("F136: Auditoría de estabilidad, FreeDesktop Trash, rutas XDG, supresi�
     assert.ok(editorModalQml.includes('root.isLoading || !root.loadedSlug || root.isRenaming'), "markDirty debe omitir durante renombrado");
 });
 
+runTest("F137: Hotfixes v0.2.6 — BlockModel splitBlocks en replaceSelectedRange, selección multilínea con Shift+Ctrl+Left, prevención de duplicación en pegado multi-bloque y context guard en Qt.callLater", () => {
+    const editorQml = fs.readFileSync(path.resolve(__dirname, '../qml/BlockEditor.qml'), 'utf8');
+    assert.ok(!editorQml.includes('MD.parseToBlocks'), "BlockEditor no debe invocar método inexistente MD.parseToBlocks");
+    assert.ok(editorQml.includes('var splitRes = BlockModel.splitBlocks(merged);'), "replaceSelectedRange debe usar BlockModel.splitBlocks");
+    assert.ok(editorQml.includes('var selMin = (s !== e) ? Math.min(s, e) : targetEdit.cursorPosition;'), "handlePaste debe respetar selección activa para prevenir duplicación multi-bloque");
+    assert.ok(editorQml.includes('isShift && !isAlt && (event.key === Qt.Key_Down || event.key === Qt.Key_Right)'), "BlockEditor debe permitir Shift con flechas izquierda/derecha y no bloquear Ctrl");
+    assert.ok(editorQml.includes('isShift && !isAlt && (event.key === Qt.Key_Up || event.key === Qt.Key_Left)'), "BlockEditor debe permitir Shift con flechas arriba/izquierda");
+    assert.ok(editorQml.includes('if (root && !root._isDestroyed && typeof root._focusDelegateForBid === "function")'), "safeFocusDelegate debe proteger contra contexto inválido en Qt.callLater");
+
+    const pQml = fs.readFileSync(path.resolve(__dirname, '../qml/BlockParagraph.qml'), 'utf8');
+    assert.ok(pQml.includes('root.editor.extendKeyboardSelectionUp(root.blockData.bid, editInput.cursorPosition)'), "BlockParagraph debe extender selección hacia arriba al pulsar Shift+Left en cursor 0");
+    assert.ok(pQml.includes('root.editor.extendKeyboardSelectionDown(root.blockData.bid, editInput.cursorPosition)'), "BlockParagraph debe extender selección hacia abajo al pulsar Shift+Right al final");
+
+    const hQml = fs.readFileSync(path.resolve(__dirname, '../qml/BlockHeading.qml'), 'utf8');
+    assert.ok(hQml.includes('root.editor.extendKeyboardSelectionUp(root.blockData.bid, editInput.cursorPosition)'), "BlockHeading debe extender selección hacia arriba con Shift+Left");
+
+    const qQml = fs.readFileSync(path.resolve(__dirname, '../qml/BlockQuote.qml'), 'utf8');
+    assert.ok(qQml.includes('root.editor.extendKeyboardSelectionUp(root.blockData.bid, editInput.cursorPosition)'), "BlockQuote debe extender selección hacia arriba con Shift+Left");
+
+    const listQml = fs.readFileSync(path.resolve(__dirname, '../qml/BlockList.qml'), 'utf8');
+    assert.ok(listQml.includes('root.extendItemSelectionUp(itemRow.index)'), "BlockList debe extender selección de ítems hacia arriba con Shift+Left");
+    assert.ok(listQml.includes('root.extendItemSelectionDown(itemRow.index)'), "BlockList debe extender selección de ítems hacia abajo con Shift+Right");
+
+    const modalQml = fs.readFileSync(path.resolve(__dirname, '../qml/NoteEditorModal.qml'), 'utf8');
+    assert.ok(modalQml.includes('property bool _isDestroyed: false'), "NoteEditorModal debe tener propiedad defensiva _isDestroyed");
+    assert.ok(modalQml.includes('root._isDestroyed = true;'), "NoteEditorModal debe marcar _isDestroyed en destrucción");
+    assert.ok(modalQml.includes('if (!root || root._isDestroyed || !blockEditor) return;'), "NoteEditorModal debe proteger closures en Qt.callLater contra contexto destruido");
+});
+
 console.log(`\n========================================`);
 console.log(`Resultados: ${passed} OK, ${failed} FAIL`);
 console.log(`========================================`);

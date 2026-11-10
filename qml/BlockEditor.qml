@@ -971,7 +971,8 @@ Flickable {
 
         var newBlocks = [];
         if (merged.indexOf("\n\n") !== -1 || /^(#{1,6}\s|```|>\s|[-*+]\s|\d+\.\s|\|)/m.test(merged)) {
-            newBlocks = MD.parseToBlocks(merged);
+            var splitRes = BlockModel.splitBlocks(merged);
+            newBlocks = (splitRes && splitRes.blocks) ? splitRes.blocks : [];
         }
 
         if (newBlocks.length > 1) {
@@ -1082,9 +1083,13 @@ Flickable {
                         var curBlock = root.blocksModel.get(blockIdx);
                         if (curBlock && curBlock.type === "paragraph") {
                             var fullCurrent = Inline.plainText(targetEdit);
-                            var preText = fullCurrent.substring(0, targetEdit.cursorPosition);
-                            var postText = fullCurrent.substring(targetEdit.cursorPosition);
-                            var combined = (preText ? preText + "\n\n" : "") + clipText + (postText ? "\n\n" + postText : "");
+                            var selMin = (s !== e) ? Math.min(s, e) : targetEdit.cursorPosition;
+                            var selMax = (s !== e) ? Math.max(s, e) : targetEdit.cursorPosition;
+                            var preText = fullCurrent.substring(0, selMin);
+                            var postText = fullCurrent.substring(selMax);
+                            var combined = (preText ? preText + (preText.endsWith("\n") ? "\n" : "\n\n") : "")
+                                         + clipText
+                                         + (postText ? (postText.startsWith("\n") ? "\n" : "\n\n") + postText : "");
                             var resBlocks = BlockModel.splitBlocks(combined);
                             if (resBlocks.blocks && resBlocks.blocks.length > 1) {
                                 root._saveSnapshot();
@@ -1095,6 +1100,8 @@ Flickable {
                                 var lastInserted = resBlocks.blocks[resBlocks.blocks.length - 1];
                                 root.safeFocusDelegate(lastInserted.bid);
                                 root._saveSnapshot();
+                                root.contentModified();
+                                root.debouncedMarkdownTimer.restart();
                                 return;
                             }
                         }
@@ -1259,7 +1266,7 @@ Flickable {
     function safeFocusDelegate(bid, cursorPos) {
         Qt.callLater(() => {
             try {
-                if (root && typeof root._focusDelegateForBid === "function") {
+                if (root && !root._isDestroyed && typeof root._focusDelegateForBid === "function") {
                     root._focusDelegateForBid(bid, cursorPos);
                 }
             } catch (e) {
@@ -1391,13 +1398,13 @@ Flickable {
 
         if (!root.hasBlockSelection) return;
 
-        if (isShift && !isCtrl && !isAlt && event.key === Qt.Key_Down) {
+        if (isShift && !isAlt && (event.key === Qt.Key_Down || event.key === Qt.Key_Right)) {
             root.extendKeyboardSelectionDown(root.selCurrentBid, 0);
             event.accepted = true;
             return;
         }
 
-        if (isShift && !isCtrl && !isAlt && event.key === Qt.Key_Up) {
+        if (isShift && !isAlt && (event.key === Qt.Key_Up || event.key === Qt.Key_Left)) {
             root.extendKeyboardSelectionUp(root.selCurrentBid, 0);
             event.accepted = true;
             return;
@@ -1545,6 +1552,7 @@ Flickable {
         root._activeBlockDirty = false;
         root.isDirty = false;
         Qt.callLater(() => {
+            if (!root || root._isDestroyed) return;
             root.contentY = 0;
         });
     }
@@ -3431,6 +3439,7 @@ Flickable {
                 NotesService.openNote(targetNote);
                 if (parsed.anchor) {
                     Qt.callLater(() => {
+                        if (!root || root._isDestroyed) return;
                         scrollToAnchor(parsed.anchor);
                     });
                 }
@@ -3624,6 +3633,7 @@ Flickable {
                 if ((typeof snapshot.subIndex === "number" && snapshot.subIndex >= 0) ||
                     (typeof snapshot.cellRow === "number" && snapshot.cellRow >= -1)) {
                     Qt.callLater(() => {
+                        if (!root || root._isDestroyed) return;
                         var ldr2 = root._getDelegateItemForBid(targetBid);
                         var item2 = ldr2 ? ldr2.item : null;
                         if (item2) {
@@ -3665,9 +3675,10 @@ Flickable {
     }
 
     function _focusDelegateForBid(bid, cursorPos) {
+        if (!root || root._isDestroyed) return;
         var attempts = 0;
         var attemptFocus = function() {
-            if (!root) return;
+            if (!root || root._isDestroyed) return;
             var loader = _getDelegateItemForBid(bid);
             if (!loader || !loader.item || loader.status !== Loader.Ready || typeof loader.item.focusInput !== "function") {
                 attempts++;
@@ -3676,7 +3687,9 @@ Flickable {
                 }
                 return;
             }
-            loader.item.focusInput(cursorPos);
+            if (!root._isDestroyed && loader.item && typeof loader.item.focusInput === "function") {
+                loader.item.focusInput(cursorPos);
+            }
         };
         attemptFocus();
     }

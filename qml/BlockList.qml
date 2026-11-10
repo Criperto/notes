@@ -119,7 +119,7 @@ Item {
         }
         root._loadingModel = false;
         Qt.callLater(function() {
-            if (root && root.spellActive && (root.inViewportChunk || root.isEditing || root.isSelected) && typeof root.triggerAllSpellChecks === "function") {
+            if (root && !root._isDestroyed && root.spellActive && (root.inViewportChunk || root.isEditing || root.isSelected) && typeof root.triggerAllSpellChecks === "function") {
                 root.triggerAllSpellChecks();
             }
         });
@@ -530,6 +530,7 @@ Item {
                 }
                 root._notifyRawChanged();
                 Qt.callLater(() => {
+                    if (!root || root._isDestroyed) return;
                     root._focusItem(itemIdx, 0);
                 });
                 return true;
@@ -546,6 +547,7 @@ Item {
                     var prevIdx = Math.max(0, itemIdx - 1);
                     root._removeItem(itemIdx);
                     Qt.callLater(() => {
+                        if (!root || root._isDestroyed) return;
                         root._focusItem(prevIdx, -1);
                     });
                 }
@@ -586,6 +588,7 @@ Item {
                 }
                 root._removeItem(itemIdx);
                 Qt.callLater(() => {
+                    if (!root || root._isDestroyed) return;
                     root._focusItem(itemIdx - 1, prevDispLen);
                 });
                 return true;
@@ -810,6 +813,7 @@ Item {
         clearTextSelection();
 
         Qt.callLater(() => {
+            if (!root || root._isDestroyed) return;
             root._focusItem(rg.from, prefixTxt.length + inserted.length);
         });
     }
@@ -1178,7 +1182,7 @@ Item {
                     lineEdit.insert(s, replacement);
                     var endPos = s + replacement.length;
                     var selectWordAction = function() {
-                        if (!lineEdit) return;
+                        if (itemRow._isDestroyed || (r && r._isDestroyed) || !lineEdit) return;
                         var curLen = lineEdit.length;
                         var clampedEnd = Math.max(0, Math.min(endPos, curLen));
                         var clampedStart = Math.max(0, Math.min(s, clampedEnd));
@@ -1204,7 +1208,7 @@ Item {
                         r.editor.requestEditBlock(r.blockData.bid, pos);
                     }
                     var applyFocus = () => {
-                        if (!lineEdit) return;
+                        if (itemRow._isDestroyed || (r && r._isDestroyed) || !lineEdit) return;
                         lineEdit.forceActiveFocus();
                         if (lineEdit.selectionStart !== lineEdit.selectionEnd) return;
                         if (r && r.editor && (r.editor.isDraggingSelection || r.editor.hasBlockSelection || r.editor._syncingSelection)) return;
@@ -2366,6 +2370,38 @@ Item {
                                     } else if (lineEdit.cursorPosition < lineEdit.length) {
                                         lineEdit.cursorPosition = lineEdit.length;
                                         event.accepted = true;
+                                    }
+                                }
+                            }
+                        } else if (event.key === Qt.Key_Left) {
+                            if (event.modifiers & Qt.ShiftModifier) {
+                                if (lineEdit.cursorPosition === 0) {
+                                    if (itemRow.index === 0) {
+                                        if (root.editor && root.blockData && typeof root.editor.extendKeyboardSelectionUp === "function") {
+                                            root.editor.extendKeyboardSelectionUp(root.blockData.bid, 0);
+                                            event.accepted = true;
+                                            return;
+                                        }
+                                    } else {
+                                        root.extendItemSelectionUp(itemRow.index);
+                                        event.accepted = true;
+                                        return;
+                                    }
+                                }
+                            }
+                        } else if (event.key === Qt.Key_Right) {
+                            if (event.modifiers & Qt.ShiftModifier) {
+                                if (lineEdit.cursorPosition === lineEdit.length) {
+                                    if (itemRow.index === root._itemsRawArray.length - 1) {
+                                        if (root.editor && root.blockData && typeof root.editor.extendKeyboardSelectionDown === "function") {
+                                            root.editor.extendKeyboardSelectionDown(root.blockData.bid, root.getTextLength());
+                                            event.accepted = true;
+                                            return;
+                                        }
+                                    } else {
+                                        root.extendItemSelectionDown(itemRow.index);
+                                        event.accepted = true;
+                                        return;
                                     }
                                 }
                             }

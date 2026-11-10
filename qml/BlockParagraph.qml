@@ -201,7 +201,7 @@ Item {
         editInput.insert(s, replacement);
         var endPos = s + replacement.length;
         var selectWordAction = function() {
-            if (!editInput) return;
+            if (root._isDestroyed || !editInput) return;
             var curLen = editInput.length;
             var clampedEnd = Math.max(0, Math.min(endPos, curLen));
             var clampedStart = Math.max(0, Math.min(s, clampedEnd));
@@ -1351,6 +1351,13 @@ Item {
                 root.editor.resetPreferredCursorX();
             }
             if (event.modifiers & Qt.ShiftModifier) {
+                if (editInput.cursorPosition === 0) {
+                    if (root.editor && root.blockData && typeof root.editor.extendKeyboardSelectionUp === "function") {
+                        root.editor.extendKeyboardSelectionUp(root.blockData.bid, editInput.cursorPosition);
+                        event.accepted = true;
+                        return;
+                    }
+                }
                 event.accepted = false;
                 return;
             }
@@ -1371,6 +1378,13 @@ Item {
                 root.editor.resetPreferredCursorX();
             }
             if (event.modifiers & Qt.ShiftModifier) {
+                if (editInput.cursorPosition === editInput.length) {
+                    if (root.editor && root.blockData && typeof root.editor.extendKeyboardSelectionDown === "function") {
+                        root.editor.extendKeyboardSelectionDown(root.blockData.bid, editInput.cursorPosition);
+                        event.accepted = true;
+                        return;
+                    }
+                }
                 event.accepted = false;
                 return;
             }

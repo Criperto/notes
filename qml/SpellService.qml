@@ -318,7 +318,7 @@ QtObject {
                     if (proc.running) {
                         proc.running = false;
                         Qt.callLater(function() {
-                            if (workerItem.dictPath !== "") proc.running = true;
+                            if (workerItem && !workerItem._isDestroyed && workerItem.dictPath !== "") proc.running = true;
                         });
                     }
                 }
