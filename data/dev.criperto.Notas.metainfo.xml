@@ -28,6 +28,11 @@
   </screenshots>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.5" date="2026-11-09">
+      <description>
+        <p>feat: release v0.2.5 - integracion con FreeDesktop Trash spec, rutas XDG unificadas, memoizacion CSD, eliminacion de bloqueos de hilo y renombrado atomico</p>
+      </description>
+    </release>
     <release version="0.2.4" date="2026-11-09">
       <description>
         <p>fix: hotfix salida de viñetas con enter y foco resiliente en nuevo parrafo</p>
