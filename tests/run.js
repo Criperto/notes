@@ -5635,8 +5635,31 @@ runTest("F134: BlockEditor splitListBlock división de listas al presionar Enter
         "BlockEditor debe definir la función splitListBlock");
 
     const listQml = fs.readFileSync(path.resolve(__dirname, '../qml/BlockList.qml'), 'utf8');
-    assert.ok(listQml.includes('editorRef.splitListBlock(bidRef, itemIdx)'),
+    assert.ok(listQml.includes('editorRef.splitListBlock(bidRef, itemIdx'),
         "BlockList handleItemReturn debe invocar splitListBlock al salir en nivel 0");
+});
+
+runTest("F135: Hotfix v0.2.4 salida de viñetas con Enter, preservación de foco y no confirmActiveBlock destructivo", () => {
+    const editorQml = fs.readFileSync(path.resolve(__dirname, '../qml/BlockEditor.qml'), 'utf8');
+    // splitListBlock no debe llamar confirmActiveBlock para no deseleccionar ni corromper modelos
+    const splitFn = editorQml.substring(editorQml.indexOf('function splitListBlock'), editorQml.indexOf('function deleteBlock'));
+    assert.ok(!splitFn.includes('root.confirmActiveBlock()'),
+        "splitListBlock no debe ejecutar confirmActiveBlock");
+    assert.ok(editorQml.includes('function _focusDelegateForBid(bid, cursorPos)'),
+        "_focusDelegateForBid debe existir");
+    assert.ok(editorQml.includes('cand.blockItemData.bid === bid'),
+        "_getDelegateItemForBid debe verificar coincidencia de bid exacta");
+
+    const listQml = fs.readFileSync(path.resolve(__dirname, '../qml/BlockList.qml'), 'utf8');
+    assert.ok(listQml.includes('LP.serializeList(root._itemsRawArray.slice(0, itemIdx))'),
+        "BlockList debe particionar directamente su array local sin reparsear");
+
+    const paraQml = fs.readFileSync(path.resolve(__dirname, '../qml/BlockParagraph.qml'), 'utf8');
+    assert.ok(paraQml.includes('root.editor.activeBlockBid === root.blockData.bid'),
+        "BlockParagraph debe garantizar visibilidad de editInput inmediatamente");
+
+    const cargoToml = fs.readFileSync(path.resolve(__dirname, '../Cargo.toml'), 'utf8');
+    assert.ok(cargoToml.includes('version = "0.2.4"'), "Cargo.toml debe estar en 0.2.4");
 });
 
 console.log(`\n========================================`);

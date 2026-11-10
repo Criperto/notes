@@ -2029,26 +2029,43 @@ Flickable {
     }
 
     function splitListBlock(bid, itemIdx) {
+        var optBeforeRaw = arguments[2];
+        var optAfterRaw = arguments[3];
         var idx = _findBlockIndex(bid);
         if (idx === -1) return;
 
         var bItem = blocksModel.get(idx);
-        var parsed = LP.parseList(bItem.raw || "");
-        if (itemIdx < 0 || itemIdx >= parsed.length) return;
+        var origSep = (bItem && bItem.sep) ? bItem.sep : "\n\n";
 
-        var beforeItems = parsed.slice(0, itemIdx);
-        var afterItems = parsed.slice(itemIdx + 1);
+        var beforeRaw = "";
+        var afterRaw = "";
 
-        root.confirmActiveBlock();
-        var origSep = bItem.sep || "\n\n";
+        if (typeof optBeforeRaw === "string" && typeof optAfterRaw === "string") {
+            beforeRaw = optBeforeRaw;
+            afterRaw = optAfterRaw;
+        } else {
+            var parsed = LP.parseList((bItem ? bItem.raw : "") || "");
+            if (itemIdx < 0 || itemIdx >= parsed.length) return;
+            var beforeItems = parsed.slice(0, itemIdx);
+            var afterItems = parsed.slice(itemIdx + 1);
+            beforeRaw = LP.serializeList(beforeItems);
+            afterRaw = LP.serializeList(afterItems);
+        }
 
-        if (beforeItems.length === 0 && afterItems.length === 0) {
+        var hasBefore = beforeRaw.trim().length > 0;
+        var hasAfter = afterRaw.trim().length > 0;
+
+        debouncedMarkdownTimer.stop();
+        typingSnapshotTimer.stop();
+
+        if (!hasBefore && !hasAfter) {
             var pBid = BlockModel.getNextBid();
             blocksModel.setProperty(idx, "bid", pBid);
             blocksModel.setProperty(idx, "type", "paragraph");
             blocksModel.setProperty(idx, "raw", "");
             blocksModel.setProperty(idx, "sep", origSep);
             root.activeBlockBid = pBid;
+            root._activeBlockDirty = true;
             _saveSnapshot();
             root.contentModified();
             debouncedMarkdownTimer.restart();
@@ -2056,9 +2073,8 @@ Flickable {
             return;
         }
 
-        if (beforeItems.length === 0) {
+        if (!hasBefore) {
             var pBid = BlockModel.getNextBid();
-            var afterRaw = LP.serializeList(afterItems);
             blocksModel.setProperty(idx, "raw", afterRaw);
             blocksModel.insert(idx, {
                 bid: pBid,
@@ -2067,6 +2083,7 @@ Flickable {
                 sep: "\n\n"
             });
             root.activeBlockBid = pBid;
+            root._activeBlockDirty = true;
             _saveSnapshot();
             root.contentModified();
             debouncedMarkdownTimer.restart();
@@ -2074,8 +2091,7 @@ Flickable {
             return;
         }
 
-        if (afterItems.length === 0) {
-            var beforeRaw = LP.serializeList(beforeItems);
+        if (!hasAfter) {
             blocksModel.setProperty(idx, "raw", beforeRaw);
             blocksModel.setProperty(idx, "sep", "\n\n");
             var pBid = BlockModel.getNextBid();
@@ -2086,6 +2102,7 @@ Flickable {
                 sep: origSep
             });
             root.activeBlockBid = pBid;
+            root._activeBlockDirty = true;
             _saveSnapshot();
             root.contentModified();
             debouncedMarkdownTimer.restart();
@@ -2093,8 +2110,6 @@ Flickable {
             return;
         }
 
-        var beforeRaw = LP.serializeList(beforeItems);
-        var afterRaw = LP.serializeList(afterItems);
         var pBid = BlockModel.getNextBid();
         var afterBid = BlockModel.getNextBid();
 
@@ -2116,6 +2131,7 @@ Flickable {
         });
 
         root.activeBlockBid = pBid;
+        root._activeBlockDirty = true;
         _saveSnapshot();
         root.contentModified();
         debouncedMarkdownTimer.restart();
@@ -3634,24 +3650,35 @@ Flickable {
     function _getDelegateItemForBid(bid) {
         var idx = _findBlockIndex(bid);
         if (idx !== -1 && idx < blocksRepeater.count) {
-            return blocksRepeater.itemAt(idx);
+            var cand = blocksRepeater.itemAt(idx);
+            if (cand && cand.blockItemData && cand.blockItemData.bid === bid) {
+                return cand;
+            }
+        }
+        for (var i = 0; i < blocksRepeater.count; i++) {
+            var loader = blocksRepeater.itemAt(i);
+            if (loader && loader.blockItemData && loader.blockItemData.bid === bid) {
+                return loader;
+            }
         }
         return null;
     }
 
     function _focusDelegateForBid(bid, cursorPos) {
-        var item = _getDelegateItemForBid(bid);
-        if (item && item.item && typeof item.item.focusInput === "function") {
-            item.item.focusInput(cursorPos);
-        } else {
-            Qt.callLater(() => {
-                if (!root || typeof root._getDelegateItemForBid !== "function") return;
-                var it2 = root._getDelegateItemForBid(bid);
-                if (it2 && it2.item && typeof it2.item.focusInput === "function") {
-                    it2.item.focusInput(cursorPos);
+        var attempts = 0;
+        var attemptFocus = function() {
+            if (!root) return;
+            var loader = _getDelegateItemForBid(bid);
+            if (!loader || !loader.item || loader.status !== Loader.Ready || typeof loader.item.focusInput !== "function") {
+                attempts++;
+                if (attempts < 25) {
+                    Qt.callLater(attemptFocus);
                 }
-            });
-        }
+                return;
+            }
+            loader.item.focusInput(cursorPos);
+        };
+        attemptFocus();
     }
 
     // ── Renderizado en columna virtualizada por chunks ────────────────────────

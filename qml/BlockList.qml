@@ -419,7 +419,9 @@ Item {
             }
             // Ítem vacío nivel 0: salir de la lista y crear párrafo nuevo en esta posición
             if (editorRef && bidRef !== -1 && typeof editorRef.splitListBlock === "function") {
-                editorRef.splitListBlock(bidRef, itemIdx);
+                var beforeRaw = LP.serializeList(root._itemsRawArray.slice(0, itemIdx));
+                var afterRaw = LP.serializeList(root._itemsRawArray.slice(itemIdx + 1));
+                editorRef.splitListBlock(bidRef, itemIdx, beforeRaw, afterRaw);
                 return;
             }
             // Fallback: salir de la lista / eliminar ítem
@@ -630,6 +632,9 @@ Item {
     }
 
     function focusInput(cursorPos) {
+        if (root.editor && root.blockData && root.editor.activeBlockBid === root.blockData.bid) {
+            root.isEditing = true;
+        }
         var targetIdx = 0;
         var fromBot = (cursorPos === -1 || (typeof cursorPos === "object" && cursorPos !== null && (cursorPos.fromBottom === true || cursorPos.y > 1000)));
         if (fromBot && itemsRepeater.count > 0) {
@@ -1537,7 +1542,7 @@ Item {
                         property string _lastAppliedHtml: itemRow.baseDisplayText(itemRow.text)
                         persistentSelection: true
                         overwriteMode: root.editor ? root.editor.overwriteMode : false
-                        visible: root.isEditing || itemRow.isSelected || (root.spellActive && itemRow.spellRanges && itemRow.spellRanges.length > 0 && lineEdit.length > 0)
+                        visible: root.isEditing || itemRow.isSelected || (root.spellActive && itemRow.spellRanges && itemRow.spellRanges.length > 0 && lineEdit.length > 0) || (root.editor && root.blockData && root.editor.activeBlockBid === root.blockData.bid)
                         readOnly: !root.isEditing || (root.editor && root.editor.readOnly)
                         cursorVisible: activeFocus && root.isEditing && (!root.editor || !root.editor.readOnly)
                         width: parent.width

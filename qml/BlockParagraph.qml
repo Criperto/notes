@@ -398,9 +398,19 @@ Item {
     }
 
     function focusInput(cursorPos) {
+        if (root.editor && root.blockData && root.editor.activeBlockBid === root.blockData.bid) {
+            root.isEditing = true;
+        }
         if (editInput) {
             _syncTextFromModel();
             editInput.forceActiveFocus();
+            if (!editInput.activeFocus) {
+                Qt.callLater(() => {
+                    if (editInput && root && (root.isEditing || (root.editor && root.blockData && root.editor.activeBlockBid === root.blockData.bid))) {
+                        editInput.forceActiveFocus();
+                    }
+                });
+            }
             if (editInput.selectionStart !== editInput.selectionEnd) return;
             if (root.editor && (root.editor.isDraggingSelection || root.editor.hasBlockSelection || root.editor._syncingSelection)) return;
             if (typeof cursorPos === "object" && cursorPos !== null && typeof cursorPos.x === "number") {
@@ -710,7 +720,7 @@ Item {
         id: editInput
         persistentSelection: true
         overwriteMode: root.editor ? root.editor.overwriteMode : false
-        visible: root.isEditing || root.isSelected
+        visible: root.isEditing || root.isSelected || (root.editor && root.blockData && root.editor.activeBlockBid === root.blockData.bid)
         readOnly: !root.isEditing || (root.editor && root.editor.readOnly)
         cursorVisible: activeFocus && root.isEditing && (!root.editor || !root.editor.readOnly)
         width: parent.width
