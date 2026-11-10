@@ -1027,6 +1027,15 @@ QString Sys::dataShareDir() const {
     if (QFile::exists(devDir + QStringLiteral("/qml/Main.qml"))) {
         return devDir;
     }
+    QString xdgData = qEnvironmentVariable("XDG_DATA_HOME");
+    if (!xdgData.isEmpty()) {
+        if (QFile::exists(xdgData + QStringLiteral("/criperto-notes"))) return xdgData + QStringLiteral("/criperto-notes");
+        if (QFile::exists(xdgData + QStringLiteral("/criperto.notes"))) return xdgData + QStringLiteral("/criperto.notes");
+    }
+    QString userShareNotes = QDir::homePath() + QStringLiteral("/.local/share/criperto-notes");
+    if (QFile::exists(userShareNotes)) {
+        return userShareNotes;
+    }
     QString userShare = QDir::homePath() + QStringLiteral("/.local/share/criperto.notes");
     if (QFile::exists(userShare)) {
         return userShare;
@@ -1035,10 +1044,13 @@ QString Sys::dataShareDir() const {
     if (QFile::exists(legacyShare)) {
         return legacyShare;
     }
+    if (QFile::exists(QStringLiteral("/usr/share/criperto-notes"))) {
+        return QStringLiteral("/usr/share/criperto-notes");
+    }
     if (QFile::exists(QStringLiteral("/usr/share/criperto.notes"))) {
         return QStringLiteral("/usr/share/criperto.notes");
     }
-    return QStringLiteral("/usr/share/criperto.notes");
+    return QStringLiteral("/usr/share/criperto-notes");
 }
 
 QString Sys::appExecutable() const {
@@ -1050,34 +1062,46 @@ static bool isForcedNoSyncConfigured() {
         return true;
     }
     const QString home = QDir::homePath();
-    // 1. ~/.config/notas/config.json
-    QFile cfgFile(home + QStringLiteral("/.config/notas/config.json"));
-    if (cfgFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        QJsonDocument doc = QJsonDocument::fromJson(cfgFile.readAll());
-        if (doc.isObject()) {
-            QJsonObject obj = doc.object();
-            if (obj.contains(QStringLiteral("noSync")) && obj[QStringLiteral("noSync")].toBool(false)) {
-                return true;
+    QString cfgDir = qEnvironmentVariable("XDG_CONFIG_HOME");
+    if (cfgDir.isEmpty()) cfgDir = home + QStringLiteral("/.config");
+
+    // 1. config.json en criperto-notes o notas
+    const QStringList jsonConfigs = {
+        cfgDir + QStringLiteral("/criperto-notes/config.json"),
+        cfgDir + QStringLiteral("/notas/config.json")
+    };
+    for (const QString &jsonPath : jsonConfigs) {
+        if (!QFile::exists(jsonPath)) continue;
+        QFile cfgFile(jsonPath);
+        if (cfgFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+            QJsonDocument doc = QJsonDocument::fromJson(cfgFile.readAll());
+            if (doc.isObject()) {
+                QJsonObject obj = doc.object();
+                if (obj.contains(QStringLiteral("noSync")) && obj[QStringLiteral("noSync")].toBool(false)) {
+                    return true;
+                }
+                if (obj.contains(QStringLiteral("no_sync")) && obj[QStringLiteral("no_sync")].toBool(false)) {
+                    return true;
+                }
+                if (obj.contains(QStringLiteral("sync")) && !obj[QStringLiteral("sync")].toBool(true)) {
+                    return true;
+                }
+                if (obj.contains(QStringLiteral("syncWithQuickshell")) && !obj[QStringLiteral("syncWithQuickshell")].toBool(true)) {
+                    return true;
+                }
             }
-            if (obj.contains(QStringLiteral("no_sync")) && obj[QStringLiteral("no_sync")].toBool(false)) {
-                return true;
-            }
-            if (obj.contains(QStringLiteral("sync")) && !obj[QStringLiteral("sync")].toBool(true)) {
-                return true;
-            }
-            if (obj.contains(QStringLiteral("syncWithQuickshell")) && !obj[QStringLiteral("syncWithQuickshell")].toBool(true)) {
-                return true;
-            }
+            cfgFile.close();
         }
-        cfgFile.close();
     }
     // 2. Archivos adicionales de configuración (.conf, .toml)
     const QStringList extraFiles = {
-        home + QStringLiteral("/.config/notas/config.conf"),
-        home + QStringLiteral("/.config/notas/notas.conf"),
-        home + QStringLiteral("/.config/notas/config.toml"),
-        home + QStringLiteral("/.config/notas/notas.toml"),
-        home + QStringLiteral("/.config/quickshell/config/notes.conf")
+        cfgDir + QStringLiteral("/criperto-notes/config.conf"),
+        cfgDir + QStringLiteral("/criperto-notes/config.toml"),
+        cfgDir + QStringLiteral("/notas/config.conf"),
+        cfgDir + QStringLiteral("/notas/notas.conf"),
+        cfgDir + QStringLiteral("/notas/config.toml"),
+        cfgDir + QStringLiteral("/notas/notas.toml"),
+        cfgDir + QStringLiteral("/quickshell/config/notes.conf")
     };
     for (const QString &extraPath : extraFiles) {
         if (QFile::exists(extraPath)) {
@@ -1104,6 +1128,18 @@ static bool isForcedNoSyncConfigured() {
         }
     }
     return false;
+}
+
+bool Sys::moveToTrash(const QString &filePath) {
+    if (filePath.isEmpty()) return false;
+    QFileInfo fi(filePath);
+    if (!fi.exists()) return false;
+    return QFile::moveToTrash(filePath);
+}
+
+bool Sys::fileExists(const QString &filePath) const {
+    if (filePath.isEmpty()) return false;
+    return QFile::exists(filePath);
 }
 
 bool Sys::hasQuickshellConfig() const {
@@ -1595,9 +1631,13 @@ static QString historyDirForNote(const QString &notePath) {
     QString stateHome = qEnvironmentVariable("XDG_STATE_HOME");
     QString baseDir;
     if (!stateHome.isEmpty()) {
-        baseDir = stateHome + QStringLiteral("/qs-notes/history");
+        QString pNew = stateHome + QStringLiteral("/criperto-notes/history");
+        QString pLegacy = stateHome + QStringLiteral("/qs-notes/history");
+        baseDir = (QDir(pLegacy).exists() && !QDir(pNew).exists()) ? pLegacy : pNew;
     } else {
-        baseDir = QDir::homePath() + QStringLiteral("/.local/state/qs-notes/history");
+        QString pNew = QDir::homePath() + QStringLiteral("/.local/state/criperto-notes/history");
+        QString pLegacy = QDir::homePath() + QStringLiteral("/.local/state/qs-notes/history");
+        baseDir = (QDir(pLegacy).exists() && !QDir(pNew).exists()) ? pLegacy : pNew;
     }
     return baseDir + QLatin1Char('/') + folderName;
 }

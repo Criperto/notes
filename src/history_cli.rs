@@ -50,11 +50,23 @@ pub fn hash_path_short(path: &str) -> String {
 // ── Directorio base de historial ─────────────────────────────────────────────
 pub fn history_base_dir() -> PathBuf {
     if let Ok(state_home) = std::env::var("XDG_STATE_HOME") {
-        PathBuf::from(state_home).join("qs-notes").join("history")
+        let p_new = PathBuf::from(&state_home).join("criperto-notes").join("history");
+        let p_legacy = PathBuf::from(&state_home).join("qs-notes").join("history");
+        if p_legacy.exists() && !p_new.exists() {
+            p_legacy
+        } else {
+            p_new
+        }
     } else if let Ok(home) = std::env::var("HOME") {
-        PathBuf::from(home).join(".local").join("state").join("qs-notes").join("history")
+        let p_new = PathBuf::from(&home).join(".local").join("state").join("criperto-notes").join("history");
+        let p_legacy = PathBuf::from(&home).join(".local").join("state").join("qs-notes").join("history");
+        if p_legacy.exists() && !p_new.exists() {
+            p_legacy
+        } else {
+            p_new
+        }
     } else {
-        std::env::temp_dir().join("qs-notes-history")
+        std::env::temp_dir().join("criperto-notes-history")
     }
 }
 

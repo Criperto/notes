@@ -62,8 +62,20 @@ Item {
     // Mapa de última apertura de notas para ordenamiento dinámico: { [slug]: timestampISO }
     property var lastOpenedMap: ({})
 
-    // ── Preferencias y persistencia de estado ────────────────────────
-    readonly property string statePath: Quickshell.env("HOME") + "/.local/state/qs-notes/state.json"
+    // ── Preferencias y persistencia de estado (XDG State Home) ───────
+    readonly property string statePath: {
+        var stateHome = Quickshell.env("XDG_STATE_HOME", "");
+        var home = Quickshell.env("HOME");
+        var baseDir = (stateHome && stateHome.trim() !== "") ? stateHome : (home + "/.local/state");
+        var legacyPath = baseDir + "/qs-notes/state.json";
+        var standardPath = baseDir + "/criperto-notes/state.json";
+        if (typeof Sys !== "undefined" && typeof Sys.fileExists === "function") {
+            if (!Sys.fileExists(standardPath) && Sys.fileExists(legacyPath)) {
+                return legacyPath;
+            }
+        }
+        return standardPath;
+    }
     property string sortBy: "lastOpened" // "lastOpened" (defecto, F17), "modified", "created", "title"
     property string activeTagFilter: ""
 
@@ -1829,6 +1841,22 @@ Item {
             return;
         }
         root._isTrashing = true;
+
+        // Vía 1 nativa: especificación FreeDesktop Trash Spec vía Qt / Sys (<1ms, sin subprocesos)
+        if (typeof Sys !== "undefined" && typeof Sys.moveToTrash === "function") {
+            var trashed = Sys.moveToTrash(item.targetPath);
+            if (trashed) {
+                root.log("[NotesService - deleteNote] Sys.moveToTrash exitoso para:", item.key);
+                var qsHelperBin = (typeof Sys !== "undefined" && Sys.appExecutable) ? Sys.appExecutable : "criperto-notes";
+                if (item.targetPath) Quickshell.execDetached([qsHelperBin, "history", "purge", item.targetPath]);
+                root._finalizeDeletion(item.key);
+                root._isTrashing = false;
+                root._processTrashQueue();
+                return;
+            }
+        }
+
+        // Vía 2 fallback: gio trash o bash
         trashProc.pendingSlug = item.key;
         trashProc.pendingPath = item.targetPath;
         var trashArgs = ["gio", "trash", item.targetPath];

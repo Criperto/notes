@@ -257,6 +257,8 @@ public:
 
     bool eventFilter(QObject *watched, QEvent *event) override;
 
+    Q_INVOKABLE bool moveToTrash(const QString &filePath);
+    Q_INVOKABLE bool fileExists(const QString &filePath) const;
     Q_INVOKABLE QString env(const QString &name, const QString &fallback = QString()) const;
     Q_INVOKABLE bool execDetached(const QStringList &args) const;
     Q_INVOKABLE bool clipboardHasImage() const;

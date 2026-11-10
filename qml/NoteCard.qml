@@ -215,6 +215,7 @@ Rectangle {
         id: candidateImage
         visible: false
         asynchronous: true
+        cache: false
         // Solo se intenta cargar si existe (o es remota); si no, ni se pide
         // y no hay warning "Cannot open". imageStateFor re-evalúa al completar
         // el probe (imageProbeReady/_imageExists).

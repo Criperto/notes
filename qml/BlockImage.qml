@@ -307,6 +307,7 @@ Item {
                         id: imgItem
                         anchors.fill: parent
                         asynchronous: true
+                        cache: false
                         fillMode: Image.PreserveAspectFit
                         playing: Theme.animationsEnabled && !GamemodeService.gamemodeActive
                         paused: GamemodeService.gamemodeActive
