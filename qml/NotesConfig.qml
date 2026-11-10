@@ -5,6 +5,12 @@ import Notas
 QtObject {
     id: root
 
+    // Variable global de versión de la aplicación (Single Source of Truth)
+    readonly property string appVersion: {
+        var v = Quickshell.env("NOTAS_APP_VERSION", "");
+        return (v && v.trim() !== "") ? v.trim() : "0.2.3";
+    }
+
     readonly property var schema: [
         {
             key: "notesDir",

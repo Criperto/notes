@@ -409,6 +409,7 @@ fn main() {
         std::env::set_var("NOTAS_WINDOW_CONTROLS_SIDE", wcs);
     }
 
+    std::env::set_var("NOTAS_APP_VERSION", env!("CARGO_PKG_VERSION"));
     std::env::set_var("NOTAS_INITIAL_ACTION", &action);
     std::env::set_var("NOTAS_INITIAL_TARGET", &target);
 

@@ -417,7 +417,12 @@ Item {
                 root.handleItemBacktab(itemIdx, null);
                 return;
             }
-            // Ítem vacío nivel 0: salir de la lista / eliminar ítem
+            // Ítem vacío nivel 0: salir de la lista y crear párrafo nuevo en esta posición
+            if (editorRef && bidRef !== -1 && typeof editorRef.splitListBlock === "function") {
+                editorRef.splitListBlock(bidRef, itemIdx);
+                return;
+            }
+            // Fallback: salir de la lista / eliminar ítem
             if (root._itemsRawArray.length <= 1) {
                 if (editorRef && bidRef !== -1) {
                     editorRef.convertBlockType(bidRef, "paragraph", "");

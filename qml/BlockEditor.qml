@@ -2028,6 +2028,100 @@ Flickable {
         insertParagraphAfter(bid);
     }
 
+    function splitListBlock(bid, itemIdx) {
+        var idx = _findBlockIndex(bid);
+        if (idx === -1) return;
+
+        var bItem = blocksModel.get(idx);
+        var parsed = LP.parseList(bItem.raw || "");
+        if (itemIdx < 0 || itemIdx >= parsed.length) return;
+
+        var beforeItems = parsed.slice(0, itemIdx);
+        var afterItems = parsed.slice(itemIdx + 1);
+
+        root.confirmActiveBlock();
+        var origSep = bItem.sep || "\n\n";
+
+        if (beforeItems.length === 0 && afterItems.length === 0) {
+            var pBid = BlockModel.getNextBid();
+            blocksModel.setProperty(idx, "bid", pBid);
+            blocksModel.setProperty(idx, "type", "paragraph");
+            blocksModel.setProperty(idx, "raw", "");
+            blocksModel.setProperty(idx, "sep", origSep);
+            root.activeBlockBid = pBid;
+            _saveSnapshot();
+            root.contentModified();
+            debouncedMarkdownTimer.restart();
+            root.safeFocusDelegate(pBid, 0);
+            return;
+        }
+
+        if (beforeItems.length === 0) {
+            var pBid = BlockModel.getNextBid();
+            var afterRaw = LP.serializeList(afterItems);
+            blocksModel.setProperty(idx, "raw", afterRaw);
+            blocksModel.insert(idx, {
+                bid: pBid,
+                type: "paragraph",
+                raw: "",
+                sep: "\n\n"
+            });
+            root.activeBlockBid = pBid;
+            _saveSnapshot();
+            root.contentModified();
+            debouncedMarkdownTimer.restart();
+            root.safeFocusDelegate(pBid, 0);
+            return;
+        }
+
+        if (afterItems.length === 0) {
+            var beforeRaw = LP.serializeList(beforeItems);
+            blocksModel.setProperty(idx, "raw", beforeRaw);
+            blocksModel.setProperty(idx, "sep", "\n\n");
+            var pBid = BlockModel.getNextBid();
+            blocksModel.insert(idx + 1, {
+                bid: pBid,
+                type: "paragraph",
+                raw: "",
+                sep: origSep
+            });
+            root.activeBlockBid = pBid;
+            _saveSnapshot();
+            root.contentModified();
+            debouncedMarkdownTimer.restart();
+            root.safeFocusDelegate(pBid, 0);
+            return;
+        }
+
+        var beforeRaw = LP.serializeList(beforeItems);
+        var afterRaw = LP.serializeList(afterItems);
+        var pBid = BlockModel.getNextBid();
+        var afterBid = BlockModel.getNextBid();
+
+        blocksModel.setProperty(idx, "raw", beforeRaw);
+        blocksModel.setProperty(idx, "sep", "\n\n");
+
+        blocksModel.insert(idx + 1, {
+            bid: pBid,
+            type: "paragraph",
+            raw: "",
+            sep: "\n\n"
+        });
+
+        blocksModel.insert(idx + 2, {
+            bid: afterBid,
+            type: "list",
+            raw: afterRaw,
+            sep: origSep
+        });
+
+        root.activeBlockBid = pBid;
+        _saveSnapshot();
+        root.contentModified();
+        debouncedMarkdownTimer.restart();
+        root.safeFocusDelegate(pBid, 0);
+    }
+
     function deleteBlock(bid) {
         var idx = _findBlockIndex(bid);
         if (idx === -1) return;

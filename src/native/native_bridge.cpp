@@ -1425,7 +1425,10 @@ void Sys::printStartupDiagnostics() const {
 
     fprintf(stdout, "\n");
     fprintf(stdout, "╭─────────────────────────────────────────────────────────────────────────────╮\n");
-    fprintf(stdout, "│ 📝 dev.criperto.Notas v0.2.1 (criperto.notes)                             │\n");
+    QString appVer = qEnvironmentVariable("NOTAS_APP_VERSION", "0.2.3");
+    QString titleLine = QStringLiteral("│ 📝 dev.criperto.Notas v") + appVer + QStringLiteral(" (criperto-notes)");
+    titleLine = titleLine.leftJustified(77, ' ') + QStringLiteral("│\n");
+    fprintf(stdout, "%s", titleLine.toUtf8().constData());
     fprintf(stdout, "│    Editor nativo de notas en Markdown para Wayland                          │\n");
     fprintf(stdout, "├─────────────────────────────────────────────────────────────────────────────┤\n");
     fprintf(stdout, "%s", formatRow(QStringLiteral("Configuración"), configPath).toUtf8().constData());

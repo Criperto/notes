@@ -5613,6 +5613,32 @@ runTest("F132: Acción math en EditorActions y catálogo completo de traduccione
     }
 });
 
+runTest("F133: Single Source of Truth para versión de la app (NotesConfig.appVersion y NotesSettingsModal)", () => {
+    const configQml = fs.readFileSync(path.resolve(__dirname, '../qml/NotesConfig.qml'), 'utf8');
+    assert.ok(configQml.includes('readonly property string appVersion:'), "NotesConfig debe declarar propiedad appVersion");
+    assert.ok(configQml.includes('Quickshell.env("NOTAS_APP_VERSION"'), "NotesConfig debe resolver NOTAS_APP_VERSION");
+
+    const settingsQml = fs.readFileSync(path.resolve(__dirname, '../qml/NotesSettingsModal.qml'), 'utf8');
+    assert.ok(settingsQml.includes('text: "dev.criperto.Notas • Versión " + NotesConfig.appVersion'),
+        "NotesSettingsModal debe ligar dinámicamente a NotesConfig.appVersion");
+    assert.ok(!settingsQml.includes('"dev.criperto.Notas • Versión 0.2.1"'),
+        "NotesSettingsModal no debe hardcodear versión antigua");
+
+    const mainRs = fs.readFileSync(path.resolve(__dirname, '../src/main.rs'), 'utf8');
+    assert.ok(mainRs.includes('std::env::set_var("NOTAS_APP_VERSION", env!("CARGO_PKG_VERSION"));'),
+        "src/main.rs debe inyectar NOTAS_APP_VERSION desde CARGO_PKG_VERSION");
+});
+
+runTest("F134: BlockEditor splitListBlock división de listas al presionar Enter en ítem vacío nivel 0", () => {
+    const editorQml = fs.readFileSync(path.resolve(__dirname, '../qml/BlockEditor.qml'), 'utf8');
+    assert.ok(editorQml.includes('function splitListBlock(bid, itemIdx)'),
+        "BlockEditor debe definir la función splitListBlock");
+
+    const listQml = fs.readFileSync(path.resolve(__dirname, '../qml/BlockList.qml'), 'utf8');
+    assert.ok(listQml.includes('editorRef.splitListBlock(bidRef, itemIdx)'),
+        "BlockList handleItemReturn debe invocar splitListBlock al salir en nivel 0");
+});
+
 console.log(`\n========================================`);
 console.log(`Resultados: ${passed} OK, ${failed} FAIL`);
 console.log(`========================================`);
