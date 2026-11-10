@@ -677,42 +677,46 @@ Item {
             renameProc.pendingNewRel = "";
 
             if (exitCode === 0) {
-                root.log("[NotesService - renameNote] Renombrado exitoso:", oldKey, "->", newKey);
-                var existing = root._notesDict[oldKey];
-                if (existing) {
-                    delete root._notesDict[oldKey];
-                    delete root._lastContentHash[oldKey];
-                    existing.id = newS;
-                    existing.slug = newS;
-                    existing.key = newKey;
-                    var slash = existing.filePath ? existing.filePath.lastIndexOf("/") : -1;
-                    var dir = slash !== -1 ? existing.filePath.substring(0, slash) : root.notesDir;
-                    var baseFname = (newS.indexOf("/") !== -1 ? newS.substring(newS.lastIndexOf("/") + 1) : newS) + "." + ext;
-                    // fileName relativa (conserva subcarpeta si la hay, F19)
-                    var dirRel = (dir.indexOf(root.notesDir + "/") === 0) ? dir.substring(root.notesDir.length + 1) : "";
-                    existing.fileName = dirRel === "" ? baseFname : (dirRel + "/" + baseFname);
-                    existing.filePath = dir + "/" + baseFname;
-                    if (newT) existing.title = newT;
-                    root._notesDict[newKey] = existing;
-                    root.filesVersion++;
-                }
-                if (root._activeIsKey(oldKey, oldS)) {
-                    if (existing) root.activeNote = existing;
-                }
-                if (!fileScannerProc.running) {
-                    fileScannerProc.running = true;
-                }
-                root._rebuildNotes();
-                if (typeof cb === "function") cb(newKey, true);
+                root._applyRenameSuccess(oldKey, newKey, oldS, newS, ext, newT, cb);
             } else {
                 console.warn("[NotesService - renameNote] Error al renombrar con mv código:", exitCode);
                 if (typeof cb === "function") cb(oldKey, false);
+                root._afterRenameSettled(oldKey, newKey, exitCode);
             }
-
-            root._afterRenameSettled(oldKey, newKey, exitCode);
         }
 
         Component.onDestruction: { running = false; }
+    }
+
+    function _applyRenameSuccess(oldKey, newKey, oldS, newS, ext, newT, cb) {
+        root.log("[NotesService - renameNote] Renombrado exitoso:", oldKey, "->", newKey);
+        var existing = root._notesDict[oldKey];
+        if (existing) {
+            delete root._notesDict[oldKey];
+            delete root._lastContentHash[oldKey];
+            existing.id = newS;
+            existing.slug = newS;
+            existing.key = newKey;
+            var slash = existing.filePath ? existing.filePath.lastIndexOf("/") : -1;
+            var dir = slash !== -1 ? existing.filePath.substring(0, slash) : root.notesDir;
+            var baseFname = (newS.indexOf("/") !== -1 ? newS.substring(newS.lastIndexOf("/") + 1) : newS) + "." + ext;
+            // fileName relativa (conserva subcarpeta si la hay, F19)
+            var dirRel = (dir.indexOf(root.notesDir + "/") === 0) ? dir.substring(root.notesDir.length + 1) : "";
+            existing.fileName = dirRel === "" ? baseFname : (dirRel + "/" + baseFname);
+            existing.filePath = dir + "/" + baseFname;
+            if (newT) existing.title = newT;
+            root._notesDict[newKey] = existing;
+            root.filesVersion++;
+        }
+        if (root._activeIsKey(oldKey, oldS)) {
+            if (existing) root.activeNote = existing;
+        }
+        if (!fileScannerProc.running) {
+            fileScannerProc.running = true;
+        }
+        root._rebuildNotes();
+        if (typeof cb === "function") cb(newKey, true);
+        root._afterRenameSettled(oldKey, newKey, 0);
     }
 
     // Cola de difusos: reencola el siguiente renombrado y reubica guardados
@@ -1495,12 +1499,20 @@ Item {
         var newFileName = (targetSlug.indexOf("/") !== -1 ? targetSlug.substring(targetSlug.lastIndexOf("/") + 1) : targetSlug) + "." + ext;
         var newPath = parentDir + "/" + newFileName;
 
+        if (typeof Sys !== "undefined" && typeof Sys.renameFile === "function") {
+            var renamed = Sys.renameFile(oldPath, newPath);
+            if (renamed) {
+                root.log("[NotesService - renameNote] Sys.renameFile atómico exitoso:", oldKey, "->", targetKey);
+                root._applyRenameSuccess(oldKey, targetKey, oldCanon, targetSlug, ext, newTitle, callback);
+                return;
+            }
+        }
+
         renameProc.pendingOldSlug = oldKey;
         renameProc.pendingNewSlug = targetKey;
         renameProc.pendingNewTitle = newTitle;
         renameProc.pendingCallback = callback;
         renameProc.pendingStage = "file";
-        var rnArgs = ["sh", "-c", '[ ! -e "$2" ] && mv -- "$1" "$2"', "_", oldPath, newPath];
         var rnArgs = ["sh", "-c", '[ ! -e "$2" ] && mv -- "$1" "$2"', "_", oldPath, newPath];
         if (root.pathsOk("rename", rnArgs)) {
             renameProc.command = rnArgs;
@@ -3830,14 +3842,22 @@ Item {
     Connections {
         target: NotesConfig
         function onNotesDirChanged() {
-            ensureDirProc.running = true;
+            if (typeof Sys !== "undefined" && typeof Sys.ensureDir === "function") {
+                Sys.ensureDir(root.notesDir);
+            } else {
+                ensureDirProc.running = true;
+            }
         }
     }
 
     Component.onCompleted: {
-        ensureDirProc.running = true;
-        stateDirProc.command = ["mkdir", "-p", root.statePath.substring(0, root.statePath.lastIndexOf("/"))];
-        stateDirProc.running = true;
+        if (typeof Sys !== "undefined" && typeof Sys.ensureDir === "function") {
+            Sys.ensureDir(root.notesDir);
+            var stateFolder = root.statePath.substring(0, root.statePath.lastIndexOf("/"));
+            if (stateFolder !== "") Sys.ensureDir(stateFolder);
+        } else {
+            ensureDirProc.running = true;
+        }
         imageProbeDebounce.restart();
     }
 

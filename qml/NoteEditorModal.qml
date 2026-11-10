@@ -75,6 +75,7 @@ Item {
     property bool dirty: false
     property bool isLoading: false
     property bool isSaving: false
+    property bool isRenaming: false
     property bool isExpanded: true
     property bool isClosing: false
 
@@ -116,7 +117,7 @@ Item {
     }
 
     function markDirty() {
-        if (root.isLoading || !root.loadedSlug) return;
+        if (root.isLoading || !root.loadedSlug || root.isRenaming) return;
         var curTitle = (typeof titleInput !== "undefined" && titleInput) ? titleInput.text.trim() : root._originalTitle;
         var curMd = root.isSourceMode ? (sourceCodeEditor ? sourceCodeEditor.text : root._currentBody) : (blockEditor ? blockEditor.getMarkdown() : root._currentBody);
         var tagsNow = (root.editTags || []).join("\n");
@@ -335,11 +336,14 @@ Item {
     }
 
     function _confirmTitleRename() {
-        if (!root.loadedSlug || root.isLoading) return;
+        if (!root.loadedSlug || root.isLoading || root.isRenaming) return;
         var newTitle = titleInput.text.trim();
         if (newTitle === "" || newTitle === root._originalTitle) return;
 
+        root.isRenaming = true;
+        autoSaveTimer.stop();
         NotesService.renameNote(root.loadedSlug, newTitle, function(newSlug, success) {
+            root.isRenaming = false;
             if (success) {
                 var oldK = root.loadedSlug;
                 root.loadedSlug = newSlug;
@@ -355,7 +359,7 @@ Item {
     }
 
     function performSave(callback, force) {
-        if (!root.loadedSlug) {
+        if (!root.loadedSlug || root.isRenaming) {
             if (typeof callback === "function") callback();
             return;
         }

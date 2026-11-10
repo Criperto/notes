@@ -86,6 +86,10 @@ pub fn run(args: &[String]) {
 }
 
 fn cmd_index(notes_dir_str: &str) {
+    println!("{}", index_notes_to_json(notes_dir_str));
+}
+
+pub fn index_notes_to_json(notes_dir_str: &str) -> String {
     let notes_dir = Path::new(notes_dir_str);
     if !notes_dir.exists() || !notes_dir.is_dir() {
         let resp = NotesIndexResponse {
@@ -93,8 +97,7 @@ fn cmd_index(notes_dir_str: &str) {
             notes: Vec::new(),
             images: HashMap::new(),
         };
-        println!("{}", serde_json::to_string(&resp).unwrap_or_default());
-        return;
+        return serde_json::to_string(&resp).unwrap_or_default();
     }
 
     let mut notes = Vec::new();
@@ -151,7 +154,24 @@ fn cmd_index(notes_dir_str: &str) {
         images,
     };
 
-    println!("{}", serde_json::to_string(&resp).unwrap_or_default());
+    serde_json::to_string(&resp).unwrap_or_default()
+}
+
+#[no_mangle]
+pub extern "C" fn notas_index_notes(notes_dir_ptr: *const std::os::raw::c_char) -> *mut std::os::raw::c_char {
+    if notes_dir_ptr.is_null() {
+        return std::ptr::null_mut();
+    }
+    let c_str = unsafe { std::ffi::CStr::from_ptr(notes_dir_ptr) };
+    let notes_dir_str = match c_str.to_str() {
+        Ok(s) => s,
+        Err(_) => return std::ptr::null_mut(),
+    };
+    let json_str = index_notes_to_json(notes_dir_str);
+    match std::ffi::CString::new(json_str) {
+        Ok(c) => c.into_raw(),
+        Err(_) => std::ptr::null_mut(),
+    }
 }
 
 fn parse_note_meta(notes_dir: &Path, file_path: &Path, rel_path: &str) -> Option<NoteMeta> {

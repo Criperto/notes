@@ -399,6 +399,7 @@ bool FileView::writeFile(const QString &content) {
         m_text = content;
         m_loaded = true;
         m_lastModified = QFileInfo(m_path).lastModified();
+        m_lastInternalSaveMs = QDateTime::currentMSecsSinceEpoch();
         updateWatcher();
         emit loadedChanged();
         emit saved();
@@ -414,16 +415,26 @@ bool FileView::writeFile(const QString &content) {
 }
 
 void FileView::onFileSystemChanged(const QString &changedPath) {
+    Q_UNUSED(changedPath);
     if (m_isInternalSave || m_path.isEmpty()) return;
+    // Ventana de supresión de 350ms para ignorar eventos disparados por nuestro propio guardado
+    if (m_lastInternalSaveMs > 0 && (QDateTime::currentMSecsSinceEpoch() - m_lastInternalSaveMs < 350)) {
+        return;
+    }
     QFileInfo fi(m_path);
     if (fi.exists()) {
         if (m_watchChanges && m_watcher && !m_watcher->files().contains(m_path)) {
             m_watcher->addPath(m_path);
         }
         QDateTime mod = fi.lastModified();
-        bool shouldReload = (changedPath == m_path) || !m_loaded || (mod != m_lastModified);
-        if (shouldReload && readFile()) {
-            emit fileChanged();
+        bool shouldReload = !m_loaded || (mod != m_lastModified);
+        if (shouldReload) {
+            QString oldText = m_text;
+            if (readFile()) {
+                if (m_text != oldText) {
+                    emit fileChanged();
+                }
+            }
         }
     }
 }
@@ -1140,6 +1151,19 @@ bool Sys::moveToTrash(const QString &filePath) {
 bool Sys::fileExists(const QString &filePath) const {
     if (filePath.isEmpty()) return false;
     return QFile::exists(filePath);
+}
+
+bool Sys::renameFile(const QString &oldPath, const QString &newPath) {
+    if (oldPath.isEmpty() || newPath.isEmpty() || !QFile::exists(oldPath)) return false;
+    if (QFile::exists(newPath)) return false;
+    QFileInfo fi(newPath);
+    fi.dir().mkpath(QStringLiteral("."));
+    return QFile::rename(oldPath, newPath);
+}
+
+bool Sys::ensureDir(const QString &path) const {
+    if (path.isEmpty()) return false;
+    return QDir().mkpath(path);
 }
 
 bool Sys::hasQuickshellConfig() const {

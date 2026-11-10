@@ -200,6 +200,7 @@ private:
     QFileSystemWatcher *m_watcher = nullptr;
     QDateTime m_lastModified;
     bool m_isInternalSave = false;
+    qint64 m_lastInternalSaveMs = 0;
 };
 
 // ── 4. Sys Singleton ────────────────────────────────────────────────────────
@@ -259,6 +260,8 @@ public:
 
     Q_INVOKABLE bool moveToTrash(const QString &filePath);
     Q_INVOKABLE bool fileExists(const QString &filePath) const;
+    Q_INVOKABLE bool renameFile(const QString &oldPath, const QString &newPath);
+    Q_INVOKABLE bool ensureDir(const QString &path) const;
     Q_INVOKABLE QString env(const QString &name, const QString &fallback = QString()) const;
     Q_INVOKABLE bool execDetached(const QStringList &args) const;
     Q_INVOKABLE bool clipboardHasImage() const;

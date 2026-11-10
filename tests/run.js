@@ -5659,7 +5659,32 @@ runTest("F135: Hotfix v0.2.4 salida de viñetas con Enter, preservación de foco
         "BlockParagraph debe garantizar visibilidad de editInput inmediatamente");
 
     const cargoToml = fs.readFileSync(path.resolve(__dirname, '../Cargo.toml'), 'utf8');
-    assert.ok(cargoToml.includes('version = "0.2.4"'), "Cargo.toml debe estar en 0.2.4");
+    assert.ok(cargoToml.includes('version = "0.2.4"') || cargoToml.includes('version = "0.2.5"'), "Cargo.toml debe estar en 0.2.4 o 0.2.5");
+});
+
+runTest("F136: Auditoría de estabilidad, FreeDesktop Trash, rutas XDG, supresión de I/O espurio y renombrado atómico", () => {
+    const bridgeH = fs.readFileSync(path.resolve(__dirname, '../src/native/native_bridge.h'), 'utf8');
+    assert.ok(bridgeH.includes('moveToTrash(const QString &filePath)'), "native_bridge.h debe declarar moveToTrash");
+    assert.ok(bridgeH.includes('fileExists(const QString &filePath)'), "native_bridge.h debe declarar fileExists");
+    assert.ok(bridgeH.includes('renameFile(const QString &oldPath, const QString &newPath)'), "native_bridge.h debe declarar renameFile");
+    assert.ok(bridgeH.includes('ensureDir(const QString &path)'), "native_bridge.h debe declarar ensureDir");
+    assert.ok(bridgeH.includes('m_lastInternalSaveMs'), "native_bridge.h debe contener timestamp de supresión de guardado interno");
+
+    const bridgeCpp = fs.readFileSync(path.resolve(__dirname, '../src/native/native_bridge.cpp'), 'utf8');
+    assert.ok(bridgeCpp.includes('QFile::moveToTrash(filePath)'), "Sys::moveToTrash debe usar QFile::moveToTrash nativo");
+    assert.ok(bridgeCpp.includes('QFile::rename(oldPath, newPath)'), "Sys::renameFile debe usar QFile::rename atómico");
+    assert.ok(bridgeCpp.includes('m_lastInternalSaveMs = QDateTime::currentMSecsSinceEpoch()'), "writeFile debe registrar timestamp de guardado");
+    assert.ok(bridgeCpp.includes('m_windowControlsOnLeftCached = true'), "windowControlsOnLeft debe memoizar resultado");
+
+    const notesServiceQml = fs.readFileSync(path.resolve(__dirname, '../qml/NotesService.qml'), 'utf8');
+    assert.ok(notesServiceQml.includes('Sys.moveToTrash'), "NotesService debe intentar Sys.moveToTrash antes de gio trash");
+    assert.ok(notesServiceQml.includes('Sys.renameFile'), "NotesService debe usar Sys.renameFile atómico");
+    assert.ok(notesServiceQml.includes('XDG_STATE_HOME'), "NotesService debe soportar XDG_STATE_HOME con fallback seguro");
+
+    const editorModalQml = fs.readFileSync(path.resolve(__dirname, '../qml/NoteEditorModal.qml'), 'utf8');
+    assert.ok(editorModalQml.includes('property bool isRenaming: false'), "NoteEditorModal debe tener bandera isRenaming");
+    assert.ok(editorModalQml.includes('root.isRenaming = true'), "_confirmTitleRename debe activar isRenaming");
+    assert.ok(editorModalQml.includes('root.isLoading || !root.loadedSlug || root.isRenaming'), "markDirty debe omitir durante renombrado");
 });
 
 console.log(`\n========================================`);
