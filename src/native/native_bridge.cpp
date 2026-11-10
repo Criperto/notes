@@ -466,6 +466,15 @@ Sys::~Sys() {
     if (!m_currentInstanceJsonPath.isEmpty()) {
         QFile::remove(m_currentInstanceJsonPath);
     }
+    QString runtimeDir = QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation);
+    if (runtimeDir.isEmpty()) runtimeDir = QDir::tempPath();
+    QString legacySock = runtimeDir + QStringLiteral("/notas.sock");
+    QFileInfo legacyFi(legacySock);
+    if (legacyFi.isSymLink()) {
+        if (legacyFi.symLinkTarget() == m_currentInstanceSockPath || !QFile::exists(legacyFi.symLinkTarget())) {
+            QFile::remove(legacySock);
+        }
+    }
 }
 
 bool Sys::eventFilter(QObject *watched, QEvent *event) {
@@ -942,16 +951,28 @@ void Sys::broadcastNoteDeleted(const QString &notePath) {
 
 QString Sys::clipboardText() const {
     if (auto *cb = QGuiApplication::clipboard()) {
-        QString txt = cb->text();
-        if (!txt.trimmed().isEmpty()) {
-            return txt;
+        const QMimeData *mime = cb->mimeData();
+        if (mime) {
+            if (mime->hasText()) {
+                QString txt = cb->text();
+                if (!txt.trimmed().isEmpty()) {
+                    return txt;
+                }
+            } else if (mime->hasImage() || (!mime->formats().isEmpty() && !mime->hasFormat(QStringLiteral("text/plain")))) {
+                // El portapapeles contiene datos que no son texto plano; evitar bloqueo con wl-paste.
+                return QString();
+            }
         }
     }
+
+    // Solo consultar wl-paste si está instalado y la ventana no tiene foco activo
+    static const bool hasWlPaste = !QStandardPaths::findExecutable(QStringLiteral("wl-paste")).isEmpty();
+    if (!hasWlPaste) return QString();
 
     // Fallback nativo para Wayland cuando la ventana aún no tiene foco activo
     QProcess proc;
     proc.start(QStringLiteral("wl-paste"), {QStringLiteral("-n"), QStringLiteral("--type"), QStringLiteral("text/plain")});
-    if (proc.waitForFinished(120)) {
+    if (proc.waitForFinished(100)) {
         if (proc.exitCode() == 0) {
             QString out = QString::fromUtf8(proc.readAllStandardOutput());
             if (!out.trimmed().isEmpty()) {
@@ -960,7 +981,7 @@ QString Sys::clipboardText() const {
         }
     } else {
         proc.kill();
-        proc.waitForFinished(50);
+        proc.waitForFinished(30);
     }
 
     return QString();
@@ -1117,27 +1138,49 @@ bool Sys::wmNeedsWindowControls() const {
 }
 
 bool Sys::windowControlsOnLeft() const {
+    if (m_windowControlsOnLeftCached) {
+        return m_windowControlsOnLeft;
+    }
+
     const QString cli = QString::fromUtf8(qgetenv("NOTAS_WINDOW_CONTROLS_SIDE")).trimmed().toLower();
-    if (cli == QStringLiteral("left")) return true;
-    if (cli == QStringLiteral("right")) return false;
+    if (cli == QStringLiteral("left")) {
+        m_windowControlsOnLeft = true;
+        m_windowControlsOnLeftCached = true;
+        return true;
+    }
+    if (cli == QStringLiteral("right")) {
+        m_windowControlsOnLeft = false;
+        m_windowControlsOnLeftCached = true;
+        return false;
+    }
 
     const QString home = QDir::homePath();
 
     // 1. GSettings / dconf (GNOME, Pantheon, elementary, MATE, Cinnamon, Budgie)
-    QProcess gsettings;
-    gsettings.start(QStringLiteral("gsettings"), {QStringLiteral("get"), QStringLiteral("org.gnome.desktop.wm.preferences"), QStringLiteral("button-layout")});
-    if (gsettings.waitForFinished(120)) {
-        QString layout = QString::fromUtf8(gsettings.readAllStandardOutput()).trimmed();
-        layout.remove(QLatin1Char('\''));
-        layout.remove(QLatin1Char('"'));
-        if (!layout.isEmpty() && layout.contains(QLatin1Char(':'))) {
-            const QString leftPart = layout.section(QLatin1Char(':'), 0, 0).toLower();
-            if (leftPart.contains(QStringLiteral("close")) ||
-                leftPart.contains(QStringLiteral("minimize")) ||
-                leftPart.contains(QStringLiteral("maximize"))) {
-                return true;
+    static const bool hasGsettings = !QStandardPaths::findExecutable(QStringLiteral("gsettings")).isEmpty();
+    if (hasGsettings) {
+        QProcess gsettings;
+        gsettings.start(QStringLiteral("gsettings"), {QStringLiteral("get"), QStringLiteral("org.gnome.desktop.wm.preferences"), QStringLiteral("button-layout")});
+        if (gsettings.waitForFinished(100)) {
+            QString layout = QString::fromUtf8(gsettings.readAllStandardOutput()).trimmed();
+            layout.remove(QLatin1Char('\''));
+            layout.remove(QLatin1Char('"'));
+            if (!layout.isEmpty() && layout.contains(QLatin1Char(':'))) {
+                const QString leftPart = layout.section(QLatin1Char(':'), 0, 0).toLower();
+                if (leftPart.contains(QStringLiteral("close")) ||
+                    leftPart.contains(QStringLiteral("minimize")) ||
+                    leftPart.contains(QStringLiteral("maximize"))) {
+                    m_windowControlsOnLeft = true;
+                    m_windowControlsOnLeftCached = true;
+                    return true;
+                }
+                m_windowControlsOnLeft = false;
+                m_windowControlsOnLeftCached = true;
+                return false;
             }
-            return false;
+        } else {
+            gsettings.kill();
+            gsettings.waitForFinished(30);
         }
     }
 
@@ -1153,6 +1196,8 @@ bool Sys::windowControlsOnLeft() const {
             } else if (inSection && line.startsWith(QStringLiteral("ButtonsOnLeft="))) {
                 const QString val = line.section(QLatin1Char('='), 1).trimmed();
                 if (val.contains(QLatin1Char('X')) || val.contains(QLatin1Char('M')) || val.contains(QLatin1Char('I'))) {
+                    m_windowControlsOnLeft = true;
+                    m_windowControlsOnLeftCached = true;
                     return true;
                 }
             }
@@ -1173,6 +1218,8 @@ bool Sys::windowControlsOnLeft() const {
                         const QString bl = line.mid(valIdx + 7, endIdx - (valIdx + 7));
                         const QString leftPart = bl.section(QLatin1Char('|'), 0, 0);
                         if (leftPart.contains(QLatin1Char('C')) || leftPart.contains(QLatin1Char('H')) || leftPart.contains(QLatin1Char('M'))) {
+                            m_windowControlsOnLeft = true;
+                            m_windowControlsOnLeftCached = true;
                             return true;
                         }
                     }
@@ -1191,6 +1238,8 @@ bool Sys::windowControlsOnLeft() const {
                 if (line.contains(QStringLiteral("left")) || (line.contains(QStringLiteral("close")) && line.indexOf(QStringLiteral("close")) < line.indexOf(QStringLiteral("minimize")))) {
                     // Si declara explícitamente close a la izquierda
                     if (line.contains(QLatin1Char(':')) && line.section(QLatin1Char(':'), 0, 0).contains(QStringLiteral("close"))) {
+                        m_windowControlsOnLeft = true;
+                        m_windowControlsOnLeftCached = true;
                         return true;
                     }
                 }
@@ -1198,6 +1247,8 @@ bool Sys::windowControlsOnLeft() const {
         }
     }
 
+    m_windowControlsOnLeft = false;
+    m_windowControlsOnLeftCached = true;
     return false;
 }
 

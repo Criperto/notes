@@ -80,12 +80,15 @@ Item {
         onLoaded: {
             try {
                 var raw = (typeof text === "function") ? text() : text;
+                if (!raw || raw.trim() === "") return;
                 var s = JSON.parse(raw);
                 if (typeof s.sortBy === "string") root.sortBy = s.sortBy;
                 if (s.lastOpenedMap && typeof s.lastOpenedMap === "object") {
                     root.lastOpenedMap = s.lastOpenedMap;
                 }
-            } catch (e) { /* ignorar parse error */ }
+            } catch (e) {
+                if (root.debug) console.warn("[NotesService] Error al parsear state.json:", e);
+            }
         }
     }
 
@@ -97,18 +100,11 @@ Item {
     }
 
     // Escritor nativo del estado: sin sh -c ni escapado manual.
-    // El directorio se crea una vez al iniciar (stateDirProc).
     FileView {
         id: stateWriter
         path: root.statePath
         atomicWrites: true
         printErrors: true
-    }
-
-    Process {
-        id: stateDirProc
-        running: false
-        Component.onDestruction: { running = false; }
     }
 
     function _persistState() {

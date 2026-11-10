@@ -305,6 +305,8 @@ private:
     QJsonObject m_qtColors;
     QString m_currentInstanceSockPath;
     QString m_currentInstanceJsonPath;
+    mutable bool m_windowControlsOnLeftCached = false;
+    mutable bool m_windowControlsOnLeft = false;
 };
 
 // ── 5. ConfigBackend Singleton ──────────────────────────────────────────────

@@ -308,7 +308,11 @@ QtObject {
                         var q = workerItem.currentQuery;
                         workerItem.currentQuery = null;
                         if (q && !q.cancelled && typeof q.callback === "function") {
-                            try { q.callback({ ok: true, suggestions: [] }); } catch (e) {}
+                            try {
+                                q.callback({ ok: true, suggestions: [] });
+                            } catch (e) {
+                                console.warn("[SpellService] Error en callback de fallback de watchdog:", e);
+                            }
                         }
                     }
                     if (proc.running) {
@@ -332,6 +336,7 @@ QtObject {
                 try {
                     proc.write("^" + currentQuery.word + "\n");
                 } catch (e) {
+                    console.warn("[SpellService] Error al escribir en stdin de hunspell worker:", e);
                     workerWatchdog.stop();
                     currentQuery = null;
                     pump();

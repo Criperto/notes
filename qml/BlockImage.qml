@@ -355,7 +355,7 @@ Item {
                     cursorShape: modelData.link ? Qt.PointingHandCursor : Qt.PointingHandCursor
                     onClicked: {
                         if (modelData.link) {
-                            Quickshell.execDetached(["xdg-open", modelData.link]);
+                            Qt.openUrlExternally(modelData.link);
                         } else if (!root.editor || !root.editor.readOnly) {
                             root.showRawSource = true;
                             if (root.editor && root.blockData) {
