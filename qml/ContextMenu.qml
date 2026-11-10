@@ -14,6 +14,8 @@ Window {
     property var target: null
     property var extraItems: []
     property var editor: null
+    property bool showStandardItems: true
+    readonly property bool isTextInputTarget: !!(target && (typeof target.cursorPosition === "number" || typeof target.selectedText === "string" || typeof target.canUndo !== "undefined" || (editor && typeof editor.hasBlockSelection !== "undefined" && editor.hasBlockSelection)))
     signal extraItemTriggered(var item)
 
     function _hasAnySelection() {
@@ -85,13 +87,14 @@ Window {
 
     property int highlightedNavIndex: -1
 
-    function open(targetInput, customItems) {
+    function open(targetInput, customItems, showStandard) {
         if (!targetInput) return;
         closeTimer.stop();
         isClosing = false;
         highlightedNavIndex = -1;
         target = targetInput;
         extraItems = (customItems && Array.isArray(customItems)) ? customItems : [];
+        showStandardItems = (typeof showStandard === "boolean") ? showStandard : true;
         if (targetInput.Window && targetInput.Window.window) {
             transientParent = targetInput.Window.window;
         }
@@ -101,13 +104,14 @@ Window {
         _applyCoordinates(targetInput, gx, gy);
     }
 
-    function openAt(targetInput, xPos, yPos, customItems) {
+    function openAt(targetInput, xPos, yPos, customItems, showStandard) {
         if (!targetInput) return;
         closeTimer.stop();
         isClosing = false;
         highlightedNavIndex = -1;
         target = targetInput;
         extraItems = (customItems && Array.isArray(customItems)) ? customItems : [];
+        showStandardItems = (typeof showStandard === "boolean") ? showStandard : true;
         if (targetInput.Window && targetInput.Window.window) {
             transientParent = targetInput.Window.window;
         }
@@ -146,26 +150,28 @@ Window {
                 })(it, i);
             }
         }
-        if (target && !target.readOnly && target.canUndo) {
-            list.push({ type: "standard", id: "undo", trigger: function() { if (target) target.undo(); menuWindow.close(); } });
-        }
-        if (target && !target.readOnly && target.canRedo) {
-            list.push({ type: "standard", id: "redo", trigger: function() { if (target) target.redo(); menuWindow.close(); } });
-        }
-        if (target && !target.readOnly && _hasAnySelection()) {
-            list.push({ type: "standard", id: "cut", trigger: function() { _performCut(); menuWindow.close(); } });
-        }
-        if (target && _hasAnySelection()) {
-            list.push({ type: "standard", id: "copy", trigger: function() { _performCopy(); menuWindow.close(); } });
-        }
-        if (target && !target.readOnly && target.canPaste) {
-            list.push({ type: "standard", id: "paste", trigger: function() { if (target) target.paste(); menuWindow.close(); } });
-        }
-        if (target && !target.readOnly && _hasAnySelection()) {
-            list.push({ type: "standard", id: "delete", trigger: function() { _performDelete(); menuWindow.close(); } });
-        }
-        if (target && target.text !== "") {
-            list.push({ type: "standard", id: "selectAll", trigger: function() { if (target) target.selectAll(); menuWindow.close(); } });
+        if (showStandardItems && isTextInputTarget) {
+            if (target && !target.readOnly && target.canUndo) {
+                list.push({ type: "standard", id: "undo", trigger: function() { if (target) target.undo(); menuWindow.close(); } });
+            }
+            if (target && !target.readOnly && target.canRedo) {
+                list.push({ type: "standard", id: "redo", trigger: function() { if (target) target.redo(); menuWindow.close(); } });
+            }
+            if (target && !target.readOnly && _hasAnySelection()) {
+                list.push({ type: "standard", id: "cut", trigger: function() { _performCut(); menuWindow.close(); } });
+            }
+            if (target && _hasAnySelection()) {
+                list.push({ type: "standard", id: "copy", trigger: function() { _performCopy(); menuWindow.close(); } });
+            }
+            if (target && !target.readOnly && target.canPaste) {
+                list.push({ type: "standard", id: "paste", trigger: function() { if (target) target.paste(); menuWindow.close(); } });
+            }
+            if (target && !target.readOnly && _hasAnySelection()) {
+                list.push({ type: "standard", id: "delete", trigger: function() { _performDelete(); menuWindow.close(); } });
+            }
+            if (target && target.text !== "") {
+                list.push({ type: "standard", id: "selectAll", trigger: function() { if (target) target.selectAll(); menuWindow.close(); } });
+            }
         }
         return list;
     }
@@ -216,22 +222,23 @@ Window {
         return false;
     }
 
-    function toggleAtTextCursor(targetInput, customItems) {
+    function toggleAtTextCursor(targetInput, customItems, showStandard) {
         if (visible && !isClosing) {
             close();
         } else {
-            openAtTextCursor(targetInput, customItems);
+            openAtTextCursor(targetInput, customItems, showStandard);
             highlightedNavIndex = 0;
         }
     }
 
-    function openAtTextCursor(targetInput, customItems) {
+    function openAtTextCursor(targetInput, customItems, showStandard) {
         if (!targetInput) return;
         closeTimer.stop();
         isClosing = false;
         highlightedNavIndex = -1;
         target = targetInput;
         extraItems = (customItems && Array.isArray(customItems)) ? customItems : [];
+        showStandardItems = (typeof showStandard === "boolean") ? showStandard : true;
         if (targetInput.Window && targetInput.Window.window) {
             transientParent = targetInput.Window.window;
         }
@@ -280,6 +287,21 @@ Window {
             menuWindow.isClosing = false;
             menuWindow.extraItems = [];
             menuWindow.highlightedNavIndex = -1;
+        }
+    }
+
+    onActiveChanged: {
+        if (!active && visible && isExpanded && !isClosing) {
+            close();
+        }
+    }
+
+    Connections {
+        target: menuWindow.transientParent
+        function onActiveChanged() {
+            if (menuWindow.transientParent && !menuWindow.transientParent.active && menuWindow.visible && !menuWindow.isClosing) {
+                menuWindow.close();
+            }
         }
     }
 
@@ -349,6 +371,14 @@ Window {
                 menuWindow.isExpanded = true;
             });
         }
+    }
+
+    // Dismiss al hacer clic en el margen/sombra exterior de la ventana emergente
+    MouseArea {
+        anchors.fill: parent
+        z: -1
+        acceptedButtons: Qt.AllButtons
+        onPressed: menuWindow.close()
     }
 
     Rectangle {
@@ -452,9 +482,8 @@ Window {
                             // Ítem de acción
                             Rectangle {
                                 radius: 6
-                                color: extraDelegate.isItemActive ? Qt.hsva(Theme.accent.hsvHue < 0 ? 0 : Theme.accent.hsvHue, Theme.accent.hsvSaturation, Theme.accent.hsvValue, 0.12) : "transparent"
-                                border.color: extraDelegate.isItemActive ? Qt.hsva(Theme.accent.hsvHue < 0 ? 0 : Theme.accent.hsvHue, Theme.accent.hsvSaturation, Theme.accent.hsvValue, 0.4) : "transparent"
-                                border.width: 1
+                                color: extraDelegate.isItemActive ? ((itemData && itemData.danger) ? Qt.rgba(Theme.danger.r, Theme.danger.g, Theme.danger.b, 0.15) : Qt.hsva(Theme.accent.hsvHue < 0 ? 0 : Theme.accent.hsvHue, Theme.accent.hsvSaturation, Theme.accent.hsvValue, 0.14)) : "transparent"
+                                border.width: 0
                                 visible: extraDelegate.isAction
 
                                 anchors {
@@ -466,10 +495,6 @@ Window {
                                 }
 
                                 Behavior on color {
-                                    enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
-                                    ColorAnimation { duration: 80 }
-                                }
-                                Behavior on border.color {
                                     enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
                                     ColorAnimation { duration: 80 }
                                 }
@@ -493,7 +518,7 @@ Window {
                                     layer.effect: MultiEffect {
                                         colorization: 1.0
                                         colorizationColor: (itemData && itemData.danger)
-                                            ? Theme.error
+                                            ? (Theme.danger || Theme.red)
                                             : (extraDelegate.isItemActive ? Theme.accent : Theme.text)
                                     }
                                 }
@@ -505,7 +530,7 @@ Window {
                                     font.pixelSize: 13
                                     font.bold: !!(itemData && (itemData.bold || itemData.kind === "suggestion" || itemData.isSuggestion))
                                     color: (itemData && itemData.danger)
-                                        ? Theme.error
+                                        ? (Theme.danger || Theme.red)
                                         : (extraDelegate.isItemActive ? Theme.accent : Theme.text)
                                     elide: Text.ElideRight
                                     opacity: extraDelegate.isEnabled ? 1.0 : 0.4
@@ -555,7 +580,7 @@ Window {
                     // Deshacer
                     Item {
                         id: undoItem
-                        visible: target ? !target.readOnly : false
+                        visible: showStandardItems && isTextInputTarget && (target ? !target.readOnly : false)
                         enabled: target ? Boolean(target.canUndo) : false
                         readonly property bool isItemActive: (undoMA.containsMouse || menuWindow.isItemHighlighted("standard", "undo")) && undoItem.enabled
                         opacity: enabled ? 1.0 : 0.4
@@ -564,9 +589,8 @@ Window {
 
                         Rectangle {
                             radius: 6
-                            color: undoItem.isItemActive ? Qt.hsva(Theme.accent.hsvHue < 0 ? 0 : Theme.accent.hsvHue, Theme.accent.hsvSaturation, Theme.accent.hsvValue, 0.12) : "transparent"
-                            border.color: undoItem.isItemActive ? Qt.hsva(Theme.accent.hsvHue < 0 ? 0 : Theme.accent.hsvHue, Theme.accent.hsvSaturation, Theme.accent.hsvValue, 0.4) : "transparent"
-                            border.width: 1
+                            color: undoItem.isItemActive ? Qt.hsva(Theme.accent.hsvHue < 0 ? 0 : Theme.accent.hsvHue, Theme.accent.hsvSaturation, Theme.accent.hsvValue, 0.14) : "transparent"
+                            border.width: 0
 
                             anchors {
                                 fill: parent
@@ -577,7 +601,6 @@ Window {
                             }
 
                             Behavior on color { enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive; ColorAnimation { duration: 80 } }
-                            Behavior on border.color { enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive; ColorAnimation { duration: 80 } }
                         }
 
                         RowLayout {
@@ -665,7 +688,7 @@ Window {
                     // Rehacer
                     Item {
                         id: redoItem
-                        visible: target ? !target.readOnly : false
+                        visible: showStandardItems && isTextInputTarget && (target ? !target.readOnly : false)
                         enabled: target ? Boolean(target.canRedo) : false
                         readonly property bool isItemActive: (redoMA.containsMouse || menuWindow.isItemHighlighted("standard", "redo")) && redoItem.enabled
                         opacity: enabled ? 1.0 : 0.4
@@ -674,9 +697,8 @@ Window {
 
                         Rectangle {
                             radius: 6
-                            color: redoItem.isItemActive ? Qt.hsva(Theme.accent.hsvHue < 0 ? 0 : Theme.accent.hsvHue, Theme.accent.hsvSaturation, Theme.accent.hsvValue, 0.12) : "transparent"
-                            border.color: redoItem.isItemActive ? Qt.hsva(Theme.accent.hsvHue < 0 ? 0 : Theme.accent.hsvHue, Theme.accent.hsvSaturation, Theme.accent.hsvValue, 0.4) : "transparent"
-                            border.width: 1
+                            color: redoItem.isItemActive ? Qt.hsva(Theme.accent.hsvHue < 0 ? 0 : Theme.accent.hsvHue, Theme.accent.hsvSaturation, Theme.accent.hsvValue, 0.14) : "transparent"
+                            border.width: 0
 
                             anchors {
                                 fill: parent
@@ -687,7 +709,6 @@ Window {
                             }
 
                             Behavior on color { enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive; ColorAnimation { duration: 80 } }
-                            Behavior on border.color { enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive; ColorAnimation { duration: 80 } }
                         }
 
                         RowLayout {
@@ -777,7 +798,7 @@ Window {
                         Layout.fillWidth: true
                         height: 1
                         color: Qt.hsva(Theme.text.hsvHue < 0 ? 0 : Theme.text.hsvHue, Theme.text.hsvSaturation, Theme.text.hsvValue, 0.08)
-                        visible: undoItem.visible || redoItem.visible
+                        visible: showStandardItems && isTextInputTarget && (undoItem.visible || redoItem.visible)
                         Layout.topMargin: 4
                         Layout.bottomMargin: 4
                         Layout.leftMargin: 12
@@ -787,7 +808,7 @@ Window {
                     // Cortar
                     Item {
                         id: cutItem
-                        visible: target ? !target.readOnly : false
+                        visible: showStandardItems && isTextInputTarget && (target ? !target.readOnly : false)
                         enabled: target ? menuWindow._hasAnySelection() : false
                         readonly property bool isItemActive: (cutMA.containsMouse || menuWindow.isItemHighlighted("standard", "cut")) && cutItem.enabled
                         opacity: enabled ? 1.0 : 0.4
@@ -796,9 +817,8 @@ Window {
 
                         Rectangle {
                             radius: 6
-                            color: cutItem.isItemActive ? Qt.hsva(Theme.accent.hsvHue < 0 ? 0 : Theme.accent.hsvHue, Theme.accent.hsvSaturation, Theme.accent.hsvValue, 0.12) : "transparent"
-                            border.color: cutItem.isItemActive ? Qt.hsva(Theme.accent.hsvHue < 0 ? 0 : Theme.accent.hsvHue, Theme.accent.hsvSaturation, Theme.accent.hsvValue, 0.4) : "transparent"
-                            border.width: 1
+                            color: cutItem.isItemActive ? Qt.hsva(Theme.accent.hsvHue < 0 ? 0 : Theme.accent.hsvHue, Theme.accent.hsvSaturation, Theme.accent.hsvValue, 0.14) : "transparent"
+                            border.width: 0
 
                             anchors {
                                 fill: parent
@@ -809,7 +829,6 @@ Window {
                             }
 
                             Behavior on color { enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive; ColorAnimation { duration: 80 } }
-                            Behavior on border.color { enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive; ColorAnimation { duration: 80 } }
                         }
 
                         RowLayout {
@@ -897,6 +916,7 @@ Window {
                     // Copiar
                     Item {
                         id: copyItem
+                        visible: showStandardItems && isTextInputTarget && !!target
                         enabled: target ? menuWindow._hasAnySelection() : false
                         readonly property bool isItemActive: (copyMA.containsMouse || menuWindow.isItemHighlighted("standard", "copy")) && copyItem.enabled
                         opacity: enabled ? 1.0 : 0.4
@@ -905,9 +925,8 @@ Window {
 
                         Rectangle {
                             radius: 6
-                            color: copyItem.isItemActive ? Qt.hsva(Theme.accent.hsvHue < 0 ? 0 : Theme.accent.hsvHue, Theme.accent.hsvSaturation, Theme.accent.hsvValue, 0.12) : "transparent"
-                            border.color: copyItem.isItemActive ? Qt.hsva(Theme.accent.hsvHue < 0 ? 0 : Theme.accent.hsvHue, Theme.accent.hsvSaturation, Theme.accent.hsvValue, 0.4) : "transparent"
-                            border.width: 1
+                            color: copyItem.isItemActive ? Qt.hsva(Theme.accent.hsvHue < 0 ? 0 : Theme.accent.hsvHue, Theme.accent.hsvSaturation, Theme.accent.hsvValue, 0.14) : "transparent"
+                            border.width: 0
 
                             anchors {
                                 fill: parent
@@ -918,7 +937,6 @@ Window {
                             }
 
                             Behavior on color { enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive; ColorAnimation { duration: 80 } }
-                            Behavior on border.color { enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive; ColorAnimation { duration: 80 } }
                         }
 
                         RowLayout {
@@ -1006,7 +1024,7 @@ Window {
                     // Pegar
                     Item {
                         id: pasteItem
-                        visible: target ? !target.readOnly : false
+                        visible: showStandardItems && isTextInputTarget && (target ? !target.readOnly : false)
                         enabled: target ? Boolean(target.canPaste) : false
                         readonly property bool isItemActive: (pasteMA.containsMouse || menuWindow.isItemHighlighted("standard", "paste")) && pasteItem.enabled
                         opacity: enabled ? 1.0 : 0.4
@@ -1015,9 +1033,8 @@ Window {
 
                         Rectangle {
                             radius: 6
-                            color: pasteItem.isItemActive ? Qt.hsva(Theme.accent.hsvHue < 0 ? 0 : Theme.accent.hsvHue, Theme.accent.hsvSaturation, Theme.accent.hsvValue, 0.12) : "transparent"
-                            border.color: pasteItem.isItemActive ? Qt.hsva(Theme.accent.hsvHue < 0 ? 0 : Theme.accent.hsvHue, Theme.accent.hsvSaturation, Theme.accent.hsvValue, 0.4) : "transparent"
-                            border.width: 1
+                            color: pasteItem.isItemActive ? Qt.hsva(Theme.accent.hsvHue < 0 ? 0 : Theme.accent.hsvHue, Theme.accent.hsvSaturation, Theme.accent.hsvValue, 0.14) : "transparent"
+                            border.width: 0
 
                             anchors {
                                 fill: parent
@@ -1028,7 +1045,6 @@ Window {
                             }
 
                             Behavior on color { enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive; ColorAnimation { duration: 80 } }
-                            Behavior on border.color { enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive; ColorAnimation { duration: 80 } }
                         }
 
                         RowLayout {
@@ -1116,7 +1132,7 @@ Window {
                     // Borrar (Delete)
                     Item {
                         id: deleteItem
-                        visible: target ? !target.readOnly : false
+                        visible: showStandardItems && isTextInputTarget && (target ? !target.readOnly : false)
                         enabled: target ? menuWindow._hasAnySelection() : false
                         readonly property bool isItemActive: (deleteMA.containsMouse || menuWindow.isItemHighlighted("standard", "delete")) && deleteItem.enabled
                         opacity: enabled ? 1.0 : 0.4
@@ -1125,9 +1141,8 @@ Window {
 
                         Rectangle {
                             radius: 6
-                            color: deleteItem.isItemActive ? Qt.hsva(Theme.accent.hsvHue < 0 ? 0 : Theme.accent.hsvHue, Theme.accent.hsvSaturation, Theme.accent.hsvValue, 0.12) : "transparent"
-                            border.color: deleteItem.isItemActive ? Qt.hsva(Theme.accent.hsvHue < 0 ? 0 : Theme.accent.hsvHue, Theme.accent.hsvSaturation, Theme.accent.hsvValue, 0.4) : "transparent"
-                            border.width: 1
+                            color: deleteItem.isItemActive ? Qt.rgba(Theme.danger.r, Theme.danger.g, Theme.danger.b, 0.15) : "transparent"
+                            border.width: 0
 
                             anchors {
                                 fill: parent
@@ -1138,7 +1153,6 @@ Window {
                             }
 
                             Behavior on color { enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive; ColorAnimation { duration: 80 } }
-                            Behavior on border.color { enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive; ColorAnimation { duration: 80 } }
                         }
 
                         RowLayout {
@@ -1156,7 +1170,7 @@ Window {
                                 layer.enabled: menuWindow.visible && !GamemodeService.gamemodeActive
                                 layer.effect: MultiEffect {
                                     colorization: 1.0
-                                    colorizationColor: deleteItem.isItemActive ? Theme.accent : "#ff6b6b"
+                                    colorizationColor: deleteItem.isItemActive ? (Theme.danger || Theme.red) : Qt.rgba(Theme.danger.r, Theme.danger.g, Theme.danger.b, 0.8)
                                 }
                             }
 
@@ -1187,7 +1201,7 @@ Window {
                                     x: deleteTextClip.offset
                                     anchors.verticalCenter: parent.verticalCenter
                                     text: I18n.t("common.actions.delete", "Borrar")
-                                    color: deleteItem.isItemActive ? Theme.accent : Theme.text
+                                    color: deleteItem.isItemActive ? (Theme.danger || Theme.red) : Theme.text
                                     font { family: Theme.fontFamily; pixelSize: 13 }
                                 }
 
@@ -1203,7 +1217,7 @@ Window {
 
                             Text {
                                 text: "Supr"
-                                color: deleteItem.isItemActive ? Theme.accent : Theme.muted
+                                color: deleteItem.isItemActive ? (Theme.danger || Theme.red) : Theme.muted
                                 font { family: Theme.fontFamily; pixelSize: 11 }
                             }
                         }
@@ -1228,7 +1242,7 @@ Window {
                         Layout.fillWidth: true
                         height: 1
                         color: Qt.hsva(Theme.text.hsvHue < 0 ? 0 : Theme.text.hsvHue, Theme.text.hsvSaturation, Theme.text.hsvValue, 0.08)
-                        visible: selectAllItem.visible
+                        visible: showStandardItems && isTextInputTarget && selectAllItem.visible && (undoItem.visible || redoItem.visible || cutItem.visible || copyItem.visible || pasteItem.visible || deleteItem.visible)
                         Layout.topMargin: 4
                         Layout.bottomMargin: 4
                         Layout.leftMargin: 12
@@ -1238,6 +1252,7 @@ Window {
                     // Seleccionar todo
                     Item {
                         id: selectAllItem
+                        visible: showStandardItems && isTextInputTarget && !!target
                         enabled: target ? target.text !== "" : false
                         readonly property bool isItemActive: (selectAllMA.containsMouse || menuWindow.isItemHighlighted("standard", "selectAll")) && selectAllItem.enabled
                         opacity: enabled ? 1.0 : 0.4
@@ -1246,9 +1261,8 @@ Window {
 
                         Rectangle {
                             radius: 6
-                            color: selectAllItem.isItemActive ? Qt.hsva(Theme.accent.hsvHue < 0 ? 0 : Theme.accent.hsvHue, Theme.accent.hsvSaturation, Theme.accent.hsvValue, 0.12) : "transparent"
-                            border.color: selectAllItem.isItemActive ? Qt.hsva(Theme.accent.hsvHue < 0 ? 0 : Theme.accent.hsvHue, Theme.accent.hsvSaturation, Theme.accent.hsvValue, 0.4) : "transparent"
-                            border.width: 1
+                            color: selectAllItem.isItemActive ? Qt.hsva(Theme.accent.hsvHue < 0 ? 0 : Theme.accent.hsvHue, Theme.accent.hsvSaturation, Theme.accent.hsvValue, 0.14) : "transparent"
+                            border.width: 0
 
                             anchors {
                                 fill: parent
@@ -1259,7 +1273,6 @@ Window {
                             }
 
                             Behavior on color { enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive; ColorAnimation { duration: 80 } }
-                            Behavior on border.color { enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive; ColorAnimation { duration: 80 } }
                         }
 
                         RowLayout {

@@ -194,6 +194,9 @@ Flickable {
     }
 
     onContentYChanged: {
+        if (contextMenu && contextMenu.visible && !contextMenu.isClosing) {
+            contextMenu.close();
+        }
         if (slashMenu && slashMenu.isOpen) {
             slashMenu.close();
         }
@@ -417,7 +420,12 @@ Flickable {
         root.formatStateSeq++;
     }
 
-    onActiveBlockBidChanged: updateFormatState()
+    onActiveBlockBidChanged: {
+        updateFormatState();
+        if (contextMenu && contextMenu.visible && !contextMenu.isClosing) {
+            contextMenu.close();
+        }
+    }
     onSelectedBidsChanged: updateFormatState()
 
     function clearBlockSelection() {

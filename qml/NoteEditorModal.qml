@@ -3187,6 +3187,12 @@ Item {
                 // Barra de scroll vertical con el estilo global
                 ScrollBar.vertical: CustomScrollBar {}
 
+                onContentYChanged: {
+                    if (editorContextMenu && editorContextMenu.visible && !editorContextMenu.isClosing) {
+                        editorContextMenu.close();
+                    }
+                }
+
                 WheelHandler {
                     target: null
                     acceptedDevices: PointerDevice.AllDevices
@@ -4222,6 +4228,18 @@ Item {
             blockEditor.onBlockRawChanged(blockEditor.activeBlockBid, rawClean);
             blockEditor._saveSnapshot();
             blockEditor.updateFormatState();
+        }
+    }
+
+    // Dismiss del menú contextual del editor al hacer clic fuera
+    MouseArea {
+        id: editorContextMenuDismissArea
+        anchors.fill: parent
+        z: 9998
+        visible: editorContextMenu.visible && !editorContextMenu.isClosing
+        acceptedButtons: Qt.AllButtons
+        onPressed: (mouse) => {
+            editorContextMenu.close();
         }
     }
 

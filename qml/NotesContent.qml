@@ -1157,6 +1157,12 @@ Item {
                         // Barra de scroll vertical con el estilo global
                         ScrollBar.vertical: CustomScrollBar {}
 
+                        onContentYChanged: {
+                            if (sharedContextMenu.visible && !sharedContextMenu.isClosing) {
+                                sharedContextMenu.close();
+                            }
+                        }
+
                         readonly property int cols: Math.max(2, Math.min(NotesConfig.cardsPerRow || 3, Math.floor(width / 260)))
                         readonly property real colWidth: Math.floor((width - (cols - 1) * 14) / cols)
 
@@ -1349,6 +1355,18 @@ Item {
                         onClipNoteRequested: root.createNoteFromClipboard()
                         onWebClipRequested: webClipModal.open()
                         onImportNotesRequested: root.openImportFilePicker()
+                    }
+                }
+
+                // Dismiss del menú contextual al hacer clic fuera
+                MouseArea {
+                    id: sharedContextMenuDismissArea
+                    anchors.fill: parent
+                    z: 999
+                    visible: sharedContextMenu.visible && !sharedContextMenu.isClosing
+                    acceptedButtons: Qt.AllButtons
+                    onPressed: (mouse) => {
+                        sharedContextMenu.close();
                     }
                 }
 
@@ -2739,7 +2757,7 @@ Item {
 
         var clickX = (mouse && typeof mouse.x === "number") ? mouse.x : (cardItem.width / 2);
         var clickY = (mouse && typeof mouse.y === "number") ? mouse.y : (cardItem.height / 2);
-        sharedContextMenu.openAt(cardItem, clickX, clickY, items);
+        sharedContextMenu.openAt(cardItem, clickX, clickY, items, false);
     }
 
     function openNoteImmediate(noteData) {

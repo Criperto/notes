@@ -3533,6 +3533,18 @@ Item {
         }
     }
 
+    // Dismiss del menú contextual al hacer clic fuera
+    MouseArea {
+        id: settingsContextMenuDismissArea
+        anchors.fill: parent
+        z: 9999
+        visible: sharedContextMenu.visible && !sharedContextMenu.isClosing
+        acceptedButtons: Qt.AllButtons
+        onPressed: (mouse) => {
+            sharedContextMenu.close();
+        }
+    }
+
     ContextMenu {
         id: sharedContextMenu
     }

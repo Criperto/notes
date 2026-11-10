@@ -276,6 +276,7 @@ QtObject {
     readonly property color success: color2
     readonly property color warning: color3
     readonly property color danger:  color1
+    readonly property color error:   danger
     readonly property color red:     "#ff4444"
     readonly property color text:    color15
     readonly property color surface: color0

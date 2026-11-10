@@ -28,6 +28,11 @@
   </screenshots>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.7" date="2026-11-10">
+      <description>
+        <p>v0.2.7: Correcciones de menús contextuales, dismiss automático al hacer clic fuera, resaltados sin borde y ajuste de color en eliminación.</p>
+      </description>
+    </release>
     <release version="0.2.6" date="2026-11-09">
       <description>
         <p>fix: hotfix editor splitBlocks, seleccion multilineal con Shift+Ctrl+Flechas, pegado multi-bloque sin duplicacion y proteccion contra closures invalidos</p>

@@ -5659,7 +5659,7 @@ runTest("F135: Hotfix v0.2.4 salida de viñetas con Enter, preservación de foco
         "BlockParagraph debe garantizar visibilidad de editInput inmediatamente");
 
     const cargoToml = fs.readFileSync(path.resolve(__dirname, '../Cargo.toml'), 'utf8');
-    assert.ok(cargoToml.includes('version = "0.2.4"') || cargoToml.includes('version = "0.2.5"') || cargoToml.includes('version = "0.2.6"'), "Cargo.toml debe estar en SemVer válido");
+    assert.ok(cargoToml.includes('version = "0.2.4"') || cargoToml.includes('version = "0.2.5"') || cargoToml.includes('version = "0.2.6"') || cargoToml.includes('version = "0.2.7"'), "Cargo.toml debe estar en SemVer válido");
 });
 
 runTest("F136: Auditoría de estabilidad, FreeDesktop Trash, rutas XDG, supresión de I/O espurio y renombrado atómico", () => {
@@ -5714,6 +5714,38 @@ runTest("F137: Hotfixes v0.2.6 — BlockModel splitBlocks en replaceSelectedRang
     assert.ok(modalQml.includes('property bool _isDestroyed: false'), "NoteEditorModal debe tener propiedad defensiva _isDestroyed");
     assert.ok(modalQml.includes('root._isDestroyed = true;'), "NoteEditorModal debe marcar _isDestroyed en destrucción");
     assert.ok(modalQml.includes('if (!root || root._isDestroyed || !blockEditor) return;'), "NoteEditorModal debe proteger closures en Qt.callLater contra contexto destruido");
+});
+
+runTest("F138: v0.2.7 — Context menu dismiss on outside click, borderless highlights, danger text color and note card context menu hardening", () => {
+    const themeQml = fs.readFileSync(path.resolve(__dirname, '../qml/Theme.qml'), 'utf8');
+    assert.ok(themeQml.includes('readonly property color error:   danger'), "Theme.qml debe definir error referenciando danger");
+
+    const contextMenuQml = fs.readFileSync(path.resolve(__dirname, '../qml/ContextMenu.qml'), 'utf8');
+    assert.ok(contextMenuQml.includes('property bool showStandardItems: true'), "ContextMenu.qml debe definir showStandardItems");
+    assert.ok(contextMenuQml.includes('readonly property bool isTextInputTarget:'), "ContextMenu.qml debe definir isTextInputTarget");
+    assert.ok(contextMenuQml.includes('border.width: 0'), "ContextMenu.qml debe tener bordes en 0 para highlights limpios");
+    const optionBorderMatches = contextMenuQml.match(/border\.width:\s*1/g) || [];
+    assert.strictEqual(optionBorderMatches.length, 1, "Solo el marco exterior menuBox debe tener border.width: 1, las opciones deben tener 0");
+    assert.ok(contextMenuQml.includes('visible: showStandardItems && isTextInputTarget && (target ? !target.readOnly : false)'), "undoItem debe estar protegido por showStandardItems y isTextInputTarget");
+    assert.ok(contextMenuQml.includes('visible: showStandardItems && isTextInputTarget && !!target'), "copyItem debe estar protegido por showStandardItems y isTextInputTarget");
+    assert.ok(contextMenuQml.includes('Connections {'), "ContextMenu.qml debe tener Connections a transientParent");
+    assert.ok(contextMenuQml.includes('if (menuWindow.transientParent && !menuWindow.transientParent.active'), "ContextMenu.qml debe cerrarse si transientParent pierde foco");
+
+    const notesContentQml = fs.readFileSync(path.resolve(__dirname, '../qml/NotesContent.qml'), 'utf8');
+    assert.ok(notesContentQml.includes('sharedContextMenu.openAt(cardItem, clickX, clickY, items, false);'), "openCardContextMenu debe pasar showStandard=false a sharedContextMenu.openAt");
+    assert.ok(notesContentQml.includes('id: sharedContextMenuDismissArea'), "NotesContent.qml debe tener dismiss MouseArea para sharedContextMenu");
+    assert.ok(notesContentQml.includes('sharedContextMenu.close();'), "NotesContent.qml debe cerrar menú en onContentYChanged de notesScroll");
+
+    const noteEditorModalQml = fs.readFileSync(path.resolve(__dirname, '../qml/NoteEditorModal.qml'), 'utf8');
+    assert.ok(noteEditorModalQml.includes('id: editorContextMenuDismissArea'), "NoteEditorModal.qml debe tener dismiss MouseArea para editorContextMenu");
+    assert.ok(noteEditorModalQml.includes('editorContextMenu.close();'), "sourceFlickable debe cerrar editorContextMenu en onContentYChanged");
+
+    const blockEditorQml = fs.readFileSync(path.resolve(__dirname, '../qml/BlockEditor.qml'), 'utf8');
+    assert.ok(blockEditorQml.includes('contextMenu.close();'), "BlockEditor debe cerrar contextMenu en onContentYChanged");
+    assert.ok(blockEditorQml.includes('onActiveBlockBidChanged: {\n        updateFormatState();\n        if (contextMenu && contextMenu.visible && !contextMenu.isClosing) {\n            contextMenu.close();'), "BlockEditor debe cerrar contextMenu en onActiveBlockBidChanged");
+
+    const notesSettingsModalQml = fs.readFileSync(path.resolve(__dirname, '../qml/NotesSettingsModal.qml'), 'utf8');
+    assert.ok(notesSettingsModalQml.includes('id: settingsContextMenuDismissArea'), "NotesSettingsModal.qml debe tener dismiss MouseArea para sharedContextMenu");
 });
 
 console.log(`\n========================================`);
