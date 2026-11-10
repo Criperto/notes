@@ -105,5 +105,5 @@ jobs:
             dist/*.pkg.tar.zst.sha256
           generate_release_notes: true
           draft: false
-          prerelease: true
+          prerelease: false
           make_latest: "true"

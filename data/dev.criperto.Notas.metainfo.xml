@@ -28,6 +28,11 @@
   </screenshots>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.8" date="2026-11-10">
+      <description>
+        <p>v0.2.8: Ocultar botón de importar en notas internas abiertas en modo lectura/bloqueo remoto y publicación oficial Latest.</p>
+      </description>
+    </release>
     <release version="0.2.7" date="2026-11-10">
       <description>
         <p>v0.2.7: Correcciones de menús contextuales, dismiss automático al hacer clic fuera, resaltados sin borde y ajuste de color en eliminación.</p>

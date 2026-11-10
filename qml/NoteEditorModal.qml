@@ -27,7 +27,14 @@ Item {
     property var noteData: null
     property bool remoteLocked: false
     readonly property bool isPreviewMode: Boolean((noteData && noteData.readOnly) || remoteLocked)
-    readonly property bool isExternalNote: Boolean(noteData && noteData.isExternal)
+    readonly property bool isExternalNote: {
+        if (!noteData) return false;
+        var fp = noteData.filePath || "";
+        if (fp && typeof NotesService !== "undefined" && NotesService.notesDir) {
+            return !ImportLogic.isInsideDir(fp, NotesService.notesDir);
+        }
+        return Boolean(noteData.isExternal);
+    }
     property string loadedSlug: ""
     property bool isPinned: false
     // Las .txt se editan como texto plano (sin Markdown) en modo fuente forzado.
@@ -2340,6 +2347,7 @@ Item {
                         radius: 8
                         color: importMa.containsMouse ? Qt.darker(Theme.accent, 1.15) : Theme.accent
                         Layout.preferredWidth: importRow.implicitWidth + 20
+                        visible: root.isExternalNote
 
                         RowLayout {
                             id: importRow

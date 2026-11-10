@@ -4834,7 +4834,8 @@ runTest("P9.3 - Scripts de empaquetado Debian (.deb) y Fedora (.rpm)", () => {
     const wfContent = fs.readFileSync(releaseWf, 'utf8');
     assert.ok(wfContent.includes("build-deb.sh"), "Workflow debe compilar .deb");
     assert.ok(wfContent.includes("build-rpm.sh"), "Workflow debe compilar .rpm");
-    assert.ok(wfContent.includes("prerelease: true"), "Workflow debe marcar los releases como pre-release");
+    assert.ok(wfContent.includes("prerelease: false") || wfContent.includes("prerelease: true"), "Workflow debe configurar prerelease");
+    assert.ok(wfContent.includes("make_latest: \"true\""), "Workflow debe marcar el release como latest");
 });
 
 runTest('F97: Integración Desktop Entry (DBusActivatable desactivado, action new-window, exec criperto-notes %F)', () => {
@@ -5659,7 +5660,7 @@ runTest("F135: Hotfix v0.2.4 salida de viñetas con Enter, preservación de foco
         "BlockParagraph debe garantizar visibilidad de editInput inmediatamente");
 
     const cargoToml = fs.readFileSync(path.resolve(__dirname, '../Cargo.toml'), 'utf8');
-    assert.ok(cargoToml.includes('version = "0.2.4"') || cargoToml.includes('version = "0.2.5"') || cargoToml.includes('version = "0.2.6"') || cargoToml.includes('version = "0.2.7"'), "Cargo.toml debe estar en SemVer válido");
+    assert.ok(cargoToml.includes('version = "0.2.4"') || cargoToml.includes('version = "0.2.5"') || cargoToml.includes('version = "0.2.6"') || cargoToml.includes('version = "0.2.7"') || cargoToml.includes('version = "0.2.8"'), "Cargo.toml debe estar en SemVer válido");
 });
 
 runTest("F136: Auditoría de estabilidad, FreeDesktop Trash, rutas XDG, supresión de I/O espurio y renombrado atómico", () => {
@@ -5746,6 +5747,17 @@ runTest("F138: v0.2.7 — Context menu dismiss on outside click, borderless high
 
     const notesSettingsModalQml = fs.readFileSync(path.resolve(__dirname, '../qml/NotesSettingsModal.qml'), 'utf8');
     assert.ok(notesSettingsModalQml.includes('id: settingsContextMenuDismissArea'), "NotesSettingsModal.qml debe tener dismiss MouseArea para sharedContextMenu");
+});
+
+runTest("F139: v0.2.8 — Ocultar botón Importar en notas internas con bloqueo remoto y configuración de release latest", () => {
+    const editorModalQml = fs.readFileSync(path.resolve(__dirname, '../qml/NoteEditorModal.qml'), 'utf8');
+    assert.ok(editorModalQml.includes('readonly property bool isExternalNote:'), "NoteEditorModal debe tener property isExternalNote dinámica");
+    assert.ok(editorModalQml.includes('!ImportLogic.isInsideDir(fp, NotesService.notesDir)'), "isExternalNote debe verificar ruta contra NotesService.notesDir");
+    assert.ok(editorModalQml.includes('visible: root.isExternalNote'), "Botón Importar a Notas en previewBanner debe estar condicionado por root.isExternalNote");
+
+    const releaseWorkflow = fs.readFileSync(path.resolve(__dirname, '../.github/workflows/release.yml'), 'utf8');
+    assert.ok(releaseWorkflow.includes('prerelease: false'), "release.yml debe configurar prerelease: false para release oficial");
+    assert.ok(releaseWorkflow.includes('make_latest: "true"'), "release.yml debe configurar make_latest: 'true'");
 });
 
 console.log(`\n========================================`);
