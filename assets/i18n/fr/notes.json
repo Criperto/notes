@@ -73,7 +73,8 @@
       "h6": "En-tête 6",
       "heading_menu": "En-têtes (H1-H6)",
       "anchor": "Ancre de section",
-      "wikilink": "Référence de note"
+      "wikilink": "Référence de note",
+      "math": "Formule mathématique (LaTeX)"
     },
     "copy": "Copier",
     "copied": "Copié",
@@ -666,5 +667,7 @@
   "notes.slash.link": "Lien web ou externe",
   "slash.link": "Lien web ou externe",
   "notes.slash.link_desc": "Insérer un lien markdown [texte](url)",
-  "slash.link_desc": "Insérer un lien markdown [texte](url)"
+  "slash.link_desc": "Insérer un lien markdown [texte](url)",
+  "notes.editor.action.math": "Formule mathématique (LaTeX)",
+  "editor.action.math": "Formule mathématique (LaTeX)"
 }

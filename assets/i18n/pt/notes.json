@@ -73,7 +73,8 @@
       "h6": "Título 6",
       "heading_menu": "Cabeçalhos (H1-H6)",
       "anchor": "Âncora de seção",
-      "wikilink": "Referência de nota"
+      "wikilink": "Referência de nota",
+      "math": "Fórmula matemática (LaTeX)"
     },
     "copy": "Copiar",
     "copied": "Copiado",
@@ -666,5 +667,7 @@
   "notes.slash.link": "Link web ou externo",
   "slash.link": "Link web ou externo",
   "notes.slash.link_desc": "Inserir um link markdown [texto](url)",
-  "slash.link_desc": "Inserir um link markdown [texto](url)"
+  "slash.link_desc": "Inserir um link markdown [texto](url)",
+  "notes.editor.action.math": "Fórmula matemática (LaTeX)",
+  "editor.action.math": "Fórmula matemática (LaTeX)"
 }

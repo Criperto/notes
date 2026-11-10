@@ -73,7 +73,8 @@
       "h6": "Überschrift 6",
       "heading_menu": "Überschriften (H1-H6)",
       "anchor": "Abschnittsanker",
-      "wikilink": "Notizreferenz"
+      "wikilink": "Notizreferenz",
+      "math": "Mathematische Formel (LaTeX)"
     },
     "copy": "Kopieren",
     "copied": "Kopiert",
@@ -666,5 +667,7 @@
   "notes.slash.link": "Web- oder externer Link",
   "slash.link": "Web- oder externer Link",
   "notes.slash.link_desc": "Einen Markdown-Link einfügen [Text](URL)",
-  "slash.link_desc": "Einen Markdown-Link einfügen [Text](URL)"
+  "slash.link_desc": "Einen Markdown-Link einfügen [Text](URL)",
+  "notes.editor.action.math": "Mathematische Formel (LaTeX)",
+  "editor.action.math": "Mathematische Formel (LaTeX)"
 }

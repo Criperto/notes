@@ -739,6 +739,13 @@ const translations = {
     de: "Einen Markdown-Link einfügen [Text](URL)", fr: "Insérer un lien markdown [texte](url)",
     ja: "マークダウンリンクを挿入 [テキスト](URL)", ru: "Вставить ссылку markdown [текст](url)",
     zh: "插入 Markdown 链接 [文本](url)"
+  },
+  "notes.editor.action.math": {
+    es_ar: "Fórmula matemática (LaTeX)", es_es: "Fórmula matemática (LaTeX)",
+    en: "Math formula (LaTeX)", pt: "Fórmula matemática (LaTeX)",
+    de: "Mathematische Formel (LaTeX)", fr: "Formule mathématique (LaTeX)",
+    ja: "数式 (LaTeX)", ru: "Математическая формула (LaTeX)",
+    zh: "数学公式 (LaTeX)"
   }
 };
 

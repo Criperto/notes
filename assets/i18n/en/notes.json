@@ -73,7 +73,8 @@
       "h6": "Heading 6",
       "heading_menu": "Headings (H1-H6)",
       "anchor": "Section anchor",
-      "wikilink": "Note reference"
+      "wikilink": "Note reference",
+      "math": "Math formula (LaTeX)"
     },
     "copy": "Copy",
     "copied": "Copied",
@@ -666,5 +667,7 @@
   "notes.slash.link": "Web or external link",
   "slash.link": "Web or external link",
   "notes.slash.link_desc": "Insert a markdown link [text](url)",
-  "slash.link_desc": "Insert a markdown link [text](url)"
+  "slash.link_desc": "Insert a markdown link [text](url)",
+  "notes.editor.action.math": "Math formula (LaTeX)",
+  "editor.action.math": "Math formula (LaTeX)"
 }

@@ -5525,6 +5525,94 @@ runTest("F129: BlockParagraph acotamiento de _findLinkBoundingBox y eliminación
         "BlockEditor Loader debe eliminar variable causante de bucle");
 });
 
+runTest("F130: BlockList renumbering con inicio arbitrario y preservación de listas desordenadas", () => {
+    const blockListQml = fs.readFileSync(path.resolve(__dirname, '../qml/BlockList.qml'), 'utf8');
+
+    // 1. Verificar lógica de inicio arbitrario y no sobreescritura forzada en _renumberAllOrdered
+    assert.ok(blockListQml.includes('currentCount = (!isNaN(thisNum) && thisNum > 0) ? thisNum : 1;'),
+        "BlockList debe respetar el número de inicio arbitrario del primer ítem");
+    assert.ok(blockListQml.includes('currentCount = !isNaN(thisNum) ? thisNum : (prevNum + 1);'),
+        "BlockList debe preservar números arbitrarios y desordenados explícitos");
+
+    // 2. Simulación de renumbering
+    function simulateRenumber(items) {
+        var indentCounters = {};
+        for (var i = 0; i < items.length; i++) {
+            var it = items[i];
+            var ind = it.indent || "";
+            var isOrd = it.marker && (it.marker.indexOf(".") !== -1 || it.marker.indexOf(")") !== -1);
+            if (isOrd) {
+                var thisNum = parseInt(it.marker, 10);
+                var prevNum = indentCounters[ind];
+                var currentCount;
+                if (prevNum === undefined) {
+                    currentCount = (!isNaN(thisNum) && thisNum > 0) ? thisNum : 1;
+                } else if (thisNum === prevNum) {
+                    currentCount = prevNum + 1;
+                } else {
+                    currentCount = !isNaN(thisNum) ? thisNum : (prevNum + 1);
+                }
+                indentCounters[ind] = currentCount;
+                var delim = it.marker.endsWith(")") ? ")" : ".";
+                it.marker = currentCount + delim;
+            }
+        }
+        return items;
+    }
+
+    // Lista que empieza en 9. y continúa en 10.
+    const startNine = [{ marker: "9." }, { marker: "10." }];
+    simulateRenumber(startNine);
+    assert.strictEqual(startNine[0].marker, "9.", "Ítem 0 debe mantener 9.");
+    assert.strictEqual(startNine[1].marker, "10.", "Ítem 1 debe mantener 10.");
+
+    // Lista desordenada 1., 2., 5., 3., 4.
+    const disordered = [{ marker: "1." }, { marker: "2." }, { marker: "5." }, { marker: "3." }, { marker: "4." }];
+    simulateRenumber(disordered);
+    assert.strictEqual(disordered[0].marker, "1.");
+    assert.strictEqual(disordered[1].marker, "2.");
+    assert.strictEqual(disordered[2].marker, "5.", "5. debe conservarse sin sobreescribir a 3.");
+    assert.strictEqual(disordered[3].marker, "3.", "3. debe conservarse sin sobreescribir a 4.");
+    assert.strictEqual(disordered[4].marker, "4.", "4. debe conservarse");
+
+    // Atajo de cambio de numeración interactivo
+    assert.ok(blockListQml.includes('var ordMatch = cleanText.match(/^(\\d+[.)])[ \\t]+([\\s\\S]*)$/);'),
+        "BlockList debe detectar atajo de cambio de numeración al escribir en el ítem");
+});
+
+runTest("F131: NoteEditorModal header adaptativo CSD sin colisión de botones X", () => {
+    const modalQml = fs.readFileSync(path.resolve(__dirname, '../qml/NoteEditorModal.qml'), 'utf8');
+
+    assert.ok(modalQml.includes('id: backBtnComp'),
+        "NoteEditorModal debe tener un componente reutilizable para el botón de cierre");
+    assert.ok(modalQml.includes('id: backBtnLeftLoader'),
+        "NoteEditorModal debe tener loader izquierdo de botón cerrar");
+    assert.ok(modalQml.includes('active: root.isExpanded && !root.windowControlsOnLeft'),
+        "backBtnLeftLoader debe activarse solo cuando los controles CSD NO están a la izquierda");
+    assert.ok(modalQml.includes('id: backBtnRightLoader'),
+        "NoteEditorModal debe tener loader derecho de botón cerrar");
+    assert.ok(modalQml.includes('active: root.isExpanded && root.windowControlsOnLeft'),
+        "backBtnRightLoader debe activarse cuando los controles CSD están a la izquierda");
+});
+
+runTest("F132: Acción math en EditorActions y catálogo completo de traducciones en 9 idiomas", () => {
+    const eaJs = fs.readFileSync(path.resolve(__dirname, '../qml/EditorActions.js'), 'utf8');
+    assert.ok(eaJs.includes('"math": {'), "EditorActions debe incluir la acción math");
+    assert.ok(eaJs.includes('labelKey: "notes.editor.action.math"'), "math debe vincularse a notes.editor.action.math");
+
+    const catalogsJs = fs.readFileSync(path.resolve(__dirname, '../qml/I18nCatalogs.js'), 'utf8');
+    assert.ok(catalogsJs.includes('"notes.editor.action.math"'), "I18nCatalogs debe contener notes.editor.action.math");
+
+    const meta = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../assets/i18n/meta.json'), 'utf8'));
+    for (const l of meta.languages) {
+        const langPath = path.resolve(__dirname, `../assets/i18n/${l.code}/notes.json`);
+        const json = JSON.parse(fs.readFileSync(langPath, 'utf8'));
+        assert.ok(json['notes.editor.action.math'], `notes.json en ${l.code} debe traducir notes.editor.action.math`);
+        assert.ok(json.editor && json.editor.action && json.editor.action.math,
+            `notes.json en ${l.code} debe tener editor.action.math anidado`);
+    }
+});
+
 console.log(`\n========================================`);
 console.log(`Resultados: ${passed} OK, ${failed} FAIL`);
 console.log(`========================================`);

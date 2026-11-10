@@ -73,7 +73,8 @@
       "h6": "Заголовок 6",
       "heading_menu": "Заголовки (H1-H6)",
       "anchor": "Якорь раздела",
-      "wikilink": "Ссылка на заметку"
+      "wikilink": "Ссылка на заметку",
+      "math": "Математическая формула (LaTeX)"
     },
     "copy": "Копировать",
     "copied": "Скопировано",
@@ -666,5 +667,7 @@
   "notes.slash.link": "Веб или внешняя ссылка",
   "slash.link": "Веб или внешняя ссылка",
   "notes.slash.link_desc": "Вставить ссылку markdown [текст](url)",
-  "slash.link_desc": "Вставить ссылку markdown [текст](url)"
+  "slash.link_desc": "Вставить ссылку markdown [текст](url)",
+  "notes.editor.action.math": "Математическая формула (LaTeX)",
+  "editor.action.math": "Математическая формула (LaTeX)"
 }

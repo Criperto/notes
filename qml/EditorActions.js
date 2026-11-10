@@ -122,6 +122,12 @@ var ACTIONS = {
         fallbackLabel: "Insertar diagrama Mermaid",
         shortcut: "Ctrl+Shift+M"
     },
+    "math": {
+        id: "math",
+        labelKey: "notes.editor.action.math",
+        fallbackLabel: "Fórmula matemática (LaTeX)",
+        shortcut: ""
+    },
     "hr": {
         id: "hr",
         labelKey: "notes.editor.action.hr",

@@ -135,7 +135,8 @@ const catalogs = {
         "h6": "Encabezado 6",
         "heading_menu": "Encabezados (H1-H6)",
         "anchor": "Enlace a sección",
-        "wikilink": "Referencia a otra nota"
+        "wikilink": "Referencia a otra nota",
+        "math": "Fórmula matemática (LaTeX)"
       },
       "copy": "Copiar",
       "copied": "Copiado",
@@ -728,7 +729,9 @@ const catalogs = {
     "notes.slash.link": "Enlace web o externo",
     "slash.link": "Enlace web o externo",
     "notes.slash.link_desc": "Insertar un enlace markdown [texto](url)",
-    "slash.link_desc": "Insertar un enlace markdown [texto](url)"
+    "slash.link_desc": "Insertar un enlace markdown [texto](url)",
+    "notes.editor.action.math": "Fórmula matemática (LaTeX)",
+    "editor.action.math": "Fórmula matemática (LaTeX)"
   },
   "es_ar": {
     "header": {
@@ -805,7 +808,8 @@ const catalogs = {
         "h6": "Encabezado 6",
         "heading_menu": "Encabezados (H1-H6)",
         "anchor": "Enlace a sección",
-        "wikilink": "Referencia a otra nota"
+        "wikilink": "Referencia a otra nota",
+        "math": "Fórmula matemática (LaTeX)"
       },
       "copy": "Copiar",
       "copied": "Copiado",
@@ -1398,7 +1402,9 @@ const catalogs = {
     "notes.slash.link": "Enlace web o externo",
     "slash.link": "Enlace web o externo",
     "notes.slash.link_desc": "Insertar un enlace markdown [texto](url)",
-    "slash.link_desc": "Insertar un enlace markdown [texto](url)"
+    "slash.link_desc": "Insertar un enlace markdown [texto](url)",
+    "notes.editor.action.math": "Fórmula matemática (LaTeX)",
+    "editor.action.math": "Fórmula matemática (LaTeX)"
   },
   "en": {
     "header": {
@@ -1475,7 +1481,8 @@ const catalogs = {
         "h6": "Heading 6",
         "heading_menu": "Headings (H1-H6)",
         "anchor": "Section anchor",
-        "wikilink": "Note reference"
+        "wikilink": "Note reference",
+        "math": "Math formula (LaTeX)"
       },
       "copy": "Copy",
       "copied": "Copied",
@@ -2068,7 +2075,9 @@ const catalogs = {
     "notes.slash.link": "Web or external link",
     "slash.link": "Web or external link",
     "notes.slash.link_desc": "Insert a markdown link [text](url)",
-    "slash.link_desc": "Insert a markdown link [text](url)"
+    "slash.link_desc": "Insert a markdown link [text](url)",
+    "notes.editor.action.math": "Math formula (LaTeX)",
+    "editor.action.math": "Math formula (LaTeX)"
   },
   "pt": {
     "header": {
@@ -2145,7 +2154,8 @@ const catalogs = {
         "h6": "Título 6",
         "heading_menu": "Cabeçalhos (H1-H6)",
         "anchor": "Âncora de seção",
-        "wikilink": "Referência de nota"
+        "wikilink": "Referência de nota",
+        "math": "Fórmula matemática (LaTeX)"
       },
       "copy": "Copiar",
       "copied": "Copiado",
@@ -2738,7 +2748,9 @@ const catalogs = {
     "notes.slash.link": "Link web ou externo",
     "slash.link": "Link web ou externo",
     "notes.slash.link_desc": "Inserir um link markdown [texto](url)",
-    "slash.link_desc": "Inserir um link markdown [texto](url)"
+    "slash.link_desc": "Inserir um link markdown [texto](url)",
+    "notes.editor.action.math": "Fórmula matemática (LaTeX)",
+    "editor.action.math": "Fórmula matemática (LaTeX)"
   },
   "ja": {
     "header": {
@@ -2815,7 +2827,8 @@ const catalogs = {
         "h6": "見出し 6",
         "heading_menu": "見出し (H1-H6)",
         "anchor": "セクションアンカー",
-        "wikilink": "ノート参照"
+        "wikilink": "ノート参照",
+        "math": "数式 (LaTeX)"
       },
       "copy": "コピー",
       "copied": "コピーしました",
@@ -3408,7 +3421,9 @@ const catalogs = {
     "notes.slash.link": "ウェブまたは外部リンク",
     "slash.link": "ウェブまたは外部リンク",
     "notes.slash.link_desc": "マークダウンリンクを挿入 [テキスト](URL)",
-    "slash.link_desc": "マークダウンリンクを挿入 [テキスト](URL)"
+    "slash.link_desc": "マークダウンリンクを挿入 [テキスト](URL)",
+    "notes.editor.action.math": "数式 (LaTeX)",
+    "editor.action.math": "数式 (LaTeX)"
   },
   "zh": {
     "header": {
@@ -3485,7 +3500,8 @@ const catalogs = {
         "h6": "标题 6",
         "heading_menu": "标题 (H1-H6)",
         "anchor": "章节锚点",
-        "wikilink": "笔记引用"
+        "wikilink": "笔记引用",
+        "math": "数学公式 (LaTeX)"
       },
       "copy": "复制",
       "copied": "已复制",
@@ -4078,7 +4094,9 @@ const catalogs = {
     "notes.slash.link": "网页或外部链接",
     "slash.link": "网页或外部链接",
     "notes.slash.link_desc": "插入 Markdown 链接 [文本](url)",
-    "slash.link_desc": "插入 Markdown 链接 [文本](url)"
+    "slash.link_desc": "插入 Markdown 链接 [文本](url)",
+    "notes.editor.action.math": "数学公式 (LaTeX)",
+    "editor.action.math": "数学公式 (LaTeX)"
   },
   "de": {
     "header": {
@@ -4155,7 +4173,8 @@ const catalogs = {
         "h6": "Überschrift 6",
         "heading_menu": "Überschriften (H1-H6)",
         "anchor": "Abschnittsanker",
-        "wikilink": "Notizreferenz"
+        "wikilink": "Notizreferenz",
+        "math": "Mathematische Formel (LaTeX)"
       },
       "copy": "Kopieren",
       "copied": "Kopiert",
@@ -4748,7 +4767,9 @@ const catalogs = {
     "notes.slash.link": "Web- oder externer Link",
     "slash.link": "Web- oder externer Link",
     "notes.slash.link_desc": "Einen Markdown-Link einfügen [Text](URL)",
-    "slash.link_desc": "Einen Markdown-Link einfügen [Text](URL)"
+    "slash.link_desc": "Einen Markdown-Link einfügen [Text](URL)",
+    "notes.editor.action.math": "Mathematische Formel (LaTeX)",
+    "editor.action.math": "Mathematische Formel (LaTeX)"
   },
   "fr": {
     "header": {
@@ -4825,7 +4846,8 @@ const catalogs = {
         "h6": "En-tête 6",
         "heading_menu": "En-têtes (H1-H6)",
         "anchor": "Ancre de section",
-        "wikilink": "Référence de note"
+        "wikilink": "Référence de note",
+        "math": "Formule mathématique (LaTeX)"
       },
       "copy": "Copier",
       "copied": "Copié",
@@ -5418,7 +5440,9 @@ const catalogs = {
     "notes.slash.link": "Lien web ou externe",
     "slash.link": "Lien web ou externe",
     "notes.slash.link_desc": "Insérer un lien markdown [texte](url)",
-    "slash.link_desc": "Insérer un lien markdown [texte](url)"
+    "slash.link_desc": "Insérer un lien markdown [texte](url)",
+    "notes.editor.action.math": "Formule mathématique (LaTeX)",
+    "editor.action.math": "Formule mathématique (LaTeX)"
   },
   "ru": {
     "header": {
@@ -5495,7 +5519,8 @@ const catalogs = {
         "h6": "Заголовок 6",
         "heading_menu": "Заголовки (H1-H6)",
         "anchor": "Якорь раздела",
-        "wikilink": "Ссылка на заметку"
+        "wikilink": "Ссылка на заметку",
+        "math": "Математическая формула (LaTeX)"
       },
       "copy": "Копировать",
       "copied": "Скопировано",
@@ -6088,6 +6113,8 @@ const catalogs = {
     "notes.slash.link": "Веб или внешняя ссылка",
     "slash.link": "Веб или внешняя ссылка",
     "notes.slash.link_desc": "Вставить ссылку markdown [текст](url)",
-    "slash.link_desc": "Вставить ссылку markdown [текст](url)"
+    "slash.link_desc": "Вставить ссылку markdown [текст](url)",
+    "notes.editor.action.math": "Математическая формула (LaTeX)",
+    "editor.action.math": "Математическая формула (LaTeX)"
   }
 };

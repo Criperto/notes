@@ -73,7 +73,8 @@
       "h6": "見出し 6",
       "heading_menu": "見出し (H1-H6)",
       "anchor": "セクションアンカー",
-      "wikilink": "ノート参照"
+      "wikilink": "ノート参照",
+      "math": "数式 (LaTeX)"
     },
     "copy": "コピー",
     "copied": "コピーしました",
@@ -666,5 +667,7 @@
   "notes.slash.link": "ウェブまたは外部リンク",
   "slash.link": "ウェブまたは外部リンク",
   "notes.slash.link_desc": "マークダウンリンクを挿入 [テキスト](URL)",
-  "slash.link_desc": "マークダウンリンクを挿入 [テキスト](URL)"
+  "slash.link_desc": "マークダウンリンクを挿入 [テキスト](URL)",
+  "notes.editor.action.math": "数式 (LaTeX)",
+  "editor.action.math": "数式 (LaTeX)"
 }

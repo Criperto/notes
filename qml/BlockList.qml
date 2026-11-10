@@ -260,7 +260,19 @@ Item {
 
             var isOrd = it.marker && (it.marker.indexOf(".") !== -1 || it.marker.indexOf(")") !== -1);
             if (isOrd) {
-                var currentCount = (indentCounters[ind] || 0) + 1;
+                var thisNum = parseInt(it.marker, 10);
+                var prevNum = indentCounters[ind];
+                var currentCount;
+                if (prevNum === undefined) {
+                    // Primer ítem del nivel: respetar el número inicial del usuario (ej. 9.)
+                    currentCount = (!isNaN(thisNum) && thisNum > 0) ? thisNum : 1;
+                } else if (thisNum === prevNum) {
+                    // Colisión producida por inserción con Enter: desplazar siguiente ítem
+                    currentCount = prevNum + 1;
+                } else {
+                    // Número explícito del usuario o secuencia consecutiva: preservar
+                    currentCount = !isNaN(thisNum) ? thisNum : (prevNum + 1);
+                }
                 indentCounters[ind] = currentCount;
                 var delim = it.marker.endsWith(")") ? ")" : ".";
                 var newMarker = currentCount + delim;
@@ -1441,12 +1453,13 @@ Item {
                 // Viñeta o número si no es tarea: caja de primera línea con el
                 // glifo centrado
                 Item {
-                    Layout.preferredWidth: 24
+                    Layout.preferredWidth: Math.max(24, Math.round(markerText.implicitWidth + 4))
                     Layout.preferredHeight: root.firstLineH
                     Layout.alignment: Qt.AlignTop
                     visible: !itemRow.isTask
 
                     Text {
+                        id: markerText
                         anchors.centerIn: parent
                         text: itemRow.marker.indexOf(".") !== -1 || itemRow.marker.indexOf(")") !== -1 ? itemRow.marker : "•"
                         color: Theme.accent
@@ -1687,6 +1700,36 @@ Item {
 
                                 root._notifyRawChanged();
                                 return;
+                            }
+
+                            // Atajo de cambio de numeración al escribir ej. "5. " o "10) " al inicio del ítem
+                            var ordMatch = cleanText.match(/^(\d+[.)])[ \t]+([\s\S]*)$/);
+                            if (ordMatch && idxNow >= 0 && idxNow < root._itemsRawArray.length) {
+                                var itOrd = root._itemsRawArray[idxNow];
+                                var newOrdMarker = ordMatch[1];
+                                var restOrd = ordMatch[2];
+                                if (itOrd.marker !== newOrdMarker) {
+                                    itOrd.marker = newOrdMarker;
+                                    itOrd.isTask = false;
+                                    itOrd.checked = false;
+                                    itOrd.text = (storedLv > 0 && !/^#{1,6}(\s|$)/.test(restOrd)) ? LH.composeHeading(storedLv, restOrd) : restOrd;
+
+                                    if (idxNow < itemsModel.count) {
+                                        itemsModel.setProperty(idxNow, "marker", newOrdMarker);
+                                        itemsModel.setProperty(idxNow, "isTask", false);
+                                        itemsModel.setProperty(idxNow, "checked", false);
+                                        itemsModel.setProperty(idxNow, "text", itOrd.text);
+                                    }
+
+                                    _syncingLocal = true;
+                                    lineEdit.text = itemRow.liveDisplayText(itOrd.text);
+                                    lineEdit.cursorPosition = 0;
+                                    _syncingLocal = false;
+                                    lineEdit.forceActiveFocus();
+
+                                    root._notifyRawChanged();
+                                    return;
+                                }
                             }
 
                             var newRaw = itemRow.displayToRaw(cleanText);

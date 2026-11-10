@@ -73,7 +73,8 @@
       "h6": "标题 6",
       "heading_menu": "标题 (H1-H6)",
       "anchor": "章节锚点",
-      "wikilink": "笔记引用"
+      "wikilink": "笔记引用",
+      "math": "数学公式 (LaTeX)"
     },
     "copy": "复制",
     "copied": "已复制",
@@ -666,5 +667,7 @@
   "notes.slash.link": "网页或外部链接",
   "slash.link": "网页或外部链接",
   "notes.slash.link_desc": "插入 Markdown 链接 [文本](url)",
-  "slash.link_desc": "插入 Markdown 链接 [文本](url)"
+  "slash.link_desc": "插入 Markdown 链接 [文本](url)",
+  "notes.editor.action.math": "数学公式 (LaTeX)",
+  "editor.action.math": "数学公式 (LaTeX)"
 }

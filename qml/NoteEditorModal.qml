@@ -1616,6 +1616,53 @@ Item {
                     }
                 }
 
+                Component {
+                    id: backBtnComp
+                    Rectangle {
+                        id: backBtnRect
+                        width: 34
+                        height: 34
+                        radius: 10
+                        color: backBtnMa.containsMouse ? Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.12) : "transparent"
+
+                        Behavior on color {
+                            enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                            ColorAnimation { duration: 140 }
+                        }
+
+                        Image {
+                            anchors.centerIn: parent
+                            width: 18
+                            height: 18
+                            source: Theme.iconsPath + "close.svg"
+                            sourceSize: Qt.size(18, 18)
+                            layer.enabled: true
+                            layer.effect: MultiEffect {
+                                colorization: 1.0
+                                colorizationColor: backBtnMa.containsMouse ? Theme.text : Theme.muted
+                                Behavior on colorizationColor {
+                                    enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                                    ColorAnimation { duration: 140 }
+                                }
+                            }
+                        }
+
+                        MouseArea {
+                            id: backBtnMa
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            preventStealing: true
+                            cursorShape: Qt.PointingHandCursor
+                            onEntered: tooltipLayer.showTooltip(parent, I18n.t("notes.editor.action.close", "Cerrar editor"), "Esc")
+                            onExited: tooltipLayer.hideTooltip()
+                            onClicked: {
+                                tooltipLayer.hideTooltip();
+                                root.requestClose();
+                            }
+                        }
+                    }
+                }
+
                 RowLayout {
                     id: editorHeaderRow
                     anchors.fill: parent
@@ -1628,56 +1675,14 @@ Item {
                     visible: root.windowControlsWidth > 0 && root.windowControlsOnLeft
                 }
 
-                // Botón volver / cerrar
-                Rectangle {
-                    id: backBtnRect
-                    width: 34
-                    height: 34
-                    radius: 10
-                    color: backBtnMa.containsMouse ? Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.12) : "transparent"
-                    opacity: root.isExpanded ? 1.0 : 0.0
-                    visible: opacity > 0.0
-
-                    Behavior on opacity {
-                        enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
-                        NumberAnimation { duration: 180; easing.type: Easing.OutCubic }
-                    }
-
-                    Behavior on color {
-                        enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
-                        ColorAnimation { duration: 140 }
-                    }
-
-                    Image {
-                        anchors.centerIn: parent
-                        width: 18
-                        height: 18
-                        source: Theme.iconsPath + "close.svg"
-                        sourceSize: Qt.size(18, 18)
-                        layer.enabled: true
-                        layer.effect: MultiEffect {
-                            colorization: 1.0
-                            colorizationColor: backBtnMa.containsMouse ? Theme.text : Theme.muted
-                            Behavior on colorizationColor {
-                                enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
-                                ColorAnimation { duration: 140 }
-                            }
-                        }
-                    }
-
-                    MouseArea {
-                        id: backBtnMa
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        preventStealing: true
-                        cursorShape: Qt.PointingHandCursor
-                        onEntered: tooltipLayer.showTooltip(parent, I18n.t("notes.editor.action.close", "Cerrar editor"), "Esc")
-                        onExited: tooltipLayer.hideTooltip()
-                        onClicked: {
-                            tooltipLayer.hideTooltip();
-                            root.requestClose();
-                        }
-                    }
+                // Botón volver / cerrar a la izquierda (cuando los controles de ventana están a la derecha)
+                Loader {
+                    id: backBtnLeftLoader
+                    active: root.isExpanded && !root.windowControlsOnLeft
+                    visible: active
+                    sourceComponent: backBtnComp
+                    Layout.preferredWidth: active ? 34 : 0
+                    Layout.preferredHeight: active ? 34 : 0
                 }
 
                 // Título y nombre de archivo .md
@@ -1937,6 +1942,16 @@ Item {
                             }
                         }
                     }
+                }
+
+                // Botón volver / cerrar a la derecha (cuando los controles de ventana están a la izquierda)
+                Loader {
+                    id: backBtnRightLoader
+                    active: root.isExpanded && root.windowControlsOnLeft
+                    visible: active
+                    sourceComponent: backBtnComp
+                    Layout.preferredWidth: active ? 34 : 0
+                    Layout.preferredHeight: active ? 34 : 0
                 }
 
                 // Espacio fijo para los controles de ventana CSD cuando están a la derecha
