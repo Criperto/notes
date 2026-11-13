@@ -5658,7 +5658,7 @@ runTest("F135: Hotfix v0.2.4 salida de viñetas con Enter, preservación de foco
         "BlockParagraph debe garantizar visibilidad de editInput inmediatamente");
 
     const cargoToml = fs.readFileSync(path.resolve(__dirname, '../Cargo.toml'), 'utf8');
-    assert.ok(cargoToml.includes('version = "0.2.4"') || cargoToml.includes('version = "0.2.5"') || cargoToml.includes('version = "0.2.6"') || cargoToml.includes('version = "0.2.7"') || cargoToml.includes('version = "0.2.8"'), "Cargo.toml debe estar en SemVer válido");
+    assert.ok(cargoToml.includes('version = "0.2.4"') || cargoToml.includes('version = "0.2.5"') || cargoToml.includes('version = "0.2.6"') || cargoToml.includes('version = "0.2.7"') || cargoToml.includes('version = "0.2.8"') || cargoToml.includes('version = "0.2.9"'), "Cargo.toml debe estar en SemVer válido");
 });
 
 runTest("F136: Auditoría de estabilidad, FreeDesktop Trash, rutas XDG, supresión de I/O espurio y renombrado atómico", () => {
@@ -5756,6 +5756,30 @@ runTest("F139: v0.2.8 — Ocultar botón Importar en notas internas con bloqueo 
     const releaseWorkflow = fs.readFileSync(path.resolve(__dirname, '../.github/workflows/release.yml'), 'utf8');
     assert.ok(releaseWorkflow.includes('prerelease: false'), "release.yml debe configurar prerelease: false para release oficial");
     assert.ok(releaseWorkflow.includes('make_latest: "true"'), "release.yml debe configurar make_latest: 'true'");
+});
+
+runTest("F140: v0.2.9 — Motor Spellbook integrado con diccionarios embebidos, fuente Display unificada y rutas criperto-notes", () => {
+    const bridgeCpp = fs.readFileSync(path.resolve(__dirname, '../src/native/native_bridge.cpp'), 'utf8');
+    assert.ok(bridgeCpp.includes('FontResolution resolveDisplayFont() {\n    return resolveBodyFont();\n}'), "resolveDisplayFont debe retornar resolveBodyFont()");
+    assert.ok(bridgeCpp.includes('Spellbook (integrado)'), "printStartupDiagnostics debe indicar Spellbook (integrado)");
+    assert.ok(bridgeCpp.includes('.config/criperto-notes/config.json'), "native_bridge.cpp debe usar ~/.config/criperto-notes/config.json");
+    assert.ok(bridgeCpp.includes('criperto-notes.sock'), "native_bridge.cpp debe usar criperto-notes.sock");
+
+    const mainRs = fs.readFileSync(path.resolve(__dirname, '../src/main.rs'), 'utf8');
+    assert.ok(mainRs.includes('"spell-pipe" =>'), "main.rs debe tener dispatch de CLI spell-pipe");
+
+    const spellEngineRs = fs.readFileSync(path.resolve(__dirname, '../src/spell_engine.rs'), 'utf8');
+    assert.ok(spellEngineRs.includes('EMBEDDED_DICTS'), "spell_engine.rs debe definir EMBEDDED_DICTS");
+    assert.ok(spellEngineRs.includes('include_str!("../assets/spellcheck/dicts/es_AR.dic")'), "spell_engine.rs debe embeber es_AR.dic");
+    assert.ok(spellEngineRs.includes('include_str!("../assets/spellcheck/dicts/es_ES.dic")'), "spell_engine.rs debe embeber es_ES.dic");
+    assert.ok(spellEngineRs.includes('include_str!("../assets/spellcheck/dicts/en_US.dic")'), "spell_engine.rs debe embeber en_US.dic");
+
+    const spellServiceQml = fs.readFileSync(path.resolve(__dirname, '../qml/SpellService.qml'), 'utf8');
+    assert.ok(spellServiceQml.includes('root.notasBin, "spell-pipe"') && spellServiceQml.includes('"-d", workerItem.dictPath'), "SpellService debe invocar spell-pipe nativo");
+    assert.ok(spellServiceQml.includes('.local/share/criperto-notes/dictionaries'), "SpellService debe apuntar a ~/.local/share/criperto-notes/dictionaries");
+
+    const releaseWorkflow = fs.readFileSync(path.resolve(__dirname, '../.github/workflows/release.yml'), 'utf8');
+    assert.ok(!releaseWorkflow.includes('hunspell'), "release.yml no debe requerir ni contener hunspell");
 });
 
 console.log(`\n========================================`);
