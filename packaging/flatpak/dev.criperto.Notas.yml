@@ -32,13 +32,6 @@ build-options:
     - --share=network
 
 modules:
-  - name: hunspell
-    buildsystem: autotools
-    sources:
-      - type: archive
-        url: https://github.com/hunspell/hunspell/archive/v1.7.2.tar.gz
-        sha256: 11ddfa39de2680e930e20336f14bbfb6877b4ea930e4748ff15174092b774643
-
   - name: notas
     buildsystem: simple
     build-commands:

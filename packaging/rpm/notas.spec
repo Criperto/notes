@@ -9,7 +9,7 @@ License:        GPL-3.0-or-later
 URL:            https://github.com/Criperto/notes
 
 AutoReqProv:    no
-Requires:       qt6-qtbase, qt6-qtdeclarative, qt6-qtsvg, hunspell
+Requires:       qt6-qtbase, qt6-qtdeclarative, qt6-qtsvg
 
 %description
 Aplicación nativa de notas en Markdown con editor de bloques y diagramas Mermaid

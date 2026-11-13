@@ -15,9 +15,9 @@ QtObject {
     readonly property var personalWords: (typeof SpellBackend !== "undefined") ? SpellBackend.personalWords : []
 
     readonly property string notasBin: (typeof Sys !== "undefined" && Sys.appExecutable) ? Sys.appExecutable : "criperto-notes"
-    readonly property string dictsDir: ((typeof Sys !== "undefined" && Sys.homeDir) ? Sys.homeDir : "") + "/.local/share/criperto.notes/dictionaries"
+    readonly property string dictsDir: ((typeof Sys !== "undefined" && Sys.homeDir) ? Sys.homeDir : "") + "/.local/share/criperto-notes/dictionaries"
     readonly property string dictsStampPath: dictsDir + "/.dicts_stamp"
-    readonly property string personalDictPath: ((typeof Sys !== "undefined" && Sys.homeDir) ? Sys.homeDir : "") + "/.config/notas/personal.dic"
+    readonly property string personalDictPath: ((typeof Sys !== "undefined" && Sys.homeDir) ? Sys.homeDir : "") + "/.config/criperto-notes/personal.dic"
 
     signal personalWordAdded(string word)
     signal personalWordsCleared()
@@ -168,6 +168,9 @@ QtObject {
                 return root.installedDicts[j].path;
             }
         }
+        if (code === "es_AR" || code === "es_ES" || code === "en_US") {
+            return code;
+        }
         return root.dictsDir + "/" + code;
     }
 
@@ -250,7 +253,7 @@ QtObject {
             Process {
                 id: proc
                 command: [
-                    "hunspell", "-a",
+                    root.notasBin, "spell-pipe",
                     "-d", workerItem.dictPath,
                     "-p", root.personalDictPath
                 ]

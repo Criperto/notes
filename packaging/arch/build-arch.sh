@@ -37,7 +37,6 @@ license = GPL-3.0-or-later
 depend = qt6-base
 depend = qt6-declarative
 depend = qt6-svg
-depend = hunspell
 depend = gcc-libs
 depend = glibc
 optdepend = qt6-wayland: soporte nativo Wayland

@@ -1492,8 +1492,6 @@ void Sys::printStartupDiagnostics() const {
     const FontResolution dispInfo = resolveDisplayFont();
     const FontResolution monoInfo = resolveMonospaceFont();
 
-    const QString hunspellBin = QStandardPaths::findExecutable(QStringLiteral("hunspell"));
-
     auto formatRow = [](const QString &label, const QString &value) -> QString {
         QString val = value;
         if (val.length() > 57) {
@@ -1516,7 +1514,7 @@ void Sys::printStartupDiagnostics() const {
     fprintf(stdout, "%s", formatRow(QStringLiteral("Fuente Texto"), bodyInfo.family + QStringLiteral(" ") + bodyInfo.provenance).toUtf8().constData());
     fprintf(stdout, "%s", formatRow(QStringLiteral("Fuente Display"), dispInfo.family + QStringLiteral(" ") + dispInfo.provenance).toUtf8().constData());
     fprintf(stdout, "%s", formatRow(QStringLiteral("Fuente Mono"), monoInfo.family + QStringLiteral(" ") + monoInfo.provenance).toUtf8().constData());
-    fprintf(stdout, "%s", formatRow(QStringLiteral("Motor Spell"), hunspellBin.isEmpty() ? QStringLiteral("No encontrado (Desactivado)") : hunspellBin).toUtf8().constData());
+    fprintf(stdout, "%s", formatRow(QStringLiteral("Motor Spell"), QStringLiteral("Spellbook (integrado)")).toUtf8().constData());
     fprintf(stdout, "╰─────────────────────────────────────────────────────────────────────────────╯\n\n");
     fflush(stdout);
 }
@@ -2719,17 +2717,17 @@ void SpellBackend::refreshDictionaries() {
 }
 
 QString SpellBackend::personalDicPath() const {
-    return QDir::homePath() + QStringLiteral("/.config/notas/personal.dic");
+    return QDir::homePath() + QStringLiteral("/.config/criperto-notes/personal.dic");
 }
 
 void SpellBackend::discoverDictionaries() {
     m_availableDictionaries.clear();
+    // Diccionarios base integrados en el binario vía Spellbook
+    m_availableDictionaries << QStringLiteral("es_AR") << QStringLiteral("es_ES") << QStringLiteral("en_US");
+
     const QStringList paths = {
-        QDir::homePath() + QStringLiteral("/.local/share/criperto.notes/dictionaries"),
-        QDir::homePath() + QStringLiteral("/.local/share/notas/dictionaries"),
-        QStringLiteral("/usr/share/hunspell"),
-        QStringLiteral("/usr/share/myspell"),
-        QDir::homePath() + QStringLiteral("/.local/share/hunspell")
+        QDir::homePath() + QStringLiteral("/.local/share/criperto-notes/dictionaries"),
+        QStringLiteral("/usr/share/criperto-notes/dictionaries")
     };
 
     for (const auto &p : paths) {
@@ -2826,11 +2824,8 @@ QJsonObject SpellBackend::checkWords(const QString &lang, const QStringList &wor
 
     QString dictArg = dict;
     const QStringList searchDirs = {
-        QDir::homePath() + QStringLiteral("/.local/share/criperto.notes/dictionaries"),
-        QDir::homePath() + QStringLiteral("/.local/share/notas/dictionaries"),
-        QStringLiteral("/usr/share/hunspell"),
-        QStringLiteral("/usr/share/myspell"),
-        QDir::homePath() + QStringLiteral("/.local/share/hunspell")
+        QDir::homePath() + QStringLiteral("/.local/share/criperto-notes/dictionaries"),
+        QStringLiteral("/usr/share/criperto-notes/dictionaries")
     };
     for (const auto &d : searchDirs) {
         QString candidate = d + QStringLiteral("/") + dict;
@@ -2847,9 +2842,12 @@ QJsonObject SpellBackend::checkWords(const QString &lang, const QStringList &wor
         if (pf.open(QIODevice::WriteOnly | QIODevice::Text)) pf.close();
     }
 
+    QString appBin = QCoreApplication::applicationFilePath();
+    if (appBin.isEmpty()) appBin = QStringLiteral("criperto-notes");
+
     QProcess proc;
-    proc.start("hunspell", {"-a", "-d", dictArg, "-p", personalDicPath()});
-    if (!proc.waitForStarted(1000)) {
+    proc.start(appBin, {QStringLiteral("spell-pipe"), QStringLiteral("-d"), dictArg, QStringLiteral("-p"), personalDicPath()});
+    if (!proc.waitForStarted(1500)) {
         return result;
     }
 

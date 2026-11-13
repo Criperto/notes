@@ -16,9 +16,9 @@
   - Fase 2: `classDiagram`, `erDiagram`, `gantt`, `timeline`, `mindmap`.
   - Fase 3: `gitGraph`, `quadrantChart`, `journey`, `xychart-beta`.
 - **Integración con Wayland / Hyprland:** Ventana nativa Wayland (`dev.criperto.Notas`), renderizado acelerado por GPU vía Qt Quick y estilo visual moderno con desenfoque de fondo opcional.
-- **Corrector Ortográfico:** Integración con diccionarios de sistema (`hunspell` / `myspell`) y diccionario personal de usuario (`~/.config/notas/personal.dic`).
+- **Corrector Ortográfico Integrado:** Motor de corrección autónomo de alta velocidad basado en `Spellbook` con diccionarios base embebidos (`es_AR`, `es_ES`, `en_US`), catálogo descargable multilingüe y diccionario personal de usuario (`~/.config/criperto-notes/personal.dic`). Cero dependencias externas de paquetes de corrección.
 - **Internacionalización Completa (i18n):** 9 idiomas incluidos (Español, Inglés, Portugués, Francés, Alemán, Italiano, Ruso, Japonés y Chino).
-- **Persistencia Segura:** Guardado atómico con transacciones en disco (`QSaveFile`), exclusión de items en papelera y configuración centralizada en `~/.config/notas/config.json`.
+- **Persistencia Segura:** Guardado atómico con transacciones en disco (`QSaveFile`), exclusión de items en papelera y configuración centralizada en `~/.config/criperto-notes/config.json`.
 - **Cero Dependencias de Quickshell:** Aplicación de escritorio 100% independiente compilada con Rust y Qt 6.
 
 ---
@@ -29,7 +29,7 @@
 - **C++ Native Bridge (`Notas.Native`):** Clases nativas integradas con QML (`QML_ELEMENT` y `QML_SINGLETON`):
   - `Sys`: Portapapeles, variables de entorno, ejecutor de procesos desacoplados y detección de pantalla táctil.
   - `ConfigBackend`: Configuración reactiva en JSON con migración automática desde configs legacy.
-  - `SpellBackend`: Consultas a hunspell y gestión de diccionarios locales.
+  - `SpellBackend`: Consultas al motor de corrección Spellbook y gestión de diccionarios.
   - `FileView`: Vigilancia de archivos mediante `QFileSystemWatcher` y guardado atómico.
   - `Process` & `SplitParser`: Lanzamiento y streaming de procesos con recolección de basura de subprocesos (cero huérfanos).
 - **Qt Quick / QML:** Capa de presentación reactiva con diseño por bloques desacoplado, animaciones fluidas y soporte táctil/mouse/teclado.
@@ -46,11 +46,10 @@
   - `qt6-wayland`
 - **Compilador C++:** `clang++` o `g++` con soporte C++17.
 - **CMake** y **pkg-config**.
-- **Hunspell:** Motor del corrector ortográfico multilingüe en tiempo real (**obligatorio**).
 
 ### Comando único de dependencias para Arch Linux:
 ```bash
-sudo pacman -S --needed base-devel rust cmake clang qt6-base qt6-declarative qt6-svg qt6-wayland hunspell
+sudo pacman -S --needed base-devel rust cmake clang qt6-base qt6-declarative qt6-svg qt6-wayland
 ```
 
 ---

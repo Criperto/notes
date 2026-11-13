@@ -168,13 +168,6 @@ if [[ "$MODE" == "system" && -z "${DESTDIR}" && "$EUID" -ne 0 ]]; then
     exec sudo -E "$0" --system "$@"
 fi
 
-# 0. Verificar dependencias obligatorias (sólo en instalación directa en el sistema, no en empaquetado con DESTDIR)
-if [[ -z "${DESTDIR}" ]] && ! command -v hunspell &>/dev/null; then
-    err "'hunspell' no está instalado en el sistema.\n   Notas requiere Hunspell como dependencia obligatoria para el corrector ortográfico.\n   Por favor, instálalo con tu gestor de paquetes:\n     - Arch Linux:    sudo pacman -S hunspell\n     - Fedora:        sudo dnf install hunspell\n     - Debian/Ubuntu: sudo apt install hunspell" \
-        "'hunspell' is not installed on this system.\n   Notas requires Hunspell as a mandatory dependency for the real-time spellchecker.\n   Please install it with your package manager:\n     - Arch Linux:    sudo pacman -S hunspell\n     - Fedora:        sudo dnf install hunspell\n     - Debian/Ubuntu: sudo apt install hunspell"
-    exit 1
-fi
-
 # 1. Localizar binario compilado
 BIN_SRC=""
 if [[ -f "${SCRIPT_DIR}/target/release/criperto-notes" ]]; then

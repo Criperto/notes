@@ -37,43 +37,22 @@ pub struct DictInfo {
 
 pub fn get_dicts_dir() -> PathBuf {
     let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-    let primary = PathBuf::from(&home).join(".local").join("share").join("criperto.notes").join("dictionaries");
-    if primary.exists() {
-        return primary;
-    }
-    let legacy = PathBuf::from(&home).join(".local").join("share").join("notas").join("dictionaries");
-    if legacy.exists() {
-        return legacy;
-    }
-    primary
+    PathBuf::from(&home).join(".local").join("share").join("criperto-notes").join("dictionaries")
 }
 
 pub fn get_catalog_path() -> PathBuf {
     let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-    let installed_cat = PathBuf::from(&home).join(".local").join("share").join("criperto.notes").join("catalog.json");
+    let installed_cat = PathBuf::from(&home).join(".local").join("share").join("criperto-notes").join("catalog.json");
     if installed_cat.exists() {
         return installed_cat;
-    }
-    let legacy_cat = PathBuf::from(&home).join(".local").join("share").join("notas").join("catalog.json");
-    if legacy_cat.exists() {
-        return legacy_cat;
     }
     let dev_cat = PathBuf::from("assets").join("spellcheck").join("catalog.json");
     if dev_cat.exists() {
         return dev_cat;
     }
-    let sys_cat = PathBuf::from("/usr/share/criperto.notes/catalog.json");
+    let sys_cat = PathBuf::from("/usr/share/criperto-notes/catalog.json");
     if sys_cat.exists() {
         return sys_cat;
-    }
-    let sys_legacy = PathBuf::from("/usr/share/notas/catalog.json");
-    if sys_legacy.exists() {
-        return sys_legacy;
-    }
-    // Fallback to quickshell catalog if present
-    let qs_cat = PathBuf::from(&home).join(".config").join("quickshell").join("languages").join("spellcheck").join("catalog.json");
-    if qs_cat.exists() {
-        return qs_cat;
     }
     installed_cat
 }
@@ -95,16 +74,9 @@ pub fn notify_change() {
 }
 
 pub fn get_system_dict_dirs() -> Vec<PathBuf> {
-    let mut dirs = vec![
-        PathBuf::from("/usr/share/hunspell"),
-        PathBuf::from("/usr/share/myspell"),
-        PathBuf::from("/usr/share/myspell/dicts"),
-    ];
-    let home = std::env::var("HOME").unwrap_or_default();
-    if !home.is_empty() {
-        dirs.push(PathBuf::from(format!("{}/.local/share/hunspell", home)));
-    }
-    dirs
+    vec![
+        PathBuf::from("/usr/share/criperto-notes/dictionaries"),
+    ]
 }
 
 pub fn load_catalog() -> Catalog {
@@ -114,11 +86,20 @@ pub fn load_catalog() -> Catalog {
             return cat;
         }
     }
+    const DEFAULT_CATALOG: &str = include_str!("../assets/spellcheck/catalog.json");
+    if let Ok(cat) = serde_json::from_str::<Catalog>(DEFAULT_CATALOG) {
+        return cat;
+    }
     Catalog { languages: Vec::new() }
 }
 
 pub fn get_installed_dicts() -> HashMap<String, (bool, PathBuf)> {
     let mut map = HashMap::new();
+
+    // 0. Diccionarios base integrados en el binario (alta velocidad, cero dependencias)
+    for code in crate::spell_engine::embedded_languages() {
+        map.insert(code.to_string(), (true, PathBuf::from(code)));
+    }
 
     // 1. System dictionaries
     for dir in get_system_dict_dirs() {
@@ -140,7 +121,7 @@ pub fn get_installed_dicts() -> HashMap<String, (bool, PathBuf)> {
         }
     }
 
-    // 2. Local dictionaries (override system)
+    // 2. Local dictionaries (override system and embedded)
     let local_dir = get_dicts_dir();
     if local_dir.is_dir() {
         if let Ok(rd) = fs::read_dir(&local_dir) {
@@ -212,11 +193,18 @@ fn cmd_list() {
     let mut seen = std::collections::HashSet::new();
 
     for lang in &catalog.languages {
-        let is_inst = installed.contains_key(&lang.code);
+        let is_embedded = crate::spell_engine::is_embedded(&lang.code);
+        let is_inst = is_embedded || installed.contains_key(&lang.code);
         let (is_sys, p) = installed
             .get(&lang.code)
             .map(|(s, p)| (*s, p.to_string_lossy().to_string()))
-            .unwrap_or_else(|| (false, String::new()));
+            .unwrap_or_else(|| {
+                if is_embedded {
+                    (true, lang.code.clone())
+                } else {
+                    (false, String::new())
+                }
+            });
 
         seen.insert(lang.code.clone());
         result.push(DictInfo {
@@ -230,12 +218,19 @@ fn cmd_list() {
             installed: is_inst,
             system: is_sys,
             path: p,
-            source: if is_inst { if is_sys { "system".to_string() } else { "local".to_string() } } else { "catalog".to_string() },
+            source: if is_embedded {
+                "embedded".to_string()
+            } else if is_inst {
+                if is_sys { "system".to_string() } else { "local".to_string() }
+            } else {
+                "catalog".to_string()
+            },
         });
     }
 
     for (code, (is_sys, p)) in installed {
         if !seen.contains(&code) {
+            let is_embedded = crate::spell_engine::is_embedded(&code);
             result.push(DictInfo {
                 code: code.clone(),
                 name: code.clone(),
@@ -243,7 +238,13 @@ fn cmd_list() {
                 installed: true,
                 system: is_sys,
                 path: p.to_string_lossy().to_string(),
-                source: if is_sys { "system".to_string() } else { "local".to_string() },
+                source: if is_embedded {
+                    "embedded".to_string()
+                } else if is_sys {
+                    "system".to_string()
+                } else {
+                    "local".to_string()
+                },
             });
         }
     }

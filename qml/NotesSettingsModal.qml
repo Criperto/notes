@@ -414,7 +414,7 @@ Item {
         command: [
             root.notasBin, "file-picker",
             "--title", "Importar diccionario (.dic, .aff, .oxt, .zip)",
-            "--filter", "Diccionarios Hunspell (*.dic, *.aff, *.oxt, *.zip):*.dic:*.aff:*.oxt:*.zip"
+            "--filter", "Diccionarios ortográficos (*.dic, *.aff, *.oxt, *.zip):*.dic:*.aff:*.oxt:*.zip"
         ]
         running: false
         stdout: SplitParser {
@@ -3345,7 +3345,7 @@ Item {
                                 Text {
                                     Layout.alignment: Qt.AlignHCenter
                                     Layout.preferredWidth: Math.min(parent.width - 32, 600)
-                                    text: "Aplicación nativa de notas en Markdown con editor tipográfico de bloques, previsualización interactiva en vivo, diagramas Mermaid interactivos, corrección ortográfica multilingüe Hunspell y persistencia atómica en disco."
+                                    text: "Aplicación nativa de notas en Markdown con editor tipográfico de bloques, previsualización interactiva en vivo, diagramas Mermaid interactivos, corrección ortográfica multilingüe integrada con Spellbook y persistencia atómica en disco."
                                     font.family: Theme.fontFamily
                                     font.pixelSize: Theme.fontSizeBody
                                     color: Theme.text
@@ -3396,16 +3396,16 @@ Item {
                                     Layout.fillWidth: true
 
                                     Text { text: "Configuración:"; color: Theme.muted; font.family: Theme.fontFamily; font.pixelSize: Theme.fontSizeBodySecondary }
-                                    Text { text: "~/.config/notas/config.json"; color: Theme.text; font.family: Theme.fontFamilyMonospace; font.pixelSize: Theme.fontSizeBodySecondary }
+                                    Text { text: "~/.config/criperto-notes/config.json"; color: Theme.text; font.family: Theme.fontFamilyMonospace; font.pixelSize: Theme.fontSizeBodySecondary }
 
-                                    Text { text: "Diccionarios Hunspell:"; color: Theme.muted; font.family: Theme.fontFamily; font.pixelSize: Theme.fontSizeBodySecondary }
-                                    Text { text: "~/.local/share/criperto.notes/dictionaries/"; color: Theme.text; font.family: Theme.fontFamilyMonospace; font.pixelSize: Theme.fontSizeBodySecondary }
+                                    Text { text: "Diccionarios ortográficos:"; color: Theme.muted; font.family: Theme.fontFamily; font.pixelSize: Theme.fontSizeBodySecondary }
+                                    Text { text: "~/.local/share/criperto-notes/dictionaries/"; color: Theme.text; font.family: Theme.fontFamilyMonospace; font.pixelSize: Theme.fontSizeBodySecondary }
 
                                     Text { text: "Diccionario personal:"; color: Theme.muted; font.family: Theme.fontFamily; font.pixelSize: Theme.fontSizeBodySecondary }
-                                    Text { text: "~/.config/notas/personal.dic"; color: Theme.text; font.family: Theme.fontFamilyMonospace; font.pixelSize: Theme.fontSizeBodySecondary }
+                                    Text { text: "~/.config/criperto-notes/personal.dic"; color: Theme.text; font.family: Theme.fontFamilyMonospace; font.pixelSize: Theme.fontSizeBodySecondary }
 
                                     Text { text: "Socket IPC:"; color: Theme.muted; font.family: Theme.fontFamily; font.pixelSize: Theme.fontSizeBodySecondary }
-                                    Text { text: "$XDG_RUNTIME_DIR/notas.sock"; color: Theme.text; font.family: Theme.fontFamilyMonospace; font.pixelSize: Theme.fontSizeBodySecondary }
+                                    Text { text: "$XDG_RUNTIME_DIR/criperto-notes.sock"; color: Theme.text; font.family: Theme.fontFamilyMonospace; font.pixelSize: Theme.fontSizeBodySecondary }
 
                                     Text { text: "Perfil GitHub:"; color: Theme.muted; font.family: Theme.fontFamily; font.pixelSize: Theme.fontSizeBodySecondary }
                                     Text {

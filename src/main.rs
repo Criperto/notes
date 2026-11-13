@@ -1,6 +1,7 @@
 mod cli_ops;
 mod notes_cli;
 mod spell_cli;
+pub mod spell_engine;
 mod file_picker_cli;
 mod sync_cli;
 mod history_cli;
@@ -227,6 +228,10 @@ fn main() {
             }
             "spell" => {
                 spell_cli::run(&raw_args[2..]);
+                return;
+            }
+            "spell-pipe" => {
+                spell_engine::run_pipe_cli(&raw_args[2..]);
                 return;
             }
             "file-picker" => {
