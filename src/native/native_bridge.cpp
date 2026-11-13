@@ -1387,38 +1387,7 @@ FontResolution resolveBodyFont() {
 }
 
 FontResolution resolveDisplayFont() {
-    const QString home = QDir::homePath();
-    // 1. Quickshell font config
-    QFile qsFontFile(home + QStringLiteral("/.config/quickshell/config/font.conf"));
-    if (qsFontFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        QTextStream in(&qsFontFile);
-        while (!in.atEnd()) {
-            QString line = in.readLine().trimmed();
-            if (line.startsWith(QStringLiteral("fontFamilyDisplay")) && line.contains('=')) {
-                QString val = line.section('=', 1).trimmed();
-                if (!val.isEmpty()) return { val, QStringLiteral("[Quickshell font.conf]") };
-            }
-        }
-    }
-
-    // 2. Fallback de código abierto
-    const QStringList openSourceCandidates = {
-        QStringLiteral("Outfit"),
-        QStringLiteral("Plus Jakarta Sans"),
-        QStringLiteral("Inter"),
-        QStringLiteral("Noto Sans")
-    };
-    const QStringList installed = QFontDatabase::families();
-    for (const QString &cand : openSourceCandidates) {
-        if (installed.contains(cand, Qt::CaseInsensitive)) {
-            return { cand, QStringLiteral("[Fallback SIL OFL]") };
-        }
-    }
-    FontResolution body = resolveBodyFont();
-    if (!body.family.isEmpty() && body.family != QStringLiteral("Plus Jakarta Sans")) {
-        return { body.family, body.provenance };
-    }
-    return { QStringLiteral("Outfit"), QStringLiteral("[Fallback SIL OFL]") };
+    return resolveBodyFont();
 }
 
 FontResolution resolveRoundedFont() {
