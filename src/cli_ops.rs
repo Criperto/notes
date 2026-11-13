@@ -20,12 +20,12 @@ pub struct SearchResult {
 }
 
 /// Resuelve la carpeta de notas de forma portable sin hardcodear rutas:
-/// 1. ~/.config/notas/config.json -> notasDir (expandiendo $HOME y $XDG_DOCUMENTS_DIR)
+/// 1. ~/.config/criperto-notes/config.json -> notasDir (expandiendo $HOME y $XDG_DOCUMENTS_DIR)
 /// 2. dirs::document_dir()/notes
 /// 3. ~/Documentos/notes o ~/Documents/notes
 pub fn resolve_notes_dir() -> PathBuf {
     let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("."));
-    let config_path = home.join(".config").join("notas").join("config.json");
+    let config_path = home.join(".config").join("criperto-notes").join("config.json");
 
     if let Ok(content) = fs::read_to_string(&config_path) {
         if let Ok(val) = serde_json::from_str::<serde_json::Value>(&content) {

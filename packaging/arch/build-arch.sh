@@ -41,7 +41,6 @@ depend = gcc-libs
 depend = glibc
 optdepend = qt6-wayland: soporte nativo Wayland
 optdepend = wl-clipboard: integración avanzada de portapapeles en Wayland
-provides = criperto.notes
 provides = notas
 conflict = notas
 EOF

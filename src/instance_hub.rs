@@ -1,4 +1,4 @@
-// src/instance_hub.rs — Registro y coordinación multi-instancia de criperto.notes
+// src/instance_hub.rs — Registro y coordinación multi-instancia de criperto-notes
 use std::fs;
 use std::io::Write;
 use std::os::unix::net::UnixStream;

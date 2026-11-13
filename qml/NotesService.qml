@@ -427,7 +427,7 @@ Item {
 
     property var _cachedImageDimensions: ({})
 
-    // Proceso de indexación nativa ultrarrápida vía Rust criperto.notes (<5ms)
+    // Proceso de indexación nativa ultrarrápida vía Rust criperto-notes (<5ms)
     Process {
         id: qsIndexProc
         property string outJson: ""

@@ -71,13 +71,13 @@ if [[ "$UNINSTALL" == true ]]; then
     HAS_USER=false
 
     # Verificar si hay instalación a nivel de sistema (/usr)
-    if [[ -f "/usr/bin/criperto.notes" || -d "/usr/share/criperto.notes" || -d "/usr/share/notas" || -f "/usr/share/applications/dev.criperto.Notas.desktop" ]]; then
+    if [[ -f "/usr/bin/criperto.notes" || -f "/usr/bin/criperto-notes" || -d "/usr/share/criperto-notes" || -d "/usr/share/criperto.notes" || -d "/usr/share/notas" || -f "/usr/share/applications/dev.criperto.Notas.desktop" ]]; then
         HAS_SYSTEM=true
     fi
 
     # Verificar si hay instalación de usuario (~/.local)
     USER_HOME="${HOME:-~}"
-    if [[ -f "$USER_HOME/.local/bin/criperto.notes" || -f "$USER_HOME/.local/bin/notas" || -f "$USER_HOME/.local/bin/criperto-notes" || -d "$USER_HOME/.local/share/criperto.notes" || -d "$USER_HOME/.local/share/notas" || -f "$USER_HOME/.local/share/applications/dev.criperto.Notas.desktop" ]]; then
+    if [[ -f "$USER_HOME/.local/bin/criperto.notes" || -f "$USER_HOME/.local/bin/notas" || -f "$USER_HOME/.local/bin/criperto-notes" || -d "$USER_HOME/.local/share/criperto-notes" || -d "$USER_HOME/.local/share/criperto.notes" || -d "$USER_HOME/.local/share/notas" || -f "$USER_HOME/.local/share/applications/dev.criperto.Notas.desktop" ]]; then
         HAS_USER=true
     fi
 
@@ -102,7 +102,7 @@ if [[ "$UNINSTALL" == true ]]; then
         rm -f "/usr/share/applications/dev.criperto.Notas.desktop"
         rm -f "/usr/share/icons/hicolor/scalable/apps/dev.criperto.Notas.svg"
         rm -f "/usr/share/metainfo/dev.criperto.Notas.metainfo.xml"
-        rm -rf "/usr/share/criperto.notes" "/usr/share/notas"
+        rm -rf "/usr/share/criperto-notes" "/usr/share/criperto.notes" "/usr/share/notas"
         msg "✓ Archivos en /usr eliminados correctamente." \
             "✓ Files in /usr successfully removed."
 
@@ -130,7 +130,7 @@ if [[ "$UNINSTALL" == true ]]; then
         rm -f "$TARGET_HOME/.local/bin/criperto.notes" "$TARGET_HOME/.local/bin/notas" "$TARGET_HOME/.local/bin/criperto-notes"
         rm -f "$TARGET_HOME/.local/share/applications/dev.criperto.Notas.desktop"
         rm -f "$TARGET_HOME/.local/share/icons/hicolor/scalable/apps/dev.criperto.Notas.svg"
-        rm -rf "$TARGET_HOME/.local/share/criperto.notes" "$TARGET_HOME/.local/share/notas"
+        rm -rf "$TARGET_HOME/.local/share/criperto-notes" "$TARGET_HOME/.local/share/criperto.notes" "$TARGET_HOME/.local/share/notas"
 
         # Limpiar asociaciones MIME en mimeapps.list
         MIMEAPPS="$TARGET_HOME/.config/mimeapps.list"
@@ -172,16 +172,8 @@ fi
 BIN_SRC=""
 if [[ -f "${SCRIPT_DIR}/target/release/criperto-notes" ]]; then
     BIN_SRC="${SCRIPT_DIR}/target/release/criperto-notes"
-elif [[ -f "${SCRIPT_DIR}/target/release/criperto.notes" ]]; then
-    BIN_SRC="${SCRIPT_DIR}/target/release/criperto.notes"
-elif [[ -f "${SCRIPT_DIR}/target/release/notas" ]]; then
-    BIN_SRC="${SCRIPT_DIR}/target/release/notas"
 elif [[ -f "${SCRIPT_DIR}/target/debug/criperto-notes" ]]; then
     BIN_SRC="${SCRIPT_DIR}/target/debug/criperto-notes"
-elif [[ -f "${SCRIPT_DIR}/target/debug/criperto.notes" ]]; then
-    BIN_SRC="${SCRIPT_DIR}/target/debug/criperto.notes"
-elif [[ -f "${SCRIPT_DIR}/target/debug/notas" ]]; then
-    BIN_SRC="${SCRIPT_DIR}/target/debug/notas"
 else
     msg "==> Compilando binario de release con Cargo..." \
         "==> Building release binary with Cargo..."
@@ -196,7 +188,7 @@ if [[ "$MODE" == "user" ]]; then
     SHARE_DIR="${TARGET_BASE}/share"
     APPS_DIR="${SHARE_DIR}/applications"
     ICONS_DIR="${SHARE_DIR}/icons/hicolor/scalable/apps"
-    DATA_DIR="${SHARE_DIR}/criperto.notes"
+    DATA_DIR="${SHARE_DIR}/criperto-notes"
 
     msg "==> Instalando Notas en modo usuario (${TARGET_BASE})..." \
         "==> Installing Notas in user mode (${TARGET_BASE})..."
@@ -204,9 +196,8 @@ if [[ "$MODE" == "user" ]]; then
     mkdir -p "${BIN_DIR}" "${APPS_DIR}" "${ICONS_DIR}" "${DATA_DIR}/scripts" "${DATA_DIR}/dictionaries"
 
     # Enlaces simbólicos directos en modo usuario (para desarrollo ágil)
-    rm -f "${BIN_DIR}/notas"
+    rm -f "${BIN_DIR}/notas" "${BIN_DIR}/criperto.notes"
     ln -sf "${BIN_SRC}" "${BIN_DIR}/criperto-notes"
-    ln -sf "criperto-notes" "${BIN_DIR}/criperto.notes"
     ln -sf "${SCRIPT_DIR}/assets/dev.criperto.Notas.desktop" "${APPS_DIR}/dev.criperto.Notas.desktop"
     ln -sf "${SCRIPT_DIR}/assets/icons/dev.criperto.Notas.svg" "${ICONS_DIR}/dev.criperto.Notas.svg"
 
@@ -263,15 +254,14 @@ else
     APPS_DIR="${SHARE_DIR}/applications"
     ICONS_DIR="${SHARE_DIR}/icons/hicolor/scalable/apps"
     METAINFO_DIR="${SHARE_DIR}/metainfo"
-    DATA_DIR="${SHARE_DIR}/criperto.notes"
+    DATA_DIR="${SHARE_DIR}/criperto-notes"
 
     msg "==> Instalando Notas a nivel global en ${DESTDIR}${PREFIX}..." \
         "==> Installing Notas system-wide into ${DESTDIR}${PREFIX}..."
 
     install -d "${BIN_DIR}"
     install -m 755 "${BIN_SRC}" "${BIN_DIR}/criperto-notes"
-    ln -sf "criperto-notes" "${BIN_DIR}/criperto.notes"
-    rm -f "${BIN_DIR}/notas"
+    rm -f "${BIN_DIR}/notas" "${BIN_DIR}/criperto.notes"
 
     install -d "${APPS_DIR}"
     install -m 644 "${SCRIPT_DIR}/assets/dev.criperto.Notas.desktop" "${APPS_DIR}/dev.criperto.Notas.desktop"

@@ -479,6 +479,13 @@ Sys::~Sys() {
     }
     QString runtimeDir = QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation);
     if (runtimeDir.isEmpty()) runtimeDir = QDir::tempPath();
+    QString defaultSock = runtimeDir + QStringLiteral("/criperto-notes.sock");
+    QFileInfo defaultFi(defaultSock);
+    if (defaultFi.isSymLink()) {
+        if (defaultFi.symLinkTarget() == m_currentInstanceSockPath || !QFile::exists(defaultFi.symLinkTarget())) {
+            QFile::remove(defaultSock);
+        }
+    }
     QString legacySock = runtimeDir + QStringLiteral("/notas.sock");
     QFileInfo legacyFi(legacySock);
     if (legacyFi.isSymLink()) {
@@ -795,10 +802,10 @@ void Sys::startIpcServer() {
 
     m_ipcServer->listen(m_currentInstanceSockPath);
 
-    // Compatibilidad: enlazar notas.sock si no existe
-    QString legacySock = runtimeDir + QStringLiteral("/notas.sock");
-    if (!QFile::exists(legacySock)) {
-        QFile::link(m_currentInstanceSockPath, legacySock);
+    // Enlazar criperto-notes.sock por defecto si no existe
+    QString defaultSock = runtimeDir + QStringLiteral("/criperto-notes.sock");
+    if (!QFile::exists(defaultSock)) {
+        QFile::link(m_currentInstanceSockPath, defaultSock);
     }
 
     updateInstanceStatus(QString(), false);
@@ -1041,25 +1048,13 @@ QString Sys::dataShareDir() const {
     QString xdgData = qEnvironmentVariable("XDG_DATA_HOME");
     if (!xdgData.isEmpty()) {
         if (QFile::exists(xdgData + QStringLiteral("/criperto-notes"))) return xdgData + QStringLiteral("/criperto-notes");
-        if (QFile::exists(xdgData + QStringLiteral("/criperto.notes"))) return xdgData + QStringLiteral("/criperto.notes");
     }
     QString userShareNotes = QDir::homePath() + QStringLiteral("/.local/share/criperto-notes");
     if (QFile::exists(userShareNotes)) {
         return userShareNotes;
     }
-    QString userShare = QDir::homePath() + QStringLiteral("/.local/share/criperto.notes");
-    if (QFile::exists(userShare)) {
-        return userShare;
-    }
-    QString legacyShare = QDir::homePath() + QStringLiteral("/.local/share/notas");
-    if (QFile::exists(legacyShare)) {
-        return legacyShare;
-    }
     if (QFile::exists(QStringLiteral("/usr/share/criperto-notes"))) {
         return QStringLiteral("/usr/share/criperto-notes");
-    }
-    if (QFile::exists(QStringLiteral("/usr/share/criperto.notes"))) {
-        return QStringLiteral("/usr/share/criperto.notes");
     }
     return QStringLiteral("/usr/share/criperto-notes");
 }
@@ -1076,13 +1071,9 @@ static bool isForcedNoSyncConfigured() {
     QString cfgDir = qEnvironmentVariable("XDG_CONFIG_HOME");
     if (cfgDir.isEmpty()) cfgDir = home + QStringLiteral("/.config");
 
-    // 1. config.json en criperto-notes o notas
-    const QStringList jsonConfigs = {
-        cfgDir + QStringLiteral("/criperto-notes/config.json"),
-        cfgDir + QStringLiteral("/notas/config.json")
-    };
-    for (const QString &jsonPath : jsonConfigs) {
-        if (!QFile::exists(jsonPath)) continue;
+    // 1. config.json en criperto-notes
+    const QString jsonPath = cfgDir + QStringLiteral("/criperto-notes/config.json");
+    if (QFile::exists(jsonPath)) {
         QFile cfgFile(jsonPath);
         if (cfgFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
             QJsonDocument doc = QJsonDocument::fromJson(cfgFile.readAll());
@@ -1108,10 +1099,6 @@ static bool isForcedNoSyncConfigured() {
     const QStringList extraFiles = {
         cfgDir + QStringLiteral("/criperto-notes/config.conf"),
         cfgDir + QStringLiteral("/criperto-notes/config.toml"),
-        cfgDir + QStringLiteral("/notas/config.conf"),
-        cfgDir + QStringLiteral("/notas/notas.conf"),
-        cfgDir + QStringLiteral("/notas/config.toml"),
-        cfgDir + QStringLiteral("/notas/notas.toml"),
         cfgDir + QStringLiteral("/quickshell/config/notes.conf")
     };
     for (const QString &extraPath : extraFiles) {
@@ -1481,7 +1468,7 @@ QString Sys::systemMonospaceFontFamily() const {
 void Sys::printStartupDiagnostics() const {
     if (qEnvironmentVariableIsSet("NOTAS_QUIET")) return;
     const QString home = QDir::homePath();
-    const QString configPath = home + QStringLiteral("/.config/notas/config.json");
+    const QString configPath = home + QStringLiteral("/.config/criperto-notes/config.json");
     const bool forcedNoSync = isForcedNoSyncConfigured();
     const bool qsDetected = hasQuickshellConfig();
     const QString qsStatus = qsDetected
@@ -2230,7 +2217,7 @@ void ConfigBackend::setupQuickshellWatcher() {
 }
 
 QString ConfigBackend::configFilePath() const {
-    return QDir::homePath() + QStringLiteral("/.config/notas/config.json");
+    return QDir::homePath() + QStringLiteral("/.config/criperto-notes/config.json");
 }
 
 QString ConfigBackend::legacyConfigFilePath() const {

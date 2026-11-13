@@ -6,7 +6,7 @@ pkgdesc="Editor moderno y nativo de notas en Markdown para Wayland"
 arch=('x86_64')
 url="https://github.com/Criperto/notes"
 license=('GPL-3.0-or-later')
-provides=('criperto.notes' 'notas')
+provides=('notas')
 conflicts=('notas')
 depends=(
     'qt6-base'

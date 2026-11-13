@@ -44,7 +44,7 @@ export XDG_DATA_DIRS="${HERE}/usr/share:${XDG_DATA_DIRS:-/usr/local/share:/usr/s
 export QT_PLUGIN_PATH="${HERE}/usr/lib/qt6/plugins:${HERE}/usr/lib/x86_64-linux-gnu/qt6/plugins:${QT_PLUGIN_PATH}"
 export QML2_IMPORT_PATH="${HERE}/usr/lib/qt6/qml:${HERE}/usr/lib/x86_64-linux-gnu/qt6/qml:${QML2_IMPORT_PATH}"
 
-exec "${HERE}/usr/bin/criperto.notes" "$@"
+exec "${HERE}/usr/bin/criperto-notes" "$@"
 EOF
 chmod +x "${APP_DIR}/AppRun"
 

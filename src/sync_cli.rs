@@ -5,7 +5,7 @@ use std::path::PathBuf;
 
 fn get_config_path() -> PathBuf {
     let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-    PathBuf::from(home).join(".config").join("notas").join("config.json")
+    PathBuf::from(home).join(".config").join("criperto-notes").join("config.json")
 }
 
 fn has_quickshell_installed() -> bool {
@@ -17,7 +17,7 @@ fn has_quickshell_installed() -> bool {
 
 fn try_send_ipc(action: &str, target: &str) -> bool {
     let runtime_dir = std::env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/tmp".to_string());
-    let sock_path = format!("{}/notas.sock", runtime_dir);
+    let sock_path = format!("{}/criperto-notes.sock", runtime_dir);
 
     if let Ok(mut stream) = UnixStream::connect(&sock_path) {
         let escaped_action = action.replace('\\', "\\\\").replace('"', "\\\"");
@@ -75,10 +75,8 @@ pub fn is_forced_no_sync() -> bool {
 
     let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
     let extra_files = [
-        format!("{}/.config/notas/config.conf", home),
-        format!("{}/.config/notas/notas.conf", home),
-        format!("{}/.config/notas/config.toml", home),
-        format!("{}/.config/notas/notas.toml", home),
+        format!("{}/.config/criperto-notes/config.conf", home),
+        format!("{}/.config/criperto-notes/config.toml", home),
         format!("{}/.config/quickshell/config/notes.conf", home),
     ];
     for ef in extra_files {
