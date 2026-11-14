@@ -356,7 +356,12 @@ Rectangle {
                             if (root.editor && typeof root.editor.copyText === "function") {
                                 root.editor.copyText(root.pureCodeText);
                             } else {
-                                Quickshell.execDetached(["wl-copy", "--", root.pureCodeText]);
+                                if (typeof Quickshell !== "undefined" && typeof Quickshell.clipboardText !== "undefined") {
+                                    Quickshell.clipboardText = root.pureCodeText;
+                                }
+                                if (typeof Sys === "undefined" || typeof Sys.hasCommand !== "function" || Sys.hasCommand("wl-copy")) {
+                                    Quickshell.execDetached(["wl-copy", "--", root.pureCodeText]);
+                                }
                             }
                             root.copiedRecently = true;
                             copiedTimer.restart();
@@ -451,7 +456,12 @@ Rectangle {
                                         if (root.editor && typeof root.editor.copyText === "function") {
                                             root.editor.copyText(root.pureCodeText);
                                         } else {
-                                            Quickshell.execDetached(["wl-copy", "--", root.pureCodeText]);
+                                            if (typeof Quickshell !== "undefined" && typeof Quickshell.clipboardText !== "undefined") {
+                                                Quickshell.clipboardText = root.pureCodeText;
+                                            }
+                                            if (typeof Sys === "undefined" || typeof Sys.hasCommand !== "function" || Sys.hasCommand("wl-copy")) {
+                                                Quickshell.execDetached(["wl-copy", "--", root.pureCodeText]);
+                                            }
                                         }
                                         root.copiedRecently = true;
                                         copiedTimer.restart();

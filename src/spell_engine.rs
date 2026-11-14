@@ -57,15 +57,20 @@ pub fn load_dictionary(code_or_path: &str) -> Result<spellbook::Dictionary, Stri
         return spellbook::Dictionary::new(&aff, &dic).map_err(|e| format!("Error en diccionario {}: {:?}", base, e));
     }
 
-    // 2. Directorio de usuario (~/.local/share/criperto-notes/dictionaries)
+    // 2. Directorio de usuario ($XDG_DATA_HOME/criperto-notes/dictionaries o ~/.local/share/criperto-notes/dictionaries)
+    let mut user_dirs: Vec<PathBuf> = Vec::new();
+    if let Ok(xdg_data) = std::env::var("XDG_DATA_HOME") {
+        if !xdg_data.trim().is_empty() {
+            user_dirs.push(PathBuf::from(xdg_data).join("criperto-notes/dictionaries"));
+        }
+    }
     let home = std::env::var("HOME").unwrap_or_default();
     if !home.is_empty() {
-        let user_aff = PathBuf::from(&home)
-            .join(".local/share/criperto-notes/dictionaries")
-            .join(format!("{}.aff", clean));
-        let user_dic = PathBuf::from(&home)
-            .join(".local/share/criperto-notes/dictionaries")
-            .join(format!("{}.dic", clean));
+        user_dirs.push(PathBuf::from(&home).join(".local/share/criperto-notes/dictionaries"));
+    }
+    for dir in user_dirs {
+        let user_aff = dir.join(format!("{}.aff", clean));
+        let user_dic = dir.join(format!("{}.dic", clean));
         if user_aff.is_file() && user_dic.is_file() {
             let aff = fs::read_to_string(&user_aff).map_err(|e| format!("Error leyendo {}: {}", user_aff.display(), e))?;
             let dic = fs::read_to_string(&user_dic).map_err(|e| format!("Error leyendo {}: {}", user_dic.display(), e))?;
@@ -73,13 +78,18 @@ pub fn load_dictionary(code_or_path: &str) -> Result<spellbook::Dictionary, Stri
         }
     }
 
-    // 3. Directorio del sistema (/usr/share/criperto-notes/dictionaries)
-    let sys_aff = PathBuf::from("/usr/share/criperto-notes/dictionaries").join(format!("{}.aff", clean));
-    let sys_dic = PathBuf::from("/usr/share/criperto-notes/dictionaries").join(format!("{}.dic", clean));
-    if sys_aff.is_file() && sys_dic.is_file() {
-        let aff = fs::read_to_string(&sys_aff).map_err(|e| format!("Error leyendo {}: {}", sys_aff.display(), e))?;
-        let dic = fs::read_to_string(&sys_dic).map_err(|e| format!("Error leyendo {}: {}", sys_dic.display(), e))?;
-        return spellbook::Dictionary::new(&aff, &dic).map_err(|e| format!("Error parseando {}: {:?}", clean, e));
+    // 3. Directorio del sistema (/app/share o /usr/share)
+    for sys_dir in [
+        PathBuf::from("/app/share/criperto-notes/dictionaries"),
+        PathBuf::from("/usr/share/criperto-notes/dictionaries"),
+    ] {
+        let sys_aff = sys_dir.join(format!("{}.aff", clean));
+        let sys_dic = sys_dir.join(format!("{}.dic", clean));
+        if sys_aff.is_file() && sys_dic.is_file() {
+            let aff = fs::read_to_string(&sys_aff).map_err(|e| format!("Error leyendo {}: {}", sys_aff.display(), e))?;
+            let dic = fs::read_to_string(&sys_dic).map_err(|e| format!("Error leyendo {}: {}", sys_dic.display(), e))?;
+            return spellbook::Dictionary::new(&aff, &dic).map_err(|e| format!("Error parseando {}: {:?}", clean, e));
+        }
     }
 
     // 4. Diccionarios embebidos de alta velocidad

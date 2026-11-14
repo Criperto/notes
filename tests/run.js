@@ -3635,7 +3635,7 @@ runTest('F72: Desenfoque de fondo fijo y reforzado en ventana de configuración 
 });
 
 runTest('F73: Asociación de Notas como aplicación por defecto para .md y .txt en desktop entry y script de instalación', () => {
-    const desktopEntry = fs.readFileSync(path.resolve(__dirname, '../assets/dev.criperto.Notas.desktop'), 'utf8');
+    const desktopEntry = fs.readFileSync(path.resolve(__dirname, '../assets/io.github.criperto.notes.desktop'), 'utf8');
     const installScript = fs.readFileSync(path.resolve(__dirname, '../scripts/install.sh'), 'utf8');
 
     // 1. Declaración de tipos MIME soportados en el desktop entry
@@ -3646,7 +3646,7 @@ runTest('F73: Asociación de Notas como aplicación por defecto para .md y .txt 
     assert.ok(desktopEntry.indexOf('Exec=criperto-notes %F') !== -1, "Desktop entry debe incluir %F para recibir archivos como argumentos");
 
     // 2. Asociación como editor predeterminado en script de instalación
-    assert.ok(installScript.indexOf('xdg-mime default dev.criperto.Notas.desktop') !== -1, "install.sh debe ejecutar xdg-mime default");
+    assert.ok(installScript.indexOf('xdg-mime default io.github.criperto.notes.desktop') !== -1, "install.sh debe ejecutar xdg-mime default");
     assert.ok(installScript.indexOf('text/markdown') !== -1, "install.sh debe configurar text/markdown");
     assert.ok(installScript.indexOf('text/plain') !== -1, "install.sh debe configurar text/plain");
     assert.ok(installScript.indexOf('text/x-markdown') !== -1, "install.sh debe configurar text/x-markdown");
@@ -4071,7 +4071,7 @@ runTest('F79: Operaciones CLI y captura desde portapapeles', () => {
     assert.strictEqual(plainRes.initialBody, 'Texto simple copiado para una nota rápida');
 
     // 2. Verificación de archivo .desktop con acción clip-note
-    const desktopPath = path.resolve(__dirname, '../data/dev.criperto.Notas.desktop');
+    const desktopPath = path.resolve(__dirname, '../data/io.github.criperto.notes.desktop');
     assert.ok(fs.existsSync(desktopPath));
     const desktopContent = fs.readFileSync(desktopPath, 'utf8');
     assert.ok(desktopContent.includes('Actions=new-note;new-window;clip-note;toggle;'));
@@ -4745,7 +4745,7 @@ runTest("F96: Phase P9 — System installation, AUR PKGBUILD, Flatpak manifest, 
     const installSystemContent = fs.readFileSync(installSystemScript, 'utf8');
     assert.ok(installSystemContent.includes('PREFIX="${PREFIX:-/usr}"'), "install-system.sh debe soportar variable PREFIX");
     assert.ok(installSystemContent.includes('DESTDIR="${DESTDIR:-}"'), "install-system.sh debe soportar variable DESTDIR");
-    assert.ok(installSystemContent.includes('dev.criperto.Notas.metainfo.xml'), "install-system.sh debe instalar metainfo");
+    assert.ok(installSystemContent.includes('io.github.criperto.notes.metainfo.xml'), "install-system.sh debe instalar metainfo");
 
     // 2. packaging/arch/PKGBUILD
     const aurPkgbuild = path.resolve(__dirname, '../packaging/arch/PKGBUILD');
@@ -4766,11 +4766,11 @@ runTest("F96: Phase P9 — System installation, AUR PKGBUILD, Flatpak manifest, 
     assert.ok(aurGitContent.includes("pkgname=notas-git"), "PKGBUILD debe definir pkgname=notas-git");
     assert.ok(aurGitContent.includes("provides=(\"$_pkgname\")"), "PKGBUILD debe proveer notas");
 
-    // 4. packaging/flatpak/dev.criperto.Notas.yml
-    const flatpakYaml = path.resolve(__dirname, '../packaging/flatpak/dev.criperto.Notas.yml');
-    assert.ok(fs.existsSync(flatpakYaml), "packaging/flatpak/dev.criperto.Notas.yml debe existir");
+    // 4. packaging/flatpak/io.github.criperto.notes.yml
+    const flatpakYaml = path.resolve(__dirname, '../packaging/flatpak/io.github.criperto.notes.yml');
+    assert.ok(fs.existsSync(flatpakYaml), "packaging/flatpak/io.github.criperto.notes.yml debe existir");
     const flatpakContent = fs.readFileSync(flatpakYaml, 'utf8');
-    assert.ok(flatpakContent.includes("app-id: dev.criperto.Notas"), "Flatpak manifest debe definir app-id dev.criperto.Notas");
+    assert.ok(flatpakContent.includes("id: io.github.criperto.notes"), "Flatpak manifest debe definir id io.github.criperto.notes");
     assert.ok(flatpakContent.includes("runtime: org.kde.Platform"), "Flatpak manifest debe usar runtime org.kde.Platform");
     assert.ok(flatpakContent.includes("--socket=wayland"), "Flatpak manifest debe habilitar socket=wayland");
 
@@ -4779,7 +4779,7 @@ runTest("F96: Phase P9 — System installation, AUR PKGBUILD, Flatpak manifest, 
     assert.ok(fs.existsSync(appimageScript), "packaging/appimage/build-appimage.sh debe existir");
     const appimageContent = fs.readFileSync(appimageScript, 'utf8');
     assert.ok(appimageContent.includes("AppRun"), "build-appimage.sh debe generar AppRun");
-    assert.ok(appimageContent.includes("dev.criperto.Notas.desktop"), "build-appimage.sh debe enlazar desktop entry");
+    assert.ok(appimageContent.includes("io.github.criperto.notes.desktop"), "build-appimage.sh debe enlazar desktop entry");
 
     // 6. .github/workflows/release.yml
     const releaseWf = path.resolve(__dirname, '../.github/workflows/release.yml');
@@ -4789,9 +4789,9 @@ runTest("F96: Phase P9 — System installation, AUR PKGBUILD, Flatpak manifest, 
     assert.ok(releaseWfContent.includes("action-gh-release"), "Workflow debe publicar assets en GitHub Releases");
 
     // 7. AppStream Metainfo
-    const metainfoFile = path.resolve(__dirname, '../data/dev.criperto.Notas.metainfo.xml');
+    const metainfoFile = path.resolve(__dirname, '../data/io.github.criperto.notes.metainfo.xml');
     const metainfoContent = fs.readFileSync(metainfoFile, 'utf8');
-    assert.ok(metainfoContent.includes("<developer id=\"dev.criperto\">"), "Metainfo debe incluir etiqueta developer con id");
+    assert.ok(metainfoContent.includes("<developer id=\"io.github.criperto\">"), "Metainfo debe incluir etiqueta developer con id io.github.criperto");
     assert.ok(metainfoContent.includes("<content_rating type=\"oars-1.1\"/>"), "Metainfo debe incluir content_rating");
 });
 
@@ -4837,8 +4837,8 @@ runTest("P9.3 - Scripts de empaquetado Debian (.deb) y Fedora (.rpm)", () => {
 });
 
 runTest('F97: Integración Desktop Entry (DBusActivatable desactivado, action new-window, exec criperto-notes %F)', () => {
-    const desktopEntry = fs.readFileSync(path.resolve(__dirname, '../assets/dev.criperto.Notas.desktop'), 'utf8');
-    const dataDesktopEntry = fs.readFileSync(path.resolve(__dirname, '../data/dev.criperto.Notas.desktop'), 'utf8');
+    const desktopEntry = fs.readFileSync(path.resolve(__dirname, '../assets/io.github.criperto.notes.desktop'), 'utf8');
+    const dataDesktopEntry = fs.readFileSync(path.resolve(__dirname, '../data/io.github.criperto.notes.desktop'), 'utf8');
 
     assert.ok(!desktopEntry.includes('DBusActivatable=true'), "assets desktop entry no debe tener DBusActivatable=true");
     assert.ok(!dataDesktopEntry.includes('DBusActivatable=true'), "data desktop entry no debe tener DBusActivatable=true");
@@ -5618,9 +5618,9 @@ runTest("F133: Single Source of Truth para versión de la app (NotesConfig.appVe
     assert.ok(configQml.includes('Quickshell.env("NOTAS_APP_VERSION"'), "NotesConfig debe resolver NOTAS_APP_VERSION");
 
     const settingsQml = fs.readFileSync(path.resolve(__dirname, '../qml/NotesSettingsModal.qml'), 'utf8');
-    assert.ok(settingsQml.includes('text: "dev.criperto.Notas • Versión " + NotesConfig.appVersion'),
+    assert.ok(settingsQml.includes('text: "io.github.criperto.notes • Versión " + NotesConfig.appVersion'),
         "NotesSettingsModal debe ligar dinámicamente a NotesConfig.appVersion");
-    assert.ok(!settingsQml.includes('"dev.criperto.Notas • Versión 0.2.1"'),
+    assert.ok(!settingsQml.includes('"io.github.criperto.notes • Versión 0.2.1"'),
         "NotesSettingsModal no debe hardcodear versión antigua");
 
     const mainRs = fs.readFileSync(path.resolve(__dirname, '../src/main.rs'), 'utf8');
@@ -5762,7 +5762,8 @@ runTest("F140: v0.2.9 — Motor Spellbook integrado con diccionarios embebidos, 
     const bridgeCpp = fs.readFileSync(path.resolve(__dirname, '../src/native/native_bridge.cpp'), 'utf8');
     assert.ok(bridgeCpp.includes('FontResolution resolveDisplayFont() {\n    return resolveBodyFont();\n}'), "resolveDisplayFont debe retornar resolveBodyFont()");
     assert.ok(bridgeCpp.includes('Spellbook (integrado)'), "printStartupDiagnostics debe indicar Spellbook (integrado)");
-    assert.ok(bridgeCpp.includes('.config/criperto-notes/config.json'), "native_bridge.cpp debe usar ~/.config/criperto-notes/config.json");
+    assert.ok(bridgeCpp.includes('.config/criperto-notes/config.json') || bridgeCpp.includes('xdgConfigBaseDir() + QStringLiteral("/criperto-notes/config.json")'),
+        "native_bridge.cpp debe resolver config.json via XDG_CONFIG_HOME o ~/.config");
     assert.ok(bridgeCpp.includes('criperto-notes.sock'), "native_bridge.cpp debe usar criperto-notes.sock");
 
     const mainRs = fs.readFileSync(path.resolve(__dirname, '../src/main.rs'), 'utf8');
@@ -5821,7 +5822,7 @@ runTest("F141: v0.2.10 — Preview de código seleccionable con scroll horizonta
     assert.ok(!settingsQml.includes('id: viewShortcutsMa'), "NotesSettingsModal no debe contener viewShortcutsMa");
 
     // 5. Metainfo y empaquetado con autor Criperto
-    const metainfoXml = fs.readFileSync(path.resolve(__dirname, '../data/dev.criperto.Notas.metainfo.xml'), 'utf8');
+    const metainfoXml = fs.readFileSync(path.resolve(__dirname, '../data/io.github.criperto.notes.metainfo.xml'), 'utf8');
     assert.ok(metainfoXml.includes('<name>Criperto</name>') && !metainfoXml.includes('Tomas (Criperto)'), "metainfo debe listar <name>Criperto</name>");
 
     // 6. BlockCode Preview seleccionable y scroll horizontal dedicado
@@ -5840,6 +5841,71 @@ runTest("F141: v0.2.10 — Preview de código seleccionable con scroll horizonta
     assert.ok(editorQml.includes('property int focusedSelectionBid: -1'), "BlockEditor debe rastrear focusedSelectionBid para selección en Preview");
     const modalQml = fs.readFileSync(path.resolve(__dirname, '../qml/NoteEditorModal.qml'), 'utf8');
     assert.ok(modalQml.includes('blockEditor.interactive = !root.isSettingsOpen;'), "NoteEditorModal debe sincronizar blockEditor.interactive con isSettingsOpen");
+});
+
+runTest("F142: Migración a io.github.criperto.notes y compatibilidad con sandbox Flatpak/Flathub", () => {
+    const oldDomain = ["dev", "criperto", "Notas"].join(".");
+    const oldDevId = ["dev", "criperto"].join(".");
+    const checkedFiles = [
+        '../src/cpp_init.cpp',
+        '../src/cli_ops.rs',
+        '../src/sync_cli.rs',
+        '../src/native/native_bridge.cpp',
+        '../qml/NotesSettingsModal.qml',
+        '../data/io.github.criperto.notes.metainfo.xml',
+        '../data/io.github.criperto.notes.desktop',
+        '../assets/io.github.criperto.notes.desktop',
+        '../packaging/flatpak/io.github.criperto.notes.yml',
+        '../packaging/rpm/notas.spec',
+        '../packaging/appimage/build-appimage.sh',
+        '../.github/workflows/release.yml',
+        '../scripts/release.sh',
+        '../README.md',
+        '../docs/HYPRLAND.md',
+    ];
+    for (const rel of checkedFiles) {
+        const txt = fs.readFileSync(path.resolve(__dirname, rel), 'utf8');
+        assert.ok(!txt.includes(oldDomain), `${rel} no debe contener referencias al viejo App ID`);
+        assert.ok(!txt.includes(`"${oldDevId}"`), `${rel} no debe contener el viejo developer id`);
+    }
+
+    const cppInit = fs.readFileSync(path.resolve(__dirname, '../src/cpp_init.cpp'), 'utf8');
+    assert.ok(cppInit.includes('QGuiApplication::setDesktopFileName(QStringLiteral("io.github.criperto.notes"))'));
+
+    const cliOps = fs.readFileSync(path.resolve(__dirname, '../src/cli_ops.rs'), 'utf8');
+    assert.ok(cliOps.includes('"io.github.criperto.notes"'));
+
+    const flatpakYml = fs.readFileSync(path.resolve(__dirname, '../packaging/flatpak/io.github.criperto.notes.yml'), 'utf8');
+    assert.ok(flatpakYml.includes('id: io.github.criperto.notes'));
+    assert.ok(!flatpakYml.includes('build-args:'), "El manifiesto Flatpak no debe solicitar build-args de red en compilación (Flathub)");
+    assert.ok(flatpakYml.includes('--filesystem=xdg-config/quickshell:ro'));
+    assert.ok(flatpakYml.includes('--filesystem=xdg-cache/wal:ro'));
+
+    const metainfo = fs.readFileSync(path.resolve(__dirname, '../data/io.github.criperto.notes.metainfo.xml'), 'utf8');
+    assert.ok(metainfo.includes('<id>io.github.criperto.notes</id>'));
+    assert.ok(metainfo.includes('<launchable type="desktop-id">io.github.criperto.notes.desktop</launchable>'));
+    assert.ok(metainfo.includes('<developer id="io.github.criperto">'));
+    assert.ok(!metainfo.includes('<dbus type="user">'), "Metainfo no debe declarar dbus unowned para Flathub");
+
+    const nativeCpp = fs.readFileSync(path.resolve(__dirname, '../src/native/native_bridge.cpp'), 'utf8');
+    assert.ok(nativeCpp.includes('ipcRuntimeBaseDir()'), "native_bridge.cpp debe usar ipcRuntimeBaseDir para IPC Flatpak");
+    assert.ok(nativeCpp.includes('/app/share/criperto-notes'), "native_bridge.cpp debe soportar /app/share/criperto-notes");
+    assert.ok(nativeCpp.includes('bool Sys::hasCommand('), "native_bridge.cpp debe implementar Sys::hasCommand");
+
+    const instanceHub = fs.readFileSync(path.resolve(__dirname, '../src/instance_hub.rs'), 'utf8');
+    assert.ok(instanceHub.includes('pub fn runtime_ipc_base()'), "instance_hub.rs debe definir runtime_ipc_base para IPC Flatpak");
+    assert.ok(instanceHub.includes('pub sock_name: String'), "InstanceInfo debe serializar sock_name");
+
+    const spellEngine = fs.readFileSync(path.resolve(__dirname, '../src/spell_engine.rs'), 'utf8');
+    assert.ok(spellEngine.includes('XDG_DATA_HOME') && spellEngine.includes('/app/share/criperto-notes/dictionaries'),
+        "spell_engine.rs debe soportar XDG_DATA_HOME y /app/share/criperto-notes/dictionaries");
+
+    const notesService = fs.readFileSync(path.resolve(__dirname, '../qml/NotesService.qml'), 'utf8');
+    assert.ok(notesService.includes('Sys.clipboardHasImage()') && notesService.includes('Sys.pasteClipboardImage(') && notesService.includes('Sys.hasCommand("wl-paste")'),
+        "NotesService debe priorizar portapapeles nativo Qt y comprobar wl-paste con hasCommand");
+
+    const themeQml = fs.readFileSync(path.resolve(__dirname, '../qml/Theme.qml'), 'utf8');
+    assert.ok(themeQml.includes('XDG_CACHE_HOME'), "Theme.qml debe respetar XDG_CACHE_HOME para Pywal en Flatpak");
 });
 
 console.log(`\n========================================`);

@@ -1,6 +1,6 @@
-app-id: dev.criperto.Notas
+id: io.github.criperto.notes
 runtime: org.kde.Platform
-runtime-version: '6.7'
+runtime-version: '6.8'
 sdk: org.kde.Sdk
 sdk-extensions:
   - org.freedesktop.Sdk.Extension.rust-stable
@@ -21,20 +21,20 @@ finish-args:
   - --filesystem=xdg-download
 
   # Integración en solo lectura con temas del entorno Quickshell y Pywal
-  - --filesystem=~/.config/quickshell:ro
-  - --filesystem=~/.cache/wal:ro
+  - --filesystem=xdg-config/quickshell:ro
+  - --filesystem=xdg-cache/wal:ro
 
 build-options:
   append-path: /usr/lib/sdk/rust-stable/bin
   env:
-    CARGO_HOME: /run/build/notas/cargo
-  build-args:
-    - --share=network
+    CARGO_HOME: /run/build/criperto-notes/cargo
 
 modules:
-  - name: notas
+  - name: criperto-notes
     buildsystem: simple
     build-commands:
+      # Nota para Flathub: generar cargo-sources.json con `flatpak-cargo-generator Cargo.lock`
+      # y añadir `--offline` al build en el PR oficial de Flathub (sin acceso a red en compilación).
       - cargo build --release --locked
       - PREFIX=/app bash scripts/install-system.sh
     sources:

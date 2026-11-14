@@ -803,7 +803,9 @@ Flickable {
         if (typeof Quickshell.clipboardText !== "undefined") {
             Quickshell.clipboardText = str;
         }
-        copyTextProc.copy(str);
+        if (typeof Sys === "undefined" || typeof Sys.hasCommand !== "function" || Sys.hasCommand("wl-copy")) {
+            copyTextProc.copy(str);
+        }
     }
 
     Process {

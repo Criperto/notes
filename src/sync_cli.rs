@@ -3,21 +3,32 @@ use std::io::Write;
 use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
 
-fn get_config_path() -> PathBuf {
+fn get_config_base() -> PathBuf {
+    if let Ok(xdg) = std::env::var("XDG_CONFIG_HOME") {
+        if !xdg.trim().is_empty() {
+            return PathBuf::from(xdg);
+        }
+    }
     let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-    PathBuf::from(home).join(".config").join("criperto-notes").join("config.json")
+    PathBuf::from(home).join(".config")
+}
+
+fn get_config_path() -> PathBuf {
+    get_config_base().join("criperto-notes").join("config.json")
 }
 
 fn has_quickshell_installed() -> bool {
+    let cfg = get_config_base().join("quickshell").join("config");
+    if cfg.join("general.conf").exists() || cfg.join("theme.conf").exists() {
+        return true;
+    }
     let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-    let h = PathBuf::from(home);
-    h.join(".config").join("quickshell").join("config").join("general.conf").exists()
-        || h.join(".config").join("quickshell").join("config").join("theme.conf").exists()
+    let fallback = PathBuf::from(home).join(".config").join("quickshell").join("config");
+    fallback.join("general.conf").exists() || fallback.join("theme.conf").exists()
 }
 
 fn try_send_ipc(action: &str, target: &str) -> bool {
-    let runtime_dir = std::env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/tmp".to_string());
-    let sock_path = format!("{}/criperto-notes.sock", runtime_dir);
+    let sock_path = crate::instance_hub::runtime_ipc_base().join("criperto-notes.sock");
 
     if let Ok(mut stream) = UnixStream::connect(&sock_path) {
         let escaped_action = action.replace('\\', "\\\\").replace('"', "\\\"");
@@ -171,7 +182,7 @@ pub fn run(args: &[String]) {
             };
 
             println!("\n╭─────────────────────────────────────────────────────────────────────────────╮");
-            println!("│ 🔄 Estado de Sincronización con Quickshell (dev.criperto.Notas)             │");
+            println!("│ 🔄 Estado de Sincronización con Quickshell (io.github.criperto.notes)       │");
             println!("├─────────────────────────────────────────────────────────────────────────────┤");
             println!(
                 "│ • Sincronización con Quickshell : {:<43} │",

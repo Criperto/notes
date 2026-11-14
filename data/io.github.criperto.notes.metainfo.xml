@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
-  <id>dev.criperto.Notas</id>
+  <id>io.github.criperto.notes</id>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>GPL-3.0-or-later</project_license>
   <name>Notas</name>
@@ -12,10 +12,9 @@
       organización de notas en carpetas y verificación ortográfica multilingüe.
     </p>
   </description>
-  <launchable type="desktop-id">dev.criperto.Notas.desktop</launchable>
+  <launchable type="desktop-id">io.github.criperto.notes.desktop</launchable>
   <provides>
     <binary>criperto-notes</binary>
-    <dbus type="user">dev.criperto.Notas</dbus>
   </provides>
   <url type="homepage">https://github.com/Criperto/notes</url>
   <url type="bugtracker">https://github.com/Criperto/notes/issues</url>
@@ -70,7 +69,7 @@
     </release>
     <release version="0.2.1" date="2026-11-09">
       <description>
-        <p>Actualización y mejoras en dev.criperto.Notas.</p>
+        <p>Actualización y mejoras en io.github.criperto.notes.</p>
       </description>
     </release>
     <release version="0.2.0" date="2026-11-09">
@@ -109,7 +108,7 @@
       </description>
     </release>
   </releases>
-  <developer id="dev.criperto">
+  <developer id="io.github.criperto">
     <name>Criperto</name>
   </developer>
 </component>

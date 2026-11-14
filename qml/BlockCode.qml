@@ -274,7 +274,9 @@ Rectangle {
                         if (typeof Quickshell.clipboardText !== "undefined") {
                             Quickshell.clipboardText = root.pureCodeText;
                         }
-                        Quickshell.execDetached(["wl-copy", "--", root.pureCodeText]);
+                        if (typeof Sys === "undefined" || typeof Sys.hasCommand !== "function" || Sys.hasCommand("wl-copy")) {
+                            Quickshell.execDetached(["wl-copy", "--", root.pureCodeText]);
+                        }
                     }
                     root.copiedRecently = true;
                     copiedTimer.restart();

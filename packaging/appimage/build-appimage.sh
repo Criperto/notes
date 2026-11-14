@@ -26,9 +26,9 @@ PREFIX="/usr" DESTDIR="${APP_DIR}" bash "${REPO_DIR}/scripts/install.sh" --syste
 
 # 3. Enlaces estándar en la raíz de AppDir (Desktop Entry, Icono y .DirIcon)
 cd "${APP_DIR}"
-ln -sf "usr/share/applications/dev.criperto.Notas.desktop" "dev.criperto.Notas.desktop"
-ln -sf "usr/share/icons/hicolor/scalable/apps/dev.criperto.Notas.svg" "dev.criperto.Notas.svg"
-ln -sf "dev.criperto.Notas.svg" ".DirIcon"
+ln -sf "usr/share/applications/io.github.criperto.notes.desktop" "io.github.criperto.notes.desktop"
+ln -sf "usr/share/icons/hicolor/scalable/apps/io.github.criperto.notes.svg" "io.github.criperto.notes.svg"
+ln -sf "io.github.criperto.notes.svg" ".DirIcon"
 
 # 4. Crear launcher AppRun
 cat << 'EOF' > "${APP_DIR}/AppRun"

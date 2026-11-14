@@ -15,9 +15,15 @@ QtObject {
     readonly property var personalWords: (typeof SpellBackend !== "undefined") ? SpellBackend.personalWords : []
 
     readonly property string notasBin: (typeof Sys !== "undefined" && Sys.appExecutable) ? Sys.appExecutable : "criperto-notes"
-    readonly property string dictsDir: ((typeof Sys !== "undefined" && Sys.homeDir) ? Sys.homeDir : "") + "/.local/share/criperto-notes/dictionaries"
+    readonly property string _xdgDataHome: (typeof Sys !== "undefined" && typeof Sys.env === "function") ? Sys.env("XDG_DATA_HOME", "") : ""
+    readonly property string _xdgConfigHome: (typeof Sys !== "undefined" && typeof Sys.env === "function") ? Sys.env("XDG_CONFIG_HOME", "") : ""
+    readonly property string dictsDir: _xdgDataHome.length > 0
+        ? (_xdgDataHome + "/criperto-notes/dictionaries")
+        : (((typeof Sys !== "undefined" && Sys.homeDir) ? Sys.homeDir : "") + "/.local/share/criperto-notes/dictionaries")
     readonly property string dictsStampPath: dictsDir + "/.dicts_stamp"
-    readonly property string personalDictPath: ((typeof Sys !== "undefined" && Sys.homeDir) ? Sys.homeDir : "") + "/.config/criperto-notes/personal.dic"
+    readonly property string personalDictPath: _xdgConfigHome.length > 0
+        ? (_xdgConfigHome + "/criperto-notes/personal.dic")
+        : (((typeof Sys !== "undefined" && Sys.homeDir) ? Sys.homeDir : "") + "/.config/criperto-notes/personal.dic")
 
     signal personalWordAdded(string word)
     signal personalWordsCleared()

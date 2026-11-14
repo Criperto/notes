@@ -3200,7 +3200,7 @@ Item {
                                     Layout.alignment: Qt.AlignHCenter
                                     width: 76
                                     height: 76
-                                    source: Theme.iconsPath + "dev.criperto.Notas.svg"
+                                    source: Theme.iconsPath + "io.github.criperto.notes.svg"
                                     sourceSize: Qt.size(76, 76)
                                     fillMode: Image.PreserveAspectFit
                                     mipmap: true
@@ -3217,7 +3217,7 @@ Item {
 
                                 Text {
                                     Layout.alignment: Qt.AlignHCenter
-                                    text: "dev.criperto.Notas • Versión " + NotesConfig.appVersion
+                                    text: "io.github.criperto.notes • Versión " + NotesConfig.appVersion
                                     font.family: Theme.fontFamily
                                     font.pixelSize: Theme.fontSizeSmall
                                     color: Theme.muted

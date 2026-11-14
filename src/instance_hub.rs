@@ -9,6 +9,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 pub struct InstanceInfo {
     pub pid: u32,
     #[serde(default)]
+    pub sock_name: String,
+    #[serde(default)]
     pub active_note: String,
     #[serde(default)]
     pub is_editing: bool,
@@ -18,15 +20,38 @@ pub struct InstanceInfo {
 
 impl InstanceInfo {
     pub fn sock_path(&self) -> PathBuf {
-        get_instances_dir().join(format!("{}.sock", self.pid))
+        let name = if self.sock_name.is_empty() {
+            format!("{}.sock", self.pid)
+        } else {
+            self.sock_name.clone()
+        };
+        get_instances_dir().join(name)
     }
 }
 
-pub fn get_instances_dir() -> PathBuf {
+pub fn runtime_ipc_base() -> PathBuf {
     let runtime_dir = std::env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/tmp".to_string());
-    let dir = PathBuf::from(runtime_dir).join("criperto-notes").join("instances");
+    if let Ok(flatpak_id) = std::env::var("FLATPAK_ID") {
+        let trimmed = flatpak_id.trim();
+        if !trimmed.is_empty() {
+            let flatpak_dir = PathBuf::from(&runtime_dir).join("app").join(trimmed);
+            let _ = fs::create_dir_all(&flatpak_dir);
+            return flatpak_dir;
+        }
+    }
+    PathBuf::from(runtime_dir)
+}
+
+pub fn get_instances_dir() -> PathBuf {
+    let dir = runtime_ipc_base().join("criperto-notes").join("instances");
     let _ = fs::create_dir_all(&dir);
     dir
+}
+
+pub fn is_in_flatpak() -> bool {
+    std::env::var("FLATPAK_ID")
+        .map(|v| !v.trim().is_empty())
+        .unwrap_or(false)
 }
 
 pub fn is_process_alive(pid: u32) -> bool {
@@ -46,13 +71,24 @@ pub fn list_active_instances() -> Vec<InstanceInfo> {
     let dir = get_instances_dir();
     let mut active = Vec::new();
 
+    let flatpak = is_in_flatpak();
     if let Ok(entries) = fs::read_dir(&dir) {
         for entry in entries.flatten() {
             let path = entry.path();
             if path.extension().and_then(|e| e.to_str()) == Some("json") {
                 if let Ok(content) = fs::read_to_string(&path) {
-                    if let Ok(info) = serde_json::from_str::<InstanceInfo>(&content) {
-                        if is_process_alive(info.pid) {
+                    if let Ok(mut info) = serde_json::from_str::<InstanceInfo>(&content) {
+                        if info.sock_name.is_empty() {
+                            if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
+                                info.sock_name = format!("{}.sock", stem);
+                            }
+                        }
+                        let alive = if flatpak {
+                            UnixStream::connect(info.sock_path()).is_ok()
+                        } else {
+                            is_process_alive(info.pid)
+                        };
+                        if alive {
                             active.push(info);
                             continue;
                         }

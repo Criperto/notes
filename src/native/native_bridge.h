@@ -263,6 +263,7 @@ public:
     Q_INVOKABLE bool renameFile(const QString &oldPath, const QString &newPath);
     Q_INVOKABLE bool ensureDir(const QString &path) const;
     Q_INVOKABLE QString env(const QString &name, const QString &fallback = QString()) const;
+    Q_INVOKABLE bool hasCommand(const QString &cmd) const;
     Q_INVOKABLE bool execDetached(const QStringList &args) const;
     Q_INVOKABLE bool clipboardHasImage() const;
     Q_INVOKABLE QString pasteClipboardImage(const QString &destDir, const QString &baseName, const QString &relPrefix = QStringLiteral("assets/"));

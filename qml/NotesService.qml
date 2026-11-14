@@ -2132,7 +2132,11 @@ Item {
     }
 
     function checkClipboardForImage(onImage, onText) {
-        if (clipCheckProc.running) {
+        if (typeof Sys !== "undefined" && typeof Sys.clipboardHasImage === "function" && Sys.clipboardHasImage()) {
+            if (typeof onImage === "function") onImage();
+            return;
+        }
+        if (clipCheckProc.running || (typeof Sys !== "undefined" && typeof Sys.hasCommand === "function" && !Sys.hasCommand("wl-paste"))) {
             if (typeof onText === "function") onText();
             return;
         }
@@ -2171,6 +2175,20 @@ Item {
         var assetsDir = baseDir + "/assets";
         var baseName = "img_clip_" + Date.now();
         var relPrefix = "assets/";
+
+        if (typeof Sys !== "undefined" && typeof Sys.pasteClipboardImage === "function") {
+            var nativeTag = Sys.pasteClipboardImage(assetsDir, baseName, relPrefix);
+            if (nativeTag && nativeTag.length > 0) {
+                root.registerImagePath(baseDir + "/" + nativeTag);
+                root.imagePasted(nativeTag);
+                if (typeof cb === "function") cb(nativeTag, null, key);
+                return;
+            }
+        }
+        if (typeof Sys !== "undefined" && typeof Sys.hasCommand === "function" && !Sys.hasCommand("wl-paste")) {
+            if (typeof cb === "function") cb(null, "no_image");
+            return;
+        }
 
         pasteImgProc.pendingCallback = cb || null;
         pasteImgProc.pendingBase = baseDir;

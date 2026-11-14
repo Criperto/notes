@@ -44,7 +44,7 @@ jobs:
 
       - name: Validate AppStream Metainfo
         run: |
-          appstreamcli validate --no-net data/dev.criperto.Notas.metainfo.xml
+          appstreamcli validate --no-net data/io.github.criperto.notes.metainfo.xml
 
       - name: Run automated test suite
         run: |

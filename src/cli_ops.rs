@@ -458,7 +458,7 @@ pub fn cmd_clip(to_note: Option<&str>, with_stamp: bool) -> Option<String> {
         let _ = Command::new("notify-send")
             .args([
                 "-a", "Notas",
-                "-i", "dev.criperto.Notas",
+                "-i", "io.github.criperto.notes",
                 "Portapapeles vacío",
                 "No se encontró texto en el portapapeles para crear una nota.",
             ])

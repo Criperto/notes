@@ -19,8 +19,57 @@
 #include <QWindow>
 #include <QQuickItem>
 #include <QQuickWindow>
+#include <QUuid>
 #include <cmath>
 #include <iostream>
+
+namespace {
+QString xdgConfigBaseDir() {
+    QString cfg = qEnvironmentVariable("XDG_CONFIG_HOME").trimmed();
+    return cfg.isEmpty() ? (QDir::homePath() + QStringLiteral("/.config")) : cfg;
+}
+
+QString xdgDataBaseDir() {
+    QString data = qEnvironmentVariable("XDG_DATA_HOME").trimmed();
+    return data.isEmpty() ? (QDir::homePath() + QStringLiteral("/.local/share")) : data;
+}
+
+QString resolveConfigFile(const QString &relPath) {
+    QString primary = xdgConfigBaseDir() + QLatin1Char('/') + relPath;
+    if (QFile::exists(primary)) return primary;
+    return QDir::homePath() + QStringLiteral("/.config/") + relPath;
+}
+
+bool isInFlatpak() {
+    return !qEnvironmentVariable("FLATPAK_ID").trimmed().isEmpty();
+}
+
+QString ipcRuntimeBaseDir() {
+    QString runtimeDir = QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation);
+    if (runtimeDir.isEmpty()) runtimeDir = QDir::tempPath();
+    QString flatpakId = qEnvironmentVariable("FLATPAK_ID").trimmed();
+    if (!flatpakId.isEmpty()) {
+        QString flatpakDir = runtimeDir + QStringLiteral("/app/") + flatpakId;
+        QDir().mkpath(flatpakDir);
+        return flatpakDir;
+    }
+    return runtimeDir;
+}
+
+bool isIpcInstanceAlive(const QString &stem, const QString &sockPath) {
+    if (isInFlatpak()) {
+        QLocalSocket probe;
+        probe.connectToServer(sockPath);
+        if (probe.waitForConnected(40)) {
+            probe.disconnectFromServer();
+            return true;
+        }
+        return false;
+    }
+    qint64 pid = stem.section(QLatin1Char('-'), 0, 0).toLongLong();
+    return pid > 0 && QFile::exists(QStringLiteral("/proc/") + QString::number(pid));
+}
+} // namespace
 
 // ═════════════════════════════════════════════════════════════════════════════
 // 1. SplitParser & StdioCollector Implementation
@@ -477,8 +526,7 @@ Sys::~Sys() {
     if (!m_currentInstanceJsonPath.isEmpty()) {
         QFile::remove(m_currentInstanceJsonPath);
     }
-    QString runtimeDir = QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation);
-    if (runtimeDir.isEmpty()) runtimeDir = QDir::tempPath();
+    QString runtimeDir = ipcRuntimeBaseDir();
     QString defaultSock = runtimeDir + QStringLiteral("/criperto-notes.sock");
     QFileInfo defaultFi(defaultSock);
     if (defaultFi.isSymLink()) {
@@ -784,15 +832,18 @@ QJsonObject Sys::readQtColors() const {
 }
 
 void Sys::startIpcServer() {
-    QString runtimeDir = QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation);
-    if (runtimeDir.isEmpty()) runtimeDir = QDir::tempPath();
+    QString runtimeDir = ipcRuntimeBaseDir();
 
     QString instancesDir = runtimeDir + QStringLiteral("/criperto-notes/instances");
     QDir().mkpath(instancesDir);
 
     qint64 pid = QCoreApplication::applicationPid();
-    m_currentInstanceSockPath = instancesDir + QStringLiteral("/") + QString::number(pid) + QStringLiteral(".sock");
-    m_currentInstanceJsonPath = instancesDir + QStringLiteral("/") + QString::number(pid) + QStringLiteral(".json");
+    QString instanceKey = QString::number(pid);
+    if (isInFlatpak()) {
+        instanceKey += QLatin1Char('-') + QUuid::createUuid().toString(QUuid::Id128).left(8);
+    }
+    m_currentInstanceSockPath = instancesDir + QLatin1Char('/') + instanceKey + QStringLiteral(".sock");
+    m_currentInstanceJsonPath = instancesDir + QLatin1Char('/') + instanceKey + QStringLiteral(".json");
 
     QFile::remove(m_currentInstanceSockPath);
     QFile::remove(m_currentInstanceJsonPath);
@@ -802,8 +853,12 @@ void Sys::startIpcServer() {
 
     m_ipcServer->listen(m_currentInstanceSockPath);
 
-    // Enlazar criperto-notes.sock por defecto si no existe
+    // Enlazar criperto-notes.sock por defecto si no existe o quedó roto
     QString defaultSock = runtimeDir + QStringLiteral("/criperto-notes.sock");
+    QFileInfo defaultFi(defaultSock);
+    if (defaultFi.isSymLink() && !QFile::exists(defaultFi.symLinkTarget())) {
+        QFile::remove(defaultSock);
+    }
     if (!QFile::exists(defaultSock)) {
         QFile::link(m_currentInstanceSockPath, defaultSock);
     }
@@ -814,6 +869,7 @@ void Sys::startIpcServer() {
 void Sys::onNewIpcConnection() {
     while (m_ipcServer && m_ipcServer->hasPendingConnections()) {
         QLocalSocket *client = m_ipcServer->nextPendingConnection();
+        connect(client, &QLocalSocket::disconnected, client, &QObject::deleteLater);
         connect(client, &QLocalSocket::readyRead, this, [this, client]() {
             QByteArray raw = client->readAll().trimmed();
             if (!raw.isEmpty()) {
@@ -856,6 +912,7 @@ void Sys::updateInstanceStatus(const QString &notePath, bool isEditing) {
 
     QJsonObject obj;
     obj[QStringLiteral("pid")] = pid;
+    obj[QStringLiteral("sock_name")] = QFileInfo(m_currentInstanceSockPath).fileName();
     obj[QStringLiteral("active_note")] = notePath;
     obj[QStringLiteral("is_editing")] = isEditing;
     obj[QStringLiteral("last_focused")] = now;
@@ -870,21 +927,19 @@ void Sys::updateInstanceStatus(const QString &notePath, bool isEditing) {
 
 bool Sys::isNoteBeingEditedElsewhere(const QString &notePath) const {
     if (notePath.trimmed().isEmpty()) return false;
-    QString runtimeDir = QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation);
-    if (runtimeDir.isEmpty()) runtimeDir = QDir::tempPath();
-    QDir dir(runtimeDir + QStringLiteral("/criperto-notes/instances"));
+    QDir dir(ipcRuntimeBaseDir() + QStringLiteral("/criperto-notes/instances"));
     if (!dir.exists()) return false;
 
-    qint64 myPid = QCoreApplication::applicationPid();
+    const QString myStem = QFileInfo(m_currentInstanceSockPath).baseName();
     const QFileInfoList entries = dir.entryInfoList({QStringLiteral("*.json")}, QDir::Files);
     for (const QFileInfo &fi : entries) {
         QString stem = fi.baseName();
-        qint64 pid = stem.toLongLong();
-        if (pid == myPid || pid <= 0) continue;
+        if (stem == myStem || stem.isEmpty()) continue;
 
-        if (!QFile::exists(QStringLiteral("/proc/") + QString::number(pid))) {
+        QString sockPath = dir.absoluteFilePath(stem + QStringLiteral(".sock"));
+        if (!isIpcInstanceAlive(stem, sockPath)) {
             QFile::remove(fi.absoluteFilePath());
-            QFile::remove(dir.absoluteFilePath(stem + QStringLiteral(".sock")));
+            QFile::remove(sockPath);
             continue;
         }
 
@@ -904,20 +959,17 @@ bool Sys::isNoteBeingEditedElsewhere(const QString &notePath) const {
     return false;
 }
 
-static void broadcastToOtherInstances(const QJsonObject &payload, qint64 excludePid) {
-    QString runtimeDir = QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation);
-    if (runtimeDir.isEmpty()) runtimeDir = QDir::tempPath();
-    QDir dir(runtimeDir + QStringLiteral("/criperto-notes/instances"));
+static void broadcastToOtherInstances(const QJsonObject &payload, const QString &excludeStem) {
+    QDir dir(ipcRuntimeBaseDir() + QStringLiteral("/criperto-notes/instances"));
     if (!dir.exists()) return;
 
     QByteArray data = QJsonDocument(payload).toJson(QJsonDocument::Compact) + "\n";
     const QFileInfoList entries = dir.entryInfoList({QStringLiteral("*.sock")}, QDir::Files | QDir::System);
     for (const QFileInfo &fi : entries) {
         QString stem = fi.baseName();
-        qint64 pid = stem.toLongLong();
-        if (pid == excludePid || pid <= 0) continue;
+        if (stem == excludeStem || stem.isEmpty()) continue;
 
-        if (!QFile::exists(QStringLiteral("/proc/") + QString::number(pid))) {
+        if (!isIpcInstanceAlive(stem, fi.absoluteFilePath())) {
             QFile::remove(fi.absoluteFilePath());
             QFile::remove(dir.absoluteFilePath(stem + QStringLiteral(".json")));
             continue;
@@ -942,7 +994,7 @@ void Sys::claimEditLock(const QString &notePath) {
     msg[QStringLiteral("action")] = QStringLiteral("take_edit_lock");
     msg[QStringLiteral("target")] = notePath;
     msg[QStringLiteral("fromPid")] = pid;
-    broadcastToOtherInstances(msg, pid);
+    broadcastToOtherInstances(msg, QFileInfo(m_currentInstanceSockPath).baseName());
 }
 
 void Sys::broadcastNoteSaved(const QString &notePath) {
@@ -953,7 +1005,7 @@ void Sys::broadcastNoteSaved(const QString &notePath) {
     msg[QStringLiteral("action")] = QStringLiteral("note_saved");
     msg[QStringLiteral("target")] = notePath;
     msg[QStringLiteral("fromPid")] = pid;
-    broadcastToOtherInstances(msg, pid);
+    broadcastToOtherInstances(msg, QFileInfo(m_currentInstanceSockPath).baseName());
 }
 
 void Sys::broadcastNoteDeleted(const QString &notePath) {
@@ -964,7 +1016,7 @@ void Sys::broadcastNoteDeleted(const QString &notePath) {
     msg[QStringLiteral("action")] = QStringLiteral("note_deleted");
     msg[QStringLiteral("target")] = notePath;
     msg[QStringLiteral("fromPid")] = pid;
-    broadcastToOtherInstances(msg, pid);
+    broadcastToOtherInstances(msg, QFileInfo(m_currentInstanceSockPath).baseName());
 }
 
 QString Sys::clipboardText() const {
@@ -1045,18 +1097,25 @@ QString Sys::dataShareDir() const {
     if (QFile::exists(devDir + QStringLiteral("/qml/Main.qml"))) {
         return devDir;
     }
-    QString xdgData = qEnvironmentVariable("XDG_DATA_HOME");
-    if (!xdgData.isEmpty()) {
-        if (QFile::exists(xdgData + QStringLiteral("/criperto-notes"))) return xdgData + QStringLiteral("/criperto-notes");
+    QString xdgData = xdgDataBaseDir() + QStringLiteral("/criperto-notes");
+    if (QFile::exists(xdgData)) {
+        return xdgData;
     }
     QString userShareNotes = QDir::homePath() + QStringLiteral("/.local/share/criperto-notes");
     if (QFile::exists(userShareNotes)) {
         return userShareNotes;
     }
+    QString exeShare = QCoreApplication::applicationDirPath() + QStringLiteral("/../share/criperto-notes");
+    if (QFile::exists(exeShare)) {
+        return QDir::cleanPath(exeShare);
+    }
+    if (QFile::exists(QStringLiteral("/app/share/criperto-notes"))) {
+        return QStringLiteral("/app/share/criperto-notes");
+    }
     if (QFile::exists(QStringLiteral("/usr/share/criperto-notes"))) {
         return QStringLiteral("/usr/share/criperto-notes");
     }
-    return QStringLiteral("/usr/share/criperto-notes");
+    return isInFlatpak() ? QStringLiteral("/app/share/criperto-notes") : QStringLiteral("/usr/share/criperto-notes");
 }
 
 QString Sys::appExecutable() const {
@@ -1157,9 +1216,8 @@ bool Sys::hasQuickshellConfig() const {
     if (isForcedNoSyncConfigured()) {
         return false;
     }
-    const QString home = QDir::homePath();
-    return QFile::exists(home + QStringLiteral("/.config/quickshell/config/general.conf"))
-        || QFile::exists(home + QStringLiteral("/.config/quickshell/config/theme.conf"));
+    return QFile::exists(resolveConfigFile(QStringLiteral("quickshell/config/general.conf")))
+        || QFile::exists(resolveConfigFile(QStringLiteral("quickshell/config/theme.conf")));
 }
 
 bool Sys::wmNeedsWindowControls() const {
@@ -1318,9 +1376,8 @@ struct FontResolution {
 };
 
 FontResolution resolveBodyFont() {
-    const QString home = QDir::homePath();
     // 1. Quickshell font config
-    QFile qsFontFile(home + QStringLiteral("/.config/quickshell/config/font.conf"));
+    QFile qsFontFile(resolveConfigFile(QStringLiteral("quickshell/config/font.conf")));
     if (qsFontFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
         QTextStream in(&qsFontFile);
         while (!in.atEnd()) {
@@ -1332,7 +1389,7 @@ FontResolution resolveBodyFont() {
         }
     }
     // 2. qt6ct font config
-    QFile qt6ctFile(home + QStringLiteral("/.config/qt6ct/qt6ct.conf"));
+    QFile qt6ctFile(resolveConfigFile(QStringLiteral("qt6ct/qt6ct.conf")));
     if (qt6ctFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
         QTextStream in(&qt6ctFile);
         while (!in.atEnd()) {
@@ -1378,8 +1435,7 @@ FontResolution resolveDisplayFont() {
 }
 
 FontResolution resolveRoundedFont() {
-    const QString home = QDir::homePath();
-    QFile qsFontFile(home + QStringLiteral("/.config/quickshell/config/font.conf"));
+    QFile qsFontFile(resolveConfigFile(QStringLiteral("quickshell/config/font.conf")));
     if (qsFontFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
         QTextStream in(&qsFontFile);
         while (!in.atEnd()) {
@@ -1394,9 +1450,8 @@ FontResolution resolveRoundedFont() {
 }
 
 FontResolution resolveMonospaceFont() {
-    const QString home = QDir::homePath();
     // 1. Quickshell font config
-    QFile qsFontFile(home + QStringLiteral("/.config/quickshell/config/font.conf"));
+    QFile qsFontFile(resolveConfigFile(QStringLiteral("quickshell/config/font.conf")));
     if (qsFontFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
         QTextStream in(&qsFontFile);
         while (!in.atEnd()) {
@@ -1408,7 +1463,7 @@ FontResolution resolveMonospaceFont() {
         }
     }
     // 2. qt6ct fixed font
-    QFile qt6ctFile(home + QStringLiteral("/.config/qt6ct/qt6ct.conf"));
+    QFile qt6ctFile(resolveConfigFile(QStringLiteral("qt6ct/qt6ct.conf")));
     if (qt6ctFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
         QTextStream in(&qt6ctFile);
         while (!in.atEnd()) {
@@ -1467,8 +1522,7 @@ QString Sys::systemMonospaceFontFamily() const {
 
 void Sys::printStartupDiagnostics() const {
     if (qEnvironmentVariableIsSet("NOTAS_QUIET")) return;
-    const QString home = QDir::homePath();
-    const QString configPath = home + QStringLiteral("/.config/criperto-notes/config.json");
+    const QString configPath = xdgConfigBaseDir() + QStringLiteral("/criperto-notes/config.json");
     const bool forcedNoSync = isForcedNoSyncConfigured();
     const bool qsDetected = hasQuickshellConfig();
     const QString qsStatus = qsDetected
@@ -1491,7 +1545,7 @@ void Sys::printStartupDiagnostics() const {
     fprintf(stdout, "\n");
     fprintf(stdout, "╭─────────────────────────────────────────────────────────────────────────────╮\n");
     QString appVer = qEnvironmentVariable("NOTAS_APP_VERSION", "0.2.10");
-    QString titleLine = QStringLiteral("│ 📝 dev.criperto.Notas v") + appVer + QStringLiteral(" (criperto-notes)");
+    QString titleLine = QStringLiteral("│ 📝 io.github.criperto.notes v") + appVer + QStringLiteral(" (criperto-notes)");
     titleLine = titleLine.leftJustified(77, ' ') + QStringLiteral("│\n");
     fprintf(stdout, "%s", titleLine.toUtf8().constData());
     fprintf(stdout, "│    Editor nativo de notas en Markdown para Wayland                          │\n");
@@ -1510,6 +1564,11 @@ QString Sys::env(const QString &name, const QString &fallback) const {
     QByteArray val = qgetenv(name.toUtf8().constData());
     if (val.isEmpty()) return fallback;
     return QString::fromUtf8(val);
+}
+
+bool Sys::hasCommand(const QString &cmd) const {
+    if (cmd.trimmed().isEmpty()) return false;
+    return !QStandardPaths::findExecutable(cmd.trimmed()).isEmpty();
 }
 
 bool Sys::execDetached(const QStringList &args) const {
@@ -1922,9 +1981,8 @@ bool ConfigBackend::hasQuickshellConfig() const {
     if (!m_syncWithQuickshell) {
         return false;
     }
-    const QString home = QDir::homePath();
-    return QFile::exists(home + QStringLiteral("/.config/quickshell/config/general.conf"))
-        || QFile::exists(home + QStringLiteral("/.config/quickshell/config/theme.conf"));
+    return QFile::exists(resolveConfigFile(QStringLiteral("quickshell/config/general.conf")))
+        || QFile::exists(resolveConfigFile(QStringLiteral("quickshell/config/theme.conf")));
 }
 
 void ConfigBackend::setSyncWithQuickshell(bool val) {
@@ -1966,7 +2024,7 @@ void ConfigBackend::loadQuickshellConfig() {
     bool changedFontScale = false;
 
     // 1. General config
-    QFile genFile(home + QStringLiteral("/.config/quickshell/config/general.conf"));
+    QFile genFile(resolveConfigFile(QStringLiteral("quickshell/config/general.conf")));
     if (genFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
         QTextStream in(&genFile);
         while (!in.atEnd()) {
@@ -2006,7 +2064,7 @@ void ConfigBackend::loadQuickshellConfig() {
     }
 
     // 2. Theme config
-    QFile themeFile(home + QStringLiteral("/.config/quickshell/config/theme.conf"));
+    QFile themeFile(resolveConfigFile(QStringLiteral("quickshell/config/theme.conf")));
     if (themeFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
         QTextStream in(&themeFile);
         while (!in.atEnd()) {
@@ -2040,7 +2098,7 @@ void ConfigBackend::loadQuickshellConfig() {
     }
 
     // 3. Notes config
-    QFile notesFile(home + QStringLiteral("/.config/quickshell/config/notes.conf"));
+    QFile notesFile(resolveConfigFile(QStringLiteral("quickshell/config/notes.conf")));
     if (notesFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
         QTextStream in(&notesFile);
         while (!in.atEnd()) {
@@ -2145,7 +2203,7 @@ void ConfigBackend::loadQuickshellConfig() {
     }
 
     // 5. Quickshell font config (fontSizeScale)
-    QFile fontFile(home + QStringLiteral("/.config/quickshell/config/font.conf"));
+    QFile fontFile(resolveConfigFile(QStringLiteral("quickshell/config/font.conf")));
     if (fontFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
         QTextStream in(&fontFile);
         while (!in.atEnd()) {
@@ -2200,14 +2258,13 @@ void ConfigBackend::setupQuickshellWatcher() {
         });
     }
 
-    const QString home = QDir::homePath();
     const QStringList qsFiles = {
-        home + QStringLiteral("/.config/quickshell/config/general.conf"),
-        home + QStringLiteral("/.config/quickshell/config/theme.conf"),
-        home + QStringLiteral("/.config/quickshell/config/notes.conf"),
-        home + QStringLiteral("/.config/quickshell/config/font.conf"),
-        home + QStringLiteral("/.config/hypr/user_settings.lua"),
-        home + QStringLiteral("/.config/hypr/theme.lua")
+        resolveConfigFile(QStringLiteral("quickshell/config/general.conf")),
+        resolveConfigFile(QStringLiteral("quickshell/config/theme.conf")),
+        resolveConfigFile(QStringLiteral("quickshell/config/notes.conf")),
+        resolveConfigFile(QStringLiteral("quickshell/config/font.conf")),
+        resolveConfigFile(QStringLiteral("hypr/user_settings.lua")),
+        resolveConfigFile(QStringLiteral("hypr/theme.lua"))
     };
     for (const auto &f : qsFiles) {
         if (QFile::exists(f) && !m_qsWatcher->files().contains(f)) {
@@ -2217,11 +2274,11 @@ void ConfigBackend::setupQuickshellWatcher() {
 }
 
 QString ConfigBackend::configFilePath() const {
-    return QDir::homePath() + QStringLiteral("/.config/criperto-notes/config.json");
+    return xdgConfigBaseDir() + QStringLiteral("/criperto-notes/config.json");
 }
 
 QString ConfigBackend::legacyConfigFilePath() const {
-    return QDir::homePath() + QStringLiteral("/.config/quickshell/config/notes.conf");
+    return resolveConfigFile(QStringLiteral("quickshell/config/notes.conf"));
 }
 
 void ConfigBackend::scheduleSave() {
@@ -2704,7 +2761,7 @@ void SpellBackend::refreshDictionaries() {
 }
 
 QString SpellBackend::personalDicPath() const {
-    return QDir::homePath() + QStringLiteral("/.config/criperto-notes/personal.dic");
+    return xdgConfigBaseDir() + QStringLiteral("/criperto-notes/personal.dic");
 }
 
 void SpellBackend::discoverDictionaries() {
@@ -2713,7 +2770,9 @@ void SpellBackend::discoverDictionaries() {
     m_availableDictionaries << QStringLiteral("es_AR") << QStringLiteral("es_ES") << QStringLiteral("en_US");
 
     const QStringList paths = {
+        xdgDataBaseDir() + QStringLiteral("/criperto-notes/dictionaries"),
         QDir::homePath() + QStringLiteral("/.local/share/criperto-notes/dictionaries"),
+        QStringLiteral("/app/share/criperto-notes/dictionaries"),
         QStringLiteral("/usr/share/criperto-notes/dictionaries")
     };
 
@@ -2811,7 +2870,9 @@ QJsonObject SpellBackend::checkWords(const QString &lang, const QStringList &wor
 
     QString dictArg = dict;
     const QStringList searchDirs = {
+        xdgDataBaseDir() + QStringLiteral("/criperto-notes/dictionaries"),
         QDir::homePath() + QStringLiteral("/.local/share/criperto-notes/dictionaries"),
+        QStringLiteral("/app/share/criperto-notes/dictionaries"),
         QStringLiteral("/usr/share/criperto-notes/dictionaries")
     };
     for (const auto &d : searchDirs) {

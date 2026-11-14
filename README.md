@@ -1,4 +1,4 @@
-# Notas (`dev.criperto.Notas`)
+# Notas (`io.github.criperto.notes`)
 
 > Editor moderno y nativo de notas en Markdown con edición visual por bloques, diagramas Mermaid enriquecidos, soporte multilingüe y rendimiento ultra-ligero.
 
@@ -15,7 +15,7 @@
   - Fase 1: `flowchart` (TD/LR), `sequenceDiagram`, `pie`.
   - Fase 2: `classDiagram`, `erDiagram`, `gantt`, `timeline`, `mindmap`.
   - Fase 3: `gitGraph`, `quadrantChart`, `journey`, `xychart-beta`.
-- **Integración con Wayland / Hyprland:** Ventana nativa Wayland (`dev.criperto.Notas`), renderizado acelerado por GPU vía Qt Quick y estilo visual moderno con desenfoque de fondo opcional.
+- **Integración con Wayland / Hyprland:** Ventana nativa Wayland (`io.github.criperto.notes`), renderizado acelerado por GPU vía Qt Quick y estilo visual moderno con desenfoque de fondo opcional.
 - **Corrector Ortográfico Integrado:** Motor de corrección autónomo de alta velocidad basado en `Spellbook` con diccionarios base embebidos (`es_AR`, `es_ES`, `en_US`), catálogo descargable multilingüe y diccionario personal de usuario (`~/.config/criperto-notes/personal.dic`). Cero dependencias externas de paquetes de corrección.
 - **Internacionalización Completa (i18n):** 9 idiomas incluidos (Español, Inglés, Portugués, Francés, Alemán, Italiano, Ruso, Japonés y Chino).
 - **Persistencia Segura:** Guardado atómico con transacciones en disco (`QSaveFile`), exclusión de items en papelera y configuración centralizada en `~/.config/criperto-notes/config.json`.
@@ -115,7 +115,7 @@ Manifiesto oficial para Flatpak basado en `org.kde.Platform`:
 
 ```bash
 # Compilar e instalar localmente:
-flatpak-builder --user --install --force-clean build-flatpak packaging/flatpak/dev.criperto.Notas.yml
+flatpak-builder --user --install --force-clean build-flatpak packaging/flatpak/io.github.criperto.notes.yml
 ```
 
 Una vez instalado, la aplicación estará disponible en tu lanzador de aplicaciones favorito (Wofi, Rofi, Anyrun, etc.) y como comando `notas` en cualquier terminal.

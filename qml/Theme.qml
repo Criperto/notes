@@ -7,6 +7,10 @@ QtObject {
 
     // ── Home del usuario actual (sin slash final) ────────────────────────
     readonly property string homeDir: (typeof Sys !== "undefined" && Sys.homeDir) ? Sys.homeDir : ""
+    readonly property string _xdgCacheHome: (typeof Sys !== "undefined" && typeof Sys.env === "function") ? Sys.env("XDG_CACHE_HOME", "") : ""
+    readonly property string _pywalPath: (_xdgCacheHome.length > 0 && typeof Sys !== "undefined" && typeof Sys.fileExists === "function" && Sys.fileExists(_xdgCacheHome + "/wal/colors.json"))
+        ? (_xdgCacheHome + "/wal/colors.json")
+        : (root.homeDir + "/.cache/wal/colors.json")
 
     // ── Modo de tema configurado ("pywal" | "qt" | "custom") ─────────────
     readonly property string themeMode: (typeof ConfigBackend !== "undefined" && ConfigBackend.themeMode) ? ConfigBackend.themeMode : "pywal"
@@ -18,7 +22,7 @@ QtObject {
 
     property var _pywalFile: FileView {
         id: pywalFile
-        path: root.homeDir + "/.cache/wal/colors.json"
+        path: root._pywalPath
         preload: true
         watchChanges: true
         printErrors: false

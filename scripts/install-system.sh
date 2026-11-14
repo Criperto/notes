@@ -7,6 +7,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PREFIX="${PREFIX:-/usr}"
 DESTDIR="${DESTDIR:-}"
 
-# Metainfo dev.criperto.Notas.metainfo.xml instalada vía scripts/install.sh
+# Metainfo io.github.criperto.notes.metainfo.xml instalada vía scripts/install.sh
 export PREFIX DESTDIR
 exec "${SCRIPT_DIR}/install.sh" --system "$@"

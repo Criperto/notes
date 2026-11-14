@@ -8,7 +8,7 @@
 - **License:** Apache License, Version 2.0 (`Apache-2.0`)
 - **Modifications:** Individual SVGs extracted/recolored (`fill="#ffffff"` / `fill="#e3e3e3"`) and named semantically for the `criperto-notes` interface and runtime tinting via Qt Quick `MultiEffect`.
 
-> Note: The custom application icon (`dev.criperto.Notas.svg`) in this directory remains under the repository's GNU General Public License v3.0 or later (`../../LICENSE`).
+> Note: The custom application icon (`io.github.criperto.notes.svg`) in this directory remains under the repository's GNU General Public License v3.0 or later (`../../LICENSE`).
 
 ---
 

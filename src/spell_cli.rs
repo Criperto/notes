@@ -35,20 +35,45 @@ pub struct DictInfo {
     pub source: String,
 }
 
-pub fn get_dicts_dir() -> PathBuf {
+fn xdg_data_base() -> PathBuf {
+    if let Ok(xdg) = std::env::var("XDG_DATA_HOME") {
+        if !xdg.trim().is_empty() {
+            return PathBuf::from(xdg);
+        }
+    }
     let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-    PathBuf::from(&home).join(".local").join("share").join("criperto-notes").join("dictionaries")
+    PathBuf::from(home).join(".local").join("share")
+}
+
+pub fn get_dicts_dir() -> PathBuf {
+    xdg_data_base().join("criperto-notes").join("dictionaries")
 }
 
 pub fn get_catalog_path() -> PathBuf {
-    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-    let installed_cat = PathBuf::from(&home).join(".local").join("share").join("criperto-notes").join("catalog.json");
+    let installed_cat = xdg_data_base().join("criperto-notes").join("catalog.json");
     if installed_cat.exists() {
         return installed_cat;
+    }
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    let legacy_cat = PathBuf::from(&home).join(".local").join("share").join("criperto-notes").join("catalog.json");
+    if legacy_cat.exists() {
+        return legacy_cat;
     }
     let dev_cat = PathBuf::from("assets").join("spellcheck").join("catalog.json");
     if dev_cat.exists() {
         return dev_cat;
+    }
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(bin_dir) = exe.parent() {
+            let exe_cat = bin_dir.join("../share/criperto-notes/catalog.json");
+            if exe_cat.exists() {
+                return exe_cat;
+            }
+        }
+    }
+    let flatpak_cat = PathBuf::from("/app/share/criperto-notes/catalog.json");
+    if flatpak_cat.exists() {
+        return flatpak_cat;
     }
     let sys_cat = PathBuf::from("/usr/share/criperto-notes/catalog.json");
     if sys_cat.exists() {
@@ -74,9 +99,15 @@ pub fn notify_change() {
 }
 
 pub fn get_system_dict_dirs() -> Vec<PathBuf> {
-    vec![
-        PathBuf::from("/usr/share/criperto-notes/dictionaries"),
-    ]
+    let mut dirs = Vec::new();
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(bin_dir) = exe.parent() {
+            dirs.push(bin_dir.join("../share/criperto-notes/dictionaries"));
+        }
+    }
+    dirs.push(PathBuf::from("/app/share/criperto-notes/dictionaries"));
+    dirs.push(PathBuf::from("/usr/share/criperto-notes/dictionaries"));
+    dirs
 }
 
 pub fn load_catalog() -> Catalog {

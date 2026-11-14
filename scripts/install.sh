@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# scripts/install.sh — Instalador y desinstalador unificado para Notas (dev.criperto.Notas)
+# scripts/install.sh — Instalador y desinstalador unificado para Notas (io.github.criperto.notes)
 # Soporta instalación global (/usr, por defecto con sudo) o de usuario (~/.local vía --user).
 # Soporta desinstalación automática (--uninstall / -u) con detección de ubicaciones.
 set -euo pipefail
@@ -64,20 +64,20 @@ done
 
 # ── 3. Modo Desinstalación ───────────────────────────────────────────────────
 if [[ "$UNINSTALL" == true ]]; then
-    msg "==> Iniciando desinstalación de Notas (dev.criperto.Notas)..." \
-        "==> Starting uninstallation of Notas (dev.criperto.Notas)..."
+    msg "==> Iniciando desinstalación de Notas (io.github.criperto.notes)..." \
+        "==> Starting uninstallation of Notas (io.github.criperto.notes)..."
 
     HAS_SYSTEM=false
     HAS_USER=false
 
     # Verificar si hay instalación a nivel de sistema (/usr)
-    if [[ -f "/usr/bin/criperto.notes" || -f "/usr/bin/criperto-notes" || -d "/usr/share/criperto-notes" || -d "/usr/share/criperto.notes" || -d "/usr/share/notas" || -f "/usr/share/applications/dev.criperto.Notas.desktop" ]]; then
+    if [[ -f "/usr/bin/criperto.notes" || -f "/usr/bin/criperto-notes" || -d "/usr/share/criperto-notes" || -d "/usr/share/criperto.notes" || -d "/usr/share/notas" || -f "/usr/share/applications/io.github.criperto.notes.desktop" || -f "/usr/share/applications/dev.criperto.Notas.desktop" ]]; then
         HAS_SYSTEM=true
     fi
 
     # Verificar si hay instalación de usuario (~/.local)
     USER_HOME="${HOME:-~}"
-    if [[ -f "$USER_HOME/.local/bin/criperto.notes" || -f "$USER_HOME/.local/bin/notas" || -f "$USER_HOME/.local/bin/criperto-notes" || -d "$USER_HOME/.local/share/criperto-notes" || -d "$USER_HOME/.local/share/criperto.notes" || -d "$USER_HOME/.local/share/notas" || -f "$USER_HOME/.local/share/applications/dev.criperto.Notas.desktop" ]]; then
+    if [[ -f "$USER_HOME/.local/bin/criperto.notes" || -f "$USER_HOME/.local/bin/notas" || -f "$USER_HOME/.local/bin/criperto-notes" || -d "$USER_HOME/.local/share/criperto-notes" || -d "$USER_HOME/.local/share/criperto.notes" || -d "$USER_HOME/.local/share/notas" || -f "$USER_HOME/.local/share/applications/io.github.criperto.notes.desktop" || -f "$USER_HOME/.local/share/applications/dev.criperto.Notas.desktop" ]]; then
         HAS_USER=true
     fi
 
@@ -99,9 +99,9 @@ if [[ "$UNINSTALL" == true ]]; then
         msg "==> Eliminando instalación del sistema en /usr..." \
             "==> Removing system-wide installation in /usr..."
         rm -f "/usr/bin/criperto.notes" "/usr/bin/notas" "/usr/bin/criperto-notes"
-        rm -f "/usr/share/applications/dev.criperto.Notas.desktop"
-        rm -f "/usr/share/icons/hicolor/scalable/apps/dev.criperto.Notas.svg"
-        rm -f "/usr/share/metainfo/dev.criperto.Notas.metainfo.xml"
+        rm -f "/usr/share/applications/io.github.criperto.notes.desktop" "/usr/share/applications/dev.criperto.Notas.desktop"
+        rm -f "/usr/share/icons/hicolor/scalable/apps/io.github.criperto.notes.svg" "/usr/share/icons/hicolor/scalable/apps/dev.criperto.Notas.svg"
+        rm -f "/usr/share/metainfo/io.github.criperto.notes.metainfo.xml" "/usr/share/metainfo/dev.criperto.Notas.metainfo.xml"
         rm -rf "/usr/share/criperto-notes" "/usr/share/criperto.notes" "/usr/share/notas"
         msg "✓ Archivos en /usr eliminados correctamente." \
             "✓ Files in /usr successfully removed."
@@ -128,13 +128,14 @@ if [[ "$UNINSTALL" == true ]]; then
         msg "==> Limpiando enlaces y archivos de usuario en $TARGET_HOME/.local..." \
             "==> Cleaning user files and links in $TARGET_HOME/.local..."
         rm -f "$TARGET_HOME/.local/bin/criperto.notes" "$TARGET_HOME/.local/bin/notas" "$TARGET_HOME/.local/bin/criperto-notes"
-        rm -f "$TARGET_HOME/.local/share/applications/dev.criperto.Notas.desktop"
-        rm -f "$TARGET_HOME/.local/share/icons/hicolor/scalable/apps/dev.criperto.Notas.svg"
+        rm -f "$TARGET_HOME/.local/share/applications/io.github.criperto.notes.desktop" "$TARGET_HOME/.local/share/applications/dev.criperto.Notas.desktop"
+        rm -f "$TARGET_HOME/.local/share/icons/hicolor/scalable/apps/io.github.criperto.notes.svg" "$TARGET_HOME/.local/share/icons/hicolor/scalable/apps/dev.criperto.Notas.svg"
         rm -rf "$TARGET_HOME/.local/share/criperto-notes" "$TARGET_HOME/.local/share/criperto.notes" "$TARGET_HOME/.local/share/notas"
 
         # Limpiar asociaciones MIME en mimeapps.list
         MIMEAPPS="$TARGET_HOME/.config/mimeapps.list"
         if [[ -f "$MIMEAPPS" ]]; then
+            sed -i '/io\.github\.criperto\.notes\.desktop/d' "$MIMEAPPS" 2>/dev/null || true
             sed -i '/dev\.criperto\.Notas\.desktop/d' "$MIMEAPPS" 2>/dev/null || true
         fi
 
@@ -197,9 +198,10 @@ if [[ "$MODE" == "user" ]]; then
 
     # Enlaces simbólicos directos en modo usuario (para desarrollo ágil)
     rm -f "${BIN_DIR}/notas" "${BIN_DIR}/criperto.notes"
+    rm -f "${APPS_DIR}/dev.criperto.Notas.desktop" "${ICONS_DIR}/dev.criperto.Notas.svg"
     ln -sf "${BIN_SRC}" "${BIN_DIR}/criperto-notes"
-    ln -sf "${SCRIPT_DIR}/assets/dev.criperto.Notas.desktop" "${APPS_DIR}/dev.criperto.Notas.desktop"
-    ln -sf "${SCRIPT_DIR}/assets/icons/dev.criperto.Notas.svg" "${ICONS_DIR}/dev.criperto.Notas.svg"
+    ln -sf "${SCRIPT_DIR}/assets/io.github.criperto.notes.desktop" "${APPS_DIR}/io.github.criperto.notes.desktop"
+    ln -sf "${SCRIPT_DIR}/assets/icons/io.github.criperto.notes.svg" "${ICONS_DIR}/io.github.criperto.notes.svg"
 
     # Scripts y catálogo
     ln -sf "${SCRIPT_DIR}/scripts/doc-to-md.py" "${DATA_DIR}/scripts/doc-to-md.py"
@@ -218,7 +220,7 @@ if [[ "$MODE" == "user" ]]; then
     MIME_TYPES=("text/markdown" "text/plain" "text/x-markdown")
     if command -v xdg-mime &>/dev/null; then
         for mime in "${MIME_TYPES[@]}"; do
-            xdg-mime default dev.criperto.Notas.desktop "$mime" 2>/dev/null || true
+            xdg-mime default io.github.criperto.notes.desktop "$mime" 2>/dev/null || true
         done
     fi
 
@@ -229,9 +231,9 @@ if [[ "$MODE" == "user" ]]; then
         fi
         for mime in "${MIME_TYPES[@]}"; do
             if grep -q "^${mime}=" "$MIMEAPPS"; then
-                sed -i "s|^${mime}=.*|${mime}=dev.criperto.Notas.desktop|" "$MIMEAPPS"
+                sed -i "s|^${mime}=.*|${mime}=io.github.criperto.notes.desktop|" "$MIMEAPPS"
             else
-                sed -i "/^\[Default Applications\]/a ${mime}=dev.criperto.Notas.desktop" "$MIMEAPPS"
+                sed -i "/^\[Default Applications\]/a ${mime}=io.github.criperto.notes.desktop" "$MIMEAPPS"
             fi
         done
     fi
@@ -264,13 +266,13 @@ else
     rm -f "${BIN_DIR}/notas" "${BIN_DIR}/criperto.notes"
 
     install -d "${APPS_DIR}"
-    install -m 644 "${SCRIPT_DIR}/assets/dev.criperto.Notas.desktop" "${APPS_DIR}/dev.criperto.Notas.desktop"
+    install -m 644 "${SCRIPT_DIR}/assets/io.github.criperto.notes.desktop" "${APPS_DIR}/io.github.criperto.notes.desktop"
 
     install -d "${ICONS_DIR}"
-    install -m 644 "${SCRIPT_DIR}/assets/icons/dev.criperto.Notas.svg" "${ICONS_DIR}/dev.criperto.Notas.svg"
+    install -m 644 "${SCRIPT_DIR}/assets/icons/io.github.criperto.notes.svg" "${ICONS_DIR}/io.github.criperto.notes.svg"
 
     install -d "${METAINFO_DIR}"
-    install -m 644 "${SCRIPT_DIR}/data/dev.criperto.Notas.metainfo.xml" "${METAINFO_DIR}/dev.criperto.Notas.metainfo.xml"
+    install -m 644 "${SCRIPT_DIR}/data/io.github.criperto.notes.metainfo.xml" "${METAINFO_DIR}/io.github.criperto.notes.metainfo.xml"
 
     install -d "${DATA_DIR}/scripts"
     if [[ -f "${SCRIPT_DIR}/scripts/doc-to-md.py" ]]; then

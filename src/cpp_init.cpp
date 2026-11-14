@@ -12,7 +12,7 @@ extern "C" void notas_init_qt(void) {
         "qt.qpa.services.warning=false\n"
     ));
     QQuickStyle::setStyle(QStringLiteral("Basic"));
-    QGuiApplication::setDesktopFileName(QStringLiteral("dev.criperto.Notas"));
+    QGuiApplication::setDesktopFileName(QStringLiteral("io.github.criperto.notes"));
     QGuiApplication::setApplicationDisplayName(QStringLiteral("Notas"));
 
     // Habilitar soporte de transparencia y búfer alfa en Wayland/X11
