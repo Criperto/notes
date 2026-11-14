@@ -428,8 +428,11 @@ Flickable {
     }
     onSelectedBidsChanged: updateFormatState()
 
+    property int focusedSelectionBid: -1
+
     function clearBlockSelection() {
         root.resetPreferredCursorX();
+        root.focusedSelectionBid = -1;
         if (hasBlockSelection) {
             root._syncingSelection = true;
             for (var bid in selectedBids) {
@@ -449,6 +452,9 @@ Flickable {
     }
 
     function clearAllSelections(exceptBid, exceptSubIdx) {
+        if (exceptBid === undefined || exceptBid === -1) {
+            root.focusedSelectionBid = -1;
+        }
         root._syncingSelection = true;
         if (root.hasBlockSelection) {
             root.selectedBids = ({});
@@ -478,6 +484,7 @@ Flickable {
 
     function notifySingleInputSelection(bid, subIdx) {
         if (root._syncingSelection || root.isDraggingSelection || root.hasBlockSelection) return;
+        root.focusedSelectionBid = (typeof bid === "number") ? bid : -1;
         clearSelectionExcept(bid, subIdx);
     }
 
@@ -827,8 +834,9 @@ Flickable {
 
     function getSelectedText() {
         if (!hasBlockSelection) {
-            if (root.activeBlockBid !== -1) {
-                var curLoader = _getDelegateItemForBid(root.activeBlockBid);
+            var targetBid = root.activeBlockBid !== -1 ? root.activeBlockBid : root.focusedSelectionBid;
+            if (targetBid !== -1) {
+                var curLoader = _getDelegateItemForBid(targetBid);
                 if (curLoader && curLoader.item && typeof curLoader.item.getSelectedText === "function") {
                     return curLoader.item.getSelectedText();
                 }

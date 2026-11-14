@@ -3383,6 +3383,13 @@ Item {
                 Layout.fillHeight: true
                 readOnly: root.isPreviewMode
                 interactive: !root.isSettingsOpen
+
+                Connections {
+                    target: root
+                    function onIsSettingsOpenChanged() {
+                        blockEditor.interactive = !root.isSettingsOpen;
+                    }
+                }
                 visible: !root.isSourceMode
                 freezeLayout: !root.isExpanded || !root.morphReady
                 searchQuery: root.isFindActive ? root.findQuery : ""

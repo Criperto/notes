@@ -187,6 +187,62 @@ function renderKeycapSvg(label, opts) {
 }
 
 // Convierte texto markdown inline a HTML seguro para componentes Text de Qt
+// Extrae código inline (`...` o ``...``) y escapes \\ / \` antes de procesar LaTeX ($) o Markdown,
+// evitando que variables de shell dentro de backticks (ej. `$QSDIR`, `"$link_dir" "$new_abs"`) sean interpretadas como LaTeX.
+function _extractCodeSpansFirst(text, escapes, codeSpans, codeBg, codeColor) {
+    var out = "";
+    var i = 0;
+    var n = text.length;
+    while (i < n) {
+        var ch = text[i];
+        if (ch === "\\" && i + 1 < n && (text[i + 1] === "\\" || text[i + 1] === "`")) {
+            var escTok = "\uE000ESC_" + escapes.length + "\uE000";
+            escapes.push(text[i + 1]);
+            out += escTok;
+            i += 2;
+            continue;
+        }
+        if (ch === "`") {
+            var tickLen = 1;
+            while (i + tickLen < n && text[i + tickLen] === "`") tickLen++;
+            var j = i + tickLen;
+            var foundEnd = -1;
+            while (j < n && text[j] !== "\r" && text[j] !== "\n") {
+                if (text[j] === "`") {
+                    var closeLen = 1;
+                    while (j + closeLen < n && text[j + closeLen] === "`") closeLen++;
+                    if (closeLen === tickLen) {
+                        foundEnd = j;
+                        break;
+                    }
+                    j += closeLen;
+                    continue;
+                }
+                j++;
+            }
+            if (foundEnd !== -1 && foundEnd > i + tickLen) {
+                var codeContent = text.substring(i + tickLen, foundEnd);
+                if (tickLen > 1 && codeContent.length >= 2 && codeContent[0] === " " && codeContent[codeContent.length - 1] === " " && /[^ ]/.test(codeContent)) {
+                    codeContent = codeContent.substring(1, codeContent.length - 1);
+                }
+                var tok = "\uE000CODE_" + codeSpans.length + "\uE000";
+                var safeCode = escapeHtml(codeContent);
+                var html = '<span style="font-family: monospace; background-color: ' + codeBg + '; color: ' + codeColor + '; padding: 1px 4px; border-radius: 4px;">' + safeCode + '</span>';
+                codeSpans.push(html);
+                out += tok;
+                i = foundEnd + tickLen;
+                continue;
+            }
+            out += text.substring(i, i + tickLen);
+            i += tickLen;
+            continue;
+        }
+        out += ch;
+        i++;
+    }
+    return out;
+}
+
 function inlineToHtml(src, opts) {
     if (!src || typeof src !== "string") return "";
     var options = opts || {};
@@ -215,7 +271,12 @@ function inlineToHtml(src, opts) {
         }
     }
 
-    // 0. Proteger dólares escapados con barra (\$) para que no abran fórmulas matemáticas
+    // 0. Extraer código inline (`code`) y escapes \\ / \` ANTES de dólares o Markdown
+    var escapes = [];
+    var codeSpans = [];
+    text = _extractCodeSpansFirst(text, escapes, codeSpans, codeBg, codeColor);
+
+    // 0b. Proteger dólares escapados con barra (\$) para que no abran fórmulas matemáticas
     var escapedDollars = [];
     text = text.replace(/\\\$/g, function() {
         var token = "\uE000ESCDOLLAR_" + escapedDollars.length + "\uE000";
@@ -223,9 +284,9 @@ function inlineToHtml(src, opts) {
         return token;
     });
 
-    // 0b. Extraer fórmulas matemáticas inline ($formula$) de forma íntegra antes de escapes de Markdown
+    // 0c. Extraer fórmulas matemáticas inline ($formula$) de forma íntegra antes de escapes de Markdown
     var mathSpans = [];
-    text = text.replace(/(?:^|[^\$])\$([^\s\$](?:[^\$\r\n]*?[^\s\$])?)\$(?!\$)/g, function(match, formula) {
+    text = text.replace(/(?:^|[^\$])\$([^\s\$](?:[^\$\r\n]*?[^\s\$])?)\$(?!\$|\d)/g, function(match, formula) {
         var pfx = match.startsWith("$") ? "" : match[0];
         var token = "\uE000MATH_" + mathSpans.length + "\uE000";
         var mathOpts = Object.assign({}, options, { mathColor: mathColor, mathPtSize: mathPtSize });
@@ -234,21 +295,10 @@ function inlineToHtml(src, opts) {
         return pfx + token;
     });
 
-    // 1. Escapar caracteres con barra invertida
-    var escapes = [];
+    // 1. Escapar restantes caracteres con barra invertida
     text = text.replace(/\\([*_[\]~=\\`#\-!().|{}+>$])/g, function(match, char) {
         var token = "\uE000ESC_" + escapes.length + "\uE000";
         escapes.push(char);
-        return token;
-    });
-
-    // 2. Extraer código inline (`code`) antes de procesar cualquier formato
-    var codeSpans = [];
-    text = text.replace(/`([^`\r\n]+)`/g, function(match, codeContent) {
-        var token = "\uE000CODE_" + codeSpans.length + "\uE000";
-        var safeCode = escapeHtml(codeContent);
-        var html = '<span style="font-family: monospace; background-color: ' + codeBg + '; color: ' + codeColor + '; padding: 1px 4px; border-radius: 4px;">' + safeCode + '</span>';
-        codeSpans.push(html);
         return token;
     });
 
@@ -777,15 +827,61 @@ function _collectInlineSpans(src) {
     var spans = [];
     if (!src || typeof src !== "string") return spans;
 
-    // Enmascarar caracteres escapados con barra invertida para que no activen delimitadores falsos
-    var maskedSrc = src.replace(/\\([*_[\]~=\\`!#$])/g, "\uE000\uE000");
-
-    // 1. Código inline: `...`
-    var codeRegex = /`([^`\r\n]+)`/g;
-    var m;
-    while ((m = codeRegex.exec(maskedSrc)) !== null) {
-        spans.push({ type: "code", start: m.index, end: m.index + m[0].length, openDelim: "`", closeDelim: "`", inner: src.substring(m.index + 1, m.index + m[0].length - 1) });
+    // 1. Detectar código inline (`...` o ``...``) primero y enmascararlo antes que cualquier otro delimitador
+    var maskedChars = src.split("");
+    var iCode = 0;
+    var nSrc = src.length;
+    while (iCode < nSrc) {
+        if (src[iCode] === "\\" && iCode + 1 < nSrc && (src[iCode + 1] === "\\" || src[iCode + 1] === "`")) {
+            maskedChars[iCode] = "\uE000";
+            maskedChars[iCode + 1] = "\uE000";
+            iCode += 2;
+            continue;
+        }
+        if (src[iCode] === "`") {
+            var tLen = 1;
+            while (iCode + tLen < nSrc && src[iCode + tLen] === "`") tLen++;
+            var jCode = iCode + tLen;
+            var endIdx = -1;
+            while (jCode < nSrc && src[jCode] !== "\r" && src[jCode] !== "\n") {
+                if (src[jCode] === "`") {
+                    var cLen = 1;
+                    while (jCode + cLen < nSrc && src[jCode + cLen] === "`") cLen++;
+                    if (cLen === tLen) {
+                        endIdx = jCode;
+                        break;
+                    }
+                    jCode += cLen;
+                    continue;
+                }
+                jCode++;
+            }
+            if (endIdx !== -1 && endIdx > iCode + tLen) {
+                var spanEnd = endIdx + tLen;
+                var delim = src.substring(iCode, iCode + tLen);
+                spans.push({
+                    type: "code",
+                    start: iCode,
+                    end: spanEnd,
+                    openDelim: delim,
+                    closeDelim: delim,
+                    inner: src.substring(iCode + tLen, endIdx)
+                });
+                for (var k = iCode; k < spanEnd; k++) {
+                    maskedChars[k] = "\uE000";
+                }
+                iCode = spanEnd;
+                continue;
+            }
+            iCode += tLen;
+            continue;
+        }
+        iCode++;
     }
+
+    // Enmascarar caracteres escapados restantes con barra invertida para que no activen delimitadores falsos
+    var maskedSrc = maskedChars.join("").replace(/\\([*_[\]~=\\`!#$])/g, "\uE000\uE000");
+    var m;
 
     // 2. Imágenes markdown: ![alt](url)
     var imgRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
@@ -903,7 +999,7 @@ function _collectInlineSpans(src) {
     }
 
     // 11. Fórmulas matemáticas inline: $formula$
-    var mathRegex = /(?:^|[^\$])\$([^\s\$](?:[^\$\r\n]*?[^\s\$])?)\$(?!\$)/g;
+    var mathRegex = /(?:^|[^\$])\$([^\s\$](?:[^\$\r\n]*?[^\s\$])?)\$(?!\$|\d)/g;
     while ((m = mathRegex.exec(maskedSrc)) !== null) {
         var pfxLen = m[0].startsWith("$") ? 0 : 1;
         var s = m.index + pfxLen;

@@ -1,4 +1,4 @@
-# Maintainer: Tomas (Criperto) <dev@criperto.com>
+# Maintainer: Criperto <dev@criperto.com>
 pkgname=notas-git
 _pkgname=notas
 pkgver=0.1.10.r10.g23093ec
@@ -31,7 +31,7 @@ sha256sums=('SKIP')
 
 pkgver() {
     cd "$srcdir/notes"
-    git describe --long --tags --always 2>/dev/null | sed 's/^v//;s/\([^-]*-g\)/r\1/;s/-/./g' || echo "0.2.9"
+    git describe --long --tags --always 2>/dev/null | sed 's/^v//;s/\([^-]*-g\)/r\1/;s/-/./g' || echo "0.2.10"
 }
 
 prepare() {

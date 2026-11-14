@@ -16,9 +16,11 @@ Rectangle {
     property bool copiedRecently: false
     property bool isSelected: false
     property bool inViewportChunk: true
+    readonly property bool inPreviewMode: !!(root.editor && root.editor.readOnly)
+    readonly property bool showEditView: (root.isEditing || root.isSelected) && !root.inPreviewMode
 
     onIsSelectedChanged: {
-        if (root.isSelected && !root.isEditing) {
+        if (root.isSelected && !root.isEditing && !root.inPreviewMode) {
             _syncTextFromModel();
         } else if (!root.isSelected && !root.isEditing) {
             clearTextSelection();
@@ -46,7 +48,9 @@ Rectangle {
     }
 
     implicitWidth: parent ? parent.width : 400
-    implicitHeight: (isEditing || isSelected) ? (editInput.paintedHeight + 40) : (headerRow.height + codeFlickable.contentHeight + 28)
+    implicitHeight: root.showEditView
+        ? (editInput.paintedHeight + 40)
+        : (headerRow.height + previewInput.paintedHeight + (codeHScrollBar.isShowing ? codeHScrollBar.reservedSpace : 0) + 38)
 
     radius: 10
     color: Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.06)
@@ -54,6 +58,22 @@ Rectangle {
     border.width: 1
 
     property bool _syncingModel: false
+
+    function _activeInput() {
+        return root.showEditView ? editInput : previewInput;
+    }
+
+    function _applyHorizontalWheel(flick, deltaX, deltaY) {
+        if (!flick || flick.contentWidth <= flick.width) return false;
+        var rawDelta = (deltaX !== 0) ? deltaX : deltaY;
+        if (!rawDelta) return false;
+        var maxX = Math.max(0, flick.contentWidth - flick.width);
+        var nextX = Math.max(0, Math.min(maxX, flick.contentX - rawDelta * 0.6));
+        if (Math.abs(nextX - flick.contentX) > 0.01) {
+            flick.contentX = nextX;
+        }
+        return true;
+    }
 
     function _syncTextFromModel() {
         if (!editInput || !root.blockData) return;
@@ -66,46 +86,56 @@ Rectangle {
     }
 
     function selectRange(start, end) {
-        if (!editInput) return;
-        _syncTextFromModel();
-        var s = Math.max(0, Math.min(editInput.length, Math.min(start, end)));
-        var e = Math.max(0, Math.min(editInput.length, Math.max(start, end)));
-        editInput.select(s, e);
+        if (root.showEditView) {
+            _syncTextFromModel();
+        }
+        var inp = _activeInput();
+        if (!inp) return;
+        var s = Math.max(0, Math.min(inp.length, Math.min(start, end)));
+        var e = Math.max(0, Math.min(inp.length, Math.max(start, end)));
+        inp.select(s, e);
     }
 
     function selectAllText() {
-        if (!editInput) return;
-        _syncTextFromModel();
-        editInput.selectAll();
+        if (root.showEditView) {
+            _syncTextFromModel();
+        }
+        var inp = _activeInput();
+        if (!inp) return;
+        inp.selectAll();
     }
 
     function clearTextSelection() {
-        if (!editInput) return;
-        editInput.deselect();
+        if (editInput) editInput.deselect();
+        if (previewInput) previewInput.deselect();
     }
 
     function getCharPosAt(lx, ly) {
-        if (!editInput) return 0;
-        return editInput.positionAt(lx, ly);
+        var inp = _activeInput();
+        if (!inp) return 0;
+        var pt = root.mapToItem(inp, lx, ly);
+        return inp.positionAt(pt.x, pt.y);
     }
 
     function getTextLength() {
-        if (!editInput) return 0;
-        return editInput.length;
+        var inp = _activeInput();
+        return inp ? inp.length : 0;
     }
 
     function getSelectedText() {
-        if (!editInput) return "";
-        return editInput.selectedText;
+        var inp = _activeInput();
+        return inp ? inp.selectedText : "";
     }
 
     function getTextContent() {
-        if (!editInput) return "";
-        return Inline.plainText(editInput);
+        if (root.showEditView) {
+            return editInput ? Inline.plainText(editInput) : "";
+        }
+        return root.pureCodeText;
     }
 
     function deleteSelectedText() {
-        if (!editInput) return;
+        if (root.inPreviewMode || !editInput) return;
         var s = editInput.selectionStart;
         var e = editInput.selectionEnd;
         if (s !== e) {
@@ -140,7 +170,7 @@ Rectangle {
     }
 
     function getTextEdit() {
-        return editInput;
+        return _activeInput();
     }
 
     function commitInlineSubEdit(textEdit, newText, selStart, selEnd) {
@@ -191,12 +221,12 @@ Rectangle {
         anchors.right: parent.right
         anchors.margins: 10
         height: 24
-        visible: !root.isEditing && !root.isSelected
+        visible: !root.showEditView
 
         Text {
             text: root.lang ? root.lang.toLowerCase() : "code"
             color: Theme.muted
-            font.family: "monospace"
+            font.family: Theme.fontFamilyMonospace || "monospace"
             font.pixelSize: EditorMetrics.caption
             Layout.fillWidth: true
         }
@@ -253,47 +283,303 @@ Rectangle {
         }
     }
 
-    // Vista de código renderizada con scroll horizontal sin quiebre de línea
+    // Vista de código renderizada con scroll horizontal dedicado y selección directa sin arrastrar el viewport
     Flickable {
         id: codeFlickable
-        visible: !root.isEditing && !root.isSelected
+        visible: !root.showEditView
         anchors.top: headerRow.bottom
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.bottom: parent.bottom
         anchors.margins: 12
         clip: true
+        interactive: false
+        boundsBehavior: Flickable.StopAtBounds
         flickableDirection: Flickable.HorizontalFlick
-        contentWidth: Math.max(width, viewText.implicitWidth)
-        contentHeight: viewText.implicitHeight
+        contentWidth: Math.max(width, previewInput.paintedWidth + 20)
+        contentHeight: previewInput.paintedHeight + (codeHScrollBar.isShowing ? codeHScrollBar.reservedSpace : 0)
 
-        // Scroll horizontal visible para líneas largas.
-        // Copiar usa pureCodeText completo igual (no depende de la vista).
-        ScrollBar.horizontal: CustomScrollBar {}
+        ScrollBar.horizontal: CustomScrollBar {
+            id: codeHScrollBar
+            orientation: Qt.Horizontal
+        }
 
-        Text {
-            id: viewText
-            textFormat: (root.editor && root.editor.searchQuery) ? Text.RichText : Text.PlainText
+        // Scroll horizontal con Shift + Rueda vertical/horizontal
+        WheelHandler {
+            id: codeShiftWheelHandler
+            target: null
+            acceptedModifiers: Qt.ShiftModifier
+            acceptedDevices: PointerDevice.AllDevices
+            onWheel: (event) => {
+                var dx = event.angleDelta ? event.angleDelta.x : 0;
+                var dy = event.angleDelta ? event.angleDelta.y : 0;
+                if (dx === 0 && dy === 0 && event.pixelDelta) {
+                    dx = event.pixelDelta.x;
+                    dy = event.pixelDelta.y;
+                }
+                if (root._applyHorizontalWheel(codeFlickable, dy !== 0 ? dy : dx, 0)) {
+                    event.accepted = true;
+                } else {
+                    event.accepted = false;
+                }
+            }
+        }
+
+        // Scroll horizontal directo (rueda horizontal de mouse / tilt-wheel / trackpad)
+        WheelHandler {
+            id: codeHorizWheelHandler
+            target: null
+            orientation: Qt.Horizontal
+            acceptedModifiers: Qt.NoModifier
+            acceptedDevices: PointerDevice.AllDevices
+            onWheel: (event) => {
+                var dx = (event.angleDelta && event.angleDelta.x !== 0)
+                    ? event.angleDelta.x
+                    : (event.pixelDelta ? event.pixelDelta.x : 0);
+                if (dx !== 0 && root._applyHorizontalWheel(codeFlickable, dx, 0)) {
+                    event.accepted = true;
+                } else {
+                    event.accepted = false;
+                }
+            }
+        }
+
+        TextEdit {
+            id: previewInput
+            width: Math.max(codeFlickable.width, paintedWidth + 20)
+            height: Math.max(codeFlickable.height, paintedHeight)
+            readOnly: true
+            cursorVisible: false
+            selectByMouse: false
+            persistentSelection: true
+            wrapMode: TextEdit.NoWrap
+            activeFocusOnTab: false
+            color: Theme.text
+            font.family: Theme.fontFamilyMonospace || "monospace"
+            font.pixelSize: EditorMetrics.fs(Theme.fontSizeCaption + 1)
+            textFormat: (root.editor && root.editor.searchQuery) ? TextEdit.RichText : TextEdit.PlainText
             text: (root.editor && root.editor.searchQuery)
-                ? Inline.highlightInHtml(Inline.escapeHtml(root.pureCodeText), root.editor.searchQuery, "" + root.editor.searchHighlightColor,
+                ? Inline.highlightInHtml(Inline.escapeHtml(root.pureCodeText).replace(/\n/g, "<br/>"), root.editor.searchQuery, "" + root.editor.searchHighlightColor,
                     (root.blockData ? root.editor.searchActiveBg(root.blockData.bid, 0) : ""),
                     (root.blockData ? root.editor.searchActiveOrdinal(root.blockData.bid, 0) : -1),
                     (root.blockData ? root.editor.searchActiveFg(root.blockData.bid, 0) : ""))
                 : root.pureCodeText
-            color: Theme.text
-            font.family: Theme.fontFamilyMonospace || "monospace"
-            font.pixelSize: EditorMetrics.fs(Theme.fontSizeCaption + 1)
-            lineHeight: 1.3
+
+            CustomTextCursor {
+                multiSelectionMode: root.editor ? root.editor.hasBlockSelection : false
+                showStartBoundary: !root.editor || !root.editor.hasBlockSelection || root.editor.isSelectionStartBlock(root.blockData ? root.blockData.bid : -1)
+                showEndBoundary: !root.editor || !root.editor.hasBlockSelection || root.editor.isSelectionEndBlock(root.blockData ? root.blockData.bid : -1)
+                externalHandleDragCallback: function(isStart, gx, gy) {
+                    if (root.editor && typeof root.editor.handleTeardropDrag === "function") {
+                        root.editor.handleTeardropDrag(isStart, gx, gy);
+                    }
+                }
+            }
+
+            onSelectionStartChanged: {
+                if (root.editor && !root.editor._syncingSelection && !root.editor.hasBlockSelection && !root.editor.isDraggingSelection) {
+                    if (previewInput.selectionStart !== previewInput.selectionEnd && root.blockData && typeof root.editor.notifySingleInputSelection === "function") {
+                        root.editor.notifySingleInputSelection(root.blockData.bid);
+                    }
+                    if (typeof root.editor.updateFormatState === "function") root.editor.updateFormatState();
+                }
+            }
+            onSelectionEndChanged: {
+                if (root.editor && !root.editor._syncingSelection && !root.editor.hasBlockSelection && !root.editor.isDraggingSelection) {
+                    if (previewInput.selectionStart !== previewInput.selectionEnd && root.blockData && typeof root.editor.notifySingleInputSelection === "function") {
+                        root.editor.notifySingleInputSelection(root.blockData.bid);
+                    }
+                    if (typeof root.editor.updateFormatState === "function") root.editor.updateFormatState();
+                }
+            }
+
+            Keys.onPressed: (event) => {
+                var isCtrl = !!(event.modifiers & Qt.ControlModifier);
+                var isShift = !!(event.modifiers & Qt.ShiftModifier);
+                var isAlt = !!(event.modifiers & Qt.AltModifier);
+
+                if (isCtrl && !isShift && !isAlt && event.key === Qt.Key_Home) {
+                    if (root.editor && typeof root.editor.goToDocumentStart === "function") {
+                        root.editor.goToDocumentStart();
+                        event.accepted = true;
+                        return;
+                    }
+                }
+                if (isCtrl && !isShift && !isAlt && event.key === Qt.Key_End) {
+                    if (root.editor && typeof root.editor.goToDocumentEnd === "function") {
+                        root.editor.goToDocumentEnd();
+                        event.accepted = true;
+                        return;
+                    }
+                }
+                if (event.key === Qt.Key_PageUp) {
+                    if (root.editor && typeof root.editor.pageUp === "function") {
+                        root.editor.pageUp();
+                        event.accepted = true;
+                        return;
+                    }
+                }
+                if (event.key === Qt.Key_PageDown) {
+                    if (root.editor && typeof root.editor.pageDown === "function") {
+                        root.editor.pageDown();
+                        event.accepted = true;
+                        return;
+                    }
+                }
+                if (root.editor && root.editor.hasBlockSelection) {
+                    if ((isCtrl && !isShift && !isAlt && event.key === Qt.Key_C) ||
+                        (isCtrl && !isShift && !isAlt && event.key === Qt.Key_Insert)) {
+                        root.editor.copySelectedText();
+                        event.accepted = true;
+                        return;
+                    }
+                    if (event.key === Qt.Key_Escape) {
+                        root.editor.clearBlockSelection();
+                        event.accepted = true;
+                        return;
+                    }
+                }
+                if ((isCtrl && !isShift && !isAlt && event.key === Qt.Key_C) ||
+                    (isCtrl && !isShift && !isAlt && event.key === Qt.Key_Insert)) {
+                    if (previewInput.selectionStart !== previewInput.selectionEnd) {
+                        if (root.editor && typeof root.editor.copyText === "function") {
+                            root.editor.copyText(previewInput.selectedText);
+                        } else {
+                            previewInput.copy();
+                        }
+                        event.accepted = true;
+                        return;
+                    }
+                }
+                if (isCtrl && !isShift && !isAlt && event.key === Qt.Key_A) {
+                    if (root.editor && typeof root.editor.selectAllDocument === "function") {
+                        root.editor.selectAllDocument();
+                    } else {
+                        previewInput.selectAll();
+                    }
+                    event.accepted = true;
+                    return;
+                }
+                if (event.key === Qt.Key_Escape) {
+                    previewInput.deselect();
+                    event.accepted = true;
+                    return;
+                }
+            }
 
             MouseArea {
                 anchors.fill: parent
+                acceptedButtons: Qt.LeftButton | Qt.RightButton
                 cursorShape: Qt.IBeamCursor
-                onClicked: (mouse) => {
+
+                property bool dragging: false
+                property bool isCrossDragging: false
+                property bool _doubleClickedRecently: false
+                property int anchorPos: -1
+                property real startX: 0
+                property real startY: 0
+
+                onPressed: (mouse) => {
+                    if (mouse.button === Qt.RightButton) {
+                        previewInput.forceActiveFocus();
+                        if (root.editor && root.editor.contextMenu) {
+                            root.editor.contextMenu.open(previewInput);
+                        }
+                        mouse.accepted = true;
+                        return;
+                    }
                     if (root.editor && root.blockData && typeof root.editor.clearSelectionExcept === "function") {
                         root.editor.clearSelectionExcept(root.blockData.bid);
                     }
-                    if (root.editor) {
-                        root.editor.requestEditBlock(root.blockData.bid, { x: mouse.x, y: mouse.y });
+                    dragging = true;
+                    isCrossDragging = false;
+                    startX = mouse.x;
+                    startY = mouse.y;
+                    anchorPos = previewInput.positionAt(mouse.x, mouse.y);
+                    if (root.inPreviewMode) {
+                        previewInput.forceActiveFocus();
+                        previewInput.deselect();
+                        if (anchorPos >= 0 && anchorPos <= previewInput.length) {
+                            previewInput.cursorPosition = anchorPos;
+                        }
+                    }
+                }
+
+                onPositionChanged: (mouse) => {
+                    if (!dragging || anchorPos < 0) return;
+                    if (!isCrossDragging && Math.abs(mouse.x - startX) < 3 && Math.abs(mouse.y - startY) < 3) return;
+
+                    var ptRoot = mapToItem(root, mouse.x, mouse.y);
+                    if (ptRoot.y < -4 || ptRoot.y > root.height + 4 || isCrossDragging) {
+                        if (!isCrossDragging) {
+                            isCrossDragging = true;
+                        }
+                        if (root.editor && typeof root.editor.handleCrossBlockDrag === "function") {
+                            var ptInContent = mapToItem(root.editor.contentItem, mouse.x, mouse.y);
+                            root.editor.handleCrossBlockDrag(root.blockData.bid, ptInContent.y, ptInContent.x);
+                            return;
+                        }
+                    }
+
+                    if (root.inPreviewMode) {
+                        var maxX = Math.max(0, codeFlickable.contentWidth - codeFlickable.width);
+                        if (maxX > 0) {
+                            var fx = mouse.x - codeFlickable.contentX;
+                            if (fx > codeFlickable.width - 20) {
+                                codeFlickable.contentX = Math.min(maxX, codeFlickable.contentX + 16);
+                            } else if (fx < 20) {
+                                codeFlickable.contentX = Math.max(0, codeFlickable.contentX - 16);
+                            }
+                        }
+                        previewInput.select(anchorPos, previewInput.positionAt(mouse.x, mouse.y));
+                    }
+                }
+
+                onReleased: (mouse) => {
+                    if (mouse.button === Qt.RightButton) return;
+                    var wasShortClick = !isCrossDragging && Math.abs(mouse.x - startX) < 4 && Math.abs(mouse.y - startY) < 4;
+                    if (wasShortClick && !_doubleClickedRecently && !root.inPreviewMode) {
+                        if (root.editor && root.blockData) {
+                            root.editor.requestEditBlock(root.blockData.bid, { x: mouse.x, y: mouse.y });
+                        }
+                    }
+                    _doubleClickedRecently = false;
+                    dragging = false;
+                    anchorPos = -1;
+                    if (isCrossDragging || (root.editor && root.editor.isDraggingSelection)) {
+                        isCrossDragging = false;
+                        if (root.editor && typeof root.editor.endCrossBlockDrag === "function") {
+                            root.editor.endCrossBlockDrag();
+                        }
+                    }
+                }
+
+                onCanceled: {
+                    dragging = false;
+                    anchorPos = -1;
+                    isCrossDragging = false;
+                    if (root.editor && typeof root.editor.endCrossBlockDrag === "function") {
+                        root.editor.endCrossBlockDrag();
+                    }
+                }
+
+                onDoubleClicked: (mouse) => {
+                    if (mouse.button !== Qt.LeftButton) return;
+                    _doubleClickedRecently = true;
+                    if (root.editor && root.blockData && typeof root.editor.clearSelectionExcept === "function") {
+                        root.editor.clearSelectionExcept(root.blockData.bid);
+                    }
+                    if (!root.inPreviewMode) {
+                        if (root.editor && root.blockData) {
+                            root.editor.requestEditBlock(root.blockData.bid, { x: mouse.x, y: mouse.y });
+                        }
+                        return;
+                    }
+                    previewInput.forceActiveFocus();
+                    var pos = previewInput.positionAt(mouse.x, mouse.y);
+                    if (pos >= 0 && pos <= previewInput.length) {
+                        previewInput.cursorPosition = pos;
+                        previewInput.selectWord();
                     }
                 }
             }
@@ -303,15 +589,58 @@ Rectangle {
     // Vista de edición cruda con scroll horizontal sin desborde
     Flickable {
         id: editFlickable
-        visible: root.isEditing || root.isSelected
+        visible: root.showEditView
         anchors.fill: parent
         anchors.margins: 12
         clip: true
+        interactive: false
+        boundsBehavior: Flickable.StopAtBounds
         flickableDirection: Flickable.HorizontalFlick
         contentWidth: Math.max(width, editInput.paintedWidth + 24)
         contentHeight: Math.max(height, editInput.paintedHeight)
 
-        ScrollBar.horizontal: CustomScrollBar {}
+        ScrollBar.horizontal: CustomScrollBar {
+            id: editHScrollBar
+            orientation: Qt.Horizontal
+        }
+
+        WheelHandler {
+            id: editShiftWheelHandler
+            target: null
+            acceptedModifiers: Qt.ShiftModifier
+            acceptedDevices: PointerDevice.AllDevices
+            onWheel: (event) => {
+                var dx = event.angleDelta ? event.angleDelta.x : 0;
+                var dy = event.angleDelta ? event.angleDelta.y : 0;
+                if (dx === 0 && dy === 0 && event.pixelDelta) {
+                    dx = event.pixelDelta.x;
+                    dy = event.pixelDelta.y;
+                }
+                if (root._applyHorizontalWheel(editFlickable, dy !== 0 ? dy : dx, 0)) {
+                    event.accepted = true;
+                } else {
+                    event.accepted = false;
+                }
+            }
+        }
+
+        WheelHandler {
+            id: editHorizWheelHandler
+            target: null
+            orientation: Qt.Horizontal
+            acceptedModifiers: Qt.NoModifier
+            acceptedDevices: PointerDevice.AllDevices
+            onWheel: (event) => {
+                var dx = (event.angleDelta && event.angleDelta.x !== 0)
+                    ? event.angleDelta.x
+                    : (event.pixelDelta ? event.pixelDelta.x : 0);
+                if (dx !== 0 && root._applyHorizontalWheel(editFlickable, dx, 0)) {
+                    event.accepted = true;
+                } else {
+                    event.accepted = false;
+                }
+            }
+        }
 
         TextEdit {
             id: editInput

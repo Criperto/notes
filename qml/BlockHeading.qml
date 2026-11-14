@@ -636,7 +636,7 @@ Item {
     // Insignia H1-H6 visible durante foco / edición para feedback visual inmediato
     Rectangle {
         id: headingBadge
-        visible: root.isEditing || root.isSelected || (root.editor && root.blockData && root.editor.activeBlockBid === root.blockData.bid)
+        visible: (!root.editor || !root.editor.readOnly) && (root.isEditing || root.isSelected || (root.editor && root.blockData && root.editor.activeBlockBid === root.blockData.bid))
         anchors.right: parent.left
         anchors.rightMargin: 8
         anchors.verticalCenter: parent.top

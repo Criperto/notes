@@ -22,7 +22,7 @@ Version: ${VERSION}
 Section: utils
 Priority: optional
 Architecture: amd64
-Maintainer: Tomas (Criperto) <dev@criperto.com>
+Maintainer: Criperto <dev@criperto.com>
 Depends: libc6, libgcc-s1, libstdc++6, qt6-base-dev | libqt6core6, libqt6gui6, libqt6qml6, libqt6quick6, libqt6svg6
 Installed-Size: ${INSTALLED_SIZE}
 Homepage: https://github.com/Criperto/notes

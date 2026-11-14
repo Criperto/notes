@@ -5658,7 +5658,7 @@ runTest("F135: Hotfix v0.2.4 salida de viñetas con Enter, preservación de foco
         "BlockParagraph debe garantizar visibilidad de editInput inmediatamente");
 
     const cargoToml = fs.readFileSync(path.resolve(__dirname, '../Cargo.toml'), 'utf8');
-    assert.ok(cargoToml.includes('version = "0.2.4"') || cargoToml.includes('version = "0.2.5"') || cargoToml.includes('version = "0.2.6"') || cargoToml.includes('version = "0.2.7"') || cargoToml.includes('version = "0.2.8"') || cargoToml.includes('version = "0.2.9"'), "Cargo.toml debe estar en SemVer válido");
+    assert.ok(/^version = "\d+\.\d+\.\d+"/m.test(cargoToml), "Cargo.toml debe estar en SemVer válido");
 });
 
 runTest("F136: Auditoría de estabilidad, FreeDesktop Trash, rutas XDG, supresión de I/O espurio y renombrado atómico", () => {
@@ -5780,6 +5780,66 @@ runTest("F140: v0.2.9 — Motor Spellbook integrado con diccionarios embebidos, 
 
     const releaseWorkflow = fs.readFileSync(path.resolve(__dirname, '../.github/workflows/release.yml'), 'utf8');
     assert.ok(!releaseWorkflow.includes('hunspell'), "release.yml no debe requerir ni contener hunspell");
+});
+
+runTest("F141: v0.2.10 — Preview de código seleccionable con scroll horizontal dedicado, fix de LaTeX en píldoras de código, ocultar badge H1-H6 en Preview, borde limpio con color2 en menú de inicio, autor Criperto y limpieza en Ajustes", () => {
+    // 1. Píldoras de código con variables $ NO deben disparar LaTeX
+    const bashSample1 = 'usar `realpath -m --relative-to="$link_dir" "$new_abs"`.';
+    const html1 = Inline.inlineToHtml(bashSample1, { renderLatex: () => '<svg/>' });
+    assert.ok(!html1.includes('<img') && !html1.includes('font-style: italic'), "inlineToHtml no debe renderizar LaTeX dentro de backticks ($link_dir ... $new_abs)");
+    assert.ok(html1.includes('realpath -m --relative-to=&quot;$link_dir&quot; &quot;$new_abs&quot;'), "inlineToHtml debe conservar el texto literal del comando bash");
+
+    const bashSample2 = 'derivar QSDIR desde `$(dirname "$(readlink -f "$0")")/..` y usar `$QSDIR`.';
+    const html2 = Inline.inlineToHtml(bashSample2, { renderLatex: () => '<svg/>' });
+    assert.ok(!html2.includes('<img') && !html2.includes('font-style: italic'), "inlineToHtml no debe renderizar LaTeX cuando hay subshells $() y múltiples backticks en una línea");
+    assert.ok(html2.includes('$QSDIR'), "inlineToHtml debe conservar $QSDIR intacto dentro del segundo bloque inline");
+
+    const spans1 = Inline._collectInlineSpans(bashSample1);
+    assert.ok(spans1.some(s => s.type === "code"), "_collectInlineSpans debe detectar el span de código");
+    assert.ok(!spans1.some(s => s.type === "math"), "_collectInlineSpans no debe detectar math dentro de código inline");
+
+    // Precios numéricos tampoco son LaTeX
+    const priceHtml = Inline.inlineToHtml("Cuesta $5 y $10 en efectivo", { renderLatex: () => '<svg/>' });
+    assert.ok(!priceHtml.includes('<img') && !priceHtml.includes('font-style: italic'), "Montos monetarios $5 y $10 no deben activar LaTeX");
+
+    // Fórmulas reales fuera de código siguen funcionando
+    const realMath = Inline.inlineToHtml("Fórmula: $x + y$", { renderLatex: () => '<svg/>' });
+    assert.ok(realMath.includes('<img'), "Fórmula LaTeX válida fuera de código debe seguir renderizando");
+
+    // 2. Ocultar insignia H1-H6 en modo Preview
+    const headingQml = fs.readFileSync(path.resolve(__dirname, '../qml/BlockHeading.qml'), 'utf8');
+    assert.ok(headingQml.includes('visible: (!root.editor || !root.editor.readOnly)'), "headingBadge debe ocultarse en modo Preview");
+
+    // 3. NoteCard sin FocusRing y con borde pywal color2
+    const cardQml = fs.readFileSync(path.resolve(__dirname, '../qml/NoteCard.qml'), 'utf8');
+    assert.ok(!cardQml.includes('FocusRing'), "NoteCard no debe instanciar FocusRing");
+    assert.ok(cardQml.includes('Theme.themeMode === "pywal" && Theme.pywalAvailable') && cardQml.includes('Theme.color2'), "NoteCard debe usar Theme.color2 en modo pywal");
+
+    // 4. Eliminación de "Atajos de Teclado Principales" en Acerca de
+    const settingsQml = fs.readFileSync(path.resolve(__dirname, '../qml/NotesSettingsModal.qml'), 'utf8');
+    assert.ok(!settingsQml.includes('Atajos de Teclado Principales'), "NotesSettingsModal no debe contener Atajos de Teclado Principales");
+    assert.ok(!settingsQml.includes('id: viewShortcutsMa'), "NotesSettingsModal no debe contener viewShortcutsMa");
+
+    // 5. Metainfo y empaquetado con autor Criperto
+    const metainfoXml = fs.readFileSync(path.resolve(__dirname, '../data/dev.criperto.Notas.metainfo.xml'), 'utf8');
+    assert.ok(metainfoXml.includes('<name>Criperto</name>') && !metainfoXml.includes('Tomas (Criperto)'), "metainfo debe listar <name>Criperto</name>");
+
+    // 6. BlockCode Preview seleccionable y scroll horizontal dedicado
+    const codeQml = fs.readFileSync(path.resolve(__dirname, '../qml/BlockCode.qml'), 'utf8');
+    assert.ok(codeQml.includes('readonly property bool inPreviewMode:'), "BlockCode debe definir inPreviewMode");
+    assert.ok(codeQml.includes('readonly property bool showEditView: (root.isEditing || root.isSelected) && !root.inPreviewMode'), "BlockCode no debe mostrar fences crudos al seleccionar en Preview");
+    assert.ok(codeQml.includes('id: previewInput') && codeQml.includes('selectByMouse: false'), "BlockCode debe usar TextEdit previewInput con MouseArea de selección");
+    assert.ok(codeQml.includes('id: codeShiftWheelHandler') && codeQml.includes('id: codeHorizWheelHandler'), "codeFlickable debe tener WheelHandlers horizontales");
+    assert.ok(codeQml.includes('id: editShiftWheelHandler') && codeQml.includes('id: editHorizWheelHandler'), "editFlickable debe tener WheelHandlers horizontales");
+    assert.ok(codeQml.includes('event.accepted = false;'), "WheelHandlers deben rechazar rueda vertical para que burbujee");
+    assert.ok(codeQml.includes('.replace(/\\n/g, "<br/>")'), "BlockCode search RichText debe preservar saltos de línea con <br/>");
+    assert.ok(!/font\.family:\s*"monospace"/.test(codeQml), "BlockCode no debe hardcodear font.family: \"monospace\"");
+
+    // 7. BlockEditor y NoteEditorModal
+    const editorQml = fs.readFileSync(path.resolve(__dirname, '../qml/BlockEditor.qml'), 'utf8');
+    assert.ok(editorQml.includes('property int focusedSelectionBid: -1'), "BlockEditor debe rastrear focusedSelectionBid para selección en Preview");
+    const modalQml = fs.readFileSync(path.resolve(__dirname, '../qml/NoteEditorModal.qml'), 'utf8');
+    assert.ok(modalQml.includes('blockEditor.interactive = !root.isSettingsOpen;'), "NoteEditorModal debe sincronizar blockEditor.interactive con isSettingsOpen");
 });
 
 console.log(`\n========================================`);
