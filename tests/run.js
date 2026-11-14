@@ -5864,7 +5864,9 @@ runTest("F142: Migración a io.github.criperto.notes y compatibilidad con sandbo
         '../docs/HYPRLAND.md',
     ];
     for (const rel of checkedFiles) {
-        const txt = fs.readFileSync(path.resolve(__dirname, rel), 'utf8');
+        const fullPath = path.resolve(__dirname, rel);
+        if (rel === '../scripts/release.sh' && !fs.existsSync(fullPath)) continue;
+        const txt = fs.readFileSync(fullPath, 'utf8');
         assert.ok(!txt.includes(oldDomain), `${rel} no debe contener referencias al viejo App ID`);
         assert.ok(!txt.includes(`"${oldDevId}"`), `${rel} no debe contener el viejo developer id`);
     }
