@@ -206,7 +206,7 @@ Rectangle {
                     width: 14; height: 14
                     source: Theme.iconsPath + "math.svg"
                     sourceSize: Qt.size(14, 14)
-                    layer.enabled: true
+                    layer.enabled: visible && !GamemodeService.gamemodeActive
                     layer.effect: MultiEffect {
                         colorization: 1.0
                         colorizationColor: Theme.accent
@@ -247,7 +247,7 @@ Rectangle {
                             Layout.preferredHeight: 12
                             source: Theme.iconsPath + "check.svg"
                             sourceSize: Qt.size(12, 12)
-                            layer.enabled: true
+                            layer.enabled: visible && !GamemodeService.gamemodeActive
                             layer.effect: MultiEffect {
                                 colorization: 1.0
                                 colorizationColor: Theme.accent
@@ -292,7 +292,7 @@ Rectangle {
                         width: 14; height: 14
                         source: Theme.iconsPath + "edit.svg"
                         sourceSize: Qt.size(14, 14)
-                        layer.enabled: true
+                        layer.enabled: visible && !GamemodeService.gamemodeActive
                         layer.effect: MultiEffect {
                             colorization: 1.0
                             colorizationColor: editMa.containsMouse ? Theme.text : Theme.muted
@@ -327,7 +327,7 @@ Rectangle {
                         width: 14; height: 14
                         source: Theme.iconsPath + (root.copiedRecently ? "check.svg" : "content-copy.svg")
                         sourceSize: Qt.size(14, 14)
-                        layer.enabled: true
+                        layer.enabled: visible && !GamemodeService.gamemodeActive
                         layer.effect: MultiEffect {
                             colorization: 1.0
                             colorizationColor: root.copiedRecently ? Theme.accent : (copyMa.containsMouse ? Theme.text : Theme.muted)
@@ -364,7 +364,7 @@ Rectangle {
                         width: 14; height: 14
                         source: Theme.iconsPath + "delete.svg"
                         sourceSize: Qt.size(14, 14)
-                        layer.enabled: true
+                        layer.enabled: visible && !GamemodeService.gamemodeActive
                         layer.effect: MultiEffect {
                             colorization: 1.0
                             colorizationColor: deleteMa.containsMouse ? Theme.danger : Theme.muted
@@ -377,8 +377,8 @@ Rectangle {
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
                         onClicked: {
-                            if (root.editor && root.blockData && typeof root.editor.requestDeleteBlock === "function") {
-                                root.editor.requestDeleteBlock(root.blockData.bid);
+                            if (root.editor && root.blockData && typeof root.editor.deleteBlock === "function") {
+                                root.editor.deleteBlock(root.blockData.bid);
                             }
                         }
                     }

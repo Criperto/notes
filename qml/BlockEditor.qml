@@ -398,13 +398,41 @@ Flickable {
 
     // ── Estado de formatos activos para la toolbar ──────────────────────────
     property int formatStateSeq: 0
+    // Contenedor JS mutable no-notificante para evitar binding loops al cachear desde bindings QML
+    readonly property var _activeFormatCache: ({
+        seq: -1,
+        sig: "",
+        actions: ({}),
+        selListMap: ({}),
+        hasSelDet: false,
+        selDet: null,
+        blockObj: undefined,
+        blockListItems: undefined,
+        inlineTeSig: "",
+        inlineDet: null
+    })
     property bool _syncingSelection: false
+
+    function _resetActiveFormatCache() {
+        var c = root._activeFormatCache;
+        c.seq = -1;
+        c.sig = "";
+        c.actions = ({});
+        c.selListMap = ({});
+        c.hasSelDet = false;
+        c.selDet = null;
+        c.blockObj = undefined;
+        c.blockListItems = undefined;
+        c.inlineTeSig = "";
+        c.inlineDet = null;
+    }
 
     Timer {
         id: formatStateCoalesceTimer
         interval: 16
         repeat: false
         onTriggered: {
+            root._resetActiveFormatCache();
             root.formatStateSeq++;
         }
     }
@@ -417,6 +445,7 @@ Flickable {
 
     function updateFormatStateImmediate() {
         formatStateCoalesceTimer.stop();
+        root._resetActiveFormatCache();
         root.formatStateSeq++;
     }
 
@@ -3218,14 +3247,34 @@ Flickable {
         if (root.readOnly) return false;
         var _ = root.formatStateSeq;
 
+        var cache = root._activeFormatCache;
+        var selKeys = (root.hasBlockSelection && root.selectedBids) ? Object.keys(root.selectedBids) : null;
+        var selCount = selKeys ? selKeys.length : 0;
+        var sig = root.formatStateSeq + ":" + (root.hasBlockSelection ? 1 : 0) + ":" + selCount + ":" + root.activeBlockBid;
+        if (cache.seq !== root.formatStateSeq || cache.sig !== sig) {
+            cache.seq = root.formatStateSeq;
+            cache.sig = sig;
+            cache.actions = ({});
+            cache.selListMap = ({});
+            cache.hasSelDet = false;
+            cache.selDet = null;
+            cache.blockObj = undefined;
+            cache.blockListItems = undefined;
+            cache.inlineTeSig = "";
+            cache.inlineDet = null;
+        }
+
         // Caso A: Múltiples bloques seleccionados
         if (root.hasBlockSelection) {
-            var bids = Object.keys(root.selectedBids || {});
+            if (cache.actions[actionId] !== undefined) return cache.actions[actionId];
+            var resA = false;
+            var bids = selKeys || [];
             if (bids.length > 0) {
                 if (actionId === "h1" || actionId === "h2" || actionId === "h3" ||
                     actionId === "h4" || actionId === "h5" || actionId === "h6" ||
                     actionId === "bullet_list" || actionId === "ordered_list" || actionId === "task_list" ||
-                    actionId === "quote" || actionId === "code_block" || actionId === "table") {
+                    actionId === "quote" || actionId === "code_block" || actionId === "table" ||
+                    actionId === "mermaid" || actionId === "math") {
                     var allMatch = true;
                     for (var i = 0; i < bids.length; i++) {
                         var bidNum = parseInt(bids[i], 10);
@@ -3241,7 +3290,11 @@ Flickable {
                             if (bItem.type === "heading") {
                                 if (!((bItem.raw || "").startsWith(wantPfx))) { allMatch = false; break; }
                             } else if (bItem.type === "list") {
-                                var hItems = LP.parseList(bItem.raw || "");
+                                var hItems = cache.selListMap[bidNum];
+                                if (hItems === undefined) {
+                                    hItems = LP.parseList(bItem.raw || "");
+                                    cache.selListMap[bidNum] = hItems;
+                                }
                                 if (!hItems || hItems.length === 0 || !LP.allItemsMatchHeading(hItems, 0, hItems.length - 1, wantLvl)) { allMatch = false; break; }
                             } else if (bItem.type === "quote") {
                                 var qLines = (bItem.raw || "").split("\n");
@@ -3262,111 +3315,146 @@ Flickable {
                         if (actionId === "mermaid" && bItem.type !== "mermaid") { allMatch = false; break; }
                         if (actionId === "math" && bItem.type !== "math") { allMatch = false; break; }
                         if (actionId === "table" && bItem.type !== "table") { allMatch = false; break; }
-                        if (actionId === "task_list") {
+                        if (actionId === "task_list" || actionId === "bullet_list" || actionId === "ordered_list") {
                             if (bItem.type !== "list") { allMatch = false; break; }
-                            var items1 = LP.parseList(bItem.raw || "");
-                            if (!items1 || items1.length === 0 || !items1.every(function(it) { return it.isTask; })) { allMatch = false; break; }
-                        }
-                        if (actionId === "bullet_list") {
-                            if (bItem.type !== "list") { allMatch = false; break; }
-                            var items2 = LP.parseList(bItem.raw || "");
-                            if (!items2 || items2.length === 0 || !items2.every(function(it) { return !it.isTask && (it.marker === "-" || it.marker === "*" || it.marker === "+"); })) { allMatch = false; break; }
-                        }
-                        if (actionId === "ordered_list") {
-                            if (bItem.type !== "list") { allMatch = false; break; }
-                            var items3 = LP.parseList(bItem.raw || "");
-                            if (!items3 || items3.length === 0 || !items3.every(function(it) { return !it.isTask && (it.marker.indexOf(".") !== -1 || it.marker.indexOf(")") !== -1); })) { allMatch = false; break; }
+                            var sItems = cache.selListMap[bidNum];
+                            if (sItems === undefined) {
+                                sItems = LP.parseList(bItem.raw || "");
+                                cache.selListMap[bidNum] = sItems;
+                            }
+                            if (!sItems || sItems.length === 0) { allMatch = false; break; }
+                            if (actionId === "task_list" && !sItems.every(function(it) { return it.isTask; })) { allMatch = false; break; }
+                            if (actionId === "bullet_list" && !sItems.every(function(it) { return !it.isTask && (it.marker === "-" || it.marker === "*" || it.marker === "+"); })) { allMatch = false; break; }
+                            if (actionId === "ordered_list" && !sItems.every(function(it) { return !it.isTask && (it.marker.indexOf(".") !== -1 || it.marker.indexOf(")") !== -1); })) { allMatch = false; break; }
                         }
                     }
-                    return allMatch;
+                    resA = allMatch;
+                    cache.actions[actionId] = resA;
+                    return resA;
                 }
 
                 // Inline format sobre bloques seleccionados
-                var selTxt = getSelectedText();
-                if (selTxt) {
-                    var detSel = Inline.detectFormats(selTxt);
-                    return !!detSel[actionId];
+                if (!cache.hasSelDet) {
+                    var selTxt = getSelectedText();
+                    cache.selDet = selTxt ? Inline.detectFormats(selTxt) : ({});
+                    cache.hasSelDet = true;
                 }
+                resA = !!cache.selDet[actionId];
+                cache.actions[actionId] = resA;
+                return resA;
             }
+            cache.actions[actionId] = false;
             return false;
         }
 
         // Caso B: Bloque activo individual
         if (root.activeBlockBid !== -1) {
-            var idx = _findBlockIndex(root.activeBlockBid);
-            if (idx === -1) return false;
-            var b = blocksModel.get(idx);
+            var b = cache.blockObj;
+            if (b === undefined) {
+                var idx = _findBlockIndex(root.activeBlockBid);
+                b = (idx !== -1) ? blocksModel.get(idx) : null;
+                cache.blockObj = b;
+            }
             if (!b) return false;
+
+            var isBlockAction = (actionId === "h1" || actionId === "h2" || actionId === "h3" ||
+                actionId === "h4" || actionId === "h5" || actionId === "h6" ||
+                actionId === "quote" || actionId === "code_block" || actionId === "mermaid" ||
+                actionId === "math" || actionId === "table" ||
+                actionId === "task_list" || actionId === "bullet_list" || actionId === "ordered_list");
+
+            if (isBlockAction && cache.actions[actionId] !== undefined) {
+                return cache.actions[actionId];
+            }
 
             // F22: h1..h6 valen para encabezados sueltos Y para ítems de lista
             // (bullet_list y h2 pueden estar activos a la vez; no son excluyentes).
             if (actionId === "h1" || actionId === "h2" || actionId === "h3" ||
                 actionId === "h4" || actionId === "h5" || actionId === "h6") {
                 var wantLvlB = parseInt(actionId.substring(1), 10);
+                var resH = false;
                 if (b.type === "heading") {
                     var wantPfxB = "#".repeat(wantLvlB) + " ";
-                    return (b.raw || "").startsWith(wantPfxB);
-                }
-                if (b.type === "list") {
-                    var hItemsB = LP.parseList(b.raw || "");
-                    if (!hItemsB || hItemsB.length === 0) return false;
-                    var loaderH = _getDelegateItemForBid(root.activeBlockBid);
-                    var rFrom = 0;
-                    var rTo = hItemsB.length - 1;
-                    if (loaderH && loaderH.item && typeof loaderH.item.selectedItemRange === "function") {
-                        try {
-                            var rg = loaderH.item.selectedItemRange();
-                            if (rg && typeof rg.from === "number" && typeof rg.to === "number") {
-                                rFrom = Math.max(0, Math.min(rg.from, rg.to));
-                                rTo = Math.min(hItemsB.length - 1, Math.max(rg.from, rg.to));
-                            }
-                        } catch (e) {}
-                    } else if (loaderH && loaderH.item && typeof loaderH.item.activeItemIndex === "number") {
-                        var ai = loaderH.item.activeItemIndex;
-                        if (ai >= 0 && ai < hItemsB.length) { rFrom = ai; rTo = ai; }
+                    resH = (b.raw || "").startsWith(wantPfxB);
+                } else if (b.type === "list") {
+                    var hItemsB = cache.blockListItems;
+                    if (hItemsB === undefined) {
+                        hItemsB = LP.parseList(b.raw || "");
+                        cache.blockListItems = hItemsB;
                     }
-                    return LP.allItemsMatchHeading(hItemsB, rFrom, rTo, wantLvlB);
-                }
-                if (b.type === "quote") {
+                    if (hItemsB && hItemsB.length > 0) {
+                        var loaderH = _getDelegateItemForBid(root.activeBlockBid);
+                        var rFrom = 0;
+                        var rTo = hItemsB.length - 1;
+                        if (loaderH && loaderH.item && typeof loaderH.item.selectedItemRange === "function") {
+                            try {
+                                var rg = loaderH.item.selectedItemRange();
+                                if (rg && typeof rg.from === "number" && typeof rg.to === "number") {
+                                    rFrom = Math.max(0, Math.min(rg.from, rg.to));
+                                    rTo = Math.min(hItemsB.length - 1, Math.max(rg.from, rg.to));
+                                }
+                            } catch (e) {}
+                        } else if (loaderH && loaderH.item && typeof loaderH.item.activeItemIndex === "number") {
+                            var ai = loaderH.item.activeItemIndex;
+                            if (ai >= 0 && ai < hItemsB.length) { rFrom = ai; rTo = ai; }
+                        }
+                        resH = LP.allItemsMatchHeading(hItemsB, rFrom, rTo, wantLvlB);
+                    }
+                } else if (b.type === "quote") {
                     var qbLines = (b.raw || "").split("\n");
                     var qbCount = 0;
+                    var qbOk = true;
                     for (var qb = 0; qb < qbLines.length; qb++) {
                         var qbClean = qbLines[qb].replace(/^[ \t]*>[ \t]?/, "");
                         if (qbClean.trim() === "") continue;
                         qbCount++;
-                        if (LP.headingLevelOf(qbClean) !== wantLvlB) return false;
+                        if (LP.headingLevelOf(qbClean) !== wantLvlB) { qbOk = false; break; }
                     }
-                    return qbCount > 0;
+                    resH = (qbCount > 0 && qbOk);
                 }
-                return false;
+                cache.actions[actionId] = resH;
+                return resH;
             }
-            if (actionId === "quote") return b.type === "quote";
-            if (actionId === "code_block") return b.type === "code";
-            if (actionId === "mermaid") return b.type === "mermaid";
-            if (actionId === "math") return b.type === "math";
-            if (actionId === "table") return b.type === "table";
+            if (actionId === "quote") { cache.actions[actionId] = (b.type === "quote"); return cache.actions[actionId]; }
+            if (actionId === "code_block") { cache.actions[actionId] = (b.type === "code"); return cache.actions[actionId]; }
+            if (actionId === "mermaid") { cache.actions[actionId] = (b.type === "mermaid"); return cache.actions[actionId]; }
+            if (actionId === "math") { cache.actions[actionId] = (b.type === "math"); return cache.actions[actionId]; }
+            if (actionId === "table") { cache.actions[actionId] = (b.type === "table"); return cache.actions[actionId]; }
 
             if (actionId === "task_list" || actionId === "bullet_list" || actionId === "ordered_list") {
-                if (b.type !== "list") return false;
-                var listItems = LP.parseList(b.raw || "");
-                if (!listItems || listItems.length === 0) return false;
-                var loader = _getDelegateItemForBid(root.activeBlockBid);
-                var itemIdx = (loader && loader.item && typeof loader.item.activeItemIndex === "number") ? loader.item.activeItemIndex : 0;
-                var curListItem = (itemIdx >= 0 && itemIdx < listItems.length) ? listItems[itemIdx] : listItems[0];
-                if (actionId === "task_list") return !!curListItem.isTask;
-                if (actionId === "bullet_list") return !curListItem.isTask && (curListItem.marker === "-" || curListItem.marker === "*" || curListItem.marker === "+");
-                if (actionId === "ordered_list") return !curListItem.isTask && (curListItem.marker.indexOf(".") !== -1 || curListItem.marker.indexOf(")") !== -1);
-                return false;
+                var resL = false;
+                if (b.type === "list") {
+                    var listItems = cache.blockListItems;
+                    if (listItems === undefined) {
+                        listItems = LP.parseList(b.raw || "");
+                        cache.blockListItems = listItems;
+                    }
+                    if (listItems && listItems.length > 0) {
+                        var loader = _getDelegateItemForBid(root.activeBlockBid);
+                        var itemIdx = (loader && loader.item && typeof loader.item.activeItemIndex === "number") ? loader.item.activeItemIndex : 0;
+                        var curListItem = (itemIdx >= 0 && itemIdx < listItems.length) ? listItems[itemIdx] : listItems[0];
+                        if (actionId === "task_list") resL = !!curListItem.isTask;
+                        else if (actionId === "bullet_list") resL = !curListItem.isTask && (curListItem.marker === "-" || curListItem.marker === "*" || curListItem.marker === "+");
+                        else if (actionId === "ordered_list") resL = !curListItem.isTask && (curListItem.marker.indexOf(".") !== -1 || curListItem.marker.indexOf(")") !== -1);
+                    }
+                }
+                cache.actions[actionId] = resL;
+                return resL;
             }
 
             var te = _getTextEditForBid(root.activeBlockBid);
             if (te) {
-                var rawText = Inline.plainText(te);
                 var s = te.selectionStart;
                 var e = te.selectionEnd;
                 var cur = te.cursorPosition;
-                var det = Inline.detectFormats(rawText, s, e, cur);
-                return !!det[actionId];
+                var lenGuess = te.length !== undefined ? te.length : -1;
+                var teSig = root.activeBlockBid + ":" + lenGuess + ":" + s + ":" + e + ":" + cur;
+                if (cache.inlineDet === null || cache.inlineTeSig !== teSig) {
+                    var rawText = Inline.plainText(te);
+                    cache.inlineTeSig = teSig;
+                    cache.inlineDet = Inline.detectFormats(rawText, s, e, cur);
+                }
+                return !!cache.inlineDet[actionId];
             }
         }
 

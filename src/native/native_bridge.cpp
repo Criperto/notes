@@ -20,6 +20,7 @@
 #include <QQuickItem>
 #include <QQuickWindow>
 #include <QUuid>
+#include <QSet>
 #include <cmath>
 #include <iostream>
 
@@ -27,6 +28,11 @@ namespace {
 QString xdgConfigBaseDir() {
     QString cfg = qEnvironmentVariable("XDG_CONFIG_HOME").trimmed();
     return cfg.isEmpty() ? (QDir::homePath() + QStringLiteral("/.config")) : cfg;
+}
+
+QString xdgCacheBaseDir() {
+    QString cache = qEnvironmentVariable("XDG_CACHE_HOME").trimmed();
+    return cache.isEmpty() ? (QDir::homePath() + QStringLiteral("/.cache")) : cache;
 }
 
 QString xdgDataBaseDir() {
@@ -38,6 +44,52 @@ QString resolveConfigFile(const QString &relPath) {
     QString primary = xdgConfigBaseDir() + QLatin1Char('/') + relPath;
     if (QFile::exists(primary)) return primary;
     return QDir::homePath() + QStringLiteral("/.config/") + relPath;
+}
+
+QString resolveCacheFile(const QString &relPath) {
+    QString primary = xdgCacheBaseDir() + QLatin1Char('/') + relPath;
+    if (QFile::exists(primary)) return primary;
+    return QDir::homePath() + QStringLiteral("/.cache/") + relPath;
+}
+
+QString resolveQuickshellConfigFile(const QString &fileName) {
+    const QStringList candidates = {
+        resolveConfigFile(QStringLiteral("cripertoshell/") + fileName),
+        resolveConfigFile(QStringLiteral("quickshell/config/") + fileName),
+        resolveConfigFile(QStringLiteral("quickshell/CripertoShell/config/") + fileName)
+    };
+    for (const QString &cand : candidates) {
+        if (QFile::exists(cand)) return cand;
+    }
+    return candidates.first();
+}
+
+QString quickshellConfigRootLabel() {
+    const QStringList checkFiles = {
+        QStringLiteral("general.conf"),
+        QStringLiteral("theme.conf"),
+        QStringLiteral("notes.conf"),
+        QStringLiteral("font.conf"),
+        QStringLiteral("i18n.conf")
+    };
+    for (const QString &fn : checkFiles) {
+        if (QFile::exists(resolveConfigFile(QStringLiteral("cripertoshell/") + fn))) {
+            return QStringLiteral("~/.config/cripertoshell");
+        }
+    }
+    for (const QString &fn : checkFiles) {
+        if (QFile::exists(resolveConfigFile(QStringLiteral("quickshell/CripertoShell/config/") + fn))) {
+            return QStringLiteral("~/.config/quickshell/CripertoShell/config");
+        }
+    }
+    return QStringLiteral("~/.config/quickshell");
+}
+
+bool hasAnyQuickshellConfigFiles() {
+    return QFile::exists(resolveQuickshellConfigFile(QStringLiteral("general.conf")))
+        || QFile::exists(resolveQuickshellConfigFile(QStringLiteral("theme.conf")))
+        || QFile::exists(resolveQuickshellConfigFile(QStringLiteral("notes.conf")))
+        || QFile::exists(resolveQuickshellConfigFile(QStringLiteral("font.conf")));
 }
 
 bool isInFlatpak() {
@@ -286,12 +338,12 @@ void Process::onProcessFinished(int exitCode, QProcess::ExitStatus /*exitStatus*
     emit exited(exitCode);
 }
 
-void Process::onProcessError(QProcess::ProcessError /*error*/) {
-    if (m_running) {
+void Process::onProcessError(QProcess::ProcessError error) {
+    if (error == QProcess::FailedToStart && m_running) {
         m_running = false;
         emit runningChanged();
+        emit exited(-1);
     }
-    emit exited(-1);
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -301,9 +353,10 @@ void Process::onProcessError(QProcess::ProcessError /*error*/) {
 FileView::FileView(QObject *parent)
     : QObject(parent)
 {
-    m_watcher = new QFileSystemWatcher(this);
-    connect(m_watcher, &QFileSystemWatcher::fileChanged, this, &FileView::onFileSystemChanged);
-    connect(m_watcher, &QFileSystemWatcher::directoryChanged, this, &FileView::onFileSystemChanged);
+    m_reloadTimer = new QTimer(this);
+    m_reloadTimer->setSingleShot(true);
+    m_reloadTimer->setInterval(50);
+    connect(m_reloadTimer, &QTimer::timeout, this, &FileView::performScheduledReload);
 }
 
 FileView::~FileView() {
@@ -311,8 +364,16 @@ FileView::~FileView() {
 
 void FileView::setPath(const QString &p) {
     if (m_path == p) return;
+    bool wasLoaded = m_loaded;
     m_path = p;
+    m_canonicalPath.clear();
+    m_loaded = false;
+    m_text.clear();
+    m_lastModified = QDateTime();
+    m_emptyRetryPending = false;
+    if (m_reloadTimer) m_reloadTimer->stop();
     emit pathChanged();
+    if (wasLoaded) emit loadedChanged();
     updateWatcher();
     if (m_preload && !m_path.isEmpty()) {
         readFile();
@@ -348,7 +409,7 @@ void FileView::setPrintErrors(bool v) {
 }
 
 void FileView::setText(const QString &content) {
-    if (m_text == content && m_loaded) {
+    if (m_text == content && m_loaded && QFileInfo::exists(m_path)) {
         emit saved();
         return;
     }
@@ -360,7 +421,23 @@ void FileView::reload() {
 }
 
 void FileView::updateWatcher() {
-    if (!m_watcher) return;
+    if (!m_watchChanges || m_path.isEmpty()) {
+        if (m_watcher) {
+            const QStringList files = m_watcher->files();
+            if (!files.isEmpty()) m_watcher->removePaths(files);
+            const QStringList dirs = m_watcher->directories();
+            if (!dirs.isEmpty()) m_watcher->removePaths(dirs);
+        }
+        m_canonicalPath.clear();
+        return;
+    }
+
+    if (!m_watcher) {
+        m_watcher = new QFileSystemWatcher(this);
+        connect(m_watcher, &QFileSystemWatcher::fileChanged, this, &FileView::onFileSystemChanged);
+        connect(m_watcher, &QFileSystemWatcher::directoryChanged, this, &FileView::onFileSystemChanged);
+    }
+
     const QStringList files = m_watcher->files();
     if (!files.isEmpty()) {
         m_watcher->removePaths(files);
@@ -369,14 +446,34 @@ void FileView::updateWatcher() {
     if (!dirs.isEmpty()) {
         m_watcher->removePaths(dirs);
     }
-    if (m_watchChanges && !m_path.isEmpty()) {
-        if (QFile::exists(m_path)) {
-            m_watcher->addPath(m_path);
-        }
-        QString parentDir = QFileInfo(m_path).absolutePath();
-        if (!parentDir.isEmpty() && QDir(parentDir).exists()) {
+
+    QFileInfo fi(m_path);
+    if (fi.exists()) {
+        m_watcher->addPath(m_path);
+    }
+    QString parentDir = fi.absolutePath();
+    if (!parentDir.isEmpty()) {
+        if (QDir(parentDir).exists()) {
             m_watcher->addPath(parentDir);
+        } else {
+            QString grandParentDir = QFileInfo(parentDir).absolutePath();
+            if (!grandParentDir.isEmpty() && QDir(grandParentDir).exists()) {
+                m_watcher->addPath(grandParentDir);
+            }
         }
+    }
+    QString canon = fi.canonicalFilePath();
+    if (!canon.isEmpty() && canon != m_path) {
+        m_canonicalPath = canon;
+        if (QFileInfo::exists(canon) && !m_watcher->files().contains(canon)) {
+            m_watcher->addPath(canon);
+        }
+        QString canonDir = QFileInfo(canon).absolutePath();
+        if (!canonDir.isEmpty() && canonDir != parentDir && QDir(canonDir).exists() && !m_watcher->directories().contains(canonDir)) {
+            m_watcher->addPath(canonDir);
+        }
+    } else {
+        m_canonicalPath.clear();
     }
 }
 
@@ -465,25 +562,41 @@ bool FileView::writeFile(const QString &content) {
 
 void FileView::onFileSystemChanged(const QString &changedPath) {
     Q_UNUSED(changedPath);
-    if (m_isInternalSave || m_path.isEmpty()) return;
+    if (m_isInternalSave || m_path.isEmpty() || !m_watchChanges) return;
     // Ventana de supresión de 350ms para ignorar eventos disparados por nuestro propio guardado
     if (m_lastInternalSaveMs > 0 && (QDateTime::currentMSecsSinceEpoch() - m_lastInternalSaveMs < 350)) {
         return;
     }
+    if (m_reloadTimer) {
+        m_reloadTimer->start();
+    } else {
+        performScheduledReload();
+    }
+}
+
+void FileView::performScheduledReload() {
+    if (m_isInternalSave || m_path.isEmpty() || !m_watchChanges) return;
+    if (m_lastInternalSaveMs > 0 && (QDateTime::currentMSecsSinceEpoch() - m_lastInternalSaveMs < 350)) {
+        return;
+    }
+
     QFileInfo fi(m_path);
-    if (fi.exists()) {
-        if (m_watchChanges && m_watcher && !m_watcher->files().contains(m_path)) {
-            m_watcher->addPath(m_path);
-        }
-        QDateTime mod = fi.lastModified();
-        bool shouldReload = !m_loaded || (mod != m_lastModified);
-        if (shouldReload) {
-            QString oldText = m_text;
-            if (readFile()) {
-                if (m_text != oldText) {
-                    emit fileChanged();
-                }
-            }
+    updateWatcher();
+    if (!fi.exists()) return;
+
+    // Evitar falso cambio durante truncado no atómico (O_TRUNC previo a escribir)
+    if (fi.size() == 0 && !m_text.isEmpty() && !m_emptyRetryPending) {
+        m_emptyRetryPending = true;
+        QTimer::singleShot(80, this, &FileView::performScheduledReload);
+        return;
+    }
+    m_emptyRetryPending = false;
+
+    QString oldText = m_text;
+    bool wasLoaded = m_loaded;
+    if (readFile()) {
+        if (!wasLoaded || m_text != oldText) {
+            emit fileChanged();
         }
     }
 }
@@ -492,11 +605,157 @@ void FileView::onFileSystemChanged(const QString &changedPath) {
 // 4. Sys Implementation
 // ═════════════════════════════════════════════════════════════════════════════
 
+Sys *Sys::s_instance = nullptr;
+
+Sys *Sys::instance() {
+    return s_instance;
+}
+
+namespace {
+struct QtThemeDiscovery {
+    QString qtStyle;
+    QString colorSchemePath;
+    bool customPalette = false;
+    QString kvTheme;
+    QString activeKvConfig;
+};
+
+QString expandConfigPath(QString raw, const QString &qtctSubdir) {
+    QString s = raw.trimmed();
+    if (s.isEmpty()) return QString();
+    const QString home = QDir::homePath();
+    if (s.startsWith(QStringLiteral("~/"))) {
+        s = home + s.mid(1);
+    } else if (s.contains(QStringLiteral("$HOME"))) {
+        s.replace(QStringLiteral("$HOME"), home);
+    }
+    if (s.contains(QStringLiteral("$XDG_CONFIG_HOME"))) {
+        s.replace(QStringLiteral("$XDG_CONFIG_HOME"), xdgConfigBaseDir());
+    }
+    if (!s.contains(QLatin1Char('/'))) {
+        const QStringList candidates = {
+            resolveConfigFile(qtctSubdir + QStringLiteral("/colors/") + s),
+            resolveConfigFile(QStringLiteral("qt6ct/colors/") + s),
+            resolveConfigFile(QStringLiteral("qt5ct/colors/") + s),
+            QStringLiteral("/usr/share/qt6ct/colors/") + s,
+            QStringLiteral("/usr/share/qt5ct/colors/") + s
+        };
+        for (const QString &c : candidates) {
+            if (QFileInfo::exists(c)) return c;
+        }
+    }
+    return s;
+}
+
+QtThemeDiscovery discoverQtThemeConfig() {
+    QtThemeDiscovery info;
+    auto parseQtct = [&](const QString &relPath, const QString &subdir) {
+        QFile f(resolveConfigFile(relPath));
+        if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) return false;
+        QTextStream in(&f);
+        while (!in.atEnd()) {
+            QString line = in.readLine().trimmed();
+            if (line.startsWith(QStringLiteral("style="))) {
+                QString val = line.mid(6).trimmed();
+                if (info.qtStyle.isEmpty() && !val.isEmpty()) info.qtStyle = val;
+            } else if (line.startsWith(QStringLiteral("color_scheme_path="))) {
+                QString val = expandConfigPath(line.mid(18), subdir);
+                if (info.colorSchemePath.isEmpty() && !val.isEmpty()) info.colorSchemePath = val;
+            } else if (line.startsWith(QStringLiteral("custom_palette="))) {
+                info.customPalette = (line.mid(15).trimmed().compare(QStringLiteral("true"), Qt::CaseInsensitive) == 0);
+            }
+        }
+        return true;
+    };
+
+    if (!parseQtct(QStringLiteral("qt6ct/qt6ct.conf"), QStringLiteral("qt6ct"))) {
+        parseQtct(QStringLiteral("qt5ct/qt5ct.conf"), QStringLiteral("qt5ct"));
+    }
+
+    info.kvTheme = QString::fromLocal8Bit(qgetenv("KVANTUM_THEME")).trimmed();
+    QFile kvMain(resolveConfigFile(QStringLiteral("Kvantum/kvantum.kvconfig")));
+    if (kvMain.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        QTextStream in(&kvMain);
+        while (!in.atEnd()) {
+            QString line = in.readLine().trimmed();
+            if (line.startsWith(QStringLiteral("theme="))) {
+                QString t = line.mid(6).trimmed();
+                if (!t.isEmpty()) info.kvTheme = t;
+                break;
+            }
+        }
+    }
+
+    if (!info.kvTheme.isEmpty()) {
+        QString baseTheme = info.kvTheme;
+        if (baseTheme.endsWith(QLatin1Char('#'))) baseTheme.chop(1);
+        const QStringList kvPaths = {
+            resolveConfigFile(QStringLiteral("Kvantum/") + info.kvTheme + QLatin1Char('/') + info.kvTheme + QStringLiteral(".kvconfig")),
+            resolveConfigFile(QStringLiteral("Kvantum/") + baseTheme + QLatin1Char('/') + info.kvTheme + QStringLiteral(".kvconfig")),
+            QStringLiteral("/usr/share/Kvantum/") + info.kvTheme + QLatin1Char('/') + info.kvTheme + QStringLiteral(".kvconfig"),
+            QStringLiteral("/usr/share/Kvantum/") + baseTheme + QLatin1Char('/') + info.kvTheme + QStringLiteral(".kvconfig")
+        };
+        for (const QString &kp : kvPaths) {
+            if (QFileInfo::exists(kp)) {
+                info.activeKvConfig = kp;
+                break;
+            }
+        }
+    }
+    return info;
+}
+
+void collectWatchPath(QSet<QString> &targets, const QString &path, const QString &configRoot) {
+    if (path.isEmpty()) return;
+    QFileInfo fi(path);
+    if (!fi.exists() && !fi.isSymLink()) return;
+
+    if (fi.exists()) {
+        targets.insert(path);
+    }
+    if (fi.isSymLink()) {
+        QString sym = fi.symLinkTarget();
+        if (!sym.isEmpty() && QFileInfo::exists(sym)) {
+            targets.insert(sym);
+            QString symDir = QFileInfo(sym).absolutePath();
+            if (!symDir.isEmpty() && symDir != configRoot && symDir != QDir::homePath() && QDir(symDir).exists()) {
+                targets.insert(symDir);
+            }
+        }
+    }
+    QString canon = fi.canonicalFilePath();
+    if (!canon.isEmpty() && canon != path && QFileInfo::exists(canon)) {
+        targets.insert(canon);
+        QString canonDir = QFileInfo(canon).absolutePath();
+        if (!canonDir.isEmpty() && canonDir != configRoot && canonDir != QDir::homePath() && QDir(canonDir).exists()) {
+            targets.insert(canonDir);
+        }
+    }
+    if (fi.isFile()) {
+        QString dir = fi.absolutePath();
+        if (!dir.isEmpty() && dir != configRoot && dir != QDir::homePath() && QDir(dir).exists()) {
+            targets.insert(dir);
+        }
+    }
+}
+} // namespace
+
 Sys::Sys(QObject *parent)
     : QObject(parent)
 {
+    s_instance = this;
     m_initialAction = QString::fromLocal8Bit(qgetenv("NOTAS_INITIAL_ACTION"));
     m_initialTarget = QString::fromLocal8Bit(qgetenv("NOTAS_INITIAL_TARGET"));
+
+    m_qtThemeDebounceTimer = new QTimer(this);
+    m_qtThemeDebounceTimer->setSingleShot(true);
+    m_qtThemeDebounceTimer->setInterval(100);
+    connect(m_qtThemeDebounceTimer, &QTimer::timeout, this, [this]() {
+        setupQtThemeWatcher();
+        refreshQtColors();
+        invalidateFontCache();
+        emit systemFontChanged();
+    });
 
     if (QGuiApplication::clipboard()) {
         connect(QGuiApplication::clipboard(), &QClipboard::dataChanged, this, &Sys::clipboardTextChanged);
@@ -515,6 +774,9 @@ Sys::Sys(QObject *parent)
 }
 
 Sys::~Sys() {
+    if (s_instance == this) {
+        s_instance = nullptr;
+    }
     if (m_ipcServer) {
         m_ipcServer->close();
         delete m_ipcServer;
@@ -544,7 +806,7 @@ Sys::~Sys() {
 }
 
 bool Sys::eventFilter(QObject *watched, QEvent *event) {
-    if (event->type() == QEvent::MouseButtonPress || event->type() == QEvent::MouseMove) {
+    if (event->type() == QEvent::MouseButtonPress) {
         auto *me = static_cast<QMouseEvent*>(event);
         QPointF p = me->scenePosition();
         if (p != m_lastMousePos) {
@@ -553,6 +815,10 @@ bool Sys::eventFilter(QObject *watched, QEvent *event) {
         }
     } else if (event->type() == QEvent::ApplicationPaletteChange) {
         refreshQtColors();
+        if (m_qtThemeDebounceTimer) m_qtThemeDebounceTimer->start();
+    } else if (event->type() == QEvent::ApplicationFontChange) {
+        invalidateFontCache();
+        emit systemFontChanged();
     }
     return QObject::eventFilter(watched, event);
 }
@@ -567,29 +833,40 @@ void Sys::setupQtThemeWatcher() {
     if (!existing.isEmpty()) {
         m_qtThemeWatcher->removePaths(existing);
     }
-    const QString home = QDir::homePath();
+
+    const QString cfgRoot = xdgConfigBaseDir();
+    const QtThemeDiscovery info = discoverQtThemeConfig();
+
+    QSet<QString> watchSet;
     const QStringList candidates = {
-        home + QStringLiteral("/.config/qt6ct/qt6ct.conf"),
-        home + QStringLiteral("/.config/qt6ct/style-colors.conf"),
-        home + QStringLiteral("/.config/Kvantum/kvantum.kvconfig"),
-        home + QStringLiteral("/.config/Kvantum/pywal/pywal.kvconfig"),
-        home + QStringLiteral("/.config/kdeglobals"),
-        home + QStringLiteral("/.config/qt6ct"),
-        home + QStringLiteral("/.config/Kvantum")
+        resolveConfigFile(QStringLiteral("qt6ct/qt6ct.conf")),
+        resolveConfigFile(QStringLiteral("qt6ct/style-colors.conf")),
+        resolveConfigFile(QStringLiteral("qt5ct/qt5ct.conf")),
+        resolveConfigFile(QStringLiteral("qt5ct/style-colors.conf")),
+        resolveConfigFile(QStringLiteral("Kvantum/kvantum.kvconfig")),
+        resolveConfigFile(QStringLiteral("Kvantum/pywal/pywal.kvconfig")),
+        resolveConfigFile(QStringLiteral("kdeglobals")),
+        resolveQuickshellConfigFile(QStringLiteral("font.conf")),
+        info.colorSchemePath,
+        info.activeKvConfig,
+        resolveConfigFile(QStringLiteral("qt6ct")),
+        resolveConfigFile(QStringLiteral("qt6ct/colors")),
+        resolveConfigFile(QStringLiteral("qt5ct")),
+        resolveConfigFile(QStringLiteral("qt5ct/colors")),
+        resolveConfigFile(QStringLiteral("Kvantum"))
     };
-    for (const auto &p : candidates) {
-        if (QFileInfo::exists(p)) {
-            m_qtThemeWatcher->addPath(p);
-        }
+    for (const QString &p : candidates) {
+        collectWatchPath(watchSet, p, cfgRoot);
+    }
+    for (const QString &p : std::as_const(watchSet)) {
+        m_qtThemeWatcher->addPath(p);
     }
 }
 
 void Sys::onQtThemeFileChanged() {
-    QTimer::singleShot(120, this, [this]() {
-        setupQtThemeWatcher();
-        refreshQtColors();
-        emit systemFontChanged();
-    });
+    if (m_qtThemeDebounceTimer) {
+        m_qtThemeDebounceTimer->start();
+    }
 }
 
 void Sys::refreshQtColors() {
@@ -637,26 +914,10 @@ QJsonObject Sys::readQtColors() const {
     QColor link = pal.color(QPalette::Link);
     QColor mid = pal.color(QPalette::Mid);
 
-    const QString home = QDir::homePath();
-    QString qt6ctStyle;
-    QString colorSchemePath;
-    bool customPalette = false;
-
-    QFile qt6ctFile(home + QStringLiteral("/.config/qt6ct/qt6ct.conf"));
-    if (qt6ctFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        QTextStream in(&qt6ctFile);
-        while (!in.atEnd()) {
-            QString line = in.readLine().trimmed();
-            if (line.startsWith(QStringLiteral("style="))) {
-                qt6ctStyle = line.mid(6).trimmed();
-            } else if (line.startsWith(QStringLiteral("color_scheme_path="))) {
-                colorSchemePath = line.mid(18).trimmed();
-            } else if (line.startsWith(QStringLiteral("custom_palette="))) {
-                customPalette = (line.mid(15).trimmed().compare(QStringLiteral("true"), Qt::CaseInsensitive) == 0);
-            }
-        }
-        qt6ctFile.close();
-    }
+    const QtThemeDiscovery info = discoverQtThemeConfig();
+    const QString qt6ctStyle = info.qtStyle;
+    const QString colorSchemePath = info.colorSchemePath;
+    const bool customPalette = info.customPalette;
 
     if (customPalette && !colorSchemePath.isEmpty() && QFile::exists(colorSchemePath)) {
         QFile csFile(colorSchemePath);
@@ -690,95 +951,76 @@ QJsonObject Sys::readQtColors() const {
                           || styleOverride.contains(QStringLiteral("kvantum"), Qt::CaseInsensitive);
 
     if (usesKvantum) {
-        QString kvTheme = QString::fromLocal8Bit(qgetenv("KVANTUM_THEME")).trimmed();
-        QFile kvMain(home + QStringLiteral("/.config/Kvantum/kvantum.kvconfig"));
-        if (kvMain.open(QIODevice::ReadOnly | QIODevice::Text)) {
-            QTextStream in(&kvMain);
-            while (!in.atEnd()) {
-                QString line = in.readLine().trimmed();
-                if (line.startsWith(QStringLiteral("theme="))) {
-                    QString t = line.mid(6).trimmed();
-                    if (!t.isEmpty()) kvTheme = t;
-                    break;
-                }
-            }
-            kvMain.close();
-        }
-        if (!kvTheme.isEmpty()) {
-            QString baseTheme = kvTheme;
-            if (baseTheme.endsWith('#')) baseTheme.chop(1);
-            const QStringList kvPaths = {
-                home + QStringLiteral("/.config/Kvantum/") + kvTheme + QStringLiteral("/") + kvTheme + QStringLiteral(".kvconfig"),
-                home + QStringLiteral("/.config/Kvantum/") + baseTheme + QStringLiteral("/") + kvTheme + QStringLiteral(".kvconfig"),
-                QStringLiteral("/usr/share/Kvantum/") + kvTheme + QStringLiteral("/") + kvTheme + QStringLiteral(".kvconfig"),
-                QStringLiteral("/usr/share/Kvantum/") + baseTheme + QStringLiteral("/") + kvTheme + QStringLiteral(".kvconfig")
-            };
-            for (const auto &kp : kvPaths) {
-                if (!QFile::exists(kp)) continue;
-                QFile kf(kp);
-                if (kf.open(QIODevice::ReadOnly | QIODevice::Text)) {
-                    QTextStream in(&kf);
-                    QString section;
-                    while (!in.atEnd()) {
-                        QString line = in.readLine().trimmed();
-                        if (line.isEmpty() || line.startsWith('#') || line.startsWith(';')) continue;
-                        if (line.startsWith('[') && line.endsWith(']')) {
-                            section = line.mid(1, line.length() - 2);
-                            continue;
-                        }
-                        if (section != QStringLiteral("GeneralColors")) continue;
-                        int eq = line.indexOf('=');
-                        if (eq == -1) continue;
-                        QString k = line.left(eq).trimmed();
-                        QColor c = parseConfigColor(line.mid(eq + 1));
-                        if (!c.isValid()) continue;
-                        if (k == QStringLiteral("window.color")) bg = c;
-                        else if (k == QStringLiteral("base.color")) surface = c;
-                        else if (k == QStringLiteral("alt.base.color")) altBase = c;
-                        else if (k == QStringLiteral("button.color")) btn = c;
-                        else if (k == QStringLiteral("highlight.color")) accent = c;
-                        else if (k == QStringLiteral("text.color")) txt = c;
-                        else if (k == QStringLiteral("window.text.color")) fg = c;
-                        else if (k == QStringLiteral("link.color")) link = c;
-                        else if (k == QStringLiteral("disabled.text.color")) mid = c;
+        if (!info.activeKvConfig.isEmpty() && QFile::exists(info.activeKvConfig)) {
+            QFile kf(info.activeKvConfig);
+            if (kf.open(QIODevice::ReadOnly | QIODevice::Text)) {
+                QTextStream in(&kf);
+                QString section;
+                while (!in.atEnd()) {
+                    QString line = in.readLine().trimmed();
+                    if (line.isEmpty() || line.startsWith('#') || line.startsWith(';')) continue;
+                    if (line.startsWith('[') && line.endsWith(']')) {
+                        section = line.mid(1, line.length() - 2);
+                        continue;
                     }
-                    kf.close();
-                    break;
+                    if (section != QStringLiteral("GeneralColors")) continue;
+                    int eq = line.indexOf('=');
+                    if (eq == -1) continue;
+                    QString k = line.left(eq).trimmed();
+                    QColor c = parseConfigColor(line.mid(eq + 1));
+                    if (!c.isValid()) continue;
+                    if (k == QStringLiteral("window.color")) bg = c;
+                    else if (k == QStringLiteral("base.color")) surface = c;
+                    else if (k == QStringLiteral("alt.base.color")) altBase = c;
+                    else if (k == QStringLiteral("button.color")) btn = c;
+                    else if (k == QStringLiteral("highlight.color")) accent = c;
+                    else if (k == QStringLiteral("text.color")) txt = c;
+                    else if (k == QStringLiteral("window.text.color")) fg = c;
+                    else if (k == QStringLiteral("link.color")) link = c;
+                    else if (k == QStringLiteral("disabled.text.color")) mid = c;
                 }
+                kf.close();
             }
         }
-    } else if (!customPalette && QFile::exists(home + QStringLiteral("/.config/kdeglobals"))) {
-        QFile kdeFile(home + QStringLiteral("/.config/kdeglobals"));
-        if (kdeFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
-            QTextStream in(&kdeFile);
-            QString section;
-            while (!in.atEnd()) {
-                QString line = in.readLine().trimmed();
-                if (line.isEmpty() || line.startsWith('#')) continue;
-                if (line.startsWith('[') && line.endsWith(']')) {
-                    section = line.mid(1, line.length() - 2);
-                    continue;
+    } else if (!customPalette) {
+        const QString kdePath = resolveConfigFile(QStringLiteral("kdeglobals"));
+        if (QFile::exists(kdePath)) {
+            QFile kdeFile(kdePath);
+            if (kdeFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+                QTextStream in(&kdeFile);
+                QString section;
+                while (!in.atEnd()) {
+                    QString line = in.readLine().trimmed();
+                    if (line.isEmpty() || line.startsWith('#')) continue;
+                    if (line.startsWith('[') && line.endsWith(']')) {
+                        section = line.mid(1, line.length() - 2);
+                        continue;
+                    }
+                    int eq = line.indexOf('=');
+                    if (eq == -1) continue;
+                    QString k = line.left(eq).trimmed();
+                    QColor c = parseConfigColor(line.mid(eq + 1));
+                    if (!c.isValid()) continue;
+                    if (section == QStringLiteral("Colors:Window")) {
+                        if (k == QStringLiteral("BackgroundNormal")) bg = c;
+                        else if (k == QStringLiteral("ForegroundNormal")) fg = c;
+                    } else if (section == QStringLiteral("Colors:View")) {
+                        if (k == QStringLiteral("BackgroundNormal")) surface = c;
+                        else if (k == QStringLiteral("ForegroundNormal")) txt = c;
+                        else if (k == QStringLiteral("ForegroundLink")) link = c;
+                    } else if (section == QStringLiteral("Colors:Button")) {
+                        if (k == QStringLiteral("BackgroundNormal")) btn = c;
+                    } else if (section == QStringLiteral("Colors:Selection")) {
+                        if (k == QStringLiteral("BackgroundNormal")) accent = c;
+                    }
                 }
-                int eq = line.indexOf('=');
-                if (eq == -1) continue;
-                QString k = line.left(eq).trimmed();
-                QColor c = parseConfigColor(line.mid(eq + 1));
-                if (!c.isValid()) continue;
-                if (section == QStringLiteral("Colors:Window")) {
-                    if (k == QStringLiteral("BackgroundNormal")) bg = c;
-                    else if (k == QStringLiteral("ForegroundNormal")) fg = c;
-                } else if (section == QStringLiteral("Colors:View")) {
-                    if (k == QStringLiteral("BackgroundNormal")) surface = c;
-                    else if (k == QStringLiteral("ForegroundNormal")) txt = c;
-                    else if (k == QStringLiteral("ForegroundLink")) link = c;
-                } else if (section == QStringLiteral("Colors:Button")) {
-                    if (k == QStringLiteral("BackgroundNormal")) btn = c;
-                } else if (section == QStringLiteral("Colors:Selection")) {
-                    if (k == QStringLiteral("BackgroundNormal")) accent = c;
-                }
+                kdeFile.close();
             }
-            kdeFile.close();
         }
+    }
+
+    if ((!accent.isValid() || accent == bg) && link.isValid() && link != bg) {
+        accent = link;
     }
 
     auto hex = [](const QColor &c) -> QString {
@@ -870,7 +1112,7 @@ void Sys::onNewIpcConnection() {
     while (m_ipcServer && m_ipcServer->hasPendingConnections()) {
         QLocalSocket *client = m_ipcServer->nextPendingConnection();
         connect(client, &QLocalSocket::disconnected, client, &QObject::deleteLater);
-        connect(client, &QLocalSocket::readyRead, this, [this, client]() {
+        auto handleClientData = [this, client]() {
             QByteArray raw = client->readAll().trimmed();
             if (!raw.isEmpty()) {
                 const QList<QByteArray> lines = raw.split('\n');
@@ -899,8 +1141,14 @@ void Sys::onNewIpcConnection() {
                     }
                 }
             }
-            client->deleteLater();
-        });
+            if (client->bytesAvailable() == 0) {
+                client->disconnectFromServer();
+            }
+        };
+        connect(client, &QLocalSocket::readyRead, this, handleClientData);
+        if (client->bytesAvailable() > 0) {
+            handleClientData();
+        }
     }
 }
 
@@ -1158,7 +1406,7 @@ static bool isForcedNoSyncConfigured() {
     const QStringList extraFiles = {
         cfgDir + QStringLiteral("/criperto-notes/config.conf"),
         cfgDir + QStringLiteral("/criperto-notes/config.toml"),
-        cfgDir + QStringLiteral("/quickshell/config/notes.conf")
+        resolveQuickshellConfigFile(QStringLiteral("notes.conf"))
     };
     for (const QString &extraPath : extraFiles) {
         if (QFile::exists(extraPath)) {
@@ -1216,8 +1464,7 @@ bool Sys::hasQuickshellConfig() const {
     if (isForcedNoSyncConfigured()) {
         return false;
     }
-    return QFile::exists(resolveConfigFile(QStringLiteral("quickshell/config/general.conf")))
-        || QFile::exists(resolveConfigFile(QStringLiteral("quickshell/config/theme.conf")));
+    return hasAnyQuickshellConfigFiles();
 }
 
 bool Sys::wmNeedsWindowControls() const {
@@ -1375,37 +1622,54 @@ struct FontResolution {
     QString provenance;
 };
 
+QString readKeyValueFromConf(const QString &filePath, const QString &exactKey) {
+    QFile f(filePath);
+    if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) return QString();
+    QTextStream in(&f);
+    while (!in.atEnd()) {
+        const QString line = in.readLine().trimmed();
+        if (line.isEmpty() || line.startsWith('#') || line.startsWith(';')) continue;
+        const int eq = line.indexOf('=');
+        if (eq == -1) continue;
+        if (line.left(eq).trimmed() == exactKey) {
+            QString val = line.mid(eq + 1).trimmed();
+            if (!val.isEmpty()) return val;
+        }
+    }
+    return QString();
+}
+
+QString readQtctFontKey(const QString &keyName) {
+    const QStringList paths = {
+        resolveConfigFile(QStringLiteral("qt6ct/qt6ct.conf")),
+        resolveConfigFile(QStringLiteral("qt5ct/qt5ct.conf"))
+    };
+    for (const QString &p : paths) {
+        QString val = readKeyValueFromConf(p, keyName);
+        if (!val.isEmpty()) {
+            if (val.startsWith('"') && val.endsWith('"') && val.length() >= 2) {
+                val = val.mid(1, val.length() - 2);
+            }
+            const QStringList parts = val.split(',');
+            if (!parts.isEmpty() && !parts[0].trimmed().isEmpty()) {
+                return parts[0].trimmed();
+            }
+        }
+    }
+    return QString();
+}
+
 FontResolution resolveBodyFont() {
-    // 1. Quickshell font config
-    QFile qsFontFile(resolveConfigFile(QStringLiteral("quickshell/config/font.conf")));
-    if (qsFontFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        QTextStream in(&qsFontFile);
-        while (!in.atEnd()) {
-            QString line = in.readLine().trimmed();
-            if (line.startsWith(QStringLiteral("fontFamily")) && line.contains('=')) {
-                QString val = line.section('=', 1).trimmed();
-                if (!val.isEmpty()) return { val, QStringLiteral("[Quickshell font.conf]") };
-            }
-        }
-    }
-    // 2. qt6ct font config
-    QFile qt6ctFile(resolveConfigFile(QStringLiteral("qt6ct/qt6ct.conf")));
-    if (qt6ctFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        QTextStream in(&qt6ctFile);
-        while (!in.atEnd()) {
-            QString line = in.readLine().trimmed();
-            if (line.startsWith(QStringLiteral("general="))) {
-                QString val = line.mid(8).trimmed();
-                if (val.startsWith('"') && val.endsWith('"')) {
-                    val = val.mid(1, val.length() - 2);
-                }
-                const QStringList parts = val.split(',');
-                if (!parts.isEmpty() && !parts[0].trimmed().isEmpty()) {
-                    return { parts[0].trimmed(), QStringLiteral("[Tema Qt / qt6ct]") };
-                }
-            }
-        }
-    }
+    // 1. Quickshell / CripertoShell font config
+    const QString qsFontPath = resolveQuickshellConfigFile(QStringLiteral("font.conf"));
+    QString val = readKeyValueFromConf(qsFontPath, QStringLiteral("fontFamily"));
+    if (val.isEmpty()) val = readKeyValueFromConf(qsFontPath, QStringLiteral("systemFontFamily"));
+    if (!val.isEmpty()) return { val, QStringLiteral("[CripertoShell font.conf]") };
+
+    // 2. qt6ct / qt5ct font config
+    val = readQtctFontKey(QStringLiteral("general"));
+    if (!val.isEmpty()) return { val, QStringLiteral("[Tema Qt / qt6ct]") };
+
     // 3. Qt application font
     QString appFont = QGuiApplication::font().family();
     if (!appFont.isEmpty() && appFont != QStringLiteral("Sans Serif") && appFont != QStringLiteral("Sans")) {
@@ -1431,55 +1695,29 @@ FontResolution resolveBodyFont() {
 }
 
 FontResolution resolveDisplayFont() {
+    const QString qsFontPath = resolveQuickshellConfigFile(QStringLiteral("font.conf"));
+    const QString val = readKeyValueFromConf(qsFontPath, QStringLiteral("fontFamilyDisplay"));
+    if (!val.isEmpty()) return { val, QStringLiteral("[CripertoShell font.conf]") };
     return resolveBodyFont();
 }
 
 FontResolution resolveRoundedFont() {
-    QFile qsFontFile(resolveConfigFile(QStringLiteral("quickshell/config/font.conf")));
-    if (qsFontFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        QTextStream in(&qsFontFile);
-        while (!in.atEnd()) {
-            QString line = in.readLine().trimmed();
-            if (line.startsWith(QStringLiteral("fontFamilyRounded")) && line.contains('=')) {
-                QString val = line.section('=', 1).trimmed();
-                if (!val.isEmpty()) return { val, QStringLiteral("[Quickshell font.conf]") };
-            }
-        }
-    }
+    const QString qsFontPath = resolveQuickshellConfigFile(QStringLiteral("font.conf"));
+    const QString val = readKeyValueFromConf(qsFontPath, QStringLiteral("fontFamilyRounded"));
+    if (!val.isEmpty()) return { val, QStringLiteral("[CripertoShell font.conf]") };
     return resolveBodyFont();
 }
 
 FontResolution resolveMonospaceFont() {
-    // 1. Quickshell font config
-    QFile qsFontFile(resolveConfigFile(QStringLiteral("quickshell/config/font.conf")));
-    if (qsFontFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        QTextStream in(&qsFontFile);
-        while (!in.atEnd()) {
-            QString line = in.readLine().trimmed();
-            if (line.startsWith(QStringLiteral("systemMonospaceFontFamily")) && line.contains('=')) {
-                QString val = line.section('=', 1).trimmed();
-                if (!val.isEmpty()) return { val, QStringLiteral("[Quickshell font.conf]") };
-            }
-        }
-    }
-    // 2. qt6ct fixed font
-    QFile qt6ctFile(resolveConfigFile(QStringLiteral("qt6ct/qt6ct.conf")));
-    if (qt6ctFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        QTextStream in(&qt6ctFile);
-        while (!in.atEnd()) {
-            QString line = in.readLine().trimmed();
-            if (line.startsWith(QStringLiteral("fixed="))) {
-                QString val = line.mid(6).trimmed();
-                if (val.startsWith('"') && val.endsWith('"')) {
-                    val = val.mid(1, val.length() - 2);
-                }
-                const QStringList parts = val.split(',');
-                if (!parts.isEmpty() && !parts[0].trimmed().isEmpty()) {
-                    return { parts[0].trimmed(), QStringLiteral("[Tema Qt / qt6ct]") };
-                }
-            }
-        }
-    }
+    // 1. Quickshell / CripertoShell font config
+    const QString qsFontPath = resolveQuickshellConfigFile(QStringLiteral("font.conf"));
+    QString val = readKeyValueFromConf(qsFontPath, QStringLiteral("systemMonospaceFontFamily"));
+    if (!val.isEmpty()) return { val, QStringLiteral("[CripertoShell font.conf]") };
+
+    // 2. qt6ct / qt5ct fixed font
+    val = readQtctFontKey(QStringLiteral("fixed"));
+    if (!val.isEmpty()) return { val, QStringLiteral("[Tema Qt / qt6ct]") };
+
     // 3. Qt Fixed Font
     QString fixed = QFontDatabase::systemFont(QFontDatabase::FixedFont).family();
     if (!fixed.isEmpty() && fixed != QStringLiteral("Monospace") && fixed != QStringLiteral("Courier")) {
@@ -1504,20 +1742,31 @@ FontResolution resolveMonospaceFont() {
 }
 } // namespace
 
+void Sys::invalidateFontCache() {
+    m_cachedBodyFont.clear();
+    m_cachedDisplayFont.clear();
+    m_cachedRoundedFont.clear();
+    m_cachedMonoFont.clear();
+}
+
 QString Sys::systemFontFamily() const {
-    return resolveBodyFont().family;
+    if (m_cachedBodyFont.isEmpty()) m_cachedBodyFont = resolveBodyFont().family;
+    return m_cachedBodyFont;
 }
 
 QString Sys::systemFontFamilyDisplay() const {
-    return resolveDisplayFont().family;
+    if (m_cachedDisplayFont.isEmpty()) m_cachedDisplayFont = resolveDisplayFont().family;
+    return m_cachedDisplayFont;
 }
 
 QString Sys::systemFontFamilyRounded() const {
-    return resolveRoundedFont().family;
+    if (m_cachedRoundedFont.isEmpty()) m_cachedRoundedFont = resolveRoundedFont().family;
+    return m_cachedRoundedFont;
 }
 
 QString Sys::systemMonospaceFontFamily() const {
-    return resolveMonospaceFont().family;
+    if (m_cachedMonoFont.isEmpty()) m_cachedMonoFont = resolveMonospaceFont().family;
+    return m_cachedMonoFont;
 }
 
 void Sys::printStartupDiagnostics() const {
@@ -1526,7 +1775,7 @@ void Sys::printStartupDiagnostics() const {
     const bool forcedNoSync = isForcedNoSyncConfigured();
     const bool qsDetected = hasQuickshellConfig();
     const QString qsStatus = qsDetected
-        ? QStringLiteral("Detectado e integrado (~/.config/quickshell)")
+        ? (QStringLiteral("Detectado e integrado (") + quickshellConfigRootLabel() + QStringLiteral(")"))
         : (forcedNoSync ? QStringLiteral("Desactivado por config (noSync / standalone)") : QStringLiteral("No detectado (Modo Standalone)"));
 
     const FontResolution bodyInfo = resolveBodyFont();
@@ -1544,7 +1793,7 @@ void Sys::printStartupDiagnostics() const {
 
     fprintf(stdout, "\n");
     fprintf(stdout, "╭─────────────────────────────────────────────────────────────────────────────╮\n");
-    QString appVer = qEnvironmentVariable("NOTAS_APP_VERSION", "0.2.10");
+    QString appVer = qEnvironmentVariable("NOTAS_APP_VERSION", "0.3.0");
     QString titleLine = QStringLiteral("│ 📝 io.github.criperto.notes v") + appVer + QStringLiteral(" (criperto-notes)");
     titleLine = titleLine.leftJustified(77, ' ') + QStringLiteral("│\n");
     fprintf(stdout, "%s", titleLine.toUtf8().constData());
@@ -1792,6 +2041,27 @@ QString Sys::detectLanguage(const QString &text) const {
     return lang;
 }
 
+QVariantMap Sys::imageDimensions(const QString &path) const {
+    QVariantMap result;
+    result.insert(QStringLiteral("valid"), false);
+    result.insert(QStringLiteral("width"), 0);
+    result.insert(QStringLiteral("height"), 0);
+    if (path.isEmpty()) return result;
+    QString localPath = path;
+    if (localPath.startsWith(QStringLiteral("file://"))) {
+        localPath = QUrl(localPath).toLocalFile();
+    }
+    if (!QFileInfo::exists(localPath)) return result;
+    QImageReader reader(localPath);
+    QSize sz = reader.size();
+    if (sz.isValid() && sz.width() > 0 && sz.height() > 0) {
+        result.insert(QStringLiteral("valid"), true);
+        result.insert(QStringLiteral("width"), sz.width());
+        result.insert(QStringLiteral("height"), sz.height());
+    }
+    return result;
+}
+
 QJsonObject Sys::indexNotes(const QString &notesDirStr) const {
     QJsonObject root;
     QJsonArray notesArr;
@@ -1805,6 +2075,7 @@ QJsonObject Sys::indexNotes(const QString &notesDirStr) const {
         return root;
     }
 
+    const QString cleanRootDir = QDir::cleanPath(dir.absolutePath());
     QDirIterator it(notesDirStr, QDir::Files | QDir::NoDotAndDotDot, QDirIterator::Subdirectories);
     while (it.hasNext()) {
         it.next();
@@ -1832,7 +2103,8 @@ QJsonObject Sys::indexNotes(const QString &notesDirStr) const {
             meta[QStringLiteral("mtime")] = static_cast<double>(fi.lastModified().toMSecsSinceEpoch());
             meta[QStringLiteral("size")] = static_cast<qint64>(fi.size());
 
-            bool isFolder = fi.fileName().startsWith(QStringLiteral("index.")) || fi.dir().dirName() == fi.baseName();
+            const QString fileDir = QDir::cleanPath(fi.absolutePath());
+            bool isFolder = (fileDir != cleanRootDir) && (fi.fileName().startsWith(QStringLiteral("index.")) || fi.dir().dirName() == fi.baseName());
             meta[QStringLiteral("isFolderNote")] = isFolder;
             meta[QStringLiteral("baseFolder")] = fi.absolutePath();
 
@@ -1913,7 +2185,7 @@ ConfigBackend::ConfigBackend(QObject *parent)
     : QObject(parent)
 {
     m_notasDir = QStringLiteral("$XDG_DOCUMENTS_DIR/notes");
-    if (!QFile::exists(QDir::homePath() + QStringLiteral("/.cache/wal/colors.json"))) {
+    if (!QFile::exists(resolveCacheFile(QStringLiteral("wal/colors.json")))) {
         m_themeMode = QStringLiteral("qt");
     }
 
@@ -1921,6 +2193,20 @@ ConfigBackend::ConfigBackend(QObject *parent)
     m_saveTimer->setSingleShot(true);
     m_saveTimer->setInterval(250);
     connect(m_saveTimer, &QTimer::timeout, this, &ConfigBackend::save);
+
+    m_qsDebounceTimer = new QTimer(this);
+    m_qsDebounceTimer->setSingleShot(true);
+    m_qsDebounceTimer->setInterval(120);
+    connect(m_qsDebounceTimer, &QTimer::timeout, this, [this]() {
+        emit hasQuickshellConfigChanged();
+        if (auto *sys = Sys::instance()) {
+            emit sys->quickshellConfigChanged();
+        }
+        if (hasQuickshellConfig()) {
+            loadQuickshellConfig();
+        }
+        setupQuickshellWatcher();
+    });
 
     load();
 
@@ -1981,8 +2267,7 @@ bool ConfigBackend::hasQuickshellConfig() const {
     if (!m_syncWithQuickshell) {
         return false;
     }
-    return QFile::exists(resolveConfigFile(QStringLiteral("quickshell/config/general.conf")))
-        || QFile::exists(resolveConfigFile(QStringLiteral("quickshell/config/theme.conf")));
+    return hasAnyQuickshellConfigFiles();
 }
 
 void ConfigBackend::setSyncWithQuickshell(bool val) {
@@ -2019,12 +2304,18 @@ void ConfigBackend::loadQuickshellConfig() {
     bool changedCloseAction = false;
     bool changedZoom = false;
     bool changedSpellMode = false;
+    bool changedSpellPrimary = false;
+    bool changedSpellDisabled = false;
+    bool changedIgnoreUpper = false;
+    bool changedIgnoreDigits = false;
+    bool changedAutoDetectLang = false;
     bool changedBlur = false;
     bool changedAnimations = false;
     bool changedFontScale = false;
+    bool changedLanguage = false;
 
     // 1. General config
-    QFile genFile(resolveConfigFile(QStringLiteral("quickshell/config/general.conf")));
+    QFile genFile(resolveQuickshellConfigFile(QStringLiteral("general.conf")));
     if (genFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
         QTextStream in(&genFile);
         while (!in.atEnd()) {
@@ -2064,8 +2355,11 @@ void ConfigBackend::loadQuickshellConfig() {
     }
 
     // 2. Theme config
-    QFile themeFile(resolveConfigFile(QStringLiteral("quickshell/config/theme.conf")));
+    QFile themeFile(resolveQuickshellConfigFile(QStringLiteral("theme.conf")));
     if (themeFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        bool seenUseWal = false;
+        bool useWal = true;
+        QString activePreset;
         QTextStream in(&themeFile);
         while (!in.atEnd()) {
             QString line = in.readLine().trimmed();
@@ -2075,12 +2369,10 @@ void ConfigBackend::loadQuickshellConfig() {
             QString k = line.left(eq).trimmed();
             QString v = line.mid(eq + 1).trimmed();
             if (k == QStringLiteral("useWallpaperColor")) {
-                bool useWal = (v.compare(QStringLiteral("true"), Qt::CaseInsensitive) == 0);
-                QString mode = useWal ? QStringLiteral("pywal") : QStringLiteral("custom");
-                if (m_themeMode != mode) {
-                    m_themeMode = mode;
-                    changedThemeMode = true;
-                }
+                seenUseWal = true;
+                useWal = (v.compare(QStringLiteral("true"), Qt::CaseInsensitive) == 0);
+            } else if (k == QStringLiteral("activePreset")) {
+                activePreset = v;
             } else if (k == QStringLiteral("customThemeName")) {
                 if (!v.isEmpty() && m_customThemeName != v) {
                     m_customThemeName = v;
@@ -2095,10 +2387,20 @@ void ConfigBackend::loadQuickshellConfig() {
             }
         }
         themeFile.close();
+        if (seenUseWal) {
+            const bool hasWalJson = QFile::exists(resolveCacheFile(QStringLiteral("wal/colors.json")));
+            const QString mode = (useWal || (!activePreset.isEmpty() && hasWalJson))
+                ? QStringLiteral("pywal")
+                : QStringLiteral("custom");
+            if (m_themeMode != mode) {
+                m_themeMode = mode;
+                changedThemeMode = true;
+            }
+        }
     }
 
     // 3. Notes config
-    QFile notesFile(resolveConfigFile(QStringLiteral("quickshell/config/notes.conf")));
+    QFile notesFile(resolveQuickshellConfigFile(QStringLiteral("notes.conf")));
     if (notesFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
         QTextStream in(&notesFile);
         while (!in.atEnd()) {
@@ -2175,8 +2477,8 @@ void ConfigBackend::loadQuickshellConfig() {
     }
 
     // 4. Hyprland Lua settings (blur & animations)
-    const QString userSettingsLua = home + QStringLiteral("/.config/hypr/user_settings.lua");
-    const QString themeLua = home + QStringLiteral("/.config/hypr/theme.lua");
+    const QString userSettingsLua = resolveConfigFile(QStringLiteral("hypr/user_settings.lua"));
+    const QString themeLua = resolveConfigFile(QStringLiteral("hypr/theme.lua"));
 
     if (QFile::exists(userSettingsLua) || QFile::exists(themeLua)) {
         bool hyprBlur = true;
@@ -2203,7 +2505,7 @@ void ConfigBackend::loadQuickshellConfig() {
     }
 
     // 5. Quickshell font config (fontSizeScale)
-    QFile fontFile(resolveConfigFile(QStringLiteral("quickshell/config/font.conf")));
+    QFile fontFile(resolveQuickshellConfigFile(QStringLiteral("font.conf")));
     if (fontFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
         QTextStream in(&fontFile);
         while (!in.atEnd()) {
@@ -2228,6 +2530,61 @@ void ConfigBackend::loadQuickshellConfig() {
         fontFile.close();
     }
 
+    // 6. CripertoShell i18n config (language)
+    QFile i18nFile(resolveQuickshellConfigFile(QStringLiteral("i18n.conf")));
+    if (i18nFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        QTextStream in(&i18nFile);
+        while (!in.atEnd()) {
+            QString line = in.readLine().trimmed();
+            if (line.isEmpty() || line.startsWith('#') || line.startsWith(';')) continue;
+            int eq = line.indexOf('=');
+            if (eq == -1) continue;
+            QString k = line.left(eq).trimmed();
+            QString v = line.mid(eq + 1).trimmed();
+            if (k == QStringLiteral("language") && !v.isEmpty()) {
+                QString normalized = v;
+                if (normalized.compare(QStringLiteral("es_ar"), Qt::CaseInsensitive) == 0) normalized = QStringLiteral("es_AR");
+                else if (normalized.compare(QStringLiteral("es_es"), Qt::CaseInsensitive) == 0) normalized = QStringLiteral("es_ES");
+                if (m_language != normalized) {
+                    m_language = normalized;
+                    changedLanguage = true;
+                }
+            }
+        }
+        i18nFile.close();
+    }
+
+    // 7. CripertoShell spellcheck config
+    QFile spellFile(resolveQuickshellConfigFile(QStringLiteral("spellcheck.conf")));
+    if (spellFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        QTextStream in(&spellFile);
+        while (!in.atEnd()) {
+            QString line = in.readLine().trimmed();
+            if (line.isEmpty() || line.startsWith('#') || line.startsWith(';')) continue;
+            int eq = line.indexOf('=');
+            if (eq == -1) continue;
+            QString k = line.left(eq).trimmed();
+            QString v = line.mid(eq + 1).trimmed();
+            if (k == QStringLiteral("primaryLanguage") && m_primarySpellLanguage != v) {
+                m_primarySpellLanguage = v;
+                changedSpellPrimary = true;
+            } else if (k == QStringLiteral("disabledLanguages") && m_disabledSpellLanguages != v) {
+                m_disabledSpellLanguages = v;
+                changedSpellDisabled = true;
+            } else if (k == QStringLiteral("ignoreUppercase")) {
+                bool b = (v.compare(QStringLiteral("true"), Qt::CaseInsensitive) == 0);
+                if (m_ignoreUppercase != b) { m_ignoreUppercase = b; changedIgnoreUpper = true; }
+            } else if (k == QStringLiteral("ignoreWithDigits")) {
+                bool b = (v.compare(QStringLiteral("true"), Qt::CaseInsensitive) == 0);
+                if (m_ignoreWithDigits != b) { m_ignoreWithDigits = b; changedIgnoreDigits = true; }
+            } else if (k == QStringLiteral("autoDetectParagraphLanguage")) {
+                bool b = (v.compare(QStringLiteral("true"), Qt::CaseInsensitive) == 0);
+                if (m_autoDetectParagraphLanguage != b) { m_autoDetectParagraphLanguage = b; changedAutoDetectLang = true; }
+            }
+        }
+        spellFile.close();
+    }
+
     if (changedOpacity) emit panelOpacityChanged();
     if (changedScrollbars) emit hideScrollbarsChanged();
     if (changedBlur) emit blurEnabledChanged();
@@ -2245,30 +2602,44 @@ void ConfigBackend::loadQuickshellConfig() {
     if (changedCloseAction) emit previewCloseActionChanged();
     if (changedZoom) emit editorZoomChanged();
     if (changedSpellMode) emit spellcheckModeChanged();
+    if (changedSpellPrimary) emit primarySpellLanguageChanged();
+    if (changedSpellDisabled) emit disabledSpellLanguagesChanged();
+    if (changedIgnoreUpper) emit ignoreUppercaseChanged();
+    if (changedIgnoreDigits) emit ignoreWithDigitsChanged();
+    if (changedAutoDetectLang) emit autoDetectParagraphLanguageChanged();
+    if (changedLanguage) emit languageChanged();
 }
 
 void ConfigBackend::setupQuickshellWatcher() {
     if (!m_qsWatcher) {
         m_qsWatcher = new QFileSystemWatcher(this);
         connect(m_qsWatcher, &QFileSystemWatcher::fileChanged, this, [this]() {
-            QTimer::singleShot(150, this, [this]() {
-                loadQuickshellConfig();
-                setupQuickshellWatcher();
-            });
+            if (m_qsDebounceTimer) m_qsDebounceTimer->start();
+        });
+        connect(m_qsWatcher, &QFileSystemWatcher::directoryChanged, this, [this]() {
+            if (m_qsDebounceTimer) m_qsDebounceTimer->start();
         });
     }
 
-    const QStringList qsFiles = {
-        resolveConfigFile(QStringLiteral("quickshell/config/general.conf")),
-        resolveConfigFile(QStringLiteral("quickshell/config/theme.conf")),
-        resolveConfigFile(QStringLiteral("quickshell/config/notes.conf")),
-        resolveConfigFile(QStringLiteral("quickshell/config/font.conf")),
+    const QStringList qsPaths = {
+        resolveQuickshellConfigFile(QStringLiteral("general.conf")),
+        resolveQuickshellConfigFile(QStringLiteral("theme.conf")),
+        resolveQuickshellConfigFile(QStringLiteral("notes.conf")),
+        resolveQuickshellConfigFile(QStringLiteral("font.conf")),
+        resolveQuickshellConfigFile(QStringLiteral("i18n.conf")),
+        resolveQuickshellConfigFile(QStringLiteral("spellcheck.conf")),
         resolveConfigFile(QStringLiteral("hypr/user_settings.lua")),
-        resolveConfigFile(QStringLiteral("hypr/theme.lua"))
+        resolveConfigFile(QStringLiteral("hypr/theme.lua")),
+        resolveConfigFile(QStringLiteral("cripertoshell")),
+        resolveConfigFile(QStringLiteral("quickshell/config")),
+        resolveConfigFile(QStringLiteral("quickshell/CripertoShell/config")),
+        resolveConfigFile(QStringLiteral("hypr"))
     };
-    for (const auto &f : qsFiles) {
-        if (QFile::exists(f) && !m_qsWatcher->files().contains(f)) {
-            m_qsWatcher->addPath(f);
+    const QSet<QString> current = QSet<QString>(m_qsWatcher->files().begin(), m_qsWatcher->files().end())
+                                + QSet<QString>(m_qsWatcher->directories().begin(), m_qsWatcher->directories().end());
+    for (const auto &p : qsPaths) {
+        if (QFileInfo::exists(p) && !current.contains(p)) {
+            m_qsWatcher->addPath(p);
         }
     }
 }
@@ -2278,7 +2649,7 @@ QString ConfigBackend::configFilePath() const {
 }
 
 QString ConfigBackend::legacyConfigFilePath() const {
-    return resolveConfigFile(QStringLiteral("quickshell/config/notes.conf"));
+    return resolveQuickshellConfigFile(QStringLiteral("notes.conf"));
 }
 
 void ConfigBackend::scheduleSave() {
@@ -2547,7 +2918,7 @@ void ConfigBackend::setShowSourceModeButton(bool val) {
 }
 
 void ConfigBackend::load() {
-    const bool hasPywal = QFile::exists(QDir::homePath() + QStringLiteral("/.cache/wal/colors.json"));
+    const bool hasPywal = QFile::exists(resolveCacheFile(QStringLiteral("wal/colors.json")));
     QString path = configFilePath();
     if (QFile::exists(path)) {
         QFile file(path);
@@ -2714,6 +3085,11 @@ void ConfigBackend::save() {
 
 void ConfigBackend::reload() {
     load();
+    if (hasQuickshellConfig()) {
+        loadQuickshellConfig();
+    }
+    emit hasQuickshellConfigChanged();
+    emit syncWithQuickshellChanged();
     emit notasDirChanged();
     emit editorFontSizeChanged();
     emit editorZoomChanged();
@@ -2742,6 +3118,12 @@ void ConfigBackend::reload() {
     emit uiScaleChanged();
     emit customThemeNameChanged();
     emit lightModeChanged();
+    emit versionHistoryEnabledChanged();
+    emit versionHistoryMaxChanged();
+    emit versionHistoryMaxMbChanged();
+    emit persistUndoChanged();
+    emit showSourceModeButtonChanged();
+    emit windowControlsModeChanged();
 }
 
 // ═════════════════════════════════════════════════════════════════════════════

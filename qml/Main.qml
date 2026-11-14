@@ -51,11 +51,43 @@ ApplicationWindow {
         }
     }
 
-    NotesSettingsModal {
-        id: settingsModal
+    Loader {
+        id: settingsLoader
         anchors.fill: parent
         z: 9999
-        backgroundSourceItem: content
+        active: false
+        sourceComponent: NotesSettingsModal {
+            anchors.fill: parent
+            backgroundSourceItem: content
+        }
+    }
+
+    QtObject {
+        id: settingsModal
+        readonly property bool isOpen: settingsLoader.item ? settingsLoader.item.isOpen : false
+        readonly property bool isClosing: settingsLoader.item ? settingsLoader.item.isClosing : false
+        readonly property string currentTabValue: settingsLoader.item ? settingsLoader.item.currentTabValue : "editor"
+
+        function open(originRect, initialTab) {
+            if (!settingsLoader.active) {
+                settingsLoader.active = true;
+            }
+            if (settingsLoader.item) {
+                settingsLoader.item.open(originRect, initialTab);
+            }
+        }
+
+        function close() {
+            if (settingsLoader.item) {
+                settingsLoader.item.close();
+            }
+        }
+
+        function setTab(tabName) {
+            if (settingsLoader.item) {
+                settingsLoader.item.setTab(tabName);
+            }
+        }
     }
 
     function toggleSettings(initialTab) {
@@ -127,21 +159,32 @@ ApplicationWindow {
             content.handleRemoteNoteDeleted(notePath);
         }
         function onIpcCommandReceived(action, target) {
-            root.show();
-            root.raise();
-            root.requestActivate();
             if (action === "close") {
                 NotesService.prepareToQuit();
                 root.close();
-            } else if (action === "toggle") {
-                if (root.active) {
+                return;
+            }
+            if (action === "sync") {
+                if (typeof ConfigBackend !== "undefined") {
+                    ConfigBackend.syncWithQuickshell = (target === "true" || target === "1");
+                }
+                return;
+            }
+            if (action === "toggle") {
+                if (root.visible && root.active) {
                     root.hide();
                 } else {
                     root.show();
                     root.raise();
                     root.requestActivate();
                 }
-            } else if (action === "open" || action === "preview") {
+                return;
+            }
+
+            root.show();
+            root.raise();
+            root.requestActivate();
+            if (action === "open" || action === "preview") {
                 content.handleIpcAction(action, target);
             } else if (action === "new") {
                 content.handleIpcAction("new", target);
@@ -149,10 +192,6 @@ ApplicationWindow {
                 content.handleIpcAction("find", target);
             } else if (action === "reload") {
                 content.handleIpcAction("reload", target);
-            } else if (action === "sync") {
-                if (typeof ConfigBackend !== "undefined") {
-                    ConfigBackend.syncWithQuickshell = (target === "true" || target === "1");
-                }
             }
         }
     }

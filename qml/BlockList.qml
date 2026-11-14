@@ -1444,7 +1444,7 @@ Item {
                         sourceSize: Qt.size(18, 18)
                         smooth: true
                         mipmap: true
-                        layer.enabled: true
+                        layer.enabled: visible && !GamemodeService.gamemodeActive
                         layer.effect: MultiEffect {
                             colorization: 1.0
                             colorizationColor: itemRow.checked ? Theme.accent : Theme.muted
@@ -2511,7 +2511,7 @@ Item {
                                     sourceSize: Qt.size(24, 24)
                                     smooth: true
                                     mipmap: true
-                                    layer.enabled: true
+                                    layer.enabled: visible && !GamemodeService.gamemodeActive
                                     layer.effect: MultiEffect {
                                         colorization: 1.0
                                         colorizationColor: Theme.danger

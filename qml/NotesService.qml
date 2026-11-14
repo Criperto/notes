@@ -471,14 +471,21 @@ Item {
         var incomingNotes = data.notes;
         var incomingKeys = {};
         for (var i = 0; i < incomingNotes.length; i++) {
-            var n = incomingNotes[i];
-            var key = n.key;
+            var rawN = incomingNotes[i];
+            var key = root._keyForFileName(rawN.fileName || rawN.key || "");
+            if (!key) continue;
+            var n = Object.assign({}, rawN, {
+                key: key,
+                id: root._slugOfKey(key),
+                slug: root._slugOfKey(key)
+            });
             incomingKeys[key] = true;
             if (root._deletingKeys && root._deletingKeys[key]) continue;
 
             var existing = root._notesDict[key];
             if (existing) {
-                if (root.activeNote && (root.activeNote.key === key || root.activeNote.slug === n.slug) && root.isEditing) {
+                var isActive = root.activeNote && root._resolveSaveKey(root.activeNote) === key && root.isEditing;
+                if (isActive) {
                     existing.title = n.title;
                     existing.pinned = n.pinned;
                     existing.tags = n.tags;
@@ -494,9 +501,10 @@ Item {
         }
 
         var allKeys = Object.keys(root._notesDict);
+        var activeKey = root.activeNote ? root._resolveSaveKey(root.activeNote) : "";
         for (var j = 0; j < allKeys.length; j++) {
             var k = allKeys[j];
-            if (!incomingKeys[k] && !root._pendingSave && (!root.activeNote || root.activeNote.key !== k)) {
+            if (!incomingKeys[k] && !root._pendingSave && k !== activeKey) {
                 delete root._notesDict[k];
                 delete root._lastContentHash[k];
                 if (root._deletingKeys) delete root._deletingKeys[k];
@@ -577,7 +585,9 @@ Item {
             property var noteFv: FileView {
                 path: noteDelegate.filePath
                 preload: true
-                watchChanges: true
+                watchChanges: root.activeNote
+                    ? (root._keyForFileName(noteDelegate.fileName) === (root.activeNote.key || root._resolveSaveKey(root.activeNote)))
+                    : false
                 printErrors: false
 
                 onLoaded: {
@@ -1966,10 +1976,15 @@ Item {
         root._deletingKeys = delKeysCopy;
 
         // Registrar en el lote acumulativo
+        var existingNote = noteData || root.getNote(key);
+        var resolvedTarget = (existingNote && existingNote.filePath)
+            ? existingNote.filePath
+            : (root.notesDir + "/" + root._slugOfKey(key) + "." + root._extOfKey(key));
         var pendingCopy = Object.assign({}, root._pendingDeletions);
         pendingCopy[key] = {
             key: key,
-            noteData: noteData || root.getNote(key),
+            noteData: existingNote,
+            targetPath: resolvedTarget,
             queuedAt: Date.now()
         };
         root._pendingDeletions = pendingCopy;
@@ -2011,8 +2026,17 @@ Item {
         return !!(key && root._deletingKeys && root._deletingKeys[key]);
     }
 
+    function isDeletingKey(slug) {
+        var key = root._resolveSaveKey(slug);
+        return !!(key && root._deletingKeys && root._deletingKeys[key]);
+    }
+
     function _finalizeDeletion(slug) {
         var key = ((slug || "").indexOf(root._keySep()) !== -1) ? slug : root._resolveSaveKey(slug);
+        var prevMeta = root._notesDict[key];
+        var delPath = (prevMeta && prevMeta.filePath)
+            ? prevMeta.filePath
+            : (root.notesDir + "/" + root._slugOfKey(key) + "." + root._extOfKey(key));
         delete root._notesDict[key];
         delete root._deletingKeys[key];
         delete root._lastContentHash[key];
@@ -2027,8 +2051,6 @@ Item {
         root._rebuildNotes();
         root.noteDeleted(root._slugOfKey(key));
         if (typeof Sys !== "undefined" && typeof Sys.broadcastNoteDeleted === "function") {
-            var delPath = root.notesDir + "/" + key;
-            if (!delPath.endsWith(".md") && !delPath.endsWith(".txt")) delPath += ".md";
             Sys.broadcastNoteDeleted(delPath);
         }
         if (!fileScannerProc.running) {
@@ -2055,9 +2077,19 @@ Item {
         if (root.pendingDeleteCount > 0) {
             var pendingKeys = Object.keys(root._pendingDeletions);
             for (var p = 0; p < pendingKeys.length; p++) {
-                var pItem = root._pendingDeletions[pendingKeys[p]];
-                if (pItem && pItem.targetPath) {
-                    Quickshell.execDetached(["gio", "trash", pItem.targetPath]);
+                var fk = pendingKeys[p];
+                var pItem = root._pendingDeletions[fk];
+                var pPath = (pItem && pItem.targetPath)
+                    ? pItem.targetPath
+                    : ((pItem && pItem.noteData && pItem.noteData.filePath)
+                        ? pItem.noteData.filePath
+                        : (root.notesDir + "/" + root._slugOfKey(fk) + "." + root._extOfKey(fk)));
+                if (pPath) {
+                    if (typeof Sys !== "undefined" && typeof Sys.moveToTrash === "function") {
+                        Sys.moveToTrash(pPath);
+                    } else {
+                        Quickshell.execDetached(["gio", "trash", pPath]);
+                    }
                 }
             }
             root._pendingDeletions = ({});

@@ -5760,7 +5760,7 @@ runTest("F139: v0.2.8 — Ocultar botón Importar en notas internas con bloqueo 
 
 runTest("F140: v0.2.9 — Motor Spellbook integrado con diccionarios embebidos, fuente Display unificada y rutas criperto-notes", () => {
     const bridgeCpp = fs.readFileSync(path.resolve(__dirname, '../src/native/native_bridge.cpp'), 'utf8');
-    assert.ok(bridgeCpp.includes('FontResolution resolveDisplayFont() {\n    return resolveBodyFont();\n}'), "resolveDisplayFont debe retornar resolveBodyFont()");
+    assert.ok(bridgeCpp.includes('FontResolution resolveDisplayFont()') && bridgeCpp.includes('fontFamilyDisplay') && bridgeCpp.includes('return resolveBodyFont();'), "resolveDisplayFont debe consultar fontFamilyDisplay de Quickshell/CripertoShell y caer en resolveBodyFont()");
     assert.ok(bridgeCpp.includes('Spellbook (integrado)'), "printStartupDiagnostics debe indicar Spellbook (integrado)");
     assert.ok(bridgeCpp.includes('.config/criperto-notes/config.json') || bridgeCpp.includes('xdgConfigBaseDir() + QStringLiteral("/criperto-notes/config.json")'),
         "native_bridge.cpp debe resolver config.json via XDG_CONFIG_HOME o ~/.config");
@@ -5906,6 +5906,96 @@ runTest("F142: Migración a io.github.criperto.notes y compatibilidad con sandbo
 
     const themeQml = fs.readFileSync(path.resolve(__dirname, '../qml/Theme.qml'), 'utf8');
     assert.ok(themeQml.includes('XDG_CACHE_HOME'), "Theme.qml debe respetar XDG_CACHE_HOME para Pywal en Flatpak");
+});
+
+runTest("F143: Regresiones de CripertoShell, hot-reload Qt/Pywal, ciclo de borrado y rendimiento QML", () => {
+    const readRel = (rel) => fs.readFileSync(path.resolve(__dirname, rel), 'utf8');
+
+    const nativeCpp = readRel('../src/native/native_bridge.cpp');
+    const syncRs = readRel('../src/sync_cli.rs');
+    const themeQml = readRel('../qml/Theme.qml');
+    const mainQml = readRel('../qml/Main.qml');
+    const settingsQml = readRel('../qml/NotesSettingsModal.qml');
+    const serviceQml = readRel('../qml/NotesService.qml');
+    const editorModalQml = readRel('../qml/NoteEditorModal.qml');
+    const contentQml = readRel('../qml/NotesContent.qml');
+    const headingQml = readRel('../qml/BlockHeading.qml');
+    const mathQml = readRel('../qml/BlockMath.qml');
+    const quoteQml = readRel('../qml/BlockQuote.qml');
+    const imageQml = readRel('../qml/BlockImage.qml');
+    const blockEditorQml = readRel('../qml/BlockEditor.qml');
+    const clipRectQml = readRel('../qml/ClippingRectangle.qml');
+    const spellOverlayQml = readRel('../qml/SpellOverlay.qml');
+    const spellServiceQml = readRel('../qml/SpellService.qml');
+    const readmeMd = readRel('../README.md');
+    const hyprDoc = readRel('../docs/HYPRLAND.md');
+    const flatpakYml = readRel('../packaging/flatpak/io.github.criperto.notes.yml');
+
+    // 1. Detección CripertoShell / Quickshell + sync de fuentes/idioma/ortografía
+    assert.ok(nativeCpp.includes('resolveQuickshellConfigFile') && nativeCpp.includes('cripertoshell'),
+        "native_bridge.cpp debe detectar ~/.config/cripertoshell");
+    assert.ok(nativeCpp.includes('fontFamilyDisplay') && nativeCpp.includes('i18n.conf') && nativeCpp.includes('spellcheck.conf'),
+        "native_bridge.cpp debe leer fontFamilyDisplay, i18n.conf y spellcheck.conf");
+    assert.ok(nativeCpp.includes('m_qsDebounceTimer'), "ConfigBackend debe usar debounce timer para cambios de Quickshell");
+    assert.ok(syncRs.includes('detect_quickshell_root') && syncRs.includes('cripertoshell') && syncRs.includes('list_active_instances'),
+        "sync_cli.rs debe detectar cripertoshell y notificar a todas las instancias");
+
+    // 2. Hot-reload FileWatch para tema Qt y Pywal standalone
+    assert.ok(nativeCpp.includes('discoverQtThemeConfig') && nativeCpp.includes('m_qtThemeDebounceTimer')
+        && nativeCpp.includes('kvantum.kvconfig') && nativeCpp.includes('kdeglobals') && nativeCpp.includes('color_scheme_path'),
+        "native_bridge.cpp debe descubrir y vigilar dinámicamente configuraciones de tema Qt");
+    assert.ok(nativeCpp.includes('(!accent.isValid() || accent == bg) && link.isValid() && link != bg'),
+        "readQtColors debe evitar acento idéntico al fondo con fallback a link");
+    assert.ok(nativeCpp.includes('performScheduledReload') && nativeCpp.includes('m_emptyRetryPending'),
+        "FileView debe manejar escrituras atómicas/truncamientos sin perder recargas");
+    assert.ok(themeQml.includes('function reloadPywal') && themeQml.includes('_pywalRetryTimer'),
+        "Theme.qml debe soportar reloadPywal y reintento ante escrituras parciales");
+    assert.ok(settingsQml.includes('!ConfigBackend.hasQuickshellConfig'),
+        "NotesSettingsModal debe enlazar showAppearanceTab reactivamente a !ConfigBackend.hasQuickshellConfig");
+
+    // 3. Carga diferida de configuración y protección IPC de ventana oculta
+    const syncBlock = mainQml.split('if (action === "sync")')[1].split('if (action === "toggle")')[0];
+    assert.ok(mainQml.includes('id: settingsLoader') && syncBlock.includes('return;') && !syncBlock.includes('root.raise()') && mainQml.includes('if (root.visible && root.active)'),
+        "Main.qml debe cargar NotesSettingsModal bajo demanda y no levantar ventana oculta en sync/close/toggle activo");
+
+    // 4. Consistencia de borrado, solo lectura y editor
+    assert.ok(serviceQml.includes('isDeletingKey(') && !serviceQml.includes('broadcastNoteDeleted(root.notesDir + "\\0"')
+        && !serviceQml.includes('item.path'),
+        "NotesService debe normalizar _deletingKeys, no emitir rutas con \\0 y usar targetPath");
+    assert.ok(editorModalQml.includes('property alias blockEditor: blockEditor')
+        && editorModalQml.includes('property bool forceReadOnly: false')
+        && editorModalQml.includes('property bool _isDeleting: false'),
+        "NoteEditorModal debe exponer alias blockEditor, forceReadOnly y guarda _isDeleting");
+    assert.ok(contentQml.includes('editorModal.forceReadOnly = true'),
+        "NotesContent no debe sobrescribir el binding isPreviewMode, debe usar forceReadOnly");
+
+    // 5. Optimizaciones y fixes en bloques / SpellService / layers GPU
+    assert.ok(!headingQml.includes('headingPixelSize') && headingQml.includes('root.headingFontSize * 0.75'),
+        "BlockHeading debe usar root.headingFontSize para fórmulas matemáticas");
+    assert.ok(!mathQml.includes('requestDeleteBlock') && mathQml.includes('root.editor.deleteBlock(root.blockData.bid)'),
+        "BlockMath debe invocar deleteBlock");
+    assert.ok(quoteQml.includes('segPara.visible && segWrap.visible'),
+        "BlockQuote debe evitar evaluar RichText en delegados ocultos");
+    assert.ok(imageQml.includes('_probeImageDimensions') && imageQml.includes('Sys.imageDimensions')
+        && imageQml.includes('root.visible && root.inViewportChunk && Qt.application.active'),
+        "BlockImage debe obtener dimensiones por cabecera y pausar AnimatedImage fuera de foco/viewport");
+    assert.ok(blockEditorQml.includes('_activeFormatCache') && blockEditorQml.includes('_resetActiveFormatCache'),
+        "BlockEditor.isFormatActive debe cachear resultados por formatStateSeq sin causar binding loops");
+    assert.ok(clipRectQml.includes('root.radius > 0 && root.visible && root.width > 0 && root.height > 0'),
+        "ClippingRectangle debe desactivar FBOs cuando está oculto o sin tamaño");
+    assert.ok(spellOverlayQml.includes('if (!visible || !active || width <= 0 || height <= 0) return;'),
+        "SpellOverlay no debe repintar cuando está oculto o inactivo");
+    assert.ok(spellServiceQml.includes('while (workerItem.queue && workerItem.queue.length > 0)'),
+        "SpellService debe resolver callbacks en cola si el proceso hunspell termina");
+
+    // 6. Consistencia en README, HYPRLAND y manifiesto Flatpak
+    assert.ok(!readmeMd.includes('Italiano') && !readmeMd.includes('0.1.13') && !readmeMd.includes('0.2.10') && readmeMd.includes('0.3.0')
+        && readmeMd.includes('qt6-tools') && readmeMd.includes('cargo test'),
+        "README.md debe reflejar versión 0.3.0, idiomas reales, qt6-tools y cargo test");
+    assert.ok(!hyprDoc.includes('notas toggle') && hyprDoc.includes('criperto-notes toggle'),
+        "docs/HYPRLAND.md debe referenciar criperto-notes toggle");
+    assert.ok(flatpakYml.includes('--filesystem=xdg-config/cripertoshell:ro'),
+        "El manifiesto Flatpak debe permitir lectura de cripertoshell");
 });
 
 console.log(`\n========================================`);

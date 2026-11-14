@@ -14,6 +14,7 @@
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QJsonDocument>
+#include <QVariantMap>
 #include <QTimer>
 #include <QPointF>
 #include <QLocalServer>
@@ -184,6 +185,7 @@ signals:
 
 private slots:
     void onFileSystemChanged(const QString &path);
+    void performScheduledReload();
 
 private:
     void updateWatcher();
@@ -191,6 +193,7 @@ private:
     bool writeFile(const QString &content);
 
     QString m_path;
+    QString m_canonicalPath;
     bool m_preload = true;
     bool m_watchChanges = true;
     bool m_atomicWrites = true;
@@ -198,9 +201,11 @@ private:
     bool m_loaded = false;
     QString m_text;
     QFileSystemWatcher *m_watcher = nullptr;
+    QTimer *m_reloadTimer = nullptr;
     QDateTime m_lastModified;
     bool m_isInternalSave = false;
     qint64 m_lastInternalSaveMs = 0;
+    bool m_emptyRetryPending = false;
 };
 
 // ── 4. Sys Singleton ────────────────────────────────────────────────────────
@@ -232,6 +237,7 @@ class Sys : public QObject {
 public:
     explicit Sys(QObject *parent = nullptr);
     ~Sys() override;
+    static Sys *instance();
 
     QString clipboardText() const;
     void setClipboardText(const QString &text);
@@ -282,6 +288,7 @@ public:
     Q_INVOKABLE void broadcastNoteSaved(const QString &notePath);
     Q_INVOKABLE void broadcastNoteDeleted(const QString &notePath);
     Q_INVOKABLE void startSystemMove(QObject *windowObj);
+    Q_INVOKABLE QVariantMap imageDimensions(const QString &path) const;
 
 signals:
     void clipboardTextChanged();
@@ -301,18 +308,25 @@ private slots:
 private:
     void startIpcServer();
     void setupQtThemeWatcher();
+    void invalidateFontCache();
 
+    static Sys *s_instance;
     mutable int m_hasTouchscreen = -1;
     QPointF m_lastMousePos = QPointF(100, 100);
     QString m_initialAction;
     QString m_initialTarget;
     QLocalServer *m_ipcServer = nullptr;
     QFileSystemWatcher *m_qtThemeWatcher = nullptr;
+    QTimer *m_qtThemeDebounceTimer = nullptr;
     QJsonObject m_qtColors;
     QString m_currentInstanceSockPath;
     QString m_currentInstanceJsonPath;
     mutable bool m_windowControlsOnLeftCached = false;
     mutable bool m_windowControlsOnLeft = false;
+    mutable QString m_cachedBodyFont;
+    mutable QString m_cachedDisplayFont;
+    mutable QString m_cachedRoundedFont;
+    mutable QString m_cachedMonoFont;
 };
 
 // ── 5. ConfigBackend Singleton ──────────────────────────────────────────────
@@ -554,6 +568,7 @@ private:
 
     QTimer *m_saveTimer = nullptr;
     QFileSystemWatcher *m_qsWatcher = nullptr;
+    QTimer *m_qsDebounceTimer = nullptr;
 };
 
 // ── 6. SpellBackend Singleton ───────────────────────────────────────────────

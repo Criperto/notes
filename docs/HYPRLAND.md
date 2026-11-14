@@ -22,7 +22,7 @@ windowrulev2 = dimaround, class:^(io.github.criperto.notes)$
 ### Atajo de Teclado (Toggle inteligente)
 ```ini
 # Super + N para alternar o enfocar Notas
-bind = $mainMod, N, exec, notas toggle
+bind = $mainMod, N, exec, criperto-notes toggle
 ```
 
 ---
@@ -48,6 +48,6 @@ hl.bind({
     mods = { "SUPER" },
     key = "n",
     dispatcher = "exec",
-    args = "notas toggle",
+    args = "criperto-notes toggle",
 })
 ```

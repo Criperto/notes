@@ -15,6 +15,9 @@ fn get_math_font() -> Result<&'static MathFont, String> {
 
 fn parse_hex_color(hex_str: &str) -> Option<Color> {
     let clean = hex_str.trim().trim_start_matches('#');
+    if !clean.is_ascii() {
+        return None;
+    }
     if clean.len() == 3 {
         let r = u8::from_str_radix(&clean[0..1], 16).ok()? * 17;
         let g = u8::from_str_radix(&clean[1..2], 16).ok()? * 17;

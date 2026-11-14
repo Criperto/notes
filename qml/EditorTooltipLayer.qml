@@ -72,7 +72,7 @@ Item {
         color: Theme.color0
         border.width: 0
 
-        layer.enabled: !GamemodeService.gamemodeActive
+        layer.enabled: visible && opacity > 0.005 && !GamemodeService.gamemodeActive
         layer.effect: MultiEffect {
             shadowEnabled: true
             shadowColor: Qt.rgba(0, 0, 0, 0.5)

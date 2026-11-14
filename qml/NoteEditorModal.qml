@@ -23,10 +23,13 @@ Item {
     focus: true
 
     property bool _isDestroyed: false
+    property bool _isDeleting: false
+    property alias blockEditor: blockEditor
 
     property var noteData: null
     property bool remoteLocked: false
-    readonly property bool isPreviewMode: Boolean((noteData && noteData.readOnly) || remoteLocked)
+    property bool forceReadOnly: false
+    readonly property bool isPreviewMode: Boolean(forceReadOnly || (noteData && noteData.readOnly) || remoteLocked)
     readonly property bool isExternalNote: {
         if (!noteData) return false;
         var fp = noteData.filePath || "";
@@ -118,7 +121,8 @@ Item {
         interval: 500 // 500ms después de escribir para respuesta ágil
         repeat: false
         onTriggered: {
-            if (root.dirty && root.loadedSlug) {
+            if (root._isDeleting || root.isPreviewMode) return;
+            if (root.dirty && root.loadedSlug && !(typeof NotesService !== "undefined" && NotesService.isDeletingKey && NotesService.isDeletingKey(root.loadedSlug))) {
                 if (NotesService.debug) console.log("[NoteEditorModal] Auto-guardado de 500ms ejecutándose:", root.loadedSlug);
                 root.performSave();
             }
@@ -126,27 +130,18 @@ Item {
     }
 
     function markDirty() {
-        if (root.isLoading || !root.loadedSlug || root.isRenaming) return;
-        var curTitle = (typeof titleInput !== "undefined" && titleInput) ? titleInput.text.trim() : root._originalTitle;
-        var curMd = root.isSourceMode ? (sourceCodeEditor ? sourceCodeEditor.text : root._currentBody) : (blockEditor ? blockEditor.getMarkdown() : root._currentBody);
-        var tagsNow = (root.editTags || []).join("\n");
-        var tagsOrig = (root._originalTags || []).join("\n");
-        var hasChanges = (curMd !== root._originalBody || curTitle !== root._originalTitle || root.isPinned !== root._originalPinned || tagsNow !== tagsOrig);
-        if (!hasChanges) {
-            root.dirty = false;
-            autoSaveTimer.stop();
-            return;
-        }
+        if (root.isLoading || !root.loadedSlug || root.isRenaming || root._isDeleting || root.isPreviewMode) return;
         root.dirty = true;
         autoSaveTimer.restart();
     }
 
     Component.onDestruction: {
         root._isDestroyed = true;
-        if (root.loadedSlug) {
+        if (root._isDeleting || root.isPreviewMode) return;
+        if (root.loadedSlug && !(typeof NotesService !== "undefined" && NotesService.isDeletingKey && NotesService.isDeletingKey(root.loadedSlug))) {
             if (root.isSourceMode) {
                 root._currentBody = sourceCodeEditor ? sourceCodeEditor.text : root._currentBody;
-            } else {
+            } else if (blockEditor) {
                 if (blockEditor.activeBlockBid !== -1) {
                     blockEditor.confirmActiveBlock();
                 }
@@ -166,7 +161,8 @@ Item {
     }
 
     onVisibleChanged: {
-        if (!visible && root.loadedSlug) {
+        if (!visible && root.loadedSlug && !root._isDeleting && !root.isPreviewMode) {
+            if (typeof NotesService !== "undefined" && NotesService.isDeletingKey && NotesService.isDeletingKey(root.loadedSlug)) return;
             var newTitle = titleInput.text.trim() || I18n.t("notes.card.untitled", "Sin título");
             var hasPending = root.dirty || (blockEditor && blockEditor.hasPendingChanges) || (newTitle !== root._originalTitle);
             if (!hasPending) return;
@@ -191,6 +187,8 @@ Item {
 
     function clearClosedNote() {
         root.isClosing = false;
+        root._isDeleting = false;
+        root.forceReadOnly = false;
         root.loadedSlug = "";
         root._originalBody = "";
         root._originalTitle = "";
@@ -206,6 +204,8 @@ Item {
     // ── Sincronización al cambiar la nota activa ───────────────────────────
     onNoteDataChanged: {
         root.isClosing = false;
+        root._isDeleting = false;
+        root.forceReadOnly = false;
         if (!root.noteData) {
             root.loadedSlug = "";
             return;
@@ -368,7 +368,11 @@ Item {
     }
 
     function performSave(callback, force) {
-        if (!root.loadedSlug || root.isRenaming) {
+        if (!root.loadedSlug || root.isRenaming || root._isDeleting || root.isPreviewMode) {
+            if (typeof callback === "function") callback();
+            return;
+        }
+        if (typeof NotesService !== "undefined" && NotesService.isDeletingKey && NotesService.isDeletingKey(root.loadedSlug)) {
             if (typeof callback === "function") callback();
             return;
         }
@@ -1002,6 +1006,7 @@ Item {
     }
 
     property int sourceFormatSeq: 0
+    readonly property var _sourceFormatCache: ({ seq: -1, sig: "", det: null })
 
     function isFormatActive(actionId) {
         if (root.readOnly || root.isPreviewMode) return false;
@@ -1013,10 +1018,16 @@ Item {
             var e = sourceCodeEditor.selectionEnd;
             var cur = sourceCodeEditor.cursorPosition;
 
-            // Formatos inline
+            // Formatos inline (cacheados por snapshot para evitar O(N) por botón)
             if (actionId === "bold" || actionId === "italic" || actionId === "underline" || actionId === "strike" || actionId === "highlight" || actionId === "inline_code" || actionId === "link") {
-                var det = Inline.detectFormats(txt, s, e, cur);
-                return !!det[actionId];
+                var sc = root._sourceFormatCache;
+                var sig = root.sourceFormatSeq + ":" + txt.length + ":" + s + ":" + e + ":" + cur;
+                if (sc.seq !== root.sourceFormatSeq || sc.sig !== sig || !sc.det) {
+                    sc.seq = root.sourceFormatSeq;
+                    sc.sig = sig;
+                    sc.det = Inline.detectFormats(txt, s, e, cur);
+                }
+                return !!sc.det[actionId];
             }
 
             // Formatos de bloque / línea
@@ -2853,6 +2864,8 @@ Item {
                     visible: !root.isPreviewMode
                     onClicked: {
                         var slugToDelete = root.loadedSlug || (root.noteData ? (root.noteData.slug || root.noteData.id) : "");
+                        root._isDeleting = true;
+                        autoSaveTimer.stop();
                         if (NotesService._pendingSlug === slugToDelete) {
                             NotesService._pendingSave = null;
                             NotesService._pendingSlug = "";

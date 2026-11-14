@@ -148,6 +148,20 @@ pub fn run(args: &[String]) {
     let parent_window = "";
     let call_args = (parent_window, title.as_str(), options);
 
+    let pre_rule = format!(
+        "type='signal',sender='org.freedesktop.portal.Desktop',interface='org.freedesktop.portal.Request',member='Response',path='{}'",
+        request_path
+    );
+    if let Err(e) = conn.call_method(
+        Some("org.freedesktop.DBus"),
+        "/org/freedesktop/DBus",
+        Some("org.freedesktop.DBus"),
+        "AddMatch",
+        &(pre_rule.as_str(),),
+    ) {
+        eprintln!("Error registrando AddMatch preventivo en D-Bus: {}", e);
+    }
+
     let reply_msg = conn.call_method(
         Some("org.freedesktop.portal.Desktop"),
         "/org/freedesktop/portal/desktop",
@@ -159,7 +173,7 @@ pub fn run(args: &[String]) {
     let actual_path = match reply_msg {
         Ok(m) => match m.body().deserialize::<ObjectPath<'_>>() {
             Ok(p) => p.to_string(),
-            Err(_) => request_path,
+            Err(_) => request_path.clone(),
         },
         Err(e) => {
             eprintln!("Error al invocar FileChooser del portal ({}): {}", method, e);
@@ -167,19 +181,20 @@ pub fn run(args: &[String]) {
         }
     };
 
-    let rule = format!(
-        "type='signal',sender='org.freedesktop.portal.Desktop',interface='org.freedesktop.portal.Request',member='Response',path='{}'",
-        actual_path
-    );
-
-    if let Err(e) = conn.call_method(
-        Some("org.freedesktop.DBus"),
-        "/org/freedesktop/DBus",
-        Some("org.freedesktop.DBus"),
-        "AddMatch",
-        &(rule.as_str(),),
-    ) {
-        eprintln!("Error registrando AddMatch en D-Bus: {}", e);
+    if actual_path != request_path {
+        let rule = format!(
+            "type='signal',sender='org.freedesktop.portal.Desktop',interface='org.freedesktop.portal.Request',member='Response',path='{}'",
+            actual_path
+        );
+        if let Err(e) = conn.call_method(
+            Some("org.freedesktop.DBus"),
+            "/org/freedesktop/DBus",
+            Some("org.freedesktop.DBus"),
+            "AddMatch",
+            &(rule.as_str(),),
+        ) {
+            eprintln!("Error registrando AddMatch en D-Bus: {}", e);
+        }
     }
 
     let timeout = Duration::from_secs(300);
@@ -231,10 +246,12 @@ fn urlencoding_decode(s: &str) -> String {
     let mut i = 0;
     while i < in_bytes.len() {
         if in_bytes[i] == b'%' && i + 2 < in_bytes.len() {
-            if let Ok(b) = u8::from_str_radix(&s[i + 1..i + 3], 16) {
-                bytes.push(b);
-                i += 3;
-                continue;
+            if let Ok(hex) = std::str::from_utf8(&in_bytes[i + 1..i + 3]) {
+                if let Ok(b) = u8::from_str_radix(hex, 16) {
+                    bytes.push(b);
+                    i += 3;
+                    continue;
+                }
             }
         }
         bytes.push(in_bytes[i]);

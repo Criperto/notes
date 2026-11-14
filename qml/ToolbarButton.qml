@@ -69,7 +69,7 @@ Rectangle {
         height: Theme.s(16)
         source: tbRoot.iconSource
         sourceSize: Qt.size(Theme.s(16), Theme.s(16))
-        layer.enabled: !GamemodeService.gamemodeActive
+        layer.enabled: visible && !GamemodeService.gamemodeActive
         layer.effect: MultiEffect {
             colorization: 1.0
             colorizationColor: tbRoot.disabled ? Theme.muted : (tbRoot.active ? Theme.accent : ((mouseArea.containsMouse || tbRoot.activeFocus) ? Theme.accent : Theme.text))

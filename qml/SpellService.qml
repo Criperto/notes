@@ -273,8 +273,18 @@ QtObject {
 
                 onExited: {
                     workerItem.ready = false;
-                    workerItem.currentQuery = null;
                     workerWatchdog.stop();
+                    var q = workerItem.currentQuery;
+                    workerItem.currentQuery = null;
+                    if (q && !q.cancelled && typeof q.callback === "function") {
+                        try { q.callback({ ok: true, suggestions: [] }); } catch (e) {}
+                    }
+                    while (workerItem.queue && workerItem.queue.length > 0) {
+                        var qq = workerItem.queue.shift();
+                        if (qq && !qq.cancelled && typeof qq.callback === "function") {
+                            try { qq.callback({ ok: true, suggestions: [] }); } catch (e2) {}
+                        }
+                    }
                 }
 
                 stdout: SplitParser {

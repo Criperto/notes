@@ -19,6 +19,7 @@ Item {
     enabled: false
 
     function requestUpdate() {
+        if (!visible || !active || width <= 0 || height <= 0) return;
         if (waveCanvas && waveCanvas.available) {
             waveCanvas.requestPaint();
         }
@@ -33,17 +34,15 @@ Item {
 
     Connections {
         target: root.textItem
+        enabled: root.visible && root.active && (typeof SpellConfig === "undefined" || SpellConfig.enabled)
         ignoreUnknownSignals: true
         function onPaintedWidthChanged() {
-            root.requestUpdate();
             repaintDelayTimer.restart();
         }
         function onPaintedHeightChanged() {
-            root.requestUpdate();
             repaintDelayTimer.restart();
         }
         function onTextChanged() {
-            root.requestUpdate();
             repaintDelayTimer.restart();
         }
     }

@@ -187,14 +187,9 @@ pub fn cmd_search(query: &str, tag_filter: Option<&str>, limit: usize, paths_onl
                 }
             }
 
-            if let Some(idx) = norm_body.find(&norm_query) {
+            if norm_body.contains(&norm_query) {
                 score += 30;
-                // Extraer snippet de contexto de ~80 caracteres
-                let start = idx.saturating_sub(35);
-                let end = (idx + norm_query.len() + 45).min(body.len());
-                let raw_sub = &body[start..end];
-                let clean_snippet = raw_sub.replace('\n', " ").trim().to_string();
-                snippet = if start > 0 { format!("…{}…", clean_snippet) } else { format!("{}…", clean_snippet) };
+                snippet = extract_search_snippet(&body, &norm_query);
             }
         }
 
@@ -477,7 +472,8 @@ pub fn cmd_clip(to_note: Option<&str>, with_stamp: bool) -> Option<String> {
 
     let raw_title = lines.first().copied().unwrap_or("Nota rápida");
     let clean_title = sanitize_title_for_filename(raw_title);
-    let title_display = if raw_title.len() > 60 { &raw_title[..60] } else { raw_title };
+    let title_display: String = raw_title.chars().take(60).collect();
+    let yaml_title = escape_yaml_double_quoted(&title_display);
 
     let mut filename = format!("{}.md", clean_title);
     let mut file_path = notes_dir.join(&filename);
@@ -491,7 +487,7 @@ pub fn cmd_clip(to_note: Option<&str>, with_stamp: bool) -> Option<String> {
     let is_url = clip_text.trim().starts_with("http://") || clip_text.trim().starts_with("https://");
     let content = if is_url {
         format!("---\ntitle: \"{}\"\ncreated: \"{}\"\ntags: [web, clip]\n---\n# {}\n\n[{}]({})\n",
-            title_display,
+            yaml_title,
             current_timestamp(),
             title_display,
             title_display,
@@ -499,7 +495,7 @@ pub fn cmd_clip(to_note: Option<&str>, with_stamp: bool) -> Option<String> {
         )
     } else {
         format!("---\ntitle: \"{}\"\ncreated: \"{}\"\ntags: [clip]\n---\n# {}\n\n{}\n",
-            title_display,
+            yaml_title,
             current_timestamp(),
             title_display,
             clip_text.trim()
@@ -599,4 +595,58 @@ fn current_timestamp() -> String {
 
 fn notify_app_reload(target_path: &str) {
     let _ = crate::try_send_ipc("reload", target_path);
+}
+
+fn escape_yaml_double_quoted(s: &str) -> String {
+    s.replace('\\', "\\\\")
+        .replace('"', "\\\"")
+        .replace(['\r', '\n'], " ")
+}
+
+fn extract_search_snippet(body: &str, norm_query: &str) -> String {
+    for line in body.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        let norm_line = normalize_for_search(trimmed);
+        if norm_line.contains(norm_query) {
+            let clean: String = trimmed.chars().take(90).collect();
+            return if trimmed.chars().count() > 90 {
+                format!("{}…", clean.trim_end())
+            } else {
+                clean
+            };
+        }
+    }
+    let clean: String = body.replace('\n', " ").trim().chars().take(80).collect();
+    if clean.is_empty() {
+        String::new()
+    } else {
+        format!("{}…", clean)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn search_snippet_handles_multibyte_utf8_without_panic() {
+        let body = "Primera línea introductoria\nEn esta línea está la palabra acción 🚀 repetida muchas veces para comprobar que el snippet con emojis 🌍 y tildes áéíóúñ no corta bytes inválidos nunca.\n";
+        let norm_q = normalize_for_search("accion");
+        let snip = extract_search_snippet(body, &norm_q);
+        assert!(snip.contains("acción"));
+        assert!(snip.contains("🚀"));
+    }
+
+    #[test]
+    fn clip_title_truncation_and_yaml_escape_safe() {
+        let long_title = "Título muy largo con eñes ñandú, tildes áéíóú y emojis 🎉🚀✨ que supera sesenta bytes fácilmente \"quoted\" \\slash";
+        let title_display: String = long_title.chars().take(60).collect();
+        assert_eq!(title_display.chars().count(), 60);
+        let escaped = escape_yaml_double_quoted(long_title);
+        assert!(escaped.contains("\\\"quoted\\\""));
+        assert!(escaped.contains("\\\\slash"));
+    }
 }

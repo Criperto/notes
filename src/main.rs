@@ -149,7 +149,7 @@ fn decode_percent(s: &str) -> String {
 }
 
 fn resolve_target_path(path_str: &str) -> String {
-    let clean = if let Some(stripped) = path_str.strip_prefix("file://localhost/") {
+    let clean = if let Some(stripped) = path_str.strip_prefix("file://localhost") {
         decode_percent(stripped)
     } else if let Some(stripped) = path_str.strip_prefix("file://") {
         decode_percent(stripped)

@@ -288,8 +288,8 @@ fn cmd_install(code: &str) {
     let catalog = load_catalog();
     let target = catalog.languages.iter().find(|l| l.code.eq_ignore_ascii_case(code));
 
-    let (url_aff, url_dic) = match target {
-        Some(t) => (t.url_aff.clone(), t.url_dic.clone()),
+    let (canonical_code, url_aff, url_dic) = match target {
+        Some(t) => (t.code.clone(), t.url_aff.clone(), t.url_dic.clone()),
         None => {
             let err = serde_json::json!({
                 "status": "error",
@@ -313,10 +313,10 @@ fn cmd_install(code: &str) {
     println!("{}", serde_json::json!({ "status": "progress", "progress": 10, "stage": "start" }));
     let _ = std::io::stdout().flush();
 
-    let dest_aff = dicts_dir.join(format!("{}.aff", code));
-    let tmp_aff = dicts_dir.join(format!("{}.aff.tmp", code));
-    let dest_dic = dicts_dir.join(format!("{}.dic", code));
-    let tmp_dic = dicts_dir.join(format!("{}.dic.tmp", code));
+    let dest_aff = dicts_dir.join(format!("{}.aff", canonical_code));
+    let tmp_aff = dicts_dir.join(format!("{}.aff.tmp", canonical_code));
+    let dest_dic = dicts_dir.join(format!("{}.dic", canonical_code));
+    let tmp_dic = dicts_dir.join(format!("{}.dic.tmp", canonical_code));
 
     println!("{}", serde_json::json!({ "status": "progress", "progress": 25, "stage": "aff" }));
     let _ = std::io::stdout().flush();
@@ -333,7 +333,7 @@ fn cmd_install(code: &str) {
         let _ = fs::remove_file(&tmp_aff);
         let err = serde_json::json!({
             "status": "error",
-            "message": format!("Fallo al descargar reglas .aff para {}", code)
+            "message": format!("Fallo al descargar reglas .aff para {}", canonical_code)
         });
         println!("{}", err);
         return;
@@ -355,23 +355,40 @@ fn cmd_install(code: &str) {
         let _ = fs::remove_file(&dest_aff);
         let err = serde_json::json!({
             "status": "error",
-            "message": format!("Fallo al descargar vocabulario .dic para {}", code)
+            "message": format!("Fallo al descargar vocabulario .dic para {}", canonical_code)
         });
         println!("{}", err);
         return;
     }
 
     notify_change();
-    println!("{}", serde_json::json!({ "status": "installed", "code": code, "progress": 100 }));
+    println!("{}", serde_json::json!({ "status": "installed", "code": canonical_code, "progress": 100 }));
 }
 
 fn cmd_remove(code: &str) {
+    let trimmed = code.trim();
+    if trimmed.is_empty() || trimmed.contains("..") || trimmed.contains('/') || trimmed.contains('\\') || trimmed.contains('\0') {
+        println!("{}", serde_json::json!({
+            "success": false,
+            "code": code,
+            "reason": "invalid_code",
+            "message": "Código de idioma inválido."
+        }));
+        return;
+    }
+
     let installed = get_installed_dicts();
-    if let Some((is_sys, _)) = installed.get(code) {
+    let canonical_key = installed
+        .keys()
+        .find(|k| k.eq_ignore_ascii_case(trimmed))
+        .cloned()
+        .unwrap_or_else(|| trimmed.to_string());
+
+    if let Some((is_sys, _)) = installed.get(&canonical_key) {
         if *is_sys {
             println!("{}", serde_json::json!({
                 "success": false,
-                "code": code,
+                "code": canonical_key,
                 "reason": "system_dict",
                 "message": "Es un diccionario del sistema; solo se puede desactivar."
             }));
@@ -380,14 +397,14 @@ fn cmd_remove(code: &str) {
     }
 
     let dicts_dir = get_dicts_dir();
-    let dic = dicts_dir.join(format!("{}.dic", code));
-    let aff = dicts_dir.join(format!("{}.aff", code));
+    let dic = dicts_dir.join(format!("{}.dic", canonical_key));
+    let aff = dicts_dir.join(format!("{}.aff", canonical_key));
 
     let _ = fs::remove_file(dic);
     let _ = fs::remove_file(aff);
     notify_change();
 
-    println!("{}", serde_json::json!({ "status": "removed", "code": code, "success": true }));
+    println!("{}", serde_json::json!({ "status": "removed", "code": canonical_key, "success": true }));
 }
 
 fn cmd_import(filepath_str: &str) {

@@ -703,7 +703,7 @@ Item {
                                 sourceSize: Qt.size(16, 16)
                                 smooth: true
                                 mipmap: true
-                                layer.enabled: true
+                                layer.enabled: visible && !GamemodeService.gamemodeActive
                                 layer.effect: MultiEffect {
                                     colorization: 1.0
                                     colorizationColor: (segWrap.seg && segWrap.seg.checked) ? Theme.accent : Theme.muted
@@ -726,7 +726,7 @@ Item {
                                     visible: segWrap.segKind === "paragraph"
                                     width: parent.width
                                     textFormat: Text.RichText
-                                    text: segWrap.visible ? segWrap.segHtml(Inline.stripImages(segWrap.segText), false) : ""
+                                    text: (segPara.visible && segWrap.visible) ? segWrap.segHtml(Inline.stripImages(segWrap.segText), false) : ""
                                     color: root.isCallout ? Theme.text : Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.88)
                                     font.family: Theme.fontFamily
                                     font.pixelSize: EditorMetrics.body
@@ -749,7 +749,7 @@ Item {
                                     textFormat: Text.RichText
                                     // inlineToHtml consume el `## ` inicial con headingSizes (igual que BlockList).
                                     text: {
-                                        if (!segWrap.visible) return "";
+                                        if (!segHead.visible || !segWrap.visible) return "";
                                         var hp = "";
                                         for (var hh = 0; hh < (segWrap.segLevel > 0 ? segWrap.segLevel : 2); hh++) hp += "#";
                                         return segWrap.segHtml(hp + " " + segWrap.segText, true);
@@ -777,7 +777,7 @@ Item {
                                     textFormat: Text.RichText
                                     // inlineToHtml consume el `## ` inicial con headingSizes (igual que BlockList).
                                     text: {
-                                        if (!segWrap.visible) return "";
+                                        if (!segItemText.visible || !segWrap.visible) return "";
                                         var t = Inline.stripImages(segWrap.segText);
                                         return segWrap.segHtml(t, true);
                                     }

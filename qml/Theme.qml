@@ -8,9 +8,14 @@ QtObject {
     // ── Home del usuario actual (sin slash final) ────────────────────────
     readonly property string homeDir: (typeof Sys !== "undefined" && Sys.homeDir) ? Sys.homeDir : ""
     readonly property string _xdgCacheHome: (typeof Sys !== "undefined" && typeof Sys.env === "function") ? Sys.env("XDG_CACHE_HOME", "") : ""
-    readonly property string _pywalPath: (_xdgCacheHome.length > 0 && typeof Sys !== "undefined" && typeof Sys.fileExists === "function" && Sys.fileExists(_xdgCacheHome + "/wal/colors.json"))
-        ? (_xdgCacheHome + "/wal/colors.json")
-        : (root.homeDir + "/.cache/wal/colors.json")
+    readonly property string _pywalPath: {
+        var hasSys = (typeof Sys !== "undefined" && typeof Sys.fileExists === "function");
+        var xdgWal = (_xdgCacheHome.length > 0) ? (_xdgCacheHome + "/wal/colors.json") : "";
+        var homeWal = root.homeDir + "/.cache/wal/colors.json";
+        if (xdgWal.length > 0 && hasSys && Sys.fileExists(xdgWal)) return xdgWal;
+        if (hasSys && Sys.fileExists(homeWal)) return homeWal;
+        return (xdgWal.length > 0) ? xdgWal : homeWal;
+    }
 
     // ── Modo de tema configurado ("pywal" | "qt" | "custom") ─────────────
     readonly property string themeMode: (typeof ConfigBackend !== "undefined" && ConfigBackend.themeMode) ? ConfigBackend.themeMode : "pywal"
@@ -19,6 +24,7 @@ QtObject {
 
     // ── Soporte reactivo para Pywal / Matugen (~/.cache/wal/colors.json) ─
     property var pywal: null
+    property int _pywalRetryCount: 0
 
     property var _pywalFile: FileView {
         id: pywalFile
@@ -32,12 +38,29 @@ QtObject {
 
     property var _pywalDebounceTimer: Timer {
         id: pywalDebounceTimer
-        interval: 150
+        interval: 120
+        repeat: false
+        onTriggered: {
+            root._pywalRetryCount = 0;
+            pywalFile.reload();
+            root._parsePywal(pywalFile.text());
+        }
+    }
+
+    property var _pywalRetryTimer: Timer {
+        id: pywalRetryTimer
+        interval: 90
         repeat: false
         onTriggered: {
             pywalFile.reload();
             root._parsePywal(pywalFile.text());
         }
+    }
+
+    function reloadPywal() {
+        root._pywalRetryCount = 0;
+        pywalFile.reload();
+        root._parsePywal(pywalFile.text());
     }
 
     Component.onCompleted: {
@@ -48,17 +71,39 @@ QtObject {
 
     function _parsePywal(rawText) {
         if (!rawText || rawText.trim() === "") {
+            var exists = (typeof Sys !== "undefined" && typeof Sys.fileExists === "function" && Sys.fileExists(root._pywalPath));
+            if (exists && root._pywalRetryCount < 2) {
+                root._pywalRetryCount++;
+                pywalRetryTimer.restart();
+                return;
+            }
             root.pywal = null;
             return;
         }
         try {
             var parsed = JSON.parse(rawText);
-            if (parsed && parsed.special && parsed.colors) {
-                root.pywal = parsed;
-            } else {
-                root.pywal = null;
+            if (parsed && parsed.colors) {
+                if (!parsed.special) parsed.special = {};
+                if (!parsed.special.background && parsed.colors.color0) parsed.special.background = parsed.colors.color0;
+                if (!parsed.special.foreground && (parsed.colors.color7 || parsed.colors.color15)) {
+                    parsed.special.foreground = parsed.colors.color7 || parsed.colors.color15;
+                }
+                if (!parsed.special.cursor && (parsed.colors.color15 || parsed.special.foreground)) {
+                    parsed.special.cursor = parsed.colors.color15 || parsed.special.foreground;
+                }
+                if (parsed.special.background && parsed.special.foreground) {
+                    root._pywalRetryCount = 0;
+                    root.pywal = parsed;
+                    return;
+                }
             }
+            root.pywal = null;
         } catch (e) {
+            if (root._pywalRetryCount < 2) {
+                root._pywalRetryCount++;
+                pywalRetryTimer.restart();
+                return;
+            }
             root.pywal = null;
         }
     }

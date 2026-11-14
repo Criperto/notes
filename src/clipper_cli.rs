@@ -176,8 +176,21 @@ pub fn execute_clip(opts: &ClipOptions) -> Result<(PathBuf, String, usize), Stri
                 notes_dir.join(&filename)
             }
         };
+        if let Some(parent) = note_path.parent() {
+            let _ = fs::create_dir_all(parent);
+        }
+
+        let (rewritten_md, img_count) = if opts.download_images {
+            let assets_dir = note_path.parent().unwrap_or(&notes_dir).join("assets");
+            fs::create_dir_all(&assets_dir)
+                .map_err(|e| format!("No se pudo crear carpeta de assets: {}", e))?;
+            download_and_localize_images(&markdown, &article.url, &assets_dir)
+        } else {
+            (markdown.clone(), 0)
+        };
+
         let mut final_text = format!("\n\n---\n## [{}]({})\n\n", article.title, article.url);
-        final_text.push_str(markdown.trim());
+        final_text.push_str(rewritten_md.trim());
         final_text.push('\n');
 
         let mut file = fs::OpenOptions::new()
@@ -187,7 +200,7 @@ pub fn execute_clip(opts: &ClipOptions) -> Result<(PathBuf, String, usize), Stri
             .map_err(|e| format!("No se pudo abrir la nota destino: {}", e))?;
         file.write_all(final_text.as_bytes())
             .map_err(|e| format!("Error escribiendo en la nota destino: {}", e))?;
-        (note_path, 0)
+        (note_path, img_count)
     } else {
         let base_slug = sanitize_slug(&article.title);
         let timestamp = current_formatted_time();
@@ -364,15 +377,16 @@ fn decode_html_entities_basic(s: &str) -> String {
 }
 
 fn extract_fallback_title(html: &str) -> Option<String> {
-    let lower = html.to_lowercase();
+    let lower = html.to_ascii_lowercase();
     if let Some(start) = lower.find("<title") {
         if let Some(tag_close) = lower[start..].find('>') {
             let content_start = start + tag_close + 1;
             if let Some(end) = lower[content_start..].find("</title>") {
-                let raw_title = &html[content_start..content_start + end];
-                let decoded = decode_html_entities_basic(raw_title).trim().to_string();
-                if !decoded.is_empty() {
-                    return Some(decoded);
+                if let Some(raw_title) = html.get(content_start..content_start + end) {
+                    let decoded = decode_html_entities_basic(raw_title).trim().to_string();
+                    if !decoded.is_empty() {
+                        return Some(decoded);
+                    }
                 }
             }
         }
@@ -381,14 +395,18 @@ fn extract_fallback_title(html: &str) -> Option<String> {
 }
 
 fn extract_body_content(html: &str) -> String {
-    let lower = html.to_lowercase();
+    let lower = html.to_ascii_lowercase();
     if let Some(start) = lower.find("<body") {
         if let Some(tag_close) = lower[start..].find('>') {
             let content_start = start + tag_close + 1;
             if let Some(end) = lower[content_start..].find("</body>") {
-                return html[content_start..content_start + end].to_string();
+                if let Some(slice) = html.get(content_start..content_start + end) {
+                    return slice.to_string();
+                }
             }
-            return html[content_start..].to_string();
+            if let Some(slice) = html.get(content_start..) {
+                return slice.to_string();
+            }
         }
     }
     html.to_string()

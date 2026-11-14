@@ -20,8 +20,12 @@ finish-args:
   - --filesystem=xdg-documents
   - --filesystem=xdg-download
 
-  # Integración en solo lectura con temas del entorno Quickshell y Pywal
+  # Integración en solo lectura con temas del entorno Quickshell / CripertoShell y Pywal
+  - --filesystem=xdg-config/cripertoshell:ro
   - --filesystem=xdg-config/quickshell:ro
+  - --filesystem=xdg-config/qt6ct:ro
+  - --filesystem=xdg-config/qt5ct:ro
+  - --filesystem=xdg-config/Kvantum:ro
   - --filesystem=xdg-cache/wal:ro
 
 build-options:

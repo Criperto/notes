@@ -216,7 +216,15 @@ pub fn cmd_snapshot(
         (content.lines().count(), 0)
     };
 
-    let (id, iso_ts) = current_iso_time();
+    let (base_id, iso_ts) = current_iso_time();
+    let mut id = base_id.clone();
+    let mut seq = 1usize;
+    while v_dir.join(format!("{}.md", id)).exists()
+        || meta.versions.iter().any(|v| v.id == id)
+    {
+        id = format!("{}-{}", base_id, seq);
+        seq += 1;
+    }
     let snapshot_file = v_dir.join(format!("{}.md", id));
 
     fs::write(&snapshot_file, &content)
@@ -330,32 +338,47 @@ pub fn cmd_list(note_path_str: &str, as_json: bool) -> Result<String, String> {
     }
 }
 
+fn sanitize_version_id(version_id: &str) -> Result<&str, String> {
+    let trimmed = version_id.trim();
+    if trimmed.is_empty()
+        || trimmed.contains("..")
+        || trimmed.contains('/')
+        || trimmed.contains('\\')
+        || trimmed.contains('\0')
+    {
+        return Err(format!("ID de versión inválido: '{}'", version_id));
+    }
+    Ok(trimmed)
+}
+
 // ── Operación: Mostrar snapshot ──────────────────────────────────────────────
 pub fn cmd_show(note_path_str: &str, version_id: &str) -> Result<String, String> {
+    let safe_id = sanitize_version_id(version_id)?;
     let note_path = Path::new(note_path_str);
     let hist_dir = note_history_dir(note_path);
-    let snapshot_file = hist_dir.join("v").join(format!("{}.md", version_id));
+    let snapshot_file = hist_dir.join("v").join(format!("{}.md", safe_id));
 
     if !snapshot_file.exists() {
-        return Err(format!("No se encontró la versión '{}' para {}", version_id, note_path_str));
+        return Err(format!("No se encontró la versión '{}' para {}", safe_id, note_path_str));
     }
 
     fs::read_to_string(&snapshot_file)
-        .map_err(|e| format!("Error leyendo versión {}: {}", version_id, e))
+        .map_err(|e| format!("Error leyendo versión {}: {}", safe_id, e))
 }
 
 // ── Operación: Restaurar versión ─────────────────────────────────────────────
 pub fn cmd_restore(note_path_str: &str, version_id: &str) -> Result<String, String> {
+    let safe_id = sanitize_version_id(version_id)?;
     let note_path = Path::new(note_path_str);
     if !note_path.exists() {
         return Err(format!("El archivo de destino no existe: {}", note_path_str));
     }
 
     let hist_dir = note_history_dir(note_path);
-    let snapshot_file = hist_dir.join("v").join(format!("{}.md", version_id));
+    let snapshot_file = hist_dir.join("v").join(format!("{}.md", safe_id));
 
     if !snapshot_file.exists() {
-        return Err(format!("No se encontró la versión '{}' a restaurar", version_id));
+        return Err(format!("No se encontró la versión '{}' a restaurar", safe_id));
     }
 
     // 1. Crear un snapshot del estado actual antes de sobrescribir
@@ -368,7 +391,7 @@ pub fn cmd_restore(note_path_str: &str, version_id: &str) -> Result<String, Stri
     fs::write(note_path, version_content)
         .map_err(|e| format!("Error escribiendo nota restaurada: {}", e))?;
 
-    Ok(format!("Versión '{}' restaurada exitosamente en {}", version_id, note_path_str))
+    Ok(format!("Versión '{}' restaurada exitosamente en {}", safe_id, note_path_str))
 }
 
 // ── Operación: Purgar historial ──────────────────────────────────────────────
@@ -391,13 +414,49 @@ pub fn cmd_move(old_path_str: &str, new_path_str: &str) -> Result<(), String> {
         if let Some(parent) = new_dir.parent() {
             let _ = fs::create_dir_all(parent);
         }
-        fs::rename(&old_dir, &new_dir)
-            .map_err(|e| format!("Error renombrando carpeta de historial: {}", e))?;
+        if new_dir.exists() {
+            let old_v = old_dir.join("v");
+            let new_v = new_dir.join("v");
+            let _ = fs::create_dir_all(&new_v);
+            if let Ok(entries) = fs::read_dir(&old_v) {
+                for entry in entries.flatten() {
+                    let src = entry.path();
+                    if let Some(name) = src.file_name() {
+                        let dst = new_v.join(name);
+                        if !dst.exists() {
+                            if fs::rename(&src, &dst).is_err() {
+                                let _ = fs::copy(&src, &dst);
+                            }
+                        }
+                    }
+                }
+            }
+            let old_undo = old_dir.join("undo.json");
+            let new_undo = new_dir.join("undo.json");
+            if old_undo.exists() {
+                if fs::rename(&old_undo, &new_undo).is_err() {
+                    let _ = fs::copy(&old_undo, &new_undo);
+                }
+            }
+            let old_meta = load_meta(&old_dir, old_path_str);
+            let mut new_meta = load_meta(&new_dir, new_path_str);
+            for v in old_meta.versions {
+                if !new_meta.versions.iter().any(|ev| ev.id == v.id) {
+                    new_meta.versions.push(v);
+                }
+            }
+            new_meta.versions.sort_by(|a, b| a.id.cmp(&b.id));
+            new_meta.path = new_path_str.to_string();
+            let _ = save_meta(&new_dir, &new_meta);
+            let _ = fs::remove_dir_all(&old_dir);
+        } else {
+            fs::rename(&old_dir, &new_dir)
+                .map_err(|e| format!("Error renombrando carpeta de historial: {}", e))?;
 
-        // Actualizar la ruta en meta.json
-        let mut meta = load_meta(&new_dir, new_path_str);
-        meta.path = new_path_str.to_string();
-        let _ = save_meta(&new_dir, &meta);
+            let mut meta = load_meta(&new_dir, new_path_str);
+            meta.path = new_path_str.to_string();
+            let _ = save_meta(&new_dir, &meta);
+        }
     }
     Ok(())
 }

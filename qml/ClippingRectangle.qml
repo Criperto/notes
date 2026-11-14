@@ -20,7 +20,7 @@ Item {
     Item {
         id: maskSourceItem
         anchors.fill: parent
-        layer.enabled: root.radius > 0
+        layer.enabled: root.radius > 0 && root.visible && root.width > 0 && root.height > 0
         visible: false
 
         Rectangle {
@@ -34,7 +34,7 @@ Item {
     Item {
         id: contentItem
         anchors.fill: parent
-        layer.enabled: root.radius > 0
+        layer.enabled: root.radius > 0 && root.visible && root.width > 0 && root.height > 0
         layer.effect: MultiEffect {
             maskEnabled: root.radius > 0
             maskSource: maskSourceItem

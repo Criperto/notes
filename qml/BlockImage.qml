@@ -106,6 +106,40 @@ Item {
         }
     }
 
+    property var _probedDimPaths: ({})
+
+    function _localImagePath(src) {
+        if (!src) return "";
+        if (src.startsWith("http://") || src.startsWith("https://")) return "";
+        if (src.startsWith("file://localhost/")) return decodeURIComponent(src.substring(16));
+        if (src.startsWith("file://")) return decodeURIComponent(src.substring(7));
+        if (src.startsWith("/")) return src;
+        return root.imgBaseDir ? (root.imgBaseDir + "/" + src) : "";
+    }
+
+    function _probeImageDimensions(src) {
+        if (!src) return null;
+        var cache = (root.editor && root.editor._imageDimensions) ? root.editor._imageDimensions : null;
+        if (cache && cache[src] && cache[src].w > 0 && cache[src].h > 0) {
+            return cache[src];
+        }
+        if (root._probedDimPaths[src]) return null;
+        root._probedDimPaths[src] = true;
+        var lp = root._localImagePath(src);
+        if (lp !== "" && typeof Sys !== "undefined" && typeof Sys.imageDimensions === "function") {
+            var dim = Sys.imageDimensions(lp);
+            if (dim && dim.valid && dim.width > 0 && dim.height > 0) {
+                var entry = { w: dim.width, h: dim.height };
+                if (root.editor) {
+                    if (!root.editor._imageDimensions) root.editor._imageDimensions = ({});
+                    root.editor._imageDimensions[src] = entry;
+                }
+                return entry;
+            }
+        }
+        return null;
+    }
+
     function resolveSource(src) {
         if (!src) return "";
         if (src.startsWith("http://") || src.startsWith("https://") || src.startsWith("file://")) {
@@ -248,19 +282,18 @@ Item {
                     return false;
                 }
 
+                readonly property var _headerDim: root._probeImageDimensions(modelData ? modelData.src : "")
                 readonly property real availW: (root.width > 0) ? root.width : (parent ? parent.width : 400)
                 readonly property real zoomFactor: (typeof EditorMetrics !== "undefined" && EditorMetrics.zoom) ? EditorMetrics.zoom : 1.0
                 readonly property real maxH: Math.round(560 * zoomFactor)
                 readonly property real naturalW: {
                     if (imgItem.implicitWidth > 0) return imgItem.implicitWidth;
-                    var cachedDim = (root.editor && root.editor._imageDimensions) ? root.editor._imageDimensions[modelData.src] : null;
-                    if (cachedDim && cachedDim.w > 0) return cachedDim.w;
+                    if (_headerDim && _headerDim.w > 0) return _headerDim.w;
                     return 0;
                 }
                 readonly property real naturalH: {
                     if (imgItem.implicitHeight > 0) return imgItem.implicitHeight;
-                    var cachedDim = (root.editor && root.editor._imageDimensions) ? root.editor._imageDimensions[modelData.src] : null;
-                    if (cachedDim && cachedDim.h > 0) return cachedDim.h;
+                    if (_headerDim && _headerDim.h > 0) return _headerDim.h;
                     return 0;
                 }
 
@@ -309,8 +342,8 @@ Item {
                         asynchronous: true
                         cache: false
                         fillMode: Image.PreserveAspectFit
-                        playing: Theme.animationsEnabled && !GamemodeService.gamemodeActive
-                        paused: GamemodeService.gamemodeActive
+                        playing: Theme.animationsEnabled && !GamemodeService.gamemodeActive && root.visible && root.inViewportChunk && Qt.application.active
+                        paused: GamemodeService.gamemodeActive || !playing
                         source: imgCard.loadable ? root.resolveSource(modelData.src) : ""
 
                         onStatusChanged: {
@@ -334,7 +367,7 @@ Item {
                             width: 24; height: 24
                             source: Theme.iconsPath + "broken-image.svg"
                             sourceSize: Qt.size(24, 24)
-                            layer.enabled: true
+                            layer.enabled: visible && !GamemodeService.gamemodeActive
                             layer.effect: MultiEffect {
                                 colorization: 1.0
                                 colorizationColor: Theme.danger

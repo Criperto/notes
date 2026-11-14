@@ -27,6 +27,11 @@
   </screenshots>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.3.0" date="2026-11-14">
+      <description>
+        <p>Detección y sincronización completa con CripertoShell (~/.config/cripertoshell), hot-reload vía FileWatch para temas Qt (qt6ct, qt5ct, Kvantum, kdeglobals) y Pywal standalone (colors.json), optimizaciones de CPU/RAM/GPU y correcciones de estabilidad.</p>
+      </description>
+    </release>
     <release version="0.2.10" date="2026-11-13">
       <description>
         <p>Preview de código seleccionable con scroll horizontal dedicado, fix de LaTeX en píldoras de código, ocultar badge H1-H6 en Preview, borde limpio con color2 en menú de inicio, autor Criperto y limpieza en Ajustes.</p>

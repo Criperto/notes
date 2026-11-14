@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::{self, File};
-use std::io::Read;
+use std::io::{BufReader, Read, Seek, SeekFrom};
 use std::path::Path;
 use std::process::Command;
 use std::time::UNIX_EPOCH;
@@ -194,9 +194,14 @@ fn parse_note_meta(notes_dir: &Path, file_path: &Path, rel_path: &str) -> Option
         .unwrap_or_default();
 
     let parent_dir = file_path.parent().unwrap_or(notes_dir);
-    let is_folder_note = if let Some(parent_name) = parent_dir.file_name().and_then(|n| n.to_str()) {
-        let stem = file_path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
-        parent_name == stem || stem == "index"
+    let in_subfolder = parent_dir.components().collect::<Vec<_>>() != notes_dir.components().collect::<Vec<_>>();
+    let is_folder_note = if in_subfolder {
+        if let Some(parent_name) = parent_dir.file_name().and_then(|n| n.to_str()) {
+            let stem = file_path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
+            parent_name == stem || stem == "index"
+        } else {
+            false
+        }
     } else {
         false
     };
@@ -396,31 +401,70 @@ fn parse_image_dimensions(path: &Path) -> Option<ImageDims> {
         return Some(ImageDims { width: w, height: h });
     }
 
-    // JPEG
-    if header[0] == 0xFF && header[1] == 0xD8 {
-        let mut full_buf = Vec::new();
-        let _ = file.read_to_end(&mut full_buf);
-        let mut all = Vec::with_capacity(header.len() + full_buf.len());
-        all.extend_from_slice(&header[..n]);
-        all.extend_from_slice(&full_buf);
+    // WebP (VP8X / VP8 / VP8L)
+    if &header[..4] == b"RIFF" && &header[8..12] == b"WEBP" {
+        if &header[12..16] == b"VP8X" && n >= 30 {
+            let w = (header[24] as u32 | ((header[25] as u32) << 8) | ((header[26] as u32) << 16)) + 1;
+            let h = (header[27] as u32 | ((header[28] as u32) << 8) | ((header[29] as u32) << 16)) + 1;
+            return Some(ImageDims { width: w, height: h });
+        }
+        if &header[12..16] == b"VP8 " && n >= 30 && header[23] == 0x9D && header[24] == 0x01 && header[25] == 0x2A {
+            let w = (u16::from_le_bytes([header[26], header[27]]) & 0x3FFF) as u32;
+            let h = (u16::from_le_bytes([header[28], header[29]]) & 0x3FFF) as u32;
+            return Some(ImageDims { width: w, height: h });
+        }
+        if &header[12..16] == b"VP8L" && n >= 25 && header[20] == 0x2F {
+            let b = u32::from_le_bytes([header[21], header[22], header[23], header[24]]);
+            let w = (b & 0x3FFF) + 1;
+            let h = ((b >> 14) & 0x3FFF) + 1;
+            return Some(ImageDims { width: w, height: h });
+        }
+    }
 
-        let mut i = 2;
-        while i + 4 < all.len() {
-            if all[i] != 0xFF {
-                i += 1;
+    // JPEG streaming por marcadores usando Seek (sin cargar toda la imagen en RAM)
+    if header[0] == 0xFF && header[1] == 0xD8 {
+        file.seek(SeekFrom::Start(2)).ok()?;
+        let mut reader = BufReader::new(file);
+        let mut byte = [0u8; 1];
+        while reader.read_exact(&mut byte).is_ok() {
+            if byte[0] != 0xFF {
                 continue;
             }
-            let marker = all[i + 1];
+            let mut marker = 0xFF;
+            while marker == 0xFF {
+                if reader.read_exact(&mut byte).is_err() {
+                    return None;
+                }
+                marker = byte[0];
+            }
+            if marker == 0x00 || (0xD0..=0xD7).contains(&marker) || marker == 0x01 {
+                continue;
+            }
             if marker == 0xD9 || marker == 0xDA {
                 break;
             }
-            let len = u16::from_be_bytes([all[i + 2], all[i + 3]]) as usize;
-            if matches!(marker, 0xC0..=0xC3 | 0xC5..=0xC7 | 0xC9..=0xCB | 0xCD..=0xCF) && i + 8 < all.len() {
-                let h = u16::from_be_bytes([all[i + 5], all[i + 6]]) as u32;
-                let w = u16::from_be_bytes([all[i + 7], all[i + 8]]) as u32;
-                return Some(ImageDims { width: w, height: h });
+            let mut len_bytes = [0u8; 2];
+            if reader.read_exact(&mut len_bytes).is_err() {
+                break;
             }
-            i += 2 + len;
+            let seg_len = u16::from_be_bytes(len_bytes) as usize;
+            if seg_len < 2 {
+                break;
+            }
+            if matches!(marker, 0xC0..=0xC3 | 0xC5..=0xC7 | 0xC9..=0xCB | 0xCD..=0xCF) {
+                if seg_len >= 7 {
+                    let mut sof = [0u8; 5];
+                    if reader.read_exact(&mut sof).is_ok() {
+                        let h = u16::from_be_bytes([sof[1], sof[2]]) as u32;
+                        let w = u16::from_be_bytes([sof[3], sof[4]]) as u32;
+                        return Some(ImageDims { width: w, height: h });
+                    }
+                }
+                break;
+            }
+            if reader.seek(SeekFrom::Current((seg_len - 2) as i64)).is_err() {
+                break;
+            }
         }
     }
 
@@ -518,4 +562,61 @@ fn cmd_paste_image(assets_dir_str: &str, base_name: &str, rel_prefix: &str) {
 
     eprintln!("No se encontró imagen válida en el portapapeles.");
     std::process::exit(1);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn root_index_md_is_not_folder_note_while_subfolder_index_is() {
+        let tmp = std::env::temp_dir().join(format!("criperto_test_notes_{}", std::process::id()));
+        let sub = tmp.join("proyecto");
+        let _ = fs::create_dir_all(&sub);
+        let root_idx = tmp.join("index.md");
+        let sub_idx = sub.join("index.md");
+        let _ = fs::write(&root_idx, "# Root Index\n");
+        let _ = fs::write(&sub_idx, "# Project Index\n");
+
+        let m_root = parse_note_meta(&tmp, &root_idx, "index.md").expect("root meta");
+        let m_sub = parse_note_meta(&tmp, &sub_idx, "proyecto/index.md").expect("sub meta");
+        assert!(!m_root.is_folder_note);
+        assert!(m_sub.is_folder_note);
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn parse_jpeg_and_webp_dimensions_without_full_load() {
+        let tmp = std::env::temp_dir().join(format!("criperto_test_imgs_{}", std::process::id()));
+        let _ = fs::create_dir_all(&tmp);
+
+        // Minimal valid JPEG with APP0 + SOF0 (640x480) + EOI
+        let jpg_path = tmp.join("test.jpg");
+        let jpg_bytes: [u8; 20] = [
+            0xFF, 0xD8,
+            0xFF, 0xE0, 0x00, 0x04, 0x00, 0x00, // APP0 len=4
+            0xFF, 0xC0, 0x00, 0x08, 0x08, 0x01, 0xE0, 0x02, 0x80, 0x03, // SOF0: h=480, w=640
+            0xFF, 0xD9,
+        ];
+        fs::write(&jpg_path, jpg_bytes).unwrap();
+        let jpg_dims = parse_image_dimensions(&jpg_path).expect("jpeg dims");
+        assert_eq!(jpg_dims.width, 640);
+        assert_eq!(jpg_dims.height, 480);
+
+        // Minimal WebP VP8L header (w=320, h=240 -> (319) | (239 << 14))
+        let webp_path = tmp.join("test.webp");
+        let packed: u32 = (319) | (239 << 14);
+        let p_bytes = packed.to_le_bytes();
+        let mut webp_bytes = Vec::new();
+        webp_bytes.extend_from_slice(b"RIFF\x20\x00\x00\x00WEBPVP8L\x09\x00\x00\x00\x2F");
+        webp_bytes.extend_from_slice(&p_bytes);
+        webp_bytes.extend_from_slice(&[0u8; 8]);
+        fs::write(&webp_path, &webp_bytes).unwrap();
+        let webp_dims = parse_image_dimensions(&webp_path).expect("webp dims");
+        assert_eq!(webp_dims.width, 320);
+        assert_eq!(webp_dims.height, 240);
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
 }

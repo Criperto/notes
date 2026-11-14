@@ -3526,7 +3526,7 @@ Item {
             if (NotesService.activeNote) {
                 NotesService.activeNote.readOnly = true;
             }
-            editorModal.readOnly = true;
+            editorModal.forceReadOnly = true;
             importToast.showText(I18n.t("notes.toast.remote_editing_transferred", "Edición transferida a otra ventana (modo lectura activo)"));
         }
     }

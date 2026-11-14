@@ -40,7 +40,9 @@ Item {
     property string statusMessage: ""
     property bool statusIsError: false
 
-    readonly property bool showAppearanceTab: (typeof Sys === "undefined" || !Sys.hasQuickshellConfig)
+    readonly property bool showAppearanceTab: (typeof ConfigBackend !== "undefined")
+        ? !ConfigBackend.hasQuickshellConfig
+        : (typeof Sys === "undefined" || !Sys.hasQuickshellConfig)
     readonly property var allTabs: [
         { value: "editor",     label: I18n.t("config.tabs.editor", "Editor"),                         icon: "edit.svg" },
         { value: "appearance", label: I18n.t("config.tabs.appearance", "Apariencia"),                 icon: "settings.svg" },
@@ -1115,7 +1117,7 @@ Item {
             Item {
                 id: blurMaskItem
                 anchors.fill: parent
-                layer.enabled: card.radius > 0
+                layer.enabled: card.radius > 0 && cardBlurContainer.visible
                 visible: false
 
                 Rectangle {
@@ -1132,7 +1134,7 @@ Item {
                 clip: true
                 visible: (root.isOpen || root.isClosing) && !GamemodeService.gamemodeActive && root.backgroundSourceItem !== null
 
-                layer.enabled: card.radius > 0
+                layer.enabled: card.radius > 0 && visible
                 layer.smooth: true
                 layer.effect: MultiEffect {
                     autoPaddingEnabled: false
@@ -1578,7 +1580,7 @@ Item {
                                 spacing: 12
 
                                 SchemaSwitchRow {
-                                    visible: (typeof Sys === "undefined" || !Sys.hasQuickshellConfig)
+                                    visible: root.showAppearanceTab
                                     label: I18n.t("config.notes.show_image_previews", "Previsualizar imágenes en tarjetas")
                                     comment: I18n.t("config.notes.show_image_previews_comment", "Muestra miniaturas de imágenes en las tarjetas de notas.")
                                     checked: ConfigBackend.showImagePreviews
@@ -1586,7 +1588,7 @@ Item {
                                 }
 
                                 SchemaSwitchRow {
-                                    visible: (typeof Sys === "undefined" || !Sys.hasQuickshellConfig)
+                                    visible: root.showAppearanceTab
                                     label: I18n.t("config.notes.cycle_preview_images", "Alternar imágenes de vista previa")
                                     comment: I18n.t("config.notes.cycle_preview_images_comment", "Cambia suavemente cada 3 segundos entre las imágenes de la nota.")
                                     checked: ConfigBackend.cyclePreviewImages
@@ -1669,7 +1671,7 @@ Item {
                         }
 
                         BentoCard {
-                            visible: (typeof Sys !== "undefined" && Sys.hasQuickshellConfig)
+                            visible: !root.showAppearanceTab
                             implicitHeight: syncRow.implicitHeight + 8
                             RowLayout {
                                 id: syncRow
@@ -1707,7 +1709,7 @@ Item {
                         }
 
                         BentoCard {
-                            visible: (typeof Sys === "undefined" || !Sys.hasQuickshellConfig)
+                            visible: root.showAppearanceTab
                             implicitHeight: colThemeSource.implicitHeight + 8
                             ColumnLayout {
                                 id: colThemeSource
@@ -1744,6 +1746,8 @@ Item {
                                             }
                                             if (val === "qt" && typeof Sys !== "undefined") {
                                                 Sys.refreshQtColors();
+                                            } else if (val === "pywal") {
+                                                Theme.reloadPywal();
                                             }
                                         }
                                     }
@@ -1890,7 +1894,7 @@ Item {
                                 spacing: 12
 
                                 SchemaSliderRow {
-                                    visible: (typeof Sys === "undefined" || !Sys.hasQuickshellConfig)
+                                    visible: root.showAppearanceTab
                                     label: I18n.t("config.general.panel_opacity", "Opacidad del fondo")
                                     comment: I18n.t("config.general.panel_opacity_comment", "Nivel de opacidad de la ventana principal de Notas.")
                                     val: ConfigBackend.panelOpacity

@@ -340,7 +340,7 @@ Rectangle {
                     width: 14; height: 14
                     source: Theme.iconsPath + "push-pin.svg"
                     sourceSize: Qt.size(14, 14)
-                    layer.enabled: true
+                    layer.enabled: visible && (!parent || (parent.visible && parent.opacity > 0.005)) && !GamemodeService.gamemodeActive
                     layer.effect: MultiEffect {
                         colorization: 1.0
                         colorizationColor: pinMa.containsMouse ? Theme.accent : (root.noteData && root.noteData.pinned ? Theme.accent : Theme.muted)
@@ -403,7 +403,7 @@ Rectangle {
                     wrapMode: Text.Wrap
                 }
 
-                layer.enabled: previewContainer.isOverflowing
+                layer.enabled: previewContainer.visible && previewContainer.isOverflowing
                 layer.effect: MultiEffect {
                     maskEnabled: true
                     maskSource: previewMask
@@ -416,7 +416,7 @@ Rectangle {
                 id: previewMask
                 anchors.fill: parent
                 visible: false
-                layer.enabled: true
+                layer.enabled: previewContainer.visible && previewContainer.isOverflowing
 
                 Rectangle {
                     anchors.fill: parent
@@ -569,7 +569,7 @@ Rectangle {
                     width: 12; height: 12
                     source: Theme.iconsPath + "delete.svg"
                     sourceSize: Qt.size(12, 12)
-                    layer.enabled: true
+                    layer.enabled: visible && (!parent || (parent.visible && parent.opacity > 0.005)) && !GamemodeService.gamemodeActive
                     layer.effect: MultiEffect {
                         colorization: 1.0
                         colorizationColor: delMa.containsMouse ? Theme.danger : Theme.muted

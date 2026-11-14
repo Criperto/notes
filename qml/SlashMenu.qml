@@ -175,7 +175,7 @@ Item {
             NumberAnimation { duration: 110; easing.type: Easing.OutCubic }
         }
 
-        layer.enabled: !GamemodeService.gamemodeActive
+        layer.enabled: visible && opacity > 0.005 && !GamemodeService.gamemodeActive
         layer.effect: MultiEffect {
             shadowEnabled: true
             shadowColor: Qt.rgba(0, 0, 0, 0.45)

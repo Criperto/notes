@@ -17,24 +17,51 @@ fn get_config_path() -> PathBuf {
     get_config_base().join("criperto-notes").join("config.json")
 }
 
-fn has_quickshell_installed() -> bool {
-    let cfg = get_config_base().join("quickshell").join("config");
-    if cfg.join("general.conf").exists() || cfg.join("theme.conf").exists() {
-        return true;
-    }
+fn detect_quickshell_root() -> Option<&'static str> {
+    let cfg_base = get_config_base();
     let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-    let fallback = PathBuf::from(home).join(".config").join("quickshell").join("config");
-    fallback.join("general.conf").exists() || fallback.join("theme.conf").exists()
+    let home_cfg = PathBuf::from(home).join(".config");
+
+    let check_files = ["general.conf", "theme.conf", "notes.conf", "font.conf"];
+    let roots = [
+        ("cripertoshell", "~/.config/cripertoshell"),
+        ("quickshell/config", "~/.config/quickshell/config"),
+        ("quickshell/CripertoShell/config", "~/.config/quickshell/CripertoShell/config"),
+    ];
+
+    for (rel, label) in roots {
+        for base in [&cfg_base, &home_cfg] {
+            let dir = base.join(rel);
+            if check_files.iter().any(|f| dir.join(f).exists()) {
+                return Some(label);
+            }
+        }
+    }
+    None
 }
 
 fn try_send_ipc(action: &str, target: &str) -> bool {
-    let sock_path = crate::instance_hub::runtime_ipc_base().join("criperto-notes.sock");
+    let instances = crate::instance_hub::list_active_instances();
+    let mut any_sent = false;
+    for inst in instances {
+        if crate::instance_hub::send_ipc_to_instance(&inst.sock_path(), action, target) {
+            any_sent = true;
+        }
+    }
+    if any_sent {
+        return true;
+    }
 
+    let sock_path = crate::instance_hub::runtime_ipc_base().join("criperto-notes.sock");
     if let Ok(mut stream) = UnixStream::connect(&sock_path) {
-        let escaped_action = action.replace('\\', "\\\\").replace('"', "\\\"");
-        let escaped_target = target.replace('\\', "\\\\").replace('"', "\\\"");
-        let payload = format!("{{\"action\":\"{escaped_action}\",\"target\":\"{escaped_target}\"}}\n");
-        if stream.write_all(payload.as_bytes()).is_ok() && stream.flush().is_ok() {
+        let payload = serde_json::json!({
+            "action": action,
+            "target": target,
+        });
+        if stream.write_all(payload.to_string().as_bytes()).is_ok()
+            && stream.write_all(b"\n").is_ok()
+            && stream.flush().is_ok()
+        {
             return true;
         }
     }
@@ -84,11 +111,17 @@ pub fn is_forced_no_sync() -> bool {
         if !v { return true; }
     }
 
+    let cfg_base = get_config_base();
     let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
     let extra_files = [
-        format!("{}/.config/criperto-notes/config.conf", home),
-        format!("{}/.config/criperto-notes/config.toml", home),
-        format!("{}/.config/quickshell/config/notes.conf", home),
+        cfg_base.join("criperto-notes").join("config.conf"),
+        cfg_base.join("criperto-notes").join("config.toml"),
+        cfg_base.join("cripertoshell").join("notes.conf"),
+        cfg_base.join("quickshell").join("config").join("notes.conf"),
+        PathBuf::from(&home).join(".config/criperto-notes/config.conf"),
+        PathBuf::from(&home).join(".config/criperto-notes/config.toml"),
+        PathBuf::from(&home).join(".config/cripertoshell/notes.conf"),
+        PathBuf::from(&home).join(".config/quickshell/config/notes.conf"),
     ];
     for ef in extra_files {
         if let Ok(content) = fs::read_to_string(&ef) {
@@ -170,7 +203,8 @@ pub fn run(args: &[String]) {
         "status" => {
             let forced = is_forced_no_sync();
             let active = get_sync_state();
-            let qs_found = has_quickshell_installed();
+            let qs_root = detect_quickshell_root();
+            let qs_label = qs_root.map(|r| format!("Sí ({})", r)).unwrap_or_else(|| "No detectado".to_string());
             let config_path = get_config_path();
 
             let sync_status_str = if active {
@@ -195,16 +229,16 @@ pub fn run(args: &[String]) {
             println!("│ • Ajustes sincronizados         : Colores, blur, animaciones, scrollbars,   │");
             println!("│                                   opacidad y escala tipográfica             │");
             println!(
-                "│ • Quickshell detectado          : {:<43} │",
-                if qs_found { "Sí (~/.config/quickshell)" } else { "No detectado" }
+                "│ • Quickshell / CripertoShell    : {:<43} │",
+                qs_label
             );
             println!("│ • Archivo de configuración      : {:<43} │", config_path.to_string_lossy());
             println!("╰─────────────────────────────────────────────────────────────────────────────╯");
             println!("\nUso:");
-            println!("  notas sync off | disable   Desactiva sincronización (Modo Standalone para testing)");
-            println!("  notas sync on  | enable    Activa sincronización automática con Quickshell");
-            println!("  notas sync toggle          Alterna entre activado y desactivado");
-            println!("  notas --no-sync            Ejecuta puntualmente sin sincronización\n");
+            println!("  criperto-notes sync off | disable   Desactiva sincronización (Modo Standalone para testing)");
+            println!("  criperto-notes sync on  | enable    Activa sincronización automática con Quickshell");
+            println!("  criperto-notes sync toggle          Alterna entre activado y desactivado");
+            println!("  criperto-notes --no-sync            Ejecuta puntualmente sin sincronización\n");
         }
         "off" | "disable" | "false" | "0" => {
             set_sync_state(false);
@@ -217,7 +251,7 @@ pub fn run(args: &[String]) {
             set_sync_state(!current);
         }
         other => {
-            eprintln!("Comando desconocido 'notas sync {}'. Comandos válidos: status, off, on, toggle", other);
+            eprintln!("Comando desconocido 'criperto-notes sync {}'. Comandos válidos: status, off, on, toggle", other);
             std::process::exit(1);
         }
     }
