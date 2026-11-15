@@ -663,6 +663,51 @@ Item {
                         Keys.onSpacePressed: Keys.onReturnPressed()
                     }
 
+                    // Botón Papelera (lectura/restauración estándar FreeDesktop Trash)
+                    Rectangle {
+                        id: trashBtn
+                        Layout.preferredHeight: 38
+                        Layout.preferredWidth: 38
+                        radius: 10
+                        color: trashMa.containsMouse ? Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.1) : Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.05)
+                        border.color: Qt.hsva(Theme.text.hsvHue, Theme.text.hsvSaturation, Theme.text.hsvValue, 0.12)
+                        border.width: 1
+
+                        Behavior on color {
+                            enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                            ColorAnimation { duration: 120 }
+                        }
+
+                        Image {
+                            anchors.centerIn: parent
+                            width: 15
+                            height: 15
+                            source: Theme.iconsPath + "delete.svg"
+                            sourceSize: Qt.size(15, 15)
+                            layer.enabled: true
+                            layer.effect: MultiEffect {
+                                colorization: 1.0
+                                colorizationColor: trashMa.containsMouse ? Theme.text : Theme.muted
+                            }
+                        }
+
+                        MouseArea {
+                            id: trashMa
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: trashModal.open()
+                        }
+
+                        activeFocusOnTab: true
+                        Accessible.role: Accessible.Button
+                        Accessible.name: I18n.t("trash.modal.title", "Papelera de notas")
+                        FocusRing { target: trashBtn }
+                        Keys.onReturnPressed: trashModal.open()
+                        Keys.onEnterPressed: trashModal.open()
+                        Keys.onSpacePressed: trashModal.open()
+                    }
+
                     // Botón de Configuración
                     Rectangle {
                         id: settingsBtn
@@ -911,6 +956,134 @@ Item {
                     anchors.right: parent.right
                     height: 1
                     color: Qt.hsva(Theme.text.hsvHue, Theme.text.hsvSaturation, Theme.text.hsvValue, 0.06)
+                }
+            }
+
+            // ── Chips de filtro por carpeta ─────────────────────────────
+            Item {
+                Layout.fillWidth: true
+                Layout.preferredHeight: NotesService.allFolders.length > 0 ? 34 : 0
+                visible: NotesService.allFolders.length > 0
+                clip: true
+
+                Flickable {
+                    anchors.fill: parent
+                    anchors.leftMargin: 20
+                    anchors.rightMargin: 20
+                    contentWidth: foldersRow.implicitWidth
+                    flickableDirection: Flickable.HorizontalFlick
+                    boundsBehavior: Flickable.StopAtBounds
+                    interactive: !root.isSettingsOpen
+
+                    RowLayout {
+                        id: foldersRow
+                        height: parent.height
+                        spacing: 6
+
+                        Rectangle {
+                            Layout.preferredHeight: 24
+                            Layout.preferredWidth: allFldText.implicitWidth + 16
+                            radius: 12
+                            color: NotesService.activeFolderFilter === ""
+                                ? Theme.accent
+                                : (allFldMa.containsMouse ? Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.12) : Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.05))
+
+                            Text {
+                                id: allFldText
+                                anchors.centerIn: parent
+                                text: I18n.t("notes.folders.all", "Todas las carpetas")
+                                color: NotesService.activeFolderFilter === "" ? Theme.textOn(Theme.accent) : Theme.text
+                                font.family: Theme.fontFamily
+                                font.pixelSize: Theme.fontSizeCaption
+                                font.bold: NotesService.activeFolderFilter === ""
+                            }
+
+                            MouseArea {
+                                id: allFldMa
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: NotesService.activeFolderFilter = ""
+                            }
+                        }
+
+                        Rectangle {
+                            Layout.preferredHeight: 24
+                            Layout.preferredWidth: rootFldText.implicitWidth + 16
+                            radius: 12
+                            color: NotesService.activeFolderFilter === "__root__"
+                                ? Theme.accent
+                                : (rootFldMa.containsMouse ? Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.12) : Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.05))
+
+                            Text {
+                                id: rootFldText
+                                anchors.centerIn: parent
+                                text: I18n.t("notes.folders.root", "Raíz")
+                                color: NotesService.activeFolderFilter === "__root__" ? Theme.textOn(Theme.accent) : Theme.text
+                                font.family: Theme.fontFamily
+                                font.pixelSize: Theme.fontSizeCaption
+                                font.bold: NotesService.activeFolderFilter === "__root__"
+                            }
+
+                            MouseArea {
+                                id: rootFldMa
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: NotesService.activeFolderFilter = (NotesService.activeFolderFilter === "__root__") ? "" : "__root__"
+                            }
+                        }
+
+                        Repeater {
+                            model: NotesService.allFolders
+                            Rectangle {
+                                required property string modelData
+                                readonly property bool isSelected: NotesService.activeFolderFilter.toLowerCase() === modelData.toLowerCase()
+                                Layout.preferredHeight: 24
+                                Layout.preferredWidth: fldChipRow.implicitWidth + 16
+                                radius: 12
+                                color: isSelected
+                                    ? Theme.accent
+                                    : (fldChipMa.containsMouse ? Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.12) : Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.05))
+
+                                Row {
+                                    id: fldChipRow
+                                    anchors.centerIn: parent
+                                    spacing: 5
+                                    Image {
+                                        width: 11; height: 11
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        source: Theme.iconsPath + "folder.svg"
+                                        sourceSize: Qt.size(11, 11)
+                                        layer.enabled: true
+                                        layer.effect: MultiEffect {
+                                            colorization: 1.0
+                                            colorizationColor: isSelected ? Theme.textOn(Theme.accent) : Theme.muted
+                                        }
+                                    }
+                                    Text {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        text: modelData
+                                        color: isSelected ? Theme.textOn(Theme.accent) : Theme.text
+                                        font.family: Theme.fontFamily
+                                        font.pixelSize: Theme.fontSizeCaption
+                                        font.bold: isSelected
+                                    }
+                                }
+
+                                MouseArea {
+                                    id: fldChipMa
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: {
+                                        if (isSelected) NotesService.activeFolderFilter = "";
+                                        else NotesService.activeFolderFilter = modelData;
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
 
@@ -1233,7 +1406,9 @@ Item {
                                                 readonly property var currentNoteData: NotesService.getNote(cardKey)
                                                 noteData: currentNoteData
                                                 isCurrent: root.keyboardNavActive && root.keyboardSelectedSlug !== "" && cardKey === root.keyboardSelectedSlug
+                                                isMultiSelected: NotesService.isNoteSelected(cardKey)
                                                 isMorphing: root.activeMorphSlug !== "" && cardKey === root.activeMorphSlug
+                                                onSelectionToggled: (k) => NotesService.toggleNoteSelection(k)
                                                 onClicked: (cardItem) => {
                                                     root.keyboardNavActive = false;
                                                     root.keyboardSelectedSlug = "";
@@ -1306,7 +1481,9 @@ Item {
                                                 readonly property var currentNoteData: NotesService.getNote(cardKey)
                                                 noteData: currentNoteData
                                                 isCurrent: root.keyboardNavActive && root.keyboardSelectedSlug !== "" && cardKey === root.keyboardSelectedSlug
+                                                isMultiSelected: NotesService.isNoteSelected(cardKey)
                                                 isMorphing: root.activeMorphSlug !== "" && cardKey === root.activeMorphSlug
+                                                onSelectionToggled: (k) => NotesService.toggleNoteSelection(k)
                                                 onClicked: (cardItem) => {
                                                     root.keyboardNavActive = false;
                                                     root.keyboardSelectedSlug = "";
@@ -1490,6 +1667,234 @@ Item {
                 }
                 onPasteImageRequested: (slug, cb) => NotesService.pasteImage(slug, cb)
             }
+        }
+
+        // ── Barra flotante de acciones por lote (Ctrl+Clic / checkboxes) ─────
+        Rectangle {
+            id: batchActionBar
+            readonly property bool active: !NotesService.isEditing && NotesService.selectedNoteKeys && NotesService.selectedNoteKeys.length > 0
+            property string promptMode: "" // "" | "tag" | "move"
+
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: undoToast.active ? 84 : 24
+            z: 950
+
+            width: Math.min(parent.width - 32, batchLayout.implicitWidth + 28)
+            height: 48
+            radius: 12
+            color: Qt.hsva(Theme.surface.hsvHue,
+                           Math.min(1, Theme.surface.hsvSaturation),
+                           Math.min(1, Theme.surface.hsvValue + 0.05),
+                           0.92)
+            border.color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.35)
+            border.width: 1
+            opacity: active ? 1.0 : 0.0
+            visible: opacity > 0.01
+
+            onActiveChanged: if (!active) promptMode = ""
+
+            Behavior on opacity {
+                enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                NumberAnimation { duration: 150; easing.type: Easing.OutCubic }
+            }
+
+            RowLayout {
+                id: batchLayout
+                anchors.centerIn: parent
+                spacing: 8
+
+                Text {
+                    text: NotesService.selectedNoteKeys.length + " " + I18n.t("notes.batch.selected", "sel.")
+                    color: Theme.accent
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontSizeSmall
+                    font.bold: true
+                }
+
+                // Fijar todas
+                Rectangle {
+                    Layout.preferredHeight: 30
+                    Layout.preferredWidth: batchPinTxt.implicitWidth + 14
+                    radius: 8
+                    color: batchPinMa.containsMouse ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.2) : Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.07)
+                    Text {
+                        id: batchPinTxt
+                        anchors.centerIn: parent
+                        text: I18n.t("notes.batch.pin", "Fijar")
+                        color: Theme.text
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSizeSmall
+                    }
+                    MouseArea {
+                        id: batchPinMa
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: NotesService.batchSetPinned(NotesService.selectedNoteKeys, true)
+                    }
+                }
+
+                // Etiquetar
+                Rectangle {
+                    Layout.preferredHeight: 30
+                    Layout.preferredWidth: batchTagTxt.implicitWidth + 14
+                    radius: 8
+                    color: batchActionBar.promptMode === "tag"
+                        ? Theme.accent
+                        : (batchTagMa.containsMouse ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.2) : Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.07))
+                    Text {
+                        id: batchTagTxt
+                        anchors.centerIn: parent
+                        text: I18n.t("notes.batch.tag", "# Tag")
+                        color: batchActionBar.promptMode === "tag" ? Theme.textOn(Theme.accent) : Theme.text
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSizeSmall
+                    }
+                    MouseArea {
+                        id: batchTagMa
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            batchActionBar.promptMode = (batchActionBar.promptMode === "tag") ? "" : "tag";
+                            if (batchActionBar.promptMode === "tag") batchPromptInput.forceActiveFocus();
+                        }
+                    }
+                }
+
+                // Mover a carpeta
+                Rectangle {
+                    Layout.preferredHeight: 30
+                    Layout.preferredWidth: batchMoveTxt.implicitWidth + 14
+                    radius: 8
+                    color: batchActionBar.promptMode === "move"
+                        ? Theme.accent
+                        : (batchMoveMa.containsMouse ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.2) : Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.07))
+                    Text {
+                        id: batchMoveTxt
+                        anchors.centerIn: parent
+                        text: I18n.t("notes.batch.move", "Mover")
+                        color: batchActionBar.promptMode === "move" ? Theme.textOn(Theme.accent) : Theme.text
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSizeSmall
+                    }
+                    MouseArea {
+                        id: batchMoveMa
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            batchActionBar.promptMode = (batchActionBar.promptMode === "move") ? "" : "move";
+                            if (batchActionBar.promptMode === "move") batchPromptInput.forceActiveFocus();
+                        }
+                    }
+                }
+
+                // Entrada inline para #tag o carpeta destino
+                Rectangle {
+                    visible: batchActionBar.promptMode !== ""
+                    Layout.preferredHeight: 30
+                    Layout.preferredWidth: 138
+                    radius: 8
+                    color: Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.08)
+                    border.color: Theme.accent
+                    border.width: 1
+
+                    TextInput {
+                        id: batchPromptInput
+                        anchors.fill: parent
+                        anchors.leftMargin: 8
+                        anchors.rightMargin: 8
+                        verticalAlignment: TextInput.AlignVCenter
+                        color: Theme.text
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSizeSmall
+                        clip: true
+                        CustomTextCursor {}
+
+                        Text {
+                            anchors.fill: parent
+                            verticalAlignment: Text.AlignVCenter
+                            visible: parent.text === ""
+                            text: batchActionBar.promptMode === "tag" ? "tag..." : "carpeta (vacío=raíz)"
+                            color: Theme.muted
+                            font.family: Theme.fontFamily
+                            font.pixelSize: Theme.fontSizeSmall
+                        }
+
+                        Keys.onReturnPressed: {
+                            var val = text.trim();
+                            if (batchActionBar.promptMode === "tag" && val !== "") {
+                                NotesService.batchAddTag(NotesService.selectedNoteKeys, val);
+                            } else if (batchActionBar.promptMode === "move") {
+                                NotesService.batchMoveToFolder(NotesService.selectedNoteKeys, val);
+                            }
+                            text = "";
+                            batchActionBar.promptMode = "";
+                        }
+                        Keys.onEnterPressed: Keys.onReturnPressed(event)
+                        Keys.onEscapePressed: {
+                            text = "";
+                            batchActionBar.promptMode = "";
+                        }
+                    }
+                }
+
+                // Eliminar lote
+                Rectangle {
+                    Layout.preferredHeight: 30
+                    Layout.preferredWidth: batchDelTxt.implicitWidth + 14
+                    radius: 8
+                    color: batchDelMa.containsMouse ? Qt.rgba(Theme.color1.r, Theme.color1.g, Theme.color1.b, 0.25) : Qt.rgba(Theme.color1.r, Theme.color1.g, Theme.color1.b, 0.14)
+                    Text {
+                        id: batchDelTxt
+                        anchors.centerIn: parent
+                        text: I18n.t("notes.batch.delete", "Borrar")
+                        color: Theme.color1
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSizeSmall
+                        font.weight: Font.Medium
+                    }
+                    MouseArea {
+                        id: batchDelMa
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: NotesService.batchDeleteNotes(NotesService.selectedNoteKeys)
+                    }
+                }
+
+                // Limpiar selección
+                Rectangle {
+                    Layout.preferredWidth: 28
+                    Layout.preferredHeight: 28
+                    radius: 8
+                    color: batchClearMa.containsMouse ? Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.14) : "transparent"
+                    Image {
+                        anchors.centerIn: parent
+                        width: 12; height: 12
+                        source: Theme.iconsPath + "x.svg"
+                        sourceSize: Qt.size(12, 12)
+                        layer.enabled: true
+                        layer.effect: MultiEffect {
+                            colorization: 1.0
+                            colorizationColor: Theme.muted
+                        }
+                    }
+                    MouseArea {
+                        id: batchClearMa
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: NotesService.clearNoteSelection()
+                    }
+                }
+            }
+        }
+
+        TrashModal {
+            id: trashModal
         }
 
         // ── Toast flotante de Deshacer borrado ───────────────────────────────

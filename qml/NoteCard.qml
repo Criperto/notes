@@ -6,6 +6,8 @@ import QtQuick.Layouts
 import QtQuick.Effects
 import "PreviewLogic.js" as PreviewLogic
 import "Inline.js" as Inline
+import "SearchLogic.js" as SearchLogic
+import "FolderNotes.js" as FolderNotes
 
 Rectangle {
     id: root
@@ -13,6 +15,7 @@ Rectangle {
     property var noteData: null
     property bool isMorphing: false
     property bool isCurrent: false
+    property bool isMultiSelected: false
 
     onPreviewImgUrlChanged: {
         previewImgValid = false;
@@ -25,6 +28,7 @@ Rectangle {
     signal contextMenuRequested(var cardItem, var mouse)
     signal deleteRequested
     signal pinToggled
+    signal selectionToggled(string noteKey)
 
     readonly property bool isHovered: cardMa.containsMouse
 
@@ -39,12 +43,12 @@ Rectangle {
     Accessible.role: Accessible.ListItem
     Accessible.name: (root.noteData && root.noteData.title) ? root.noteData.title : I18n.t("card.untitled", "Sin título")
 
-    border.color: isCurrent
+    border.color: (root.isMultiSelected || root.isCurrent)
         ? ((Theme.themeMode === "pywal" && Theme.pywalAvailable)
             ? Theme.color2
-            : Qt.hsva(Theme.accent.hsvHue, Theme.accent.hsvSaturation, Theme.accent.hsvValue, 0.6))
+            : Qt.hsva(Theme.accent.hsvHue, Theme.accent.hsvSaturation, Theme.accent.hsvValue, root.isMultiSelected ? 0.85 : 0.6))
         : Qt.hsva(Theme.text.hsvHue, Theme.text.hsvSaturation, Theme.text.hsvValue, 0.08)
-    border.width: root.isCurrent ? 1.5 : 1
+    border.width: (root.isMultiSelected || root.isCurrent) ? 1.5 : 1
     clip: true
 
     // ── F26 (FLIP): desplazamiento de reacomodo. No toca x/y/width/height bindeados
@@ -250,6 +254,13 @@ Rectangle {
                 root.contextMenuRequested(root, mouse);
                 return;
             }
+            var cardKey = root.noteData ? (root.noteData.key || root.noteData.slug || "") : "";
+            if ((mouse.modifiers & Qt.ControlModifier) || (NotesService.selectedNoteKeys && NotesService.selectedNoteKeys.length > 0)) {
+                if (cardKey && root.noteData && !root.noteData.isExternal && !root.noteData.readOnly) {
+                    root.selectionToggled(cardKey);
+                }
+                return;
+            }
             if (NotesService.debug) console.log("[NoteCard] Clic para abrir tarjeta:", root.noteData ? (root.noteData.slug || root.noteData.title) : "sin datos");
             root.clicked(root);
         }
@@ -273,10 +284,11 @@ Rectangle {
                 Text {
                     Layout.fillWidth: true
                     readonly property string rawTitle: root.noteData ? (root.noteData.title || I18n.t("notes.card.untitled", "Sin título")) : I18n.t("notes.card.untitled", "Sin título")
-                    text: (NotesService.searchQuery && NotesService.searchQuery.trim() !== "")
-                        ? Inline.highlightInHtml(Inline.escapeHtml(rawTitle), NotesService.searchQuery, Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.35))
+                    readonly property string activeQ: NotesService.activeHighlightQuery || ""
+                    text: activeQ !== ""
+                        ? Inline.highlightInHtml(Inline.escapeHtml(rawTitle), activeQ, Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.35))
                         : rawTitle
-                    textFormat: (NotesService.searchQuery && NotesService.searchQuery.trim() !== "") ? Text.RichText : Text.PlainText
+                    textFormat: activeQ !== "" ? Text.RichText : Text.PlainText
                     color: Theme.text
                     font.family: Theme.fontFamilyDisplay
                     font.pixelSize: Theme.fontSizeTitle - 1
@@ -284,6 +296,19 @@ Rectangle {
                     wrapMode: Text.Wrap
                     elide: Text.ElideRight
                     maximumLineCount: 2
+                }
+
+                // Carpeta contenedora discreta (solo si la nota vive dentro de una subcarpeta)
+                readonly property string noteFolder: root.noteData ? FolderNotes.containerFolderOf(root.noteData.fileName || "") : ""
+                Text {
+                    Layout.fillWidth: true
+                    visible: parent.noteFolder !== ""
+                    text: parent.noteFolder
+                    color: Theme.muted
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontSizeCaption - 1
+                    elide: Text.ElideMiddle
+                    maximumLineCount: 1
                 }
 
                 Text {
@@ -316,6 +341,46 @@ Rectangle {
                     font.family: Theme.fontFamily
                     font.pixelSize: Theme.fontSizeCaption - 2
                     font.bold: true
+                }
+            }
+
+            // Botón Selección Múltiple — visible al hover o en modo selección
+            Rectangle {
+                id: selectBadge
+                width: 24; height: 24; radius: 7
+                visible: root.noteData && !root.noteData.isExternal && !root.noteData.readOnly
+                color: root.isMultiSelected
+                    ? Theme.accent
+                    : (selMa.containsMouse ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.22) : Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.08))
+                opacity: root.isMultiSelected || (NotesService.selectedNoteKeys && NotesService.selectedNoteKeys.length > 0) || root.isHovered ? 1.0 : 0.0
+
+                Behavior on opacity {
+                    enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                    NumberAnimation { duration: 150; easing.type: Easing.OutCubic }
+                }
+
+                Image {
+                    anchors.centerIn: parent
+                    width: 13; height: 13
+                    source: Theme.iconsPath + (root.isMultiSelected ? "check.svg" : "check-box-outline-blank.svg")
+                    sourceSize: Qt.size(13, 13)
+                    layer.enabled: visible && (!parent || (parent.visible && parent.opacity > 0.005)) && !GamemodeService.gamemodeActive
+                    layer.effect: MultiEffect {
+                        colorization: 1.0
+                        colorizationColor: root.isMultiSelected ? Theme.textOn(Theme.accent) : Theme.muted
+                    }
+                }
+
+                MouseArea {
+                    id: selMa
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: (mouse) => {
+                        mouse.accepted = true;
+                        var k = root.noteData ? (root.noteData.key || root.noteData.slug || "") : "";
+                        if (k) root.selectionToggled(k);
+                    }
                 }
             }
 
@@ -386,15 +451,19 @@ Rectangle {
                 Text {
                     id: previewTextItem
                     width: parent.width
-                    readonly property string rawPreview: root.noteData ? (root.noteData.preview || (root.noteData.body || "").substring(0, 400)) : ""
+                    readonly property string activeQ: NotesService.activeHighlightQuery || ""
+                    readonly property string rawSourceBody: root.noteData ? (root.noteData.body || root.noteData.preview || "") : ""
+                    readonly property string rawPreview: activeQ !== ""
+                        ? SearchLogic.extractContextualSnippet(rawSourceBody, NotesService.searchQuery, 220)
+                        : (root.noteData ? (root.noteData.preview || (root.noteData.body || "").substring(0, 400)) : "")
                     // Sin el bloque ya usado como subtítulo y sin
                     // sintaxis propia (==, [[ ]], imágenes); el markdown común
                     // lo renderiza MarkdownText. En .txt va literal escapado.
-                    readonly property string dedupPreview: root.isTxt ? rawPreview : PreviewLogic.stripDuplicateLead(rawPreview, root.noteData ? (root.noteData.subtitle || "") : "")
+                    readonly property string dedupPreview: root.isTxt ? rawPreview : (activeQ !== "" ? rawPreview : PreviewLogic.stripDuplicateLead(rawPreview, root.noteData ? (root.noteData.subtitle || "") : ""))
                     readonly property string paintPreview: root.isTxt ? Inline.escapeHtml(dedupPreview) : PreviewLogic.cleanCardText(dedupPreview)
-                    readonly property bool hasGridQuery: NotesService.searchQuery && NotesService.searchQuery.trim() !== ""
+                    readonly property bool hasGridQuery: activeQ !== ""
                     text: previewTextItem.hasGridQuery
-                        ? Inline.highlightInHtml(paintPreview, NotesService.searchQuery, Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.35))
+                        ? Inline.highlightInHtml(paintPreview, previewTextItem.activeQ, Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.35))
                         : paintPreview
                     textFormat: (previewTextItem.hasGridQuery || root.isTxt) ? Text.RichText : Text.MarkdownText
                     color: Qt.hsva(Theme.text.hsvHue, Theme.text.hsvSaturation, Theme.text.hsvValue, 0.85)

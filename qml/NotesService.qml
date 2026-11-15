@@ -9,6 +9,8 @@ import "ImageProbe.js" as ImageProbe
 import "FolderNotes.js" as FolderNotes
 import "SortLogic.js" as SortLogic
 import "VersionPolicy.js" as VersionPolicy
+import "SearchLogic.js" as SearchLogic
+import "TagsLogic.js" as TagsLogic
 
 Item {
     id: root
@@ -78,6 +80,9 @@ Item {
     }
     property string sortBy: "lastOpened" // "lastOpened" (defecto, F17), "modified", "created", "title"
     property string activeTagFilter: ""
+    property string activeFolderFilter: ""
+    property var    selectedNoteKeys: []
+    property var    trashEntries: []
 
     onSortByChanged: {
         root._persistState();
@@ -299,12 +304,48 @@ Item {
         return tags;
     }
 
-    // ── Notas filtradas por búsqueda reactiva normalizada y tags ────
+    // ── Colección de subcarpetas contenedoras únicas ────────────────────────
+    readonly property var allFolders: {
+        var set = {};
+        for (var i = 0; i < root.notes.length; i++) {
+            var n = root.notes[i];
+            if (!n || !n.fileName) continue;
+            var folder = FolderNotes.containerFolderOf(n.fileName);
+            if (folder && folder !== "") {
+                set[folder] = true;
+            }
+        }
+        var folders = Object.keys(set);
+        folders.sort();
+        return folders;
+    }
+
+    // Subconsulta textual limpia (sin operadores tag:/folder:/is:/has:/ext:) para resaltar en cards
+    readonly property string activeHighlightQuery: {
+        var q = (root.searchQuery || "").trim();
+        if (!q) return "";
+        return SearchLogic.parseGridQuery(q).highlightQuery || "";
+    }
+
+    // ── Notas filtradas por carpeta, tag y búsqueda avanzada con operadores ─
     readonly property var filteredNotes: {
         var q = (root.searchQuery || "").trim();
         var tagFilter = (root.activeTagFilter || "").trim().toLowerCase();
+        var folderFilter = (root.activeFolderFilter || "").trim();
+        var folderFilterLow = folderFilter.toLowerCase();
 
         var list = root.notes;
+
+        if (folderFilter !== "") {
+            list = list.filter(note => {
+                if (!note) return false;
+                var cf = FolderNotes.containerFolderOf(note.fileName || "");
+                if (folderFilter === "__root__") return cf === "";
+                var cfLow = cf.toLowerCase();
+                return cfLow === folderFilterLow || cfLow.indexOf(folderFilterLow + "/") === 0;
+            });
+        }
+
         if (tagFilter !== "") {
             list = list.filter(note => {
                 if (!note || !Array.isArray(note.tags)) return false;
@@ -314,18 +355,41 @@ Item {
 
         if (q === "") return list;
 
-        var tokens = q.split(/\s+/).filter(t => t.length > 0);
+        var parsed = SearchLogic.parseGridQuery(q);
         return list.filter(note => {
-            var blob = note.searchBlob || MD.normalizeSearchText((note.title || "") + " " + (note.subtitle || "") + " " + (note.body || ""));
-            var noteTags = Array.isArray(note.tags) ? note.tags.map(t => String(t).toLowerCase()) : [];
+            if (!note) return false;
+            var noteTags = Array.isArray(note.tags) ? note.tags.map(t => String(t).trim().toLowerCase()) : [];
 
-            return tokens.every(tok => {
-                if (tok.startsWith("#") && tok.length > 1) {
-                    var targetTag = tok.substring(1).toLowerCase();
-                    return noteTags.indexOf(targetTag) !== -1;
+            for (var ti = 0; ti < parsed.tags.length; ti++) {
+                if (noteTags.indexOf(parsed.tags[ti]) === -1) return false;
+            }
+            if (parsed.folderSpecified) {
+                var noteFolder = FolderNotes.containerFolderOf(note.fileName || "").toLowerCase();
+                if (parsed.folder === "") {
+                    if (noteFolder !== "") return false;
+                } else {
+                    if (noteFolder !== parsed.folder && noteFolder.indexOf(parsed.folder + "/") !== 0) return false;
                 }
+            }
+            if (parsed.pinned !== null && Boolean(note.pinned) !== parsed.pinned) {
+                return false;
+            }
+            if (parsed.hasImage === true) {
+                var hasAssets = Array.isArray(note.assets) && note.assets.length > 0;
+                if (!hasAssets && MD.extractImages(note.body || "").length === 0) return false;
+            }
+            if (parsed.ext !== "") {
+                var fn = (note.fileName || "").toLowerCase();
+                var dot = fn.lastIndexOf(".");
+                var actualExt = (dot !== -1) ? fn.substring(dot + 1) : (note.ext || "md").toLowerCase();
+                if (actualExt !== parsed.ext) return false;
+            }
+
+            if (parsed.textTerms.length === 0) return true;
+            var blob = note.searchBlob || MD.normalizeSearchText((note.title || "") + " " + (note.subtitle || "") + " " + (note.body || ""));
+            return parsed.textTerms.every(tok => {
                 var normalizedTok = MD.normalizeSearchText(tok);
-                return blob.indexOf(normalizedTok) !== -1;
+                return !normalizedTok || blob.indexOf(normalizedTok) !== -1;
             });
         });
     }
@@ -2123,6 +2187,171 @@ Item {
             body: note.content || note.body || ""
         });
         saveNote(updated);
+    }
+
+    // ── Selección múltiple y acciones por lote ───────────────────────────
+    function isNoteSelected(key) {
+        if (!key || !Array.isArray(root.selectedNoteKeys)) return false;
+        return root.selectedNoteKeys.indexOf(key) !== -1;
+    }
+
+    function toggleNoteSelection(key) {
+        if (!key) return;
+        var next = Array.isArray(root.selectedNoteKeys) ? root.selectedNoteKeys.slice() : [];
+        var idx = next.indexOf(key);
+        if (idx !== -1) next.splice(idx, 1);
+        else next.push(key);
+        root.selectedNoteKeys = next;
+    }
+
+    function selectAllFiltered() {
+        var next = [];
+        for (var i = 0; i < root.filteredNotes.length; i++) {
+            var n = root.filteredNotes[i];
+            var k = n ? (n.key || root._dictKey(root._canonSlug(n.slug), n.ext)) : "";
+            if (k && !n.isExternal && !n.readOnly) next.push(k);
+        }
+        root.selectedNoteKeys = next;
+    }
+
+    function clearNoteSelection() {
+        if (root.selectedNoteKeys.length > 0) root.selectedNoteKeys = [];
+    }
+
+    function batchSetPinned(keys, pinnedVal) {
+        var list = Array.isArray(keys) ? keys : root.selectedNoteKeys;
+        if (!list || list.length === 0) return;
+        for (var i = 0; i < list.length; i++) {
+            var n = root.getNote(list[i]);
+            if (!n || n.readOnly || n.isExternal) continue;
+            if (Boolean(n.pinned) === Boolean(pinnedVal)) continue;
+            var updated = Object.assign({}, n, {
+                pinned: Boolean(pinnedVal),
+                body: n.content || n.body || ""
+            });
+            saveNote(updated);
+        }
+    }
+
+    function batchAddTag(keys, rawTag) {
+        var list = Array.isArray(keys) ? keys : root.selectedNoteKeys;
+        var cleanTag = TagsLogic.normalizeTag ? TagsLogic.normalizeTag(rawTag) : String(rawTag || "").trim().toLowerCase();
+        if (!list || list.length === 0 || !cleanTag) return;
+        for (var i = 0; i < list.length; i++) {
+            var n = root.getNote(list[i]);
+            if (!n || n.readOnly || n.isExternal) continue;
+            var curTags = Array.isArray(n.tags) ? n.tags.slice() : [];
+            var nextTags = TagsLogic.addTag ? TagsLogic.addTag(curTags, cleanTag) : curTags;
+            if (nextTags.length === curTags.length) continue;
+            var updated = Object.assign({}, n, {
+                tags: nextTags,
+                body: n.content || n.body || ""
+            });
+            saveNote(updated);
+        }
+    }
+
+    function moveNoteToFolder(noteOrKey, rawDestFolder) {
+        var key = (typeof noteOrKey === "string") ? noteOrKey : (noteOrKey ? (noteOrKey.key || "") : "");
+        var note = (typeof noteOrKey === "object" && noteOrKey) ? noteOrKey : root.getNote(key);
+        if (!note || note.readOnly || note.isExternal || !root.notesDir) return false;
+        if (typeof Sys === "undefined" || typeof Sys.movePath !== "function") return false;
+
+        var destFolder = FolderNotes.sanitizeFolderPath(rawDestFolder);
+        var curFolder = FolderNotes.containerFolderOf(note.fileName || "");
+        if (destFolder === curFolder) return true;
+
+        var oldRel = note.fileName || "";
+        var isFolder = !!note.isFolderNote || FolderNotes.isFolderNotePath(oldRel);
+        var srcAbs = isFolder ? (note.baseFolder || (root.notesDir + "/" + FolderNotes.parentDir(oldRel))) : note.filePath;
+        if (!srcAbs) return false;
+
+        var leafName = srcAbs.substring(srcAbs.lastIndexOf("/") + 1);
+        var targetDirAbs = destFolder ? (root.notesDir + "/" + destFolder) : root.notesDir;
+        var candidateAbs = targetDirAbs + "/" + leafName;
+        if (typeof Sys.fileExists === "function" && Sys.fileExists(candidateAbs)) {
+            var dot = isFolder ? -1 : leafName.lastIndexOf(".");
+            var base = (dot > 0) ? leafName.substring(0, dot) : leafName;
+            var extPart = (dot > 0) ? leafName.substring(dot) : "";
+            var n = 2;
+            while (Sys.fileExists(targetDirAbs + "/" + base + " (" + n + ")" + extPart)) n++;
+            candidateAbs = targetDirAbs + "/" + base + " (" + n + ")" + extPart;
+        }
+
+        if (!Sys.movePath(srcAbs, candidateAbs)) return false;
+
+        var noteKey = key || root._keyForFileName(oldRel);
+        delete root._notesDict[noteKey];
+        if (root._activeIsKey(noteKey, root._slugOfKey(noteKey))) {
+            root.activeNote = null;
+            root.isEditing = false;
+        }
+        root._rebuildNotes();
+        root.refresh();
+        return true;
+    }
+
+    function batchMoveToFolder(keys, rawDestFolder) {
+        var list = Array.isArray(keys) ? keys.slice() : root.selectedNoteKeys.slice();
+        if (!list || list.length === 0) return;
+        for (var i = 0; i < list.length; i++) {
+            root.moveNoteToFolder(list[i], rawDestFolder);
+        }
+        root.clearNoteSelection();
+    }
+
+    function batchDeleteNotes(keys) {
+        var list = Array.isArray(keys) ? keys.slice() : root.selectedNoteKeys.slice();
+        if (!list || list.length === 0) return;
+        root.clearNoteSelection();
+        for (var i = 0; i < list.length; i++) {
+            root.deleteNote(list[i]);
+        }
+    }
+
+    // ── Papelera FreeDesktop (lectura y restauración estándar) ───────────
+    function refreshTrash() {
+        if (typeof Sys === "undefined" || typeof Sys.listTrashEntries !== "function" || !root.notesDir) {
+            root.trashEntries = [];
+            return [];
+        }
+        var entries = Sys.listTrashEntries(root.notesDir) || [];
+        root.trashEntries = entries;
+        return entries;
+    }
+
+    function restoreFromTrash(entryId) {
+        if (typeof Sys === "undefined" || typeof Sys.restoreTrashEntry !== "function" || !root.notesDir) return false;
+        var res = Sys.restoreTrashEntry(entryId, root.notesDir);
+        if (res && res.ok) {
+            if (res.relativePath) {
+                var restoredKey = root._keyForFileName(res.relativePath);
+                if (root._deletingKeys && root._deletingKeys[restoredKey]) {
+                    delete root._deletingKeys[restoredKey];
+                }
+            }
+            root.refreshTrash();
+            root.refresh();
+            return true;
+        }
+        return false;
+    }
+
+    function purgeFromTrash(entryId) {
+        if (typeof Sys === "undefined" || typeof Sys.purgeTrashEntry !== "function") return false;
+        var ok = Sys.purgeTrashEntry(entryId);
+        root.refreshTrash();
+        return ok;
+    }
+
+    function emptyNotesTrash() {
+        var entries = root.refreshTrash();
+        for (var i = 0; i < entries.length; i++) {
+            if (entries[i] && entries[i].id) {
+                Sys.purgeTrashEntry(entries[i].id);
+            }
+        }
+        root.refreshTrash();
     }
 
     // Compat: el modal usa attachImage; queda como alias al portapapeles.

@@ -299,6 +299,10 @@ public:
     Q_INVOKABLE void broadcastNoteDeleted(const QString &notePath);
     Q_INVOKABLE void startSystemMove(QObject *windowObj);
     Q_INVOKABLE QVariantMap imageDimensions(const QString &path) const;
+    Q_INVOKABLE QVariantList listTrashEntries(const QString &notesDir) const;
+    Q_INVOKABLE QVariantMap restoreTrashEntry(const QString &entryId, const QString &notesDir) const;
+    Q_INVOKABLE bool purgeTrashEntry(const QString &entryId) const;
+    Q_INVOKABLE bool movePath(const QString &oldPath, const QString &newPath);
 
 signals:
     void clipboardTextChanged();

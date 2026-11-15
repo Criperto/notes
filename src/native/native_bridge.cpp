@@ -1463,6 +1463,242 @@ bool Sys::ensureDir(const QString &path) const {
     return QDir().mkpath(path);
 }
 
+static QString xdgTrashBaseDir() {
+    const QString xdgData = QString::fromUtf8(qgetenv("XDG_DATA_HOME")).trimmed();
+    if (!xdgData.isEmpty()) {
+        return QDir::cleanPath(xdgData + QStringLiteral("/Trash"));
+    }
+    const QString genericData = QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation);
+    if (!genericData.isEmpty()) {
+        return QDir::cleanPath(genericData + QStringLiteral("/Trash"));
+    }
+    return QDir::cleanPath(QDir::homePath() + QStringLiteral("/.local/share/Trash"));
+}
+
+static bool parseTrashInfoFile(const QString &infoPath, QString &outOriginalPath, QString &outDeletionDate) {
+    QFile f(infoPath);
+    if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) return false;
+    QTextStream in(&f);
+    bool inSection = false;
+    while (!in.atEnd()) {
+        const QString rawLine = in.readLine();
+        const QString trimmed = rawLine.trimmed();
+        if (trimmed.isEmpty() || trimmed.startsWith(QLatin1Char('#'))) continue;
+        if (trimmed.startsWith(QLatin1Char('[')) && trimmed.endsWith(QLatin1Char(']'))) {
+            inSection = (trimmed == QStringLiteral("[Trash Info]"));
+            continue;
+        }
+        if (!inSection) continue;
+        if (rawLine.startsWith(QStringLiteral("Path="))) {
+            const QByteArray encoded = rawLine.mid(5).trimmed().toUtf8();
+            outOriginalPath = QDir::cleanPath(QString::fromUtf8(QByteArray::fromPercentEncoding(encoded)));
+        } else if (rawLine.startsWith(QStringLiteral("DeletionDate="))) {
+            outDeletionDate = rawLine.mid(13).trimmed();
+        }
+    }
+    return !outOriginalPath.isEmpty();
+}
+
+static bool copyDirRecursively(const QString &srcDir, const QString &dstDir) {
+    QDir src(srcDir);
+    if (!src.exists()) return false;
+    if (!QDir().mkpath(dstDir)) return false;
+    const QFileInfoList entries = src.entryInfoList(QDir::NoDotAndDotDot | QDir::AllEntries | QDir::Hidden);
+    for (const QFileInfo &entry : entries) {
+        const QString dstPath = dstDir + QLatin1Char('/') + entry.fileName();
+        if (entry.isDir()) {
+            if (!copyDirRecursively(entry.absoluteFilePath(), dstPath)) return false;
+        } else {
+            if (!QFile::copy(entry.absoluteFilePath(), dstPath)) return false;
+        }
+    }
+    return true;
+}
+
+static qint64 entrySizeBytes(const QFileInfo &fi) {
+    if (!fi.exists()) return 0;
+    if (!fi.isDir()) return fi.size();
+    qint64 total = 0;
+    QDirIterator it(fi.absoluteFilePath(), QDir::Files | QDir::Hidden, QDirIterator::Subdirectories);
+    while (it.hasNext()) {
+        it.next();
+        total += it.fileInfo().size();
+    }
+    return total;
+}
+
+static QString uniqueRestoreTarget(const QString &desiredPath, bool isDir) {
+    if (!QFileInfo::exists(desiredPath)) return desiredPath;
+    const QFileInfo fi(desiredPath);
+    const QString parentDir = fi.absolutePath();
+    QString baseName = isDir ? fi.fileName() : fi.completeBaseName();
+    const QString ext = (!isDir && !fi.suffix().isEmpty()) ? (QLatin1Char('.') + fi.suffix()) : QString();
+    int counter = 2;
+    while (true) {
+        const QString candidate = parentDir + QLatin1Char('/') + baseName + QStringLiteral(" (%1)").arg(counter) + ext;
+        if (!QFileInfo::exists(candidate)) return candidate;
+        counter++;
+    }
+}
+
+QVariantList Sys::listTrashEntries(const QString &notesDir) const {
+    QVariantList result;
+    const QString cleanNotesDir = QDir::cleanPath(notesDir);
+    if (cleanNotesDir.isEmpty()) return result;
+    const QString notesPrefix = cleanNotesDir.endsWith(QLatin1Char('/')) ? cleanNotesDir : (cleanNotesDir + QLatin1Char('/'));
+
+    const QString trashBase = xdgTrashBaseDir();
+    const QString infoDirPath = trashBase + QStringLiteral("/info");
+    const QString filesDirPath = trashBase + QStringLiteral("/files");
+
+    QDir infoDir(infoDirPath);
+    if (!infoDir.exists()) return result;
+
+    const QFileInfoList infoFiles = infoDir.entryInfoList(QStringList() << QStringLiteral("*.trashinfo"), QDir::Files | QDir::Readable);
+    for (const QFileInfo &infoFi : infoFiles) {
+        const QString fileName = infoFi.fileName();
+        if (!fileName.endsWith(QStringLiteral(".trashinfo"))) continue;
+        const QString entryId = fileName.left(fileName.length() - 10);
+        if (entryId.isEmpty() || entryId.contains(QLatin1Char('/'))) continue;
+
+        QString origPath;
+        QString deletionDate;
+        if (!parseTrashInfoFile(infoFi.absoluteFilePath(), origPath, deletionDate)) continue;
+        if (!origPath.startsWith(notesPrefix)) continue;
+
+        const QString trashedPath = filesDirPath + QLatin1Char('/') + entryId;
+        const QFileInfo trashedFi(trashedPath);
+        if (!trashedFi.exists()) continue;
+
+        const QString relPath = origPath.mid(notesPrefix.length());
+        QVariantMap item;
+        item.insert(QStringLiteral("id"), entryId);
+        item.insert(QStringLiteral("name"), QFileInfo(origPath).fileName());
+        item.insert(QStringLiteral("originalPath"), origPath);
+        item.insert(QStringLiteral("relativePath"), relPath);
+        item.insert(QStringLiteral("deletionDate"), deletionDate);
+        item.insert(QStringLiteral("isDir"), trashedFi.isDir());
+        item.insert(QStringLiteral("sizeBytes"), entrySizeBytes(trashedFi));
+        result.append(item);
+    }
+
+    std::sort(result.begin(), result.end(), [](const QVariant &a, const QVariant &b) {
+        return a.toMap().value(QStringLiteral("deletionDate")).toString()
+             > b.toMap().value(QStringLiteral("deletionDate")).toString();
+    });
+    return result;
+}
+
+QVariantMap Sys::restoreTrashEntry(const QString &entryId, const QString &notesDir) const {
+    QVariantMap out;
+    out.insert(QStringLiteral("ok"), false);
+
+    if (entryId.isEmpty() || entryId.contains(QLatin1Char('/')) || entryId == QStringLiteral("..") || entryId == QStringLiteral(".")) {
+        out.insert(QStringLiteral("error"), QStringLiteral("invalid_entry_id"));
+        return out;
+    }
+
+    const QString cleanNotesDir = QDir::cleanPath(notesDir);
+    if (cleanNotesDir.isEmpty()) {
+        out.insert(QStringLiteral("error"), QStringLiteral("invalid_notes_dir"));
+        return out;
+    }
+    const QString notesPrefix = cleanNotesDir.endsWith(QLatin1Char('/')) ? cleanNotesDir : (cleanNotesDir + QLatin1Char('/'));
+
+    const QString trashBase = xdgTrashBaseDir();
+    const QString infoPath = trashBase + QStringLiteral("/info/") + entryId + QStringLiteral(".trashinfo");
+    const QString filesPath = trashBase + QStringLiteral("/files/") + entryId;
+
+    QString origPath;
+    QString deletionDate;
+    if (!parseTrashInfoFile(infoPath, origPath, deletionDate)) {
+        out.insert(QStringLiteral("error"), QStringLiteral("missing_trashinfo"));
+        return out;
+    }
+    if (!origPath.startsWith(notesPrefix)) {
+        out.insert(QStringLiteral("error"), QStringLiteral("outside_notes_dir"));
+        return out;
+    }
+
+    const QFileInfo trashedFi(filesPath);
+    if (!trashedFi.exists()) {
+        out.insert(QStringLiteral("error"), QStringLiteral("missing_trashed_file"));
+        return out;
+    }
+
+    const QString targetPath = uniqueRestoreTarget(origPath, trashedFi.isDir());
+    QDir().mkpath(QFileInfo(targetPath).absolutePath());
+
+    bool moved = QFile::rename(filesPath, targetPath);
+    if (!moved) {
+        if (trashedFi.isDir()) {
+            if (copyDirRecursively(filesPath, targetPath)) {
+                QDir(filesPath).removeRecursively();
+                moved = true;
+            }
+        } else {
+            if (QFile::copy(filesPath, targetPath)) {
+                QFile::remove(filesPath);
+                moved = true;
+            }
+        }
+    }
+
+    if (!moved) {
+        out.insert(QStringLiteral("error"), QStringLiteral("move_failed"));
+        return out;
+    }
+
+    QFile::remove(infoPath);
+    out.insert(QStringLiteral("ok"), true);
+    out.insert(QStringLiteral("restoredPath"), targetPath);
+    out.insert(QStringLiteral("relativePath"), targetPath.mid(notesPrefix.length()));
+    return out;
+}
+
+bool Sys::purgeTrashEntry(const QString &entryId) const {
+    if (entryId.isEmpty() || entryId.contains(QLatin1Char('/')) || entryId == QStringLiteral("..") || entryId == QStringLiteral(".")) {
+        return false;
+    }
+    const QString trashBase = xdgTrashBaseDir();
+    const QString infoPath = trashBase + QStringLiteral("/info/") + entryId + QStringLiteral(".trashinfo");
+    const QString filesPath = trashBase + QStringLiteral("/files/") + entryId;
+
+    bool dataRemoved = true;
+    const QFileInfo fi(filesPath);
+    if (fi.exists()) {
+        dataRemoved = fi.isDir() ? QDir(filesPath).removeRecursively() : QFile::remove(filesPath);
+    }
+    bool infoRemoved = !QFile::exists(infoPath) || QFile::remove(infoPath);
+    return dataRemoved && infoRemoved;
+}
+
+bool Sys::movePath(const QString &oldPath, const QString &newPath) {
+    if (oldPath.isEmpty() || newPath.isEmpty()) return false;
+    const QString cleanOld = QDir::cleanPath(oldPath);
+    const QString cleanNew = QDir::cleanPath(newPath);
+    if (cleanOld == cleanNew || !QFileInfo::exists(cleanOld) || QFileInfo::exists(cleanNew)) {
+        return false;
+    }
+    QDir().mkpath(QFileInfo(cleanNew).absolutePath());
+    if (QFile::rename(cleanOld, cleanNew)) {
+        return true;
+    }
+    const QFileInfo fi(cleanOld);
+    if (fi.isDir()) {
+        if (copyDirRecursively(cleanOld, cleanNew)) {
+            QDir(cleanOld).removeRecursively();
+            return true;
+        }
+        return false;
+    }
+    if (QFile::copy(cleanOld, cleanNew)) {
+        QFile::remove(cleanOld);
+        return true;
+    }
+    return false;
+}
+
 bool Sys::hasQuickshellConfig() const {
     if (isForcedNoSyncConfigured()) {
         return false;

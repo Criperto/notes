@@ -53,6 +53,7 @@ fn main() {
         "qml/SlashMenu.qml",
         "qml/LinkSuggestionMenu.qml",
         "qml/WebClipModal.qml",
+        "qml/TrashModal.qml",
         "qml/BlockEditor.qml",
         "qml/BlockParagraph.qml",
         "qml/BlockHeading.qml",

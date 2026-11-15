@@ -230,3 +230,136 @@ function countInHtml(html, query) {
     }
     return total;
 }
+
+// Divide una consulta respetando comillas dobles o simples.
+function _tokenizeQuery(rawQuery) {
+    var s = (rawQuery || "").toString().trim();
+    if (!s) return [];
+    var out = [];
+    var cur = "";
+    var quote = "";
+    for (var i = 0; i < s.length; i++) {
+        var ch = s[i];
+        if (quote !== "") {
+            if (ch === quote) {
+                quote = "";
+            } else {
+                cur += ch;
+            }
+        } else if (ch === "\"" || ch === "'") {
+            quote = ch;
+        } else if (/\s/.test(ch)) {
+            if (cur.length > 0) {
+                out.push(cur);
+                cur = "";
+            }
+        } else {
+            cur += ch;
+        }
+    }
+    if (cur.length > 0) out.push(cur);
+    return out;
+}
+
+// Parsea operadores avanzados de búsqueda del grid:
+// tag:<x>, #tag, folder:<ruta>, is:pinned, is:unpinned, has:image, ext:<ext>.
+function parseGridQuery(rawQuery) {
+    var tokens = _tokenizeQuery(rawQuery);
+    var res = {
+        tags: [],
+        folder: "",
+        folderSpecified: false,
+        pinned: null,
+        hasImage: null,
+        ext: "",
+        textTerms: [],
+        highlightQuery: ""
+    };
+    for (var i = 0; i < tokens.length; i++) {
+        var tok = tokens[i];
+        var low = tok.toLowerCase();
+        if (low.indexOf("tag:") === 0 && tok.length > 4) {
+            var tv = tok.substring(4).replace(/^#/, "").trim().toLowerCase();
+            if (tv) res.tags.push(tv);
+            continue;
+        }
+        if (tok.length > 1 && tok[0] === "#") {
+            var ht = tok.substring(1).trim().toLowerCase();
+            if (ht) res.tags.push(ht);
+            continue;
+        }
+        if (low.indexOf("folder:") === 0) {
+            var fv = tok.substring(7).trim().replace(/^\/+|\/+$/g, "");
+            res.folderSpecified = true;
+            res.folder = (fv === "/" || fv.toLowerCase() === "root" || fv.toLowerCase() === "raiz" || fv.toLowerCase() === "raíz") ? "" : fv.toLowerCase();
+            continue;
+        }
+        if (low === "is:pinned" || low === "is:pin") {
+            res.pinned = true;
+            continue;
+        }
+        if (low === "is:unpinned") {
+            res.pinned = false;
+            continue;
+        }
+        if (low === "has:image" || low === "has:img" || low === "has:images") {
+            res.hasImage = true;
+            continue;
+        }
+        if (low.indexOf("ext:") === 0 && tok.length > 4) {
+            var ev = tok.substring(4).replace(/^\./, "").trim().toLowerCase();
+            if (ev) res.ext = ev;
+            continue;
+        }
+        res.textTerms.push(tok);
+    }
+    res.highlightQuery = res.textTerms.join(" ");
+    return res;
+}
+
+// Extrae un fragmento contextual centrado en la primera coincidencia de `query`
+// dentro de `text` (para previews en NoteCard cuando hay búsqueda activa).
+function extractContextualSnippet(text, query, maxLen) {
+    var src = (text || "").toString().replace(/\r\n/g, "\n").trim();
+    if (!src) return "";
+    var limit = (typeof maxLen === "number" && maxLen > 20) ? maxLen : 220;
+    var parsed = parseGridQuery(query);
+    var terms = parsed.textTerms;
+    if (!terms || terms.length === 0) {
+        return src.length > limit ? src.substring(0, limit) : src;
+    }
+    var normSrc = normalize(src);
+    var bestIdx = -1;
+    for (var i = 0; i < terms.length; i++) {
+        var nt = normalize(terms[i]);
+        if (!nt) continue;
+        var found = normSrc.indexOf(nt);
+        if (found !== -1 && (bestIdx === -1 || found < bestIdx)) {
+            bestIdx = found;
+        }
+    }
+    if (bestIdx === -1) {
+        return src.length > limit ? src.substring(0, limit) : src;
+    }
+    if (src.length <= limit) return src;
+
+    var lead = Math.floor(limit * 0.32);
+    var start = Math.max(0, bestIdx - lead);
+    if (start > 0) {
+        var nextSpace = src.indexOf(" ", start);
+        if (nextSpace !== -1 && nextSpace < bestIdx && (nextSpace - start) < 18) {
+            start = nextSpace + 1;
+        }
+    }
+    var end = Math.min(src.length, start + limit);
+    if (end < src.length) {
+        var prevSpace = src.lastIndexOf(" ", end);
+        if (prevSpace > bestIdx && (end - prevSpace) < 18) {
+            end = prevSpace;
+        }
+    }
+    var slice = src.substring(start, end).trim();
+    if (start > 0) slice = "… " + slice;
+    if (end < src.length) slice = slice + " …";
+    return slice;
+}

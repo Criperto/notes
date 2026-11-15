@@ -128,3 +128,25 @@ function firstNulPath(paths) {
     }
     return "";
 }
+
+// Carpeta lógica contenedora de una nota:
+// - Nota plana en raíz ("todo.md") → ""
+// - Nota en subcarpeta ("Trabajo/todo.md") → "Trabajo"
+// - Nota-carpeta ("Trabajo/Proyecto/Proyecto.md") → "Trabajo"
+function containerFolderOf(rel) {
+    var fn = (rel || "").toString().replace(/^\/+|\/+$/g, "");
+    if (!fn) return "";
+    if (isFolderNotePath(fn)) {
+        return parentDir(parentDir(fn));
+    }
+    return parentDir(fn);
+}
+
+function sanitizeFolderPath(folder) {
+    var s = (folder || "").toString().trim().replace(/\\/g, "/");
+    var parts = s.split("/").filter(function(p) {
+        var clean = p.trim();
+        return clean !== "" && clean !== "." && clean !== ".." && clean.indexOf(keySep()) === -1;
+    });
+    return parts.join("/");
+}

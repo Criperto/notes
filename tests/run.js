@@ -6523,6 +6523,58 @@ runTest("F159: resaltado nativo QSyntaxHighlighter, numeración de líneas y Sma
         "NoteEditorModal sourceFlickable debe usar sourceGutter geométrico, highlighter y smart indent");
 });
 
+runTest("F160: organización del panel principal (operadores búsqueda, snippet contextual, carpetas, selección por lote y papelera FreeDesktop)", () => {
+    const pq = SearchLogic.parseGridQuery('tag:Trabajo folder:"Mi Carpeta/Sub" is:pinned has:image ext:lua monitor');
+    assert.deepStrictEqual(Array.from(pq.tags), ['trabajo']);
+    assert.strictEqual(pq.folderSpecified, true);
+    assert.strictEqual(pq.folder, 'mi carpeta/sub');
+    assert.strictEqual(pq.pinned, true);
+    assert.strictEqual(pq.hasImage, true);
+    assert.strictEqual(pq.ext, 'lua');
+    assert.deepStrictEqual(Array.from(pq.textTerms), ['monitor']);
+    assert.strictEqual(pq.highlightQuery, 'monitor');
+
+    const pqRoot = SearchLogic.parseGridQuery('folder:/ #urgente');
+    assert.strictEqual(pqRoot.folderSpecified, true);
+    assert.strictEqual(pqRoot.folder, '');
+    assert.deepStrictEqual(Array.from(pqRoot.tags), ['urgente']);
+
+    const longBody = "A".repeat(180) + " palabraClaveObjetivo encontrada aquí " + "B".repeat(180);
+    const snippet = SearchLogic.extractContextualSnippet(longBody, 'folder:x palabraclaveobjetivo', 120);
+    assert.ok(snippet.includes('palabraClaveObjetivo') && snippet.startsWith('… ') && snippet.endsWith(' …'),
+        "extractContextualSnippet debe centrarse alrededor de la coincidencia ignorando operadores");
+
+    assert.strictEqual(FolderNotes.containerFolderOf('todo.md'), '');
+    assert.strictEqual(FolderNotes.containerFolderOf('Trabajo/todo.md'), 'Trabajo');
+    assert.strictEqual(FolderNotes.containerFolderOf('Trabajo/Proyecto/Proyecto.md'), 'Trabajo');
+    assert.strictEqual(FolderNotes.sanitizeFolderPath(' /Trabajo/../Secret/Sub/ '), 'Trabajo/Secret/Sub');
+
+    const bridgeH = fs.readFileSync(path.resolve(__dirname, '../src/native/native_bridge.h'), 'utf8');
+    const bridgeCpp = fs.readFileSync(path.resolve(__dirname, '../src/native/native_bridge.cpp'), 'utf8');
+    const serviceQml = fs.readFileSync(path.resolve(__dirname, '../qml/NotesService.qml'), 'utf8');
+    const cardQml = fs.readFileSync(path.resolve(__dirname, '../qml/NoteCard.qml'), 'utf8');
+    const contentQml = fs.readFileSync(path.resolve(__dirname, '../qml/NotesContent.qml'), 'utf8');
+    const qmldir = fs.readFileSync(path.resolve(__dirname, '../qml/qmldir'), 'utf8');
+    const buildRs = fs.readFileSync(path.resolve(__dirname, '../build.rs'), 'utf8');
+
+    assert.ok(bridgeH.includes('listTrashEntries') && bridgeH.includes('restoreTrashEntry')
+        && bridgeH.includes('purgeTrashEntry') && bridgeH.includes('movePath'),
+        "Sys debe exponer listTrashEntries, restoreTrashEntry, purgeTrashEntry y movePath");
+    assert.ok(bridgeCpp.includes('[Trash Info]') && bridgeCpp.includes('fromPercentEncoding'),
+        "Sys FreeDesktop Trash debe parsear .trashinfo y decodificar URL percent-encoded");
+    assert.ok(qmldir.includes('TrashModal') && buildRs.includes('"qml/TrashModal.qml"')
+        && fs.existsSync(path.resolve(__dirname, '../qml/TrashModal.qml')),
+        "TrashModal.qml debe existir y estar registrado");
+    assert.ok(serviceQml.includes('allFolders') && serviceQml.includes('batchMoveToFolder')
+        && serviceQml.includes('restoreFromTrash') && serviceQml.includes('SearchLogic.parseGridQuery'),
+        "NotesService debe implementar allFolders, batch ops, papelera FreeDesktop y parseGridQuery");
+    assert.ok(cardQml.includes('isMultiSelected') && cardQml.includes('extractContextualSnippet'),
+        "NoteCard debe soportar multi-selección y snippet contextual");
+    assert.ok(contentQml.includes('id: batchActionBar') && contentQml.includes('id: trashModal')
+        && contentQml.includes('id: foldersRow'),
+        "NotesContent debe alojar chips de carpeta, barra de acciones por lote y TrashModal");
+});
+
 console.log(`\n========================================`);
 console.log(`Resultados: ${passed} OK, ${failed} FAIL`);
 console.log(`========================================`);
