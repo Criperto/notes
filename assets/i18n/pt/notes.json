@@ -241,7 +241,9 @@
       "persist_undo": "Desfazer persistente (Ctrl+Z)",
       "persist_undo_comment": "Mantém a pilha de desfazer/refazer entre reaberturas da nota.",
       "show_source_mode_button": "Mostrar botão de código-fonte",
-      "show_source_mode_button_comment": "Exibe o botão de alternância de código-fonte na barra de ferramentas do editor."
+      "show_source_mode_button_comment": "Exibe o botão de alternância de código-fonte na barra de ferramentas do editor.",
+      "auto_close_pairs": "Fechar aspas e pares automaticamente",
+      "auto_close_pairs_comment": "Fecha automaticamente aspas (\"\", ''), parênteses (), colchetes [], chaves {} e crases `` ao digitar."
     },
     "spellcheck": {
       "ignore_uppercase": "Ignorar MAIÚSCULAS",
@@ -274,7 +276,8 @@
       "spell_active": "Ativo",
       "spell_paused": "Pausado",
       "spell_remove": "Remover",
-      "spell_install": "Instalar"
+      "spell_install": "Instalar",
+      "typing_title": "Digitação e Fechamento Automático"
     },
     "appearance": {
       "ui_scale": "Escala global da interface (UI)",
@@ -669,5 +672,8 @@
   "notes.slash.link_desc": "Inserir um link markdown [texto](url)",
   "slash.link_desc": "Inserir um link markdown [texto](url)",
   "notes.editor.action.math": "Fórmula matemática (LaTeX)",
-  "editor.action.math": "Fórmula matemática (LaTeX)"
+  "editor.action.math": "Fórmula matemática (LaTeX)",
+  "config.language.typing_title": "Digitação e Fechamento Automático",
+  "config.notes.auto_close_pairs": "Fechar aspas e pares automaticamente",
+  "config.notes.auto_close_pairs_comment": "Fecha automaticamente aspas (\"\", ''), parênteses (), colchetes [], chaves {} e crases `` ao digitar."
 }

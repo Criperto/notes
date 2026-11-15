@@ -303,7 +303,9 @@ const catalogs = {
         "persist_undo": "Deshacer persistente (Ctrl+Z)",
         "persist_undo_comment": "Conserva la pila de deshacer/rehacer entre aperturas de la nota.",
         "show_source_mode_button": "Mostrar botón de código fuente",
-        "show_source_mode_button_comment": "Muestra el botón de alternar código fuente en la barra de herramientas del editor."
+        "show_source_mode_button_comment": "Muestra el botón de alternar código fuente en la barra de herramientas del editor.",
+        "auto_close_pairs": "Autocerrar comillas y pares",
+        "auto_close_pairs_comment": "Cierra automáticamente comillas (\"\", ''), paréntesis (), corchetes [], llaves {} y acentos graves `` al escribir."
       },
       "spellcheck": {
         "ignore_uppercase": "Ignorar MAYÚSCULAS",
@@ -336,7 +338,8 @@ const catalogs = {
         "spell_active": "Activo",
         "spell_paused": "Pausado",
         "spell_remove": "Eliminar",
-        "spell_install": "Instalar"
+        "spell_install": "Instalar",
+        "typing_title": "Escritura y Autocierre"
       },
       "appearance": {
         "ui_scale": "Escala global de interfaz (UI)",
@@ -731,7 +734,10 @@ const catalogs = {
     "notes.slash.link_desc": "Insertar un enlace markdown [texto](url)",
     "slash.link_desc": "Insertar un enlace markdown [texto](url)",
     "notes.editor.action.math": "Fórmula matemática (LaTeX)",
-    "editor.action.math": "Fórmula matemática (LaTeX)"
+    "editor.action.math": "Fórmula matemática (LaTeX)",
+    "config.language.typing_title": "Escritura y Autocierre",
+    "config.notes.auto_close_pairs": "Autocerrar comillas y pares",
+    "config.notes.auto_close_pairs_comment": "Cierra automáticamente comillas (\"\", ''), paréntesis (), corchetes [], llaves {} y acentos graves `` al escribir."
   },
   "es_ar": {
     "header": {
@@ -976,7 +982,9 @@ const catalogs = {
         "persist_undo": "Deshacer persistente (Ctrl+Z)",
         "persist_undo_comment": "Conserva la pila de deshacer/rehacer entre aperturas de la nota.",
         "show_source_mode_button": "Mostrar botón de código fuente",
-        "show_source_mode_button_comment": "Muestra el botón de alternar código fuente en la barra de herramientas del editor."
+        "show_source_mode_button_comment": "Muestra el botón de alternar código fuente en la barra de herramientas del editor.",
+        "auto_close_pairs": "Autocerrar comillas y pares",
+        "auto_close_pairs_comment": "Cierra automáticamente comillas (\"\", ''), paréntesis (), corchetes [], llaves {} y acentos graves `` al escribir."
       },
       "spellcheck": {
         "ignore_uppercase": "Ignorar MAYÚSCULAS",
@@ -1009,7 +1017,8 @@ const catalogs = {
         "spell_active": "Activo",
         "spell_paused": "Pausado",
         "spell_remove": "Quitar",
-        "spell_install": "Instalar"
+        "spell_install": "Instalar",
+        "typing_title": "Escritura y Autocierre"
       },
       "appearance": {
         "ui_scale": "Escala global de interfaz (UI)",
@@ -1404,7 +1413,10 @@ const catalogs = {
     "notes.slash.link_desc": "Insertar un enlace markdown [texto](url)",
     "slash.link_desc": "Insertar un enlace markdown [texto](url)",
     "notes.editor.action.math": "Fórmula matemática (LaTeX)",
-    "editor.action.math": "Fórmula matemática (LaTeX)"
+    "editor.action.math": "Fórmula matemática (LaTeX)",
+    "config.language.typing_title": "Escritura y Autocierre",
+    "config.notes.auto_close_pairs": "Autocerrar comillas y pares",
+    "config.notes.auto_close_pairs_comment": "Cierra automáticamente comillas (\"\", ''), paréntesis (), corchetes [], llaves {} y acentos graves `` al escribir."
   },
   "en": {
     "header": {
@@ -1649,7 +1661,9 @@ const catalogs = {
         "persist_undo": "Persistent undo (Ctrl+Z)",
         "persist_undo_comment": "Retains the undo/redo stack across note reopenings.",
         "show_source_mode_button": "Show source code button",
-        "show_source_mode_button_comment": "Displays the source code toggle button in the editor toolbar."
+        "show_source_mode_button_comment": "Displays the source code toggle button in the editor toolbar.",
+        "auto_close_pairs": "Auto-close quotes and pairs",
+        "auto_close_pairs_comment": "Automatically closes quotes (\"\", ''), parentheses (), brackets [], braces {} and backticks `` while typing."
       },
       "spellcheck": {
         "ignore_uppercase": "Ignore UPPERCASE",
@@ -1682,7 +1696,8 @@ const catalogs = {
         "spell_active": "Active",
         "spell_paused": "Paused",
         "spell_remove": "Remove",
-        "spell_install": "Install"
+        "spell_install": "Install",
+        "typing_title": "Typing & Auto-Close"
       },
       "appearance": {
         "ui_scale": "Global UI scale",
@@ -2077,7 +2092,10 @@ const catalogs = {
     "notes.slash.link_desc": "Insert a markdown link [text](url)",
     "slash.link_desc": "Insert a markdown link [text](url)",
     "notes.editor.action.math": "Math formula (LaTeX)",
-    "editor.action.math": "Math formula (LaTeX)"
+    "editor.action.math": "Math formula (LaTeX)",
+    "config.language.typing_title": "Typing & Auto-Close",
+    "config.notes.auto_close_pairs": "Auto-close quotes and pairs",
+    "config.notes.auto_close_pairs_comment": "Automatically closes quotes (\"\", ''), parentheses (), brackets [], braces {} and backticks `` while typing."
   },
   "pt": {
     "header": {
@@ -2322,7 +2340,9 @@ const catalogs = {
         "persist_undo": "Desfazer persistente (Ctrl+Z)",
         "persist_undo_comment": "Mantém a pilha de desfazer/refazer entre reaberturas da nota.",
         "show_source_mode_button": "Mostrar botão de código-fonte",
-        "show_source_mode_button_comment": "Exibe o botão de alternância de código-fonte na barra de ferramentas do editor."
+        "show_source_mode_button_comment": "Exibe o botão de alternância de código-fonte na barra de ferramentas do editor.",
+        "auto_close_pairs": "Fechar aspas e pares automaticamente",
+        "auto_close_pairs_comment": "Fecha automaticamente aspas (\"\", ''), parênteses (), colchetes [], chaves {} e crases `` ao digitar."
       },
       "spellcheck": {
         "ignore_uppercase": "Ignorar MAIÚSCULAS",
@@ -2355,7 +2375,8 @@ const catalogs = {
         "spell_active": "Ativo",
         "spell_paused": "Pausado",
         "spell_remove": "Remover",
-        "spell_install": "Instalar"
+        "spell_install": "Instalar",
+        "typing_title": "Digitação e Fechamento Automático"
       },
       "appearance": {
         "ui_scale": "Escala global da interface (UI)",
@@ -2750,7 +2771,10 @@ const catalogs = {
     "notes.slash.link_desc": "Inserir um link markdown [texto](url)",
     "slash.link_desc": "Inserir um link markdown [texto](url)",
     "notes.editor.action.math": "Fórmula matemática (LaTeX)",
-    "editor.action.math": "Fórmula matemática (LaTeX)"
+    "editor.action.math": "Fórmula matemática (LaTeX)",
+    "config.language.typing_title": "Digitação e Fechamento Automático",
+    "config.notes.auto_close_pairs": "Fechar aspas e pares automaticamente",
+    "config.notes.auto_close_pairs_comment": "Fecha automaticamente aspas (\"\", ''), parênteses (), colchetes [], chaves {} e crases `` ao digitar."
   },
   "ja": {
     "header": {
@@ -2995,7 +3019,9 @@ const catalogs = {
         "persist_undo": "永続的な「元に戻す」(Ctrl+Z)",
         "persist_undo_comment": "ノートを再度開いたときにも「元に戻す/やり直し」スタックを保持します。",
         "show_source_mode_button": "ソースコードボタンを表示",
-        "show_source_mode_button_comment": "エディターツールバーにソースコード切り替えボタンを表示します。"
+        "show_source_mode_button_comment": "エディターツールバーにソースコード切り替えボタンを表示します。",
+        "auto_close_pairs": "引用符とペアを自動で閉じる",
+        "auto_close_pairs_comment": "入力時に引用符 (\"\", '')、丸括弧 ()、角括弧 []、波括弧 {}、バッククォート `` を自動的に閉じます。"
       },
       "spellcheck": {
         "ignore_uppercase": "大文字を無視",
@@ -3028,7 +3054,8 @@ const catalogs = {
         "spell_active": "有効",
         "spell_paused": "一時停止中",
         "spell_remove": "削除",
-        "spell_install": "インストール"
+        "spell_install": "インストール",
+        "typing_title": "入力と自動閉じ"
       },
       "appearance": {
         "ui_scale": "UI全体の拡大縮小",
@@ -3423,7 +3450,10 @@ const catalogs = {
     "notes.slash.link_desc": "マークダウンリンクを挿入 [テキスト](URL)",
     "slash.link_desc": "マークダウンリンクを挿入 [テキスト](URL)",
     "notes.editor.action.math": "数式 (LaTeX)",
-    "editor.action.math": "数式 (LaTeX)"
+    "editor.action.math": "数式 (LaTeX)",
+    "config.language.typing_title": "入力と自動閉じ",
+    "config.notes.auto_close_pairs": "引用符とペアを自動で閉じる",
+    "config.notes.auto_close_pairs_comment": "入力時に引用符 (\"\", '')、丸括弧 ()、角括弧 []、波括弧 {}、バッククォート `` を自動的に閉じます。"
   },
   "zh": {
     "header": {
@@ -3668,7 +3698,9 @@ const catalogs = {
         "persist_undo": "持久撤消 (Ctrl+Z)",
         "persist_undo_comment": "在重新打开笔记时保留撤消/重做栈。",
         "show_source_mode_button": "显示源代码按钮",
-        "show_source_mode_button_comment": "在编辑器工具栏中显示源代码切换按钮。"
+        "show_source_mode_button_comment": "在编辑器工具栏中显示源代码切换按钮。",
+        "auto_close_pairs": "自动闭合引号与成对符号",
+        "auto_close_pairs_comment": "输入时自动闭合引号 (\"\", '')、圆括号 ()、方括号 []、花括号 {} 和反引号 ``。"
       },
       "spellcheck": {
         "ignore_uppercase": "忽略大写字母",
@@ -3701,7 +3733,8 @@ const catalogs = {
         "spell_active": "已启用",
         "spell_paused": "已暂停",
         "spell_remove": "移除",
-        "spell_install": "安装"
+        "spell_install": "安装",
+        "typing_title": "输入与自动闭合"
       },
       "appearance": {
         "ui_scale": "全局界面缩放 (UI)",
@@ -4096,7 +4129,10 @@ const catalogs = {
     "notes.slash.link_desc": "插入 Markdown 链接 [文本](url)",
     "slash.link_desc": "插入 Markdown 链接 [文本](url)",
     "notes.editor.action.math": "数学公式 (LaTeX)",
-    "editor.action.math": "数学公式 (LaTeX)"
+    "editor.action.math": "数学公式 (LaTeX)",
+    "config.language.typing_title": "输入与自动闭合",
+    "config.notes.auto_close_pairs": "自动闭合引号与成对符号",
+    "config.notes.auto_close_pairs_comment": "输入时自动闭合引号 (\"\", '')、圆括号 ()、方括号 []、花括号 {} 和反引号 ``。"
   },
   "de": {
     "header": {
@@ -4341,7 +4377,9 @@ const catalogs = {
         "persist_undo": "Dauerhaftes Rückgängigmachen (Strg+Z)",
         "persist_undo_comment": "Behält den Rückgängig-/Wiederholen-Verlauf auch nach dem Schließen der Notiz bei.",
         "show_source_mode_button": "Quellcode-Schaltfläche anzeigen",
-        "show_source_mode_button_comment": "Zeigt die Quellcode-Schaltfläche in der Editor-Symbolleiste an."
+        "show_source_mode_button_comment": "Zeigt die Quellcode-Schaltfläche in der Editor-Symbolleiste an.",
+        "auto_close_pairs": "Anführungszeichen und Paare automatisch schließen",
+        "auto_close_pairs_comment": "Schließt Anführungszeichen (\"\", ''), Klammern (), eckige Klammern [], geschweifte Klammern {} und Backticks `` beim Tippen automatisch."
       },
       "spellcheck": {
         "ignore_uppercase": "GROSSBUCHSTABEN ignorieren",
@@ -4374,7 +4412,8 @@ const catalogs = {
         "spell_active": "Aktiv",
         "spell_paused": "Pausiert",
         "spell_remove": "Entfernen",
-        "spell_install": "Installieren"
+        "spell_install": "Installieren",
+        "typing_title": "Eingabe & Automatisches Schließen"
       },
       "appearance": {
         "ui_scale": "Globale UI-Skalierung",
@@ -4769,7 +4808,10 @@ const catalogs = {
     "notes.slash.link_desc": "Einen Markdown-Link einfügen [Text](URL)",
     "slash.link_desc": "Einen Markdown-Link einfügen [Text](URL)",
     "notes.editor.action.math": "Mathematische Formel (LaTeX)",
-    "editor.action.math": "Mathematische Formel (LaTeX)"
+    "editor.action.math": "Mathematische Formel (LaTeX)",
+    "config.language.typing_title": "Eingabe & Automatisches Schließen",
+    "config.notes.auto_close_pairs": "Anführungszeichen und Paare automatisch schließen",
+    "config.notes.auto_close_pairs_comment": "Schließt Anführungszeichen (\"\", ''), Klammern (), eckige Klammern [], geschweifte Klammern {} und Backticks `` beim Tippen automatisch."
   },
   "fr": {
     "header": {
@@ -5014,7 +5056,9 @@ const catalogs = {
         "persist_undo": "Annulation persistante (Ctrl+Z)",
         "persist_undo_comment": "Conserve la pile d'annulation/rétablissement entre les réouvertures de note.",
         "show_source_mode_button": "Afficher le bouton de code source",
-        "show_source_mode_button_comment": "Affiche le bouton de bascule vers le code source dans la barre d'outils de l'éditeur."
+        "show_source_mode_button_comment": "Affiche le bouton de bascule vers le code source dans la barre d'outils de l'éditeur.",
+        "auto_close_pairs": "Fermer automatiquement les guillemets et paires",
+        "auto_close_pairs_comment": "Ferme automatiquement les guillemets (\"\", ''), parenthèses (), crochets [], accolades {} et accents graves `` lors de la saisie."
       },
       "spellcheck": {
         "ignore_uppercase": "Ignorer les MAJUSCULES",
@@ -5047,7 +5091,8 @@ const catalogs = {
         "spell_active": "Actif",
         "spell_paused": "En pause",
         "spell_remove": "Supprimer",
-        "spell_install": "Installer"
+        "spell_install": "Installer",
+        "typing_title": "Saisie et Fermeture Automatique"
       },
       "appearance": {
         "ui_scale": "Échelle globale de l'interface (UI)",
@@ -5442,7 +5487,10 @@ const catalogs = {
     "notes.slash.link_desc": "Insérer un lien markdown [texte](url)",
     "slash.link_desc": "Insérer un lien markdown [texte](url)",
     "notes.editor.action.math": "Formule mathématique (LaTeX)",
-    "editor.action.math": "Formule mathématique (LaTeX)"
+    "editor.action.math": "Formule mathématique (LaTeX)",
+    "config.language.typing_title": "Saisie et Fermeture Automatique",
+    "config.notes.auto_close_pairs": "Fermer automatiquement les guillemets et paires",
+    "config.notes.auto_close_pairs_comment": "Ferme automatiquement les guillemets (\"\", ''), parenthèses (), crochets [], accolades {} et accents graves `` lors de la saisie."
   },
   "ru": {
     "header": {
@@ -5687,7 +5735,9 @@ const catalogs = {
         "persist_undo": "Постоянная отмена (Ctrl+Z)",
         "persist_undo_comment": "Сохраняет историю отмены и повтора между открытиями заметки.",
         "show_source_mode_button": "Показывать кнопку исходного кода",
-        "show_source_mode_button_comment": "Отображает кнопку переключения исходного кода на панели инструментов редактора."
+        "show_source_mode_button_comment": "Отображает кнопку переключения исходного кода на панели инструментов редактора.",
+        "auto_close_pairs": "Автозакрытие кавычек и пар",
+        "auto_close_pairs_comment": "Автоматически закрывает кавычки (\"\", ''), круглые (), квадратные [], фигурные {} скобки и обратные апострофы `` при вводе."
       },
       "spellcheck": {
         "ignore_uppercase": "Игнорировать ЗАГЛАВНЫЕ",
@@ -5720,7 +5770,8 @@ const catalogs = {
         "spell_active": "Активен",
         "spell_paused": "Приостановлен",
         "spell_remove": "Удалить",
-        "spell_install": "Установить"
+        "spell_install": "Установить",
+        "typing_title": "Ввод и автозакрытие"
       },
       "appearance": {
         "ui_scale": "Масштаб интерфейса (UI)",
@@ -6115,6 +6166,9 @@ const catalogs = {
     "notes.slash.link_desc": "Вставить ссылку markdown [текст](url)",
     "slash.link_desc": "Вставить ссылку markdown [текст](url)",
     "notes.editor.action.math": "Математическая формула (LaTeX)",
-    "editor.action.math": "Математическая формула (LaTeX)"
+    "editor.action.math": "Математическая формула (LaTeX)",
+    "config.language.typing_title": "Ввод и автозакрытие",
+    "config.notes.auto_close_pairs": "Автозакрытие кавычек и пар",
+    "config.notes.auto_close_pairs_comment": "Автоматически закрывает кавычки (\"\", ''), круглые (), квадратные [], фигурные {} скобки и обратные апострофы `` при вводе."
   }
 };

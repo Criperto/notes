@@ -241,7 +241,9 @@
       "persist_undo": "Annulation persistante (Ctrl+Z)",
       "persist_undo_comment": "Conserve la pile d'annulation/rétablissement entre les réouvertures de note.",
       "show_source_mode_button": "Afficher le bouton de code source",
-      "show_source_mode_button_comment": "Affiche le bouton de bascule vers le code source dans la barre d'outils de l'éditeur."
+      "show_source_mode_button_comment": "Affiche le bouton de bascule vers le code source dans la barre d'outils de l'éditeur.",
+      "auto_close_pairs": "Fermer automatiquement les guillemets et paires",
+      "auto_close_pairs_comment": "Ferme automatiquement les guillemets (\"\", ''), parenthèses (), crochets [], accolades {} et accents graves `` lors de la saisie."
     },
     "spellcheck": {
       "ignore_uppercase": "Ignorer les MAJUSCULES",
@@ -274,7 +276,8 @@
       "spell_active": "Actif",
       "spell_paused": "En pause",
       "spell_remove": "Supprimer",
-      "spell_install": "Installer"
+      "spell_install": "Installer",
+      "typing_title": "Saisie et Fermeture Automatique"
     },
     "appearance": {
       "ui_scale": "Échelle globale de l'interface (UI)",
@@ -669,5 +672,8 @@
   "notes.slash.link_desc": "Insérer un lien markdown [texte](url)",
   "slash.link_desc": "Insérer un lien markdown [texte](url)",
   "notes.editor.action.math": "Formule mathématique (LaTeX)",
-  "editor.action.math": "Formule mathématique (LaTeX)"
+  "editor.action.math": "Formule mathématique (LaTeX)",
+  "config.language.typing_title": "Saisie et Fermeture Automatique",
+  "config.notes.auto_close_pairs": "Fermer automatiquement les guillemets et paires",
+  "config.notes.auto_close_pairs_comment": "Ferme automatiquement les guillemets (\"\", ''), parenthèses (), crochets [], accolades {} et accents graves `` lors de la saisie."
 }

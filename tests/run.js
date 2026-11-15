@@ -5991,9 +5991,9 @@ runTest("F143: Regresiones de CripertoShell, hot-reload Qt/Pywal, ciclo de borra
         "SpellService debe resolver callbacks en cola si el proceso hunspell termina");
 
     // 6. Consistencia en README, HYPRLAND y manifiesto Flatpak
-    assert.ok(!readmeMd.includes('Italiano') && !readmeMd.includes('0.1.13') && !readmeMd.includes('0.2.10') && readmeMd.includes('0.3.2')
+    assert.ok(!readmeMd.includes('Italiano') && !readmeMd.includes('0.1.13') && !readmeMd.includes('0.2.10') && readmeMd.includes('0.3.3')
         && readmeMd.includes('qt6-tools') && readmeMd.includes('cargo test'),
-        "README.md debe reflejar versión 0.3.2, idiomas reales, qt6-tools y cargo test");
+        "README.md debe reflejar versión 0.3.3, idiomas reales, qt6-tools y cargo test");
     assert.ok(!hyprDoc.includes('notas toggle') && hyprDoc.includes('criperto-notes toggle'),
         "docs/HYPRLAND.md debe referenciar criperto-notes toggle");
     assert.ok(flatpakYml.includes('--filesystem=xdg-config/cripertoshell:ro'),
@@ -6132,6 +6132,194 @@ runTest("F147: Click en otra línea limpia selección previa y mueve el cursor d
     assert.ok(codeSrc.includes("if (editInput && editInput.selectionStart !== editInput.selectionEnd)")
         && codeSrc.includes("if (previewInput.selectionStart !== previewInput.selectionEnd)"),
         "BlockCode.qml debe limpiar selecciones previas al hacer click");
+});
+
+runTest("F148: Pegar o insertar imagen enfoca párrafo debajo con cursor de texto listo para escribir", () => {
+    const readQ = (f) => fs.readFileSync(path.resolve(__dirname, '../qml', f), 'utf8');
+    const editorQml = readQ("BlockEditor.qml");
+    const modalQml = readQ("NoteEditorModal.qml");
+
+    const fnStart = editorQml.indexOf("function insertImageBlock(src, alt)");
+    const fnEnd = editorQml.indexOf("function undo()", fnStart);
+    assert.ok(fnStart !== -1 && fnEnd !== -1, "insertImageBlock debe existir en BlockEditor.qml");
+    const fnBody = editorQml.slice(fnStart, fnEnd);
+
+    assert.ok(fnBody.includes("var prevIdxBeforeConfirm = _findBlockIndex(prevBid);"),
+        "insertImageBlock debe recordar la posición previa antes de confirmActiveBlock");
+    assert.ok(fnBody.includes("var afterIdx = imgIdx + 1;")
+        && fnBody.includes('afterBlock.type === "paragraph"'),
+        "insertImageBlock debe reutilizar o crear un párrafo vacío en la línea de abajo de la imagen");
+    assert.ok(fnBody.includes("root.activeBlockBid = nextBid;")
+        && fnBody.includes("root.safeFocusDelegate(nextBid, 0);")
+        && fnBody.includes("root.ensureBlockAndRectVisible(nextBid);"),
+        "insertImageBlock debe activar y enfocar el cursor de texto (pos 0) en el párrafo debajo de la imagen");
+
+    assert.ok(modalQml.includes("function _insertImageTagInSource(src, alt)")
+        && modalQml.includes("sourceCodeEditor.cursorPosition = pos + inserted.length;")
+        && modalQml.includes("sourceCodeEditor.forceActiveFocus();"),
+        "Modo código fuente también debe dejar el cursor debajo del tag insertado con foco activo");
+});
+
+runTest("F149: Autocierre con ', toggle autoClosePairs en 9 idiomas, triple backtick sin 4to ` y unwrap inmediato de BlockCode", () => {
+    const readQ = (f) => fs.readFileSync(path.resolve(__dirname, '../qml', f), 'utf8');
+    const editorQml = readQ("BlockEditor.qml");
+    const configQml = readQ("NotesConfig.qml");
+    const settingsQml = readQ("NotesSettingsModal.qml");
+    const catalogsJs = readQ("I18nCatalogs.js");
+    const nativeH = fs.readFileSync(path.resolve(__dirname, '../src/native/native_bridge.h'), 'utf8');
+    const nativeCpp = fs.readFileSync(path.resolve(__dirname, '../src/native/native_bridge.cpp'), 'utf8');
+
+    // 1. Persistencia nativa + Config + Switch en pestaña de idiomas
+    assert.ok(nativeH.includes("Q_PROPERTY(bool autoClosePairs READ autoClosePairs WRITE setAutoClosePairs NOTIFY autoClosePairsChanged)"),
+        "native_bridge.h debe exponer Q_PROPERTY autoClosePairs");
+    assert.ok(nativeCpp.includes('obj.contains("autoClosePairs")') && nativeCpp.includes('obj[QStringLiteral("autoClosePairs")] = m_autoClosePairs'),
+        "native_bridge.cpp debe cargar y guardar autoClosePairs");
+    assert.ok(configQml.includes('key: "autoClosePairs"') && configQml.includes("property bool autoClosePairs"),
+        "NotesConfig.qml debe declarar autoClosePairs en schema y propiedades");
+    const langIdx = settingsQml.indexOf('id: tabLanguage');
+    const spellHeaderIdx = settingsQml.indexOf('config.language.spell_title', langIdx);
+    assert.ok(langIdx !== -1 && spellHeaderIdx !== -1, "NotesSettingsModal.qml debe contener tabLanguage y sección de corrector");
+    const langSlice = settingsQml.slice(langIdx, spellHeaderIdx);
+    assert.ok(langSlice.includes("NotesConfig.autoClosePairs") && langSlice.includes("config.notes.auto_close_pairs"),
+        "El switch de autoClosePairs debe estar en el apartado de Idiomas");
+
+    // 2. Traducciones en los 9 idiomas y en I18nCatalogs.js
+    const meta = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../assets/i18n/meta.json'), 'utf8'));
+    assert.strictEqual(meta.languages.length, 9);
+    for (const lang of meta.languages) {
+        const j = JSON.parse(fs.readFileSync(path.resolve(__dirname, `../assets/i18n/${lang.code}/notes.json`), 'utf8'));
+        for (const k of ["config.language.typing_title", "config.notes.auto_close_pairs", "config.notes.auto_close_pairs_comment"]) {
+            assert.ok(typeof j[k] === "string" && j[k].trim().length > 0, `Falta clave ${k} en ${lang.code}`);
+            assert.ok(catalogsJs.includes(JSON.stringify(k)), `Falta clave ${k} en I18nCatalogs.js`);
+        }
+    }
+
+    // 3. handleAutoPair: comilla simple, switch global, 2do toque -> ``` y 3er toque sin 4to `
+    assert.ok(editorQml.includes("NotesConfig.autoClosePairs === false"),
+        "handleAutoPair y handleBackspaceAutoPair deben respetar NotesConfig.autoClosePairs");
+    assert.ok(editorQml.includes('else if (ch === "\'") { open = "\'"; close = "\'"; }')
+        && editorQml.includes('else if (ch === "\'") {\n                if (prevChar === "" || !/[A-Za-z0-9_\\u00C0-\\u024F\\u0400-\\u04FF]/.test(prevChar))'),
+        "handleAutoPair debe soportar comilla simple sin romper contracciones");
+    assert.ok(editorQml.includes('targetEdit === root._tripleBacktickEdit && s === root._tripleBacktickPos && !root._tripleBacktickConsumed')
+        && editorQml.includes('if (ch === "`" && prevChar === "`" && prev2 !== "``" && nextChar === "`")'),
+        "handleAutoPair debe formar ``` al 2do toque y absorber el 3ro sin generar ````");
+
+    for (const f of ["BlockParagraph.qml", "BlockHeading.qml", "BlockQuote.qml", "BlockList.qml"]) {
+        assert.ok(readQ(f).includes("handleBackspaceAutoPair"), `${f} debe soportar Backspace en pares autocerrados`);
+    }
+
+    // 4. Desenvoltura inmediata de BlockCode al borrar el último backtick
+    assert.ok(editorQml.includes('else if (item && item.type === "code")')
+        && editorQml.includes('root.convertBlockType(bid, "paragraph", paraRaw, curPosOut);'),
+        "onBlockRawChanged debe convertir bloque de código a párrafo inmediatamente al borrar los fences");
+
+    const stillCodeFence = (raw) => {
+        const lines = raw.split("\n");
+        const hasFence = /^[ \t]*(`{3,}|~{3,})/m.test(raw);
+        const firstPartial = lines.length > 0 && /^[ \t]*(`{1,2}|~{1,2})[a-zA-Z0-9_-]*[ \t]*$/.test(lines[0]);
+        const lastPartial = lines.length > 0 && /^[ \t]*(`{1,2}|~{1,2})[ \t]*$/.test(lines[lines.length - 1]);
+        return hasFence || firstPartial || lastPartial;
+    };
+    assert.strictEqual(stillCodeFence("```\n\n```"), true);
+    assert.strictEqual(stillCodeFence("```\n\n"), true);
+    assert.strictEqual(stillCodeFence("``\n\n"), true);
+    assert.strictEqual(stillCodeFence("`\n\n"), true);
+    assert.strictEqual(stillCodeFence("\n\n"), false);
+    assert.strictEqual(stillCodeFence(""), false);
+    assert.strictEqual(stillCodeFence("\nhola\n"), false);
+    assert.strictEqual(stillCodeFence("hola"), false);
+});
+
+runTest("F150: Selección multilínea mantiene cursores tras foco de ventana, colors explícitos y no deselecciona con click derecho", () => {
+    const readQ = (f) => fs.readFileSync(path.resolve(__dirname, '../qml', f), 'utf8');
+    const cursorQml = readQ("CustomTextCursor.qml");
+    assert.ok(cursorQml.includes("readonly property bool _windowActive:")
+        && cursorQml.includes("(root.hasSelection && targetInput !== null && targetInput.visible && root._windowActive)"),
+        "CustomTextCursor debe mantener isInputFocused simétrico en selecciones al recuperar foco de ventana");
+    assert.ok(cursorQml.includes("visible: parent\n                ? (root.isInputFocused"),
+        "cursorComp debe usar root.isInputFocused igual que anchorCursor");
+    assert.ok(cursorQml.includes("var _w = targetInput.width") && cursorQml.includes("var _h = targetInput.height"),
+        "startRect/endRect deben invalidarse con cambios de tamaño/reflow del TextEdit");
+
+    for (const f of ["BlockParagraph.qml", "BlockHeading.qml", "BlockQuote.qml", "BlockList.qml"]) {
+        const src = readQ(f);
+        assert.ok(src.includes("onReleased: (mouse) => {\n            if (mouse.button === Qt.RightButton) return;")
+            || src.includes("onReleased: (mouse) => {\n                        if (mouse.button === Qt.RightButton) return;"),
+            `${f} debe ignorar RightButton en onReleased para no borrar selección`);
+        assert.ok(src.includes("!root.editor.hasBlockSelection"),
+            `${f} no debe robar el foco si existe selección multibloque al hacer click derecho`);
+        assert.ok(src.includes("selectionColor:") && src.includes("selectedTextColor:"),
+            `${f} debe definir selectionColor y selectedTextColor explícitos`);
+    }
+    const listQml = readQ("BlockList.qml");
+    assert.ok(listQml.includes("!root.editor.hasBlockSelection"),
+        "BlockList onActiveFocusChanged no debe limpiar selección multibloque");
+    const codeQml = readQ("BlockCode.qml");
+    assert.ok(codeQml.includes("selectionColor:") && codeQml.includes("!root.editor.hasBlockSelection"),
+        "BlockCode debe definir selectionColor y respetar selección multibloque en click derecho");
+});
+
+runTest("F151: Deshacer/Rehacer (Ctrl+Z/Y) consistente en cambios multilínea, multibloque, listas, código y menú contextual", () => {
+    const readQ = (f) => fs.readFileSync(path.resolve(__dirname, '../qml', f), 'utf8');
+    const editorQml = readQ("BlockEditor.qml");
+    const listQml = readQ("BlockList.qml");
+    const tableQml = readQ("BlockTable.qml");
+    const codeQml = readQ("BlockCode.qml");
+    const ctxQml = readQ("ContextMenu.qml");
+    const History = loadModule("History.js");
+
+    // 1. History stack: push -> undo -> redo secuencia multilínea
+    const h = History.createHistory({ md: "uno\n\ndos\n\ntres", activeBid: 1, cursorPos: 3 });
+    History.pushState(h, { md: "uno\n\ntres", activeBid: 1, cursorPos: 0 });
+    History.pushState(h, { md: "unoX\n\ntres", activeBid: 1, cursorPos: 4 });
+    assert.strictEqual(History.canUndo(h), true);
+    assert.strictEqual(History.undo(h).md, "uno\n\ntres");
+    assert.strictEqual(History.undo(h).md, "uno\n\ndos\n\ntres");
+    assert.strictEqual(History.canUndo(h), false);
+    assert.strictEqual(History.redo(h).md, "uno\n\ntres");
+    assert.strictEqual(History.redo(h).md, "unoX\n\ntres");
+    assert.strictEqual(History.canRedo(h), false);
+
+    // 2. BlockEditor guardas y snapshots
+    assert.ok(editorQml.includes("property bool _applyingHistory: false")
+        && editorQml.includes("if (root._applyingHistory) return;"),
+        "onBlockRawChanged debe ignorar mutaciones durante _applySnapshot");
+    assert.ok(editorQml.includes("root.clearBlockSelection();") && editorQml.includes("debouncedMarkdownTimer.stop();"),
+        "_applySnapshot debe limpiar selección multibloque y detener debouncedMarkdownTimer");
+    assert.ok(editorQml.includes("enabled: root.visible && !root.readOnly && (root.activeFocus || root.hasBlockSelection)"),
+        "Shortcuts de Undo/Redo en BlockEditor deben estar restringidos al foco/visibilidad del editor");
+    assert.ok(editorQml.includes("if (isCtrl && !isAlt && (event.key === Qt.Key_Z || event.key === Qt.Key_Y))"),
+        "BlockEditor Keys.onPressed debe manejar Ctrl+Z / Ctrl+Y aun con selección multibloque");
+
+    // 3. BlockList / BlockTable no deben mutar blockData.raw antes de onBlockRawChanged
+    const listNotifyStart = listQml.indexOf("function _notifyRawChanged()");
+    const listNotifyEnd = listQml.indexOf("function _renumberAllOrdered()", listNotifyStart);
+    const listNotifyBody = listQml.slice(listNotifyStart, listNotifyEnd);
+    assert.ok(listNotifyBody.indexOf("onBlockRawChanged") < listNotifyBody.indexOf("root.blockData.raw = raw"),
+        "BlockList._notifyRawChanged debe llamar a onBlockRawChanged antes de sobreescribir blockData.raw");
+    const tblStart = tableQml.indexOf("var newRaw = TP.serializeTable(_activeTable);");
+    const tblEnd = tableQml.indexOf("function _getAlignment", tblStart);
+    assert.ok(!tableQml.slice(tblStart, tblEnd).includes("if (root.blockData) root.blockData.raw = newRaw;\n        if (root.editor"),
+        "BlockTable no debe sobreescribir blockData.raw antes de onBlockRawChanged");
+
+    // 4. BlockCode debe sincronizar en onBlockDataChanged aun en modo edición
+    assert.ok(codeQml.includes("onBlockDataChanged: {\n        if (!_syncingModel) {\n            _syncTextFromModel();"),
+        "BlockCode debe sincronizar texto al aplicar undo/redo mientras está en edición");
+
+    // 5. ContextMenu delega Undo/Redo/Paste a BlockEditor cuando existe
+    assert.ok(ctxQml.includes("function _performUndo()") && ctxQml.includes("function _performRedo()")
+        && ctxQml.includes("editor.undo()") && ctxQml.includes("editor.redo()"),
+        "ContextMenu debe delegar Undo/Redo a BlockEditor para usar el historial del documento");
+});
+
+runTest("F152: Autoscroll suave al escribir cerca del límite del viewport reutilizando scrollAnim", () => {
+    const editorQml = fs.readFileSync(path.resolve(__dirname, '../qml/BlockEditor.qml'), 'utf8');
+    assert.ok(editorQml.includes("function _ensureContentYRangeVisible(curY, curH, smooth)")
+        && editorQml.includes("scrollAnim.to = targetY")
+        && editorQml.includes("readonly property Item _activeCursorInput:")
+        && editorQml.includes("function scheduleEnsureCursorVisible(smooth)")
+        && editorQml.includes("onCursorRectangleChanged"),
+        "BlockEditor debe seguir el cursorRectangle del input activo y reutilizar scrollAnim para autoscroll suave al escribir");
 });
 
 console.log(`\n========================================`);

@@ -2105,6 +2105,31 @@ Item {
                         }
 
                         SectionHeader {
+                            iconName: "keyboard.svg"
+                            title: I18n.t("config.language.typing_title", "Escritura y Autocierre")
+                        }
+
+                        BentoCard {
+                            implicitHeight: colTyping.implicitHeight + 8
+                            ColumnLayout {
+                                id: colTyping
+                                anchors.fill: parent
+                                anchors.leftMargin: 4
+                                anchors.rightMargin: 4
+                                anchors.topMargin: 2
+                                anchors.bottomMargin: 6
+                                spacing: 12
+
+                                SchemaSwitchRow {
+                                    label: I18n.t("config.notes.auto_close_pairs", "Autocerrar comillas y pares")
+                                    comment: I18n.t("config.notes.auto_close_pairs_comment", "Cierra automáticamente comillas (\"\", ''), paréntesis (), corchetes [], llaves {} y acentos graves `` al escribir.")
+                                    checked: NotesConfig.autoClosePairs
+                                    onToggled: (v) => { NotesConfig.autoClosePairs = v; }
+                                }
+                            }
+                        }
+
+                        SectionHeader {
                             iconName: "spellcheck.svg"
                             title: I18n.t("config.language.spell_title", "Corrector Ortográfico")
                         }

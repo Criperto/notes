@@ -136,6 +136,7 @@ Item {
 
     TextEdit {
         id: editInput
+        persistentSelection: true
         visible: root.isEditing || root.isSelected
         readOnly: !root.isEditing || (root.editor && root.editor.readOnly)
         cursorVisible: activeFocus && root.isEditing && (!root.editor || !root.editor.readOnly)
@@ -143,6 +144,8 @@ Item {
         textFormat: TextEdit.PlainText
         text: (root.blockData && typeof root.blockData.raw === "string") ? root.blockData.raw : ""
         color: Theme.text
+        selectionColor: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.35)
+        selectedTextColor: Theme.text
         font.family: Theme.fontFamilyMonospace || "monospace"
         font.pixelSize: EditorMetrics.body
         wrapMode: TextEdit.WrapAtWordBoundaryOrAnywhere
@@ -306,7 +309,9 @@ Item {
             propagateComposedEvents: true
             onClicked: (mouse) => {
                 if (mouse.button === Qt.RightButton && root.editor && root.editor.contextMenu) {
-                    editInput.forceActiveFocus();
+                    if (!root.editor.hasBlockSelection) {
+                        editInput.forceActiveFocus();
+                    }
                     root.editor.contextMenu.open(editInput);
                 }
             }

@@ -80,7 +80,9 @@ Rectangle {
         _syncingModel = true;
         var targetText = root.blockData.raw || "";
         if (editInput.text !== targetText) {
+            var oldPos = editInput.cursorPosition;
             editInput.text = targetText;
+            editInput.cursorPosition = Math.min(editInput.length, Math.max(0, oldPos));
         }
         _syncingModel = false;
     }
@@ -144,7 +146,7 @@ Rectangle {
     }
 
     onBlockDataChanged: {
-        if (!root.isEditing) {
+        if (!_syncingModel) {
             _syncTextFromModel();
         }
     }
@@ -357,6 +359,8 @@ Rectangle {
             wrapMode: TextEdit.NoWrap
             activeFocusOnTab: false
             color: Theme.text
+            selectionColor: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.35)
+            selectedTextColor: Theme.text
             font.family: Theme.fontFamilyMonospace || "monospace"
             font.pixelSize: EditorMetrics.fs(Theme.fontSizeCaption + 1)
             textFormat: (root.editor && root.editor.searchQuery) ? TextEdit.RichText : TextEdit.PlainText
@@ -484,7 +488,9 @@ Rectangle {
 
                 onPressed: (mouse) => {
                     if (mouse.button === Qt.RightButton) {
-                        previewInput.forceActiveFocus();
+                        if (!root.editor || !root.editor.hasBlockSelection) {
+                            previewInput.forceActiveFocus();
+                        }
                         if (root.editor && root.editor.contextMenu) {
                             root.editor.contextMenu.open(previewInput);
                         }
@@ -681,6 +687,8 @@ Rectangle {
             textFormat: TextEdit.PlainText
             text: ""
             color: Theme.text
+            selectionColor: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.35)
+            selectedTextColor: Theme.text
             font.family: Theme.fontFamilyMonospace || "monospace"
             font.pixelSize: EditorMetrics.fs(Theme.fontSizeCaption + 1)
             wrapMode: TextEdit.NoWrap
@@ -1182,7 +1190,9 @@ Rectangle {
             propagateComposedEvents: true
             onClicked: (mouse) => {
                 if (mouse.button === Qt.RightButton && root.editor && root.editor.contextMenu) {
-                    editInput.forceActiveFocus();
+                    if (!root.editor.hasBlockSelection) {
+                        editInput.forceActiveFocus();
+                    }
                     root.editor.contextMenu.open(editInput);
                 }
             }

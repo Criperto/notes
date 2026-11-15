@@ -27,6 +27,11 @@
   </screenshots>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.3.3" date="2026-11-15">
+      <description>
+        <p>Enfoque automático al párrafo debajo al pegar imágenes, autocierre configurable para comilla simple y bloques de código (triple backtick y unwrap inmediato al borrar el último fence), preservación de selección al usar click derecho y al alternar foco de ventana con cursores de esquina estables, mejoras de Deshacer/Rehacer (Ctrl+Z/Ctrl+Y) en cambios multilínea/multibloque y autoscroll suave al escribir en los límites del viewport.</p>
+      </description>
+    </release>
     <release version="0.3.2" date="2026-11-14">
       <description>
         <p>Mejoras de selección de texto (scroll con rueda y auto-scroll suave proporcional a la cercanía al borde vertical), posicionamiento del menú contextual anclado a 3px de las 4 esquinas con pivote dinámico según espacio y deselección correcta al hacer click sobre otra línea.</p>

@@ -16,6 +16,31 @@ Window {
     property var editor: null
     property bool showStandardItems: true
     readonly property bool isTextInputTarget: !!(target && (typeof target.cursorPosition === "number" || typeof target.selectedText === "string" || typeof target.canUndo !== "undefined" || (editor && typeof editor.hasBlockSelection !== "undefined" && editor.hasBlockSelection)))
+    readonly property bool _useDocHistory: !!(editor && typeof editor.undo === "function" && typeof editor.redo === "function")
+    readonly property bool _canEditMenuTarget: !!(_useDocHistory ? !editor.readOnly : (target && !target.readOnly))
+    readonly property bool _canUndoEffective: _useDocHistory ? Boolean(editor.canUndo) : Boolean(target && target.canUndo)
+    readonly property bool _canRedoEffective: _useDocHistory ? Boolean(editor.canRedo) : Boolean(target && target.canRedo)
+    function _performUndo() {
+        if (_useDocHistory) {
+            editor.undo();
+        } else if (target && typeof target.undo === "function") {
+            target.undo();
+        }
+    }
+    function _performRedo() {
+        if (_useDocHistory) {
+            editor.redo();
+        } else if (target && typeof target.redo === "function") {
+            target.redo();
+        }
+    }
+    function _performPaste() {
+        if (editor && typeof editor.handlePaste === "function" && target) {
+            editor.handlePaste(target);
+        } else if (target && typeof target.paste === "function") {
+            target.paste();
+        }
+    }
     signal extraItemTriggered(var item)
 
     function _hasAnySelection() {
@@ -160,11 +185,11 @@ Window {
             }
         }
         if (showStandardItems && isTextInputTarget) {
-            if (target && !target.readOnly && target.canUndo) {
-                list.push({ type: "standard", id: "undo", trigger: function() { if (target) target.undo(); menuWindow.close(); } });
+            if (_canEditMenuTarget && _canUndoEffective) {
+                list.push({ type: "standard", id: "undo", trigger: function() { menuWindow._performUndo(); menuWindow.close(); } });
             }
-            if (target && !target.readOnly && target.canRedo) {
-                list.push({ type: "standard", id: "redo", trigger: function() { if (target) target.redo(); menuWindow.close(); } });
+            if (_canEditMenuTarget && _canRedoEffective) {
+                list.push({ type: "standard", id: "redo", trigger: function() { menuWindow._performRedo(); menuWindow.close(); } });
             }
             if (target && !target.readOnly && _hasAnySelection()) {
                 list.push({ type: "standard", id: "cut", trigger: function() { _performCut(); menuWindow.close(); } });
@@ -173,7 +198,7 @@ Window {
                 list.push({ type: "standard", id: "copy", trigger: function() { _performCopy(); menuWindow.close(); } });
             }
             if (target && !target.readOnly && target.canPaste) {
-                list.push({ type: "standard", id: "paste", trigger: function() { if (target) target.paste(); menuWindow.close(); } });
+                list.push({ type: "standard", id: "paste", trigger: function() { menuWindow._performPaste(); menuWindow.close(); } });
             }
             if (target && !target.readOnly && _hasAnySelection()) {
                 list.push({ type: "standard", id: "delete", trigger: function() { _performDelete(); menuWindow.close(); } });
@@ -622,8 +647,8 @@ Window {
                     // Deshacer
                     Item {
                         id: undoItem
-                        visible: showStandardItems && isTextInputTarget && (target ? !target.readOnly : false)
-                        enabled: target ? Boolean(target.canUndo) : false
+                        visible: showStandardItems && isTextInputTarget && menuWindow._canEditMenuTarget
+                        enabled: menuWindow._canUndoEffective
                         readonly property bool isItemActive: (undoMA.containsMouse || menuWindow.isItemHighlighted("standard", "undo")) && undoItem.enabled
                         opacity: enabled ? 1.0 : 0.4
                         Layout.fillWidth: true
@@ -721,7 +746,7 @@ Window {
                                 if (!containsMouse) undoTextClip.offset = 0;
                             }
                             onClicked: {
-                                if (target) target.undo();
+                                menuWindow._performUndo();
                                 menuWindow.close();
                             }
                         }
@@ -730,8 +755,8 @@ Window {
                     // Rehacer
                     Item {
                         id: redoItem
-                        visible: showStandardItems && isTextInputTarget && (target ? !target.readOnly : false)
-                        enabled: target ? Boolean(target.canRedo) : false
+                        visible: showStandardItems && isTextInputTarget && menuWindow._canEditMenuTarget
+                        enabled: menuWindow._canRedoEffective
                         readonly property bool isItemActive: (redoMA.containsMouse || menuWindow.isItemHighlighted("standard", "redo")) && redoItem.enabled
                         opacity: enabled ? 1.0 : 0.4
                         Layout.fillWidth: true
@@ -829,7 +854,7 @@ Window {
                                 if (!containsMouse) redoTextClip.offset = 0;
                             }
                             onClicked: {
-                                if (target) target.redo();
+                                menuWindow._performRedo();
                                 menuWindow.close();
                             }
                         }
@@ -1165,7 +1190,7 @@ Window {
                                 if (!containsMouse) pasteTextClip.offset = 0;
                             }
                             onClicked: {
-                                if (target) target.paste();
+                                menuWindow._performPaste();
                                 menuWindow.close();
                             }
                         }

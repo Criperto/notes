@@ -241,7 +241,9 @@
       "persist_undo": "Постоянная отмена (Ctrl+Z)",
       "persist_undo_comment": "Сохраняет историю отмены и повтора между открытиями заметки.",
       "show_source_mode_button": "Показывать кнопку исходного кода",
-      "show_source_mode_button_comment": "Отображает кнопку переключения исходного кода на панели инструментов редактора."
+      "show_source_mode_button_comment": "Отображает кнопку переключения исходного кода на панели инструментов редактора.",
+      "auto_close_pairs": "Автозакрытие кавычек и пар",
+      "auto_close_pairs_comment": "Автоматически закрывает кавычки (\"\", ''), круглые (), квадратные [], фигурные {} скобки и обратные апострофы `` при вводе."
     },
     "spellcheck": {
       "ignore_uppercase": "Игнорировать ЗАГЛАВНЫЕ",
@@ -274,7 +276,8 @@
       "spell_active": "Активен",
       "spell_paused": "Приостановлен",
       "spell_remove": "Удалить",
-      "spell_install": "Установить"
+      "spell_install": "Установить",
+      "typing_title": "Ввод и автозакрытие"
     },
     "appearance": {
       "ui_scale": "Масштаб интерфейса (UI)",
@@ -669,5 +672,8 @@
   "notes.slash.link_desc": "Вставить ссылку markdown [текст](url)",
   "slash.link_desc": "Вставить ссылку markdown [текст](url)",
   "notes.editor.action.math": "Математическая формула (LaTeX)",
-  "editor.action.math": "Математическая формула (LaTeX)"
+  "editor.action.math": "Математическая формула (LaTeX)",
+  "config.language.typing_title": "Ввод и автозакрытие",
+  "config.notes.auto_close_pairs": "Автозакрытие кавычек и пар",
+  "config.notes.auto_close_pairs_comment": "Автоматически закрывает кавычки (\"\", ''), круглые (), квадратные [], фигурные {} скобки и обратные апострофы `` при вводе."
 }

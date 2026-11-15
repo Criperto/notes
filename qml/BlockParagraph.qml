@@ -243,7 +243,13 @@ Item {
             root._syncingModel = true;
             editInput.text = newFormatted;
             if (s !== e) {
-                editInput.select(Math.min(editInput.length, s), Math.min(editInput.length, e));
+                var clampedS = Math.min(editInput.length, s);
+                var clampedE = Math.min(editInput.length, e);
+                if (curPos === s) {
+                    editInput.select(clampedE, clampedS);
+                } else {
+                    editInput.select(clampedS, clampedE);
+                }
             } else {
                 editInput.cursorPosition = Math.min(editInput.length, curPos);
             }
@@ -535,6 +541,7 @@ Item {
         }
 
         onReleased: (mouse) => {
+            if (mouse.button === Qt.RightButton) return;
             if (_doubleClickedRecently) {
                 _doubleClickedRecently = false;
             } else if (!isCrossDragging && !didDragSelect && editInput) {
@@ -752,6 +759,8 @@ Item {
         textFormat: TextEdit.RichText
         text: ""
         color: Theme.text
+        selectionColor: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.35)
+        selectedTextColor: Theme.text
         font.family: Theme.fontFamily
         font.pixelSize: EditorMetrics.body
         wrapMode: TextEdit.WrapAtWordBoundaryOrAnywhere
@@ -1451,7 +1460,9 @@ Item {
             propagateComposedEvents: true
             onClicked: (mouse) => {
                 if (mouse.button === Qt.RightButton && root.editor && root.editor.contextMenu) {
-                    editInput.forceActiveFocus();
+                    if (!root.editor.hasBlockSelection) {
+                        editInput.forceActiveFocus();
+                    }
                     var pos = editInput.positionAt(mouse.x, mouse.y);
                     _openContextMenuAt(editInput, pos);
                 }

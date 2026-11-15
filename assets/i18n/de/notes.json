@@ -241,7 +241,9 @@
       "persist_undo": "Dauerhaftes Rückgängigmachen (Strg+Z)",
       "persist_undo_comment": "Behält den Rückgängig-/Wiederholen-Verlauf auch nach dem Schließen der Notiz bei.",
       "show_source_mode_button": "Quellcode-Schaltfläche anzeigen",
-      "show_source_mode_button_comment": "Zeigt die Quellcode-Schaltfläche in der Editor-Symbolleiste an."
+      "show_source_mode_button_comment": "Zeigt die Quellcode-Schaltfläche in der Editor-Symbolleiste an.",
+      "auto_close_pairs": "Anführungszeichen und Paare automatisch schließen",
+      "auto_close_pairs_comment": "Schließt Anführungszeichen (\"\", ''), Klammern (), eckige Klammern [], geschweifte Klammern {} und Backticks `` beim Tippen automatisch."
     },
     "spellcheck": {
       "ignore_uppercase": "GROSSBUCHSTABEN ignorieren",
@@ -274,7 +276,8 @@
       "spell_active": "Aktiv",
       "spell_paused": "Pausiert",
       "spell_remove": "Entfernen",
-      "spell_install": "Installieren"
+      "spell_install": "Installieren",
+      "typing_title": "Eingabe & Automatisches Schließen"
     },
     "appearance": {
       "ui_scale": "Globale UI-Skalierung",
@@ -669,5 +672,8 @@
   "notes.slash.link_desc": "Einen Markdown-Link einfügen [Text](URL)",
   "slash.link_desc": "Einen Markdown-Link einfügen [Text](URL)",
   "notes.editor.action.math": "Mathematische Formel (LaTeX)",
-  "editor.action.math": "Mathematische Formel (LaTeX)"
+  "editor.action.math": "Mathematische Formel (LaTeX)",
+  "config.language.typing_title": "Eingabe & Automatisches Schließen",
+  "config.notes.auto_close_pairs": "Anführungszeichen und Paare automatisch schließen",
+  "config.notes.auto_close_pairs_comment": "Schließt Anführungszeichen (\"\", ''), Klammern (), eckige Klammern [], geschweifte Klammern {} und Backticks `` beim Tippen automatisch."
 }

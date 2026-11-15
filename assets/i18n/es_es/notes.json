@@ -241,7 +241,9 @@
       "persist_undo": "Deshacer persistente (Ctrl+Z)",
       "persist_undo_comment": "Conserva la pila de deshacer/rehacer entre aperturas de la nota.",
       "show_source_mode_button": "Mostrar botón de código fuente",
-      "show_source_mode_button_comment": "Muestra el botón de alternar código fuente en la barra de herramientas del editor."
+      "show_source_mode_button_comment": "Muestra el botón de alternar código fuente en la barra de herramientas del editor.",
+      "auto_close_pairs": "Autocerrar comillas y pares",
+      "auto_close_pairs_comment": "Cierra automáticamente comillas (\"\", ''), paréntesis (), corchetes [], llaves {} y acentos graves `` al escribir."
     },
     "spellcheck": {
       "ignore_uppercase": "Ignorar MAYÚSCULAS",
@@ -274,7 +276,8 @@
       "spell_active": "Activo",
       "spell_paused": "Pausado",
       "spell_remove": "Eliminar",
-      "spell_install": "Instalar"
+      "spell_install": "Instalar",
+      "typing_title": "Escritura y Autocierre"
     },
     "appearance": {
       "ui_scale": "Escala global de interfaz (UI)",
@@ -669,5 +672,8 @@
   "notes.slash.link_desc": "Insertar un enlace markdown [texto](url)",
   "slash.link_desc": "Insertar un enlace markdown [texto](url)",
   "notes.editor.action.math": "Fórmula matemática (LaTeX)",
-  "editor.action.math": "Fórmula matemática (LaTeX)"
+  "editor.action.math": "Fórmula matemática (LaTeX)",
+  "config.language.typing_title": "Escritura y Autocierre",
+  "config.notes.auto_close_pairs": "Autocerrar comillas y pares",
+  "config.notes.auto_close_pairs_comment": "Cierra automáticamente comillas (\"\", ''), paréntesis (), corchetes [], llaves {} y acentos graves `` al escribir."
 }

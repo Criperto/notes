@@ -746,6 +746,31 @@ const translations = {
     de: "Mathematische Formel (LaTeX)", fr: "Formule mathématique (LaTeX)",
     ja: "数式 (LaTeX)", ru: "Математическая формула (LaTeX)",
     zh: "数学公式 (LaTeX)"
+  },
+  "config.language.typing_title": {
+    es_ar: "Escritura y Autocierre", es_es: "Escritura y Autocierre",
+    en: "Typing & Auto-Close", pt: "Digitação e Fechamento Automático",
+    de: "Eingabe & Automatisches Schließen", fr: "Saisie et Fermeture Automatique",
+    ja: "入力と自動閉じ", ru: "Ввод и автозакрытие",
+    zh: "输入与自动闭合"
+  },
+  "config.notes.auto_close_pairs": {
+    es_ar: "Autocerrar comillas y pares", es_es: "Autocerrar comillas y pares",
+    en: "Auto-close quotes and pairs", pt: "Fechar aspas e pares automaticamente",
+    de: "Anführungszeichen und Paare automatisch schließen", fr: "Fermer automatiquement les guillemets et paires",
+    ja: "引用符とペアを自動で閉じる", ru: "Автозакрытие кавычек и пар",
+    zh: "自动闭合引号与成对符号"
+  },
+  "config.notes.auto_close_pairs_comment": {
+    es_ar: "Cierra automáticamente comillas (\"\", ''), paréntesis (), corchetes [], llaves {} y acentos graves `` al escribir.",
+    es_es: "Cierra automáticamente comillas (\"\", ''), paréntesis (), corchetes [], llaves {} y acentos graves `` al escribir.",
+    en: "Automatically closes quotes (\"\", ''), parentheses (), brackets [], braces {} and backticks `` while typing.",
+    pt: "Fecha automaticamente aspas (\"\", ''), parênteses (), colchetes [], chaves {} e crases `` ao digitar.",
+    de: "Schließt Anführungszeichen (\"\", ''), Klammern (), eckige Klammern [], geschweifte Klammern {} und Backticks `` beim Tippen automatisch.",
+    fr: "Ferme automatiquement les guillemets (\"\", ''), parenthèses (), crochets [], accolades {} et accents graves `` lors de la saisie.",
+    ja: "入力時に引用符 (\"\", '')、丸括弧 ()、角括弧 []、波括弧 {}、バッククォート `` を自動的に閉じます。",
+    ru: "Автоматически закрывает кавычки (\"\", ''), круглые (), квадратные [], фигурные {} скобки и обратные апострофы `` при вводе.",
+    zh: "输入时自动闭合引号 (\"\", '')、圆括号 ()、方括号 []、花括号 {} 和反引号 ``。"
   }
 };
 

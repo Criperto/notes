@@ -85,7 +85,35 @@ Flickable {
         }
     }
 
-    function ensureBlockAndRectVisible(bid, localRect) {
+    function _ensureContentYRangeVisible(curY, curH, smooth) {
+        if (!root || root._isDestroyed || root.height <= 0) return;
+        var topMargin = 36;
+        var bottomMargin = 56;
+        var effContentY = (smooth && scrollAnim && scrollAnim.running) ? scrollAnim.to : root.contentY;
+        var targetY = -1;
+
+        if (curY < effContentY + topMargin) {
+            targetY = Math.max(0, curY - topMargin);
+        } else if (curY + curH > effContentY + root.height - bottomMargin) {
+            var maxScroll = Math.max(0, Math.max(root.contentHeight, blocksColumn.implicitHeight + 120) - root.height);
+            targetY = Math.min(maxScroll, curY + curH - root.height + bottomMargin);
+        }
+        if (targetY < 0 || Math.abs(targetY - root.contentY) < 1) return;
+
+        if (smooth && Theme.animationsEnabled && !GamemodeService.gamemodeActive) {
+            if (scrollAnim.running && Math.abs(scrollAnim.to - targetY) < 1) return;
+            scrollAnim.stop();
+            root._scrollFinishedCallback = null;
+            scrollAnim.to = targetY;
+            scrollAnim.duration = Math.min(200, Math.max(95, 80 + Math.abs(root.contentY - targetY) * 0.45));
+            scrollAnim.restart();
+        } else {
+            if (scrollAnim && scrollAnim.running) scrollAnim.stop();
+            root.contentY = targetY;
+        }
+    }
+
+    function ensureBlockAndRectVisible(bid, localRect, smooth) {
         var idx = _findBlockIndex(bid);
         if (idx === -1) return;
         var loader = blocksRepeater.itemAt(idx);
@@ -94,15 +122,49 @@ Flickable {
         var blockY = blocksColumn.y + loader.y;
         var curY = localRect ? (blockY + localRect.y) : blockY;
         var curH = localRect ? (localRect.height || 24) : 24;
+        root._ensureContentYRangeVisible(curY, curH, smooth !== false);
+    }
 
-        var topMargin = 28;
-        var bottomMargin = 48;
+    readonly property Item _activeCursorInput: {
+        var w = root.Window.window;
+        var fi = w ? w.activeFocusItem : null;
+        if (!fi || fi.cursorRectangle === undefined || typeof fi.mapToItem !== "function") return null;
+        var p = fi;
+        for (var hop = 0; hop < 16 && p; hop++) {
+            if (p === root.contentItem) return fi;
+            p = p.parent;
+        }
+        return null;
+    }
 
-        if (curY < root.contentY + topMargin) {
-            root.contentY = Math.max(0, curY - topMargin);
-        } else if (curY + curH > root.contentY + root.height - bottomMargin) {
-            var maxScroll = Math.max(0, (blocksColumn.implicitHeight + 120) - root.height);
-            root.contentY = Math.min(maxScroll, curY + curH - root.height + bottomMargin);
+    property bool _ensureCursorPending: false
+    function scheduleEnsureCursorVisible(smooth) {
+        if (!root || root._isDestroyed || root._applyingHistory || root._pointerDragActive || root.isDraggingSelection || root.hasBlockSelection) return;
+        if (_ensureCursorPending) return;
+        _ensureCursorPending = true;
+        var useSmooth = (smooth !== false);
+        Qt.callLater(() => {
+            if (!root || root._isDestroyed) return;
+            root._ensureCursorPending = false;
+            if (root._applyingHistory || root._pointerDragActive || root.isDraggingSelection || root.hasBlockSelection || root.readOnly) return;
+            var fi = root._activeCursorInput;
+            if (!fi || !fi.visible) return;
+            var cr = fi.cursorRectangle;
+            if (!cr || cr.height <= 0) return;
+            var pt = fi.mapToItem(root.contentItem, 0, cr.y);
+            root._ensureContentYRangeVisible(pt.y, cr.height, useSmooth);
+        });
+    }
+
+    Connections {
+        target: root._activeCursorInput
+        function onCursorRectangleChanged() {
+            root.scheduleEnsureCursorVisible(true);
+        }
+    }
+    on_ActiveCursorInputChanged: {
+        if (root._activeCursorInput) {
+            root.scheduleEnsureCursorVisible(true);
         }
     }
 
@@ -329,6 +391,10 @@ Flickable {
     property int activeBlockBid: -1
     property string documentLead: ""
     property var docHistory: null
+    property int _historyRevision: 0
+    property bool _applyingHistory: false
+    readonly property bool canUndo: (_historyRevision >= 0) && History.canUndo(root.docHistory)
+    readonly property bool canRedo: (_historyRevision >= 0) && History.canRedo(root.docHistory)
     property bool _internalChange: false
     property bool _activeBlockDirty: false
     property var tooltipLayer: null
@@ -1101,6 +1167,7 @@ Flickable {
             if (isMultiSame) {
                 ldrSame.item.deleteMultiItemSelection(replacementText);
                 clearBlockSelection();
+                _saveSnapshot();
                 contentModified();
                 debouncedMarkdownTimer.restart();
                 return;
@@ -1111,6 +1178,7 @@ Flickable {
             var newRawSame = rawSame.substring(0, p1) + (replacementText || "") + rawSame.substring(p2);
             onBlockRawChanged(bSame.bid, newRawSame);
             clearBlockSelection();
+            _saveSnapshot();
             contentModified();
             debouncedMarkdownTimer.restart();
             safeFocusDelegate(bSame.bid, p1 + (replacementText ? replacementText.length : 0));
@@ -1149,6 +1217,8 @@ Flickable {
                 });
             }
             clearBlockSelection();
+            root.activeBlockBid = firstNewBid;
+            _saveSnapshot();
             contentModified();
             debouncedMarkdownTimer.restart();
             if (firstNewBid !== -1) {
@@ -1157,12 +1227,14 @@ Flickable {
             return;
         }
 
-        onBlockRawChanged(startB.bid, merged);
         for (var d = endIdx; d > startIdx; d--) {
             blocksModel.remove(d);
         }
+        onBlockRawChanged(startB.bid, merged);
 
         clearBlockSelection();
+        root.activeBlockBid = startB.bid;
+        _saveSnapshot();
         contentModified();
         debouncedMarkdownTimer.restart();
         safeFocusDelegate(startB.bid, prefix.length + (replacementText ? replacementText.length : 0));
@@ -1255,8 +1327,9 @@ Flickable {
                                     root.blocksModel.insert(blockIdx + b, resBlocks.blocks[b]);
                                 }
                                 var lastInserted = resBlocks.blocks[resBlocks.blocks.length - 1];
-                                root.safeFocusDelegate(lastInserted.bid);
+                                root.activeBlockBid = lastInserted.bid;
                                 root._saveSnapshot();
+                                root.safeFocusDelegate(lastInserted.bid);
                                 root.contentModified();
                                 root.debouncedMarkdownTimer.restart();
                                 return;
@@ -1265,16 +1338,23 @@ Flickable {
                     }
                 }
 
+                root._saveSnapshot();
                 if (s !== e) {
                     targetEdit.remove(s, e);
                 }
                 targetEdit.insert(targetEdit.cursorPosition, clipText);
+                root._saveSnapshot();
             }
         );
         return true;
     }
 
+    property var _tripleBacktickEdit: null
+    property int _tripleBacktickPos: -1
+    property bool _tripleBacktickConsumed: false
+
     function handleAutoPair(targetEdit, event) {
+        if (typeof NotesConfig !== "undefined" && NotesConfig.autoClosePairs === false) return false;
         if (!targetEdit || !event || !event.text) return false;
         var ch = event.text;
         if (ch.length !== 1) return false;
@@ -1284,12 +1364,16 @@ Flickable {
 
         // 1. Envolver selección si hay texto seleccionado
         if (s !== e) {
+            root._tripleBacktickEdit = null;
+            root._tripleBacktickPos = -1;
+            root._tripleBacktickConsumed = false;
             var open = "";
             var close = "";
             if (ch === "(" || ch === ")") { open = "("; close = ")"; }
             else if (ch === "[" || ch === "]") { open = "["; close = "]"; }
             else if (ch === "{" || ch === "}") { open = "{"; close = "}"; }
             else if (ch === '"') { open = '"'; close = '"'; }
+            else if (ch === "'") { open = "'"; close = "'"; }
             else if (ch === "`") { open = "`"; close = "`"; }
             else if (ch === "*") { open = "*"; close = "*"; }
             else if (ch === "_") { open = "_"; close = "_"; }
@@ -1308,10 +1392,36 @@ Flickable {
         }
 
         // 2. Autocierre o salto sobre cierre cuando no hay selección
+        if (ch !== "`") {
+            root._tripleBacktickEdit = null;
+            root._tripleBacktickPos = -1;
+            root._tripleBacktickConsumed = false;
+        }
+
+        var prevChar = s > 0 ? targetEdit.getText(s - 1, s) : "";
+        var prev2 = s >= 2 ? targetEdit.getText(s - 2, s) : "";
         var nextChar = targetEdit.getText(s, s + 1);
 
+        // Consumir el 3er backtick por memoria muscular si el 2do toque ya formó ```|
+        if (ch === "`" && targetEdit === root._tripleBacktickEdit && s === root._tripleBacktickPos && !root._tripleBacktickConsumed && s >= 3 && targetEdit.getText(s - 3, s) === "```") {
+            root._tripleBacktickConsumed = true;
+            event.accepted = true;
+            return true;
+        }
+
+        // Al 2do toque dentro de `|` convertir directamente a ```| listo para Enter -> bloque de código
+        if (ch === "`" && prevChar === "`" && prev2 !== "``" && nextChar === "`") {
+            targetEdit.insert(s, "`");
+            targetEdit.cursorPosition = s + 2;
+            root._tripleBacktickEdit = targetEdit;
+            root._tripleBacktickPos = s + 2;
+            root._tripleBacktickConsumed = false;
+            event.accepted = true;
+            return true;
+        }
+
         // Salto sobre cierre existente
-        if ((ch === ")" || ch === "]" || ch === "}" || ch === '"' || ch === "`") && nextChar === ch) {
+        if ((ch === ")" || ch === "]" || ch === "}" || ch === '"' || ch === "'" || ch === "`") && nextChar === ch) {
             targetEdit.cursorPosition = s + 1;
             event.accepted = true;
             return true;
@@ -1324,7 +1434,14 @@ Flickable {
             else if (ch === "[") pairClose = "]";
             else if (ch === "{") pairClose = "}";
             else if (ch === '"') pairClose = '"';
-            else if (ch === "`") pairClose = "`";
+            else if (ch === "'") {
+                if (prevChar === "" || !/[A-Za-z0-9_\u00C0-\u024F\u0400-\u04FF]/.test(prevChar)) {
+                    pairClose = "'";
+                }
+            }
+            else if (ch === "`") {
+                if (prevChar !== "`") pairClose = "`";
+            }
 
             if (pairClose !== "") {
                 targetEdit.insert(s, ch + pairClose);
@@ -1338,6 +1455,7 @@ Flickable {
     }
 
     function handleBackspaceAutoPair(targetEdit) {
+        if (typeof NotesConfig !== "undefined" && NotesConfig.autoClosePairs === false) return false;
         if (!targetEdit) return false;
         if (targetEdit.selectionStart !== targetEdit.selectionEnd) return false;
         var p = targetEdit.cursorPosition;
@@ -1420,7 +1538,10 @@ Flickable {
         }
     }
 
-    function safeFocusDelegate(bid, cursorPos) {
+    property var _pendingPostFocusCallback: null
+
+    function safeFocusDelegate(bid, cursorPos, onFocused) {
+        root._pendingPostFocusCallback = (typeof onFocused === "function") ? onFocused : null;
         Qt.callLater(() => {
             try {
                 if (root && !root._isDestroyed && typeof root._focusDelegateForBid === "function") {
@@ -1541,11 +1662,13 @@ Flickable {
 
     Shortcut {
         sequences: [ StandardKey.Undo ]
+        enabled: root.visible && !root.readOnly && (root.activeFocus || root.hasBlockSelection)
         onActivated: root.undo()
     }
 
     Shortcut {
         sequences: [ StandardKey.Redo ]
+        enabled: root.visible && !root.readOnly && (root.activeFocus || root.hasBlockSelection)
         onActivated: root.redo()
     }
 
@@ -1592,6 +1715,18 @@ Flickable {
 
         if (!isCtrl && !isShift && !isAlt && event.key === Qt.Key_Insert) {
             root.toggleOverwriteMode();
+            event.accepted = true;
+            return;
+        }
+
+        if (isCtrl && !isAlt && (event.key === Qt.Key_Z || event.key === Qt.Key_Y)) {
+            if (!root.readOnly) {
+                if (event.key === Qt.Key_Y || isShift) {
+                    root.redo();
+                } else {
+                    root.undo();
+                }
+            }
             event.accepted = true;
             return;
         }
@@ -1748,6 +1883,7 @@ Flickable {
             chunkWindowTimer.restart();
         }
         root.docHistory = History.createHistory(md);
+        root._historyRevision++;
         root.activeBlockBid = -1;
         root._activeBlockDirty = false;
         root.isDirty = false;
@@ -1801,6 +1937,9 @@ Flickable {
             var raw = Sys.loadHistoryUndo(notePath);
             if (raw && raw.trim().length > 0) {
                 var ok = History.restore(root.docHistory, raw, currentMd);
+                if (ok) {
+                    root._historyRevision++;
+                }
                 if (ok && typeof NotesService !== "undefined" && NotesService.debug) {
                     console.log("[BlockEditor] Pila de undo restaurada de forma síncrona para:", notePath);
                 }
@@ -2047,6 +2186,7 @@ Flickable {
     }
 
     function onBlockRawChanged(bid, newRaw) {
+        if (root._applyingHistory) return;
         var idx = _findBlockIndex(bid);
         if (idx !== -1) {
             root._activeBlockDirty = true;
@@ -2065,6 +2205,28 @@ Flickable {
                     root.convertBlockType(bid, auto.type, newRaw, BlockModel.cursorAfterAutoformat(auto, cur));
                     return;
                 }
+            } else if (item && item.type === "code") {
+                var codeLines = newRaw.split("\n");
+                var hasFence = /^[ \t]*(`{3,}|~{3,})/m.test(newRaw);
+                var firstHasPartialFence = codeLines.length > 0 && /^[ \t]*(`{1,2}|~{1,2})[a-zA-Z0-9_-]*[ \t]*$/.test(codeLines[0]);
+                var lastHasPartialFence = codeLines.length > 0 && /^[ \t]*(`{1,2}|~{1,2})[ \t]*$/.test(codeLines[codeLines.length - 1]);
+                if (!hasFence && !firstHasPartialFence && !lastHasPartialFence) {
+                    var teCode = root._getTextEditForBid(bid);
+                    var rawCur = teCode ? teCode.cursorPosition : 0;
+                    var paraRaw = newRaw;
+                    var curPosOut = rawCur;
+                    if (paraRaw.trim() === "") {
+                        paraRaw = "";
+                        curPosOut = 0;
+                    } else {
+                        var leadMatch = paraRaw.match(/^\n+/);
+                        var leadCut = leadMatch ? leadMatch[0].length : 0;
+                        paraRaw = paraRaw.replace(/^\n+|\n+$/g, "");
+                        curPosOut = Math.max(0, Math.min(paraRaw.length, rawCur - leadCut));
+                    }
+                    root.convertBlockType(bid, "paragraph", paraRaw, curPosOut);
+                    return;
+                }
             }
 
             // Notificar cambio inmediato y diferir unión completa de markdown (P2-8)
@@ -2077,6 +2239,9 @@ Flickable {
     function handleBlockEnter(bid, cursorPos) {
         var idx = _findBlockIndex(bid);
         if (idx === -1) return;
+        if (typingSnapshotTimer.running) {
+            _saveSnapshot();
+        }
 
         var item = blocksModel.get(idx);
         var raw = item.raw || "";
@@ -3615,35 +3780,81 @@ Flickable {
     }
 
     function insertImageBlock(src, alt) {
+        if (root.readOnly) return;
+        root.clearAllSelections();
         var prevBid = root.activeBlockBid;
+        var prevIdxBeforeConfirm = _findBlockIndex(prevBid);
         root.confirmActiveBlock();
 
         var imgBid = BlockModel.getNextBid();
         var raw = "![" + (alt || "imagen") + "](" + src + ")";
         var curIdx = _findBlockIndex(prevBid);
+        var imgIdx = -1;
+        var origSep = "\n\n";
 
         // Si el bloque donde estaba el cursor era un párrafo vacío, reemplazarlo directamente
         if (curIdx !== -1 && curIdx < blocksModel.count) {
             var curBlock = blocksModel.get(curIdx);
             if (curBlock && curBlock.type === "paragraph" && (curBlock.raw || "").trim() === "") {
+                origSep = curBlock.sep || "\n\n";
                 blocksModel.setProperty(curIdx, "bid", imgBid);
                 blocksModel.setProperty(curIdx, "type", "image");
                 blocksModel.setProperty(curIdx, "raw", raw);
-                root.contentModified();
-                _saveSnapshot();
-                return;
+                blocksModel.setProperty(curIdx, "sep", "\n\n");
+                imgIdx = curIdx;
             }
         }
 
-        var insertIdx = (curIdx !== -1) ? (curIdx + 1) : blocksModel.count;
-        blocksModel.insert(insertIdx, {
-            bid: imgBid,
-            type: "image",
-            raw: raw,
-            sep: "\n\n"
-        });
+        if (imgIdx === -1) {
+            if (curIdx === -1 && prevIdxBeforeConfirm !== -1) {
+                // El bloque anterior era un párrafo vacío dirty eliminado por confirmActiveBlock()
+                imgIdx = Math.min(prevIdxBeforeConfirm, blocksModel.count);
+            } else {
+                imgIdx = (curIdx !== -1) ? (curIdx + 1) : blocksModel.count;
+                if (curIdx !== -1 && curIdx < blocksModel.count) {
+                    var prevBlock = blocksModel.get(curIdx);
+                    origSep = (prevBlock && prevBlock.sep) ? prevBlock.sep : "\n\n";
+                    blocksModel.setProperty(curIdx, "sep", "\n\n");
+                }
+            }
+            blocksModel.insert(imgIdx, {
+                bid: imgBid,
+                type: "image",
+                raw: raw,
+                sep: "\n\n"
+            });
+        }
+
+        // Dejar el cursor de texto en un párrafo vacío debajo de la imagen para seguir escribiendo fluido
+        var afterIdx = imgIdx + 1;
+        var nextBid = -1;
+        if (afterIdx < blocksModel.count) {
+            var afterBlock = blocksModel.get(afterIdx);
+            if (afterBlock && afterBlock.type === "paragraph" && (afterBlock.raw || "").trim() === "") {
+                nextBid = afterBlock.bid;
+            }
+        }
+        if (nextBid === -1) {
+            nextBid = BlockModel.getNextBid();
+            blocksModel.insert(afterIdx, {
+                bid: nextBid,
+                type: "paragraph",
+                raw: "",
+                sep: origSep
+            });
+        }
+
+        root.activeBlockBid = nextBid;
+        root._activeBlockDirty = false;
         root.contentModified();
         _saveSnapshot();
+        root.updateFormatState();
+        root.safeFocusDelegate(nextBid, 0);
+        Qt.callLater(() => {
+            if (root && !root._isDestroyed) {
+                root.ensureBlockAndRectVisible(nextBid);
+            }
+        });
     }
 
     function undo() {
@@ -3651,8 +3862,10 @@ Flickable {
             root._saveSnapshot();
         }
         typingSnapshotTimer.stop();
+        debouncedMarkdownTimer.stop();
         if (History.canUndo(root.docHistory)) {
             var prevSnapshot = History.undo(root.docHistory);
+            root._historyRevision++;
             if (prevSnapshot !== null) {
                 root._applySnapshot(prevSnapshot);
             }
@@ -3661,8 +3874,10 @@ Flickable {
 
     function redo() {
         typingSnapshotTimer.stop();
+        debouncedMarkdownTimer.stop();
         if (History.canRedo(root.docHistory)) {
             var nextSnapshot = History.redo(root.docHistory);
+            root._historyRevision++;
             if (nextSnapshot !== null) {
                 root._applySnapshot(nextSnapshot);
             }
@@ -3827,6 +4042,7 @@ Flickable {
             contentY: root.contentY
         };
         History.pushState(root.docHistory, state);
+        root._historyRevision++;
         root._internalChange = true;
         root.markdownEdited(cur);
         root._internalChange = false;
@@ -3835,80 +4051,88 @@ Flickable {
     function _applySnapshot(snapshot) {
         if (!snapshot) return;
         typingSnapshotTimer.stop();
+        debouncedMarkdownTimer.stop();
+        root.clearBlockSelection();
+        root._activeBlockDirty = false;
+        root._applyingHistory = true;
         var targetMd = (typeof snapshot === "object" && snapshot !== null) ? (snapshot.md || "") : snapshot;
-        var res = BlockModel.splitBlocks(targetMd);
-        root.documentLead = res.lead;
+        try {
+            var res = BlockModel.splitBlocks(targetMd);
+            root.documentLead = res.lead;
 
-        var newBlocks = res.blocks;
-        if (newBlocks.length === 0) {
-            newBlocks.push({
-                bid: BlockModel.getNextBid(),
-                type: "paragraph",
-                raw: "",
-                sep: "\n\n"
-            });
-        }
-
-        var commonLen = Math.min(blocksModel.count, newBlocks.length);
-        for (var i = 0; i < commonLen; i++) {
-            var cur = blocksModel.get(i);
-            var nb = newBlocks[i];
-            if (cur.type !== nb.type) blocksModel.setProperty(i, "type", nb.type);
-            if (cur.raw !== nb.raw) blocksModel.setProperty(i, "raw", nb.raw);
-            if (cur.sep !== nb.sep) blocksModel.setProperty(i, "sep", nb.sep);
-            nb.bid = cur.bid;
-        }
-
-        if (blocksModel.count > newBlocks.length) {
-            while (blocksModel.count > newBlocks.length) {
-                blocksModel.remove(blocksModel.count - 1);
+            var newBlocks = res.blocks;
+            if (newBlocks.length === 0) {
+                newBlocks.push({
+                    bid: BlockModel.getNextBid(),
+                    type: "paragraph",
+                    raw: "",
+                    sep: "\n\n"
+                });
             }
-        } else if (newBlocks.length > blocksModel.count) {
-            for (var j = blocksModel.count; j < newBlocks.length; j++) {
-                blocksModel.append(newBlocks[j]);
-            }
-        }
 
-        if (typeof snapshot === "object" && snapshot !== null) {
-            if (snapshot.contentY !== undefined) {
-                root.contentY = snapshot.contentY;
+            var commonLen = Math.min(blocksModel.count, newBlocks.length);
+            for (var i = 0; i < commonLen; i++) {
+                var cur = blocksModel.get(i);
+                var nb = newBlocks[i];
+                if (cur.type !== nb.type) blocksModel.setProperty(i, "type", nb.type);
+                if (cur.raw !== nb.raw) blocksModel.setProperty(i, "raw", nb.raw);
+                if (cur.sep !== nb.sep) blocksModel.setProperty(i, "sep", nb.sep);
+                nb.bid = cur.bid;
             }
-            var targetBid = -1;
-            if (snapshot.activeIndex !== undefined && snapshot.activeIndex >= 0 && snapshot.activeIndex < blocksModel.count) {
-                targetBid = blocksModel.get(snapshot.activeIndex).bid;
-            } else if (snapshot.activeBid !== undefined && snapshot.activeBid !== -1) {
-                var foundIdx = _findBlockIndex(snapshot.activeBid);
-                if (foundIdx !== -1) {
-                    targetBid = snapshot.activeBid;
+
+            if (blocksModel.count > newBlocks.length) {
+                while (blocksModel.count > newBlocks.length) {
+                    blocksModel.remove(blocksModel.count - 1);
+                }
+            } else if (newBlocks.length > blocksModel.count) {
+                for (var j = blocksModel.count; j < newBlocks.length; j++) {
+                    blocksModel.append(newBlocks[j]);
                 }
             }
-            if (targetBid !== -1) {
-                root.activeBlockBid = targetBid;
-                root.safeFocusDelegate(targetBid, snapshot.cursorPos);
-                var te = root._getTextEditForBid(targetBid);
-                if (te && typeof snapshot.selStart === "number" && typeof snapshot.selEnd === "number" && snapshot.selStart !== snapshot.selEnd && snapshot.selStart >= 0) {
-                    te.select(Math.min(te.length, snapshot.selStart), Math.min(te.length, snapshot.selEnd));
+
+            if (typeof snapshot === "object" && snapshot !== null) {
+                if (snapshot.contentY !== undefined) {
+                    root.contentY = snapshot.contentY;
                 }
-                if ((typeof snapshot.subIndex === "number" && snapshot.subIndex >= 0) ||
-                    (typeof snapshot.cellRow === "number" && snapshot.cellRow >= -1)) {
-                    Qt.callLater(() => {
-                        if (!root || root._isDestroyed) return;
-                        var ldr2 = root._getDelegateItemForBid(targetBid);
-                        var item2 = ldr2 ? ldr2.item : null;
-                        if (item2) {
-                            if (typeof snapshot.cellRow === "number" && typeof snapshot.cellCol === "number" && typeof item2.focusCell === "function" && snapshot.cellCol >= 0) {
-                                item2.focusCell(snapshot.cellRow, snapshot.cellCol, snapshot.cursorPos);
-                            } else if (typeof snapshot.subIndex === "number" && snapshot.subIndex >= 0 && typeof item2.focusItemAt === "function") {
-                                item2.focusItemAt(snapshot.subIndex, snapshot.cursorPos);
+                var targetBid = -1;
+                if (snapshot.activeIndex !== undefined && snapshot.activeIndex >= 0 && snapshot.activeIndex < blocksModel.count) {
+                    targetBid = blocksModel.get(snapshot.activeIndex).bid;
+                } else if (snapshot.activeBid !== undefined && snapshot.activeBid !== -1) {
+                    var foundIdx = _findBlockIndex(snapshot.activeBid);
+                    if (foundIdx !== -1) {
+                        targetBid = snapshot.activeBid;
+                    }
+                }
+                if (targetBid !== -1) {
+                    root.activeBlockBid = targetBid;
+                    root.safeFocusDelegate(targetBid, snapshot.cursorPos, function(item2) {
+                        if (!root || root._isDestroyed || !item2) return;
+                        if (typeof snapshot.cellRow === "number" && typeof snapshot.cellCol === "number" && typeof item2.focusCell === "function" && snapshot.cellCol >= 0) {
+                            item2.focusCell(snapshot.cellRow, snapshot.cellCol, snapshot.cursorPos);
+                        } else if (typeof snapshot.subIndex === "number" && snapshot.subIndex >= 0 && typeof item2.focusItemAt === "function") {
+                            item2.focusItemAt(snapshot.subIndex, snapshot.cursorPos);
+                        }
+                        if (typeof snapshot.selStart === "number" && typeof snapshot.selEnd === "number" && snapshot.selStart !== snapshot.selEnd && snapshot.selStart >= 0) {
+                            var te2 = root._getTextEditForBid(targetBid);
+                            if (te2) {
+                                var s2 = Math.min(te2.length, snapshot.selStart);
+                                var e2 = Math.min(te2.length, snapshot.selEnd);
+                                if (snapshot.cursorPos === snapshot.selStart) {
+                                    te2.select(e2, s2);
+                                } else {
+                                    te2.select(s2, e2);
+                                }
                             }
                         }
                     });
+                } else {
+                    root.activeBlockBid = -1;
                 }
             } else {
                 root.activeBlockBid = -1;
             }
-        } else {
-            root.activeBlockBid = -1;
+        } finally {
+            root._applyingHistory = false;
         }
 
         root._internalChange = true;
@@ -3948,6 +4172,12 @@ Flickable {
             }
             if (!root._isDestroyed && loader.item && typeof loader.item.focusInput === "function") {
                 loader.item.focusInput(cursorPos);
+                var cb = root._pendingPostFocusCallback;
+                root._pendingPostFocusCallback = null;
+                if (typeof cb === "function") {
+                    cb(loader.item);
+                }
+                root.scheduleEnsureCursorVisible(true);
             }
         };
         attemptFocus();

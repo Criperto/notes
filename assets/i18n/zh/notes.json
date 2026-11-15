@@ -241,7 +241,9 @@
       "persist_undo": "持久撤消 (Ctrl+Z)",
       "persist_undo_comment": "在重新打开笔记时保留撤消/重做栈。",
       "show_source_mode_button": "显示源代码按钮",
-      "show_source_mode_button_comment": "在编辑器工具栏中显示源代码切换按钮。"
+      "show_source_mode_button_comment": "在编辑器工具栏中显示源代码切换按钮。",
+      "auto_close_pairs": "自动闭合引号与成对符号",
+      "auto_close_pairs_comment": "输入时自动闭合引号 (\"\", '')、圆括号 ()、方括号 []、花括号 {} 和反引号 ``。"
     },
     "spellcheck": {
       "ignore_uppercase": "忽略大写字母",
@@ -274,7 +276,8 @@
       "spell_active": "已启用",
       "spell_paused": "已暂停",
       "spell_remove": "移除",
-      "spell_install": "安装"
+      "spell_install": "安装",
+      "typing_title": "输入与自动闭合"
     },
     "appearance": {
       "ui_scale": "全局界面缩放 (UI)",
@@ -669,5 +672,8 @@
   "notes.slash.link_desc": "插入 Markdown 链接 [文本](url)",
   "slash.link_desc": "插入 Markdown 链接 [文本](url)",
   "notes.editor.action.math": "数学公式 (LaTeX)",
-  "editor.action.math": "数学公式 (LaTeX)"
+  "editor.action.math": "数学公式 (LaTeX)",
+  "config.language.typing_title": "输入与自动闭合",
+  "config.notes.auto_close_pairs": "自动闭合引号与成对符号",
+  "config.notes.auto_close_pairs_comment": "输入时自动闭合引号 (\"\", '')、圆括号 ()、方括号 []、花括号 {} 和反引号 ``。"
 }

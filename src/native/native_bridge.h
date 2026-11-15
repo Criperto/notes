@@ -372,6 +372,7 @@ class ConfigBackend : public QObject {
     Q_PROPERTY(int versionHistoryMaxMb READ versionHistoryMaxMb WRITE setVersionHistoryMaxMb NOTIFY versionHistoryMaxMbChanged)
     Q_PROPERTY(bool persistUndo READ persistUndo WRITE setPersistUndo NOTIFY persistUndoChanged)
     Q_PROPERTY(bool showSourceModeButton READ showSourceModeButton WRITE setShowSourceModeButton NOTIFY showSourceModeButtonChanged)
+    Q_PROPERTY(bool autoClosePairs READ autoClosePairs WRITE setAutoClosePairs NOTIFY autoClosePairsChanged)
 
 public:
     explicit ConfigBackend(QObject *parent = nullptr);
@@ -481,6 +482,9 @@ public:
     bool showSourceModeButton() const { return m_showSourceModeButton; }
     void setShowSourceModeButton(bool val);
 
+    bool autoClosePairs() const { return m_autoClosePairs; }
+    void setAutoClosePairs(bool val);
+
     Q_INVOKABLE void save();
     Q_INVOKABLE void reload();
 
@@ -520,6 +524,7 @@ signals:
     void versionHistoryMaxMbChanged();
     void persistUndoChanged();
     void showSourceModeButtonChanged();
+    void autoClosePairsChanged();
     void windowControlsModeChanged();
 
 private:
@@ -565,6 +570,7 @@ private:
     int m_versionHistoryMaxMb = 5;
     bool m_persistUndo = true;
     bool m_showSourceModeButton = false;
+    bool m_autoClosePairs = true;
 
     QTimer *m_saveTimer = nullptr;
     QFileSystemWatcher *m_qsWatcher = nullptr;

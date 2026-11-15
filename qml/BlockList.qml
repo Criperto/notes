@@ -233,11 +233,10 @@ Item {
         var raw = LP.serializeList(root._itemsRawArray);
         if (root.blockData && root.blockData.raw === raw) return;
         root._internalSync = true;
-        if (root.blockData) {
-            root.blockData.raw = raw;
-        }
         if (root.editor && root.blockData) {
             root.editor.onBlockRawChanged(root.blockData.bid, raw);
+        } else if (root.blockData) {
+            root.blockData.raw = raw;
         }
         root._internalSync = false;
     }
@@ -1607,6 +1606,8 @@ Item {
                         }
                         leftPadding: itemRow.markerReveal ? (headingMarker.implicitWidth + 5) : 0
                     color: Theme.text
+                    selectionColor: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.35)
+                    selectedTextColor: Theme.text
                     font.family: Theme.fontFamily
                     font.pixelSize: EditorMetrics.body
                     wrapMode: TextEdit.WrapAtWordBoundaryOrAnywhere
@@ -1705,7 +1706,7 @@ Item {
                     onActiveFocusChanged: {
                         if (activeFocus) {
                             root.activeItemIndex = itemRow.index;
-                            if (root.editor && root.blockData && root.editor.activeBlockBid !== root.blockData.bid) {
+                            if (root.editor && root.blockData && root.editor.activeBlockBid !== root.blockData.bid && !root.editor.hasBlockSelection) {
                                 root.editor.requestEditBlock(root.blockData.bid);
                             }
                             lineEdit._updateLiveFormatting();
@@ -1854,7 +1855,13 @@ Item {
                             lineEdit._syncingLocal = true;
                             lineEdit.text = newFormatted;
                             if (s !== e) {
-                                lineEdit.select(Math.min(lineEdit.length, s), Math.min(lineEdit.length, e));
+                                var clampedS = Math.min(lineEdit.length, s);
+                                var clampedE = Math.min(lineEdit.length, e);
+                                if (curPos === s) {
+                                    lineEdit.select(clampedE, clampedS);
+                                } else {
+                                    lineEdit.select(clampedS, clampedE);
+                                }
                             } else {
                                 lineEdit.cursorPosition = Math.min(lineEdit.length, curPos);
                             }
@@ -2315,6 +2322,12 @@ Item {
                         }
 
                         if (event.key === Qt.Key_Backspace) {
+                            if (rEditor && typeof rEditor.handleBackspaceAutoPair === "function") {
+                                if (rEditor.handleBackspaceAutoPair(lineEdit)) {
+                                    event.accepted = true;
+                                    return;
+                                }
+                            }
                             if (lineEdit.cursorPosition === 0 && lineEdit.selectionStart === lineEdit.selectionEnd) {
                                 var fullTxt = Inline.plainText(lineEdit);
                                 if (root.handleItemBackspace(itemRow.index, lineEdit.cursorPosition, fullTxt)) {
@@ -2457,7 +2470,9 @@ Item {
                         propagateComposedEvents: true
                         onClicked: (mouse) => {
                             if (mouse.button === Qt.RightButton && root.editor && root.editor.contextMenu) {
-                                lineEdit.forceActiveFocus();
+                                if (!root.editor.hasBlockSelection) {
+                                    lineEdit.forceActiveFocus();
+                                }
                                 var pos = lineEdit.positionAt(mouse.x, mouse.y);
                                 itemRow._openContextMenuAt(lineEdit, pos);
                             }
@@ -2672,6 +2687,7 @@ Item {
                     }
 
                     onReleased: (mouse) => {
+                        if (mouse.button === Qt.RightButton) return;
                         var r = itemRow.rootBlock || (typeof root !== "undefined" ? root : null);
                         if (_doubleClickedRecently) {
                             _doubleClickedRecently = false;

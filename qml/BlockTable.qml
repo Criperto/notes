@@ -259,11 +259,10 @@ Item {
         }
         var newRaw = TP.serializeTable(_activeTable);
         _lastSyncedRaw = newRaw;
-        if (root.blockData) {
-            root.blockData.raw = newRaw;
-        }
         if (root.editor && root.blockData) {
             root.editor.onBlockRawChanged(root.blockData.bid, newRaw);
+        } else if (root.blockData) {
+            root.blockData.raw = newRaw;
         }
     }
 
@@ -273,9 +272,10 @@ Item {
         var newRaw = TP.serializeTable(_activeTable);
         _lastSyncedRaw = newRaw;
         _activeTable = TP.parseTable(newRaw);
-        if (root.blockData) root.blockData.raw = newRaw;
         if (root.editor && root.blockData) {
             root.editor.onBlockRawChanged(root.blockData.bid, newRaw);
+        } else if (root.blockData) {
+            root.blockData.raw = newRaw;
         }
     }
 
@@ -285,9 +285,10 @@ Item {
         var newRaw = TP.serializeTable(_activeTable);
         _lastSyncedRaw = newRaw;
         _activeTable = TP.parseTable(newRaw);
-        if (root.blockData) root.blockData.raw = newRaw;
         if (root.editor && root.blockData) {
             root.editor.onBlockRawChanged(root.blockData.bid, newRaw);
+        } else if (root.blockData) {
+            root.blockData.raw = newRaw;
         }
     }
 
@@ -298,9 +299,10 @@ Item {
         var newRaw = TP.serializeTable(_activeTable);
         _lastSyncedRaw = newRaw;
         _activeTable = TP.parseTable(newRaw);
-        if (root.blockData) root.blockData.raw = newRaw;
         if (root.editor && root.blockData) {
             root.editor.onBlockRawChanged(root.blockData.bid, newRaw);
+        } else if (root.blockData) {
+            root.blockData.raw = newRaw;
         }
         Qt.callLater(() => {
             if (tableFlickable) {
@@ -317,9 +319,10 @@ Item {
         var newRaw = TP.serializeTable(_activeTable);
         _lastSyncedRaw = newRaw;
         _activeTable = TP.parseTable(newRaw);
-        if (root.blockData) root.blockData.raw = newRaw;
         if (root.editor && root.blockData) {
             root.editor.onBlockRawChanged(root.blockData.bid, newRaw);
+        } else if (root.blockData) {
+            root.blockData.raw = newRaw;
         }
         Qt.callLater(() => {
             if (tableFlickable) {
@@ -334,9 +337,10 @@ Item {
         var newRaw = TP.serializeTable(_activeTable);
         _lastSyncedRaw = newRaw;
         _activeTable = TP.parseTable(newRaw);
-        if (root.blockData) root.blockData.raw = newRaw;
         if (root.editor && root.blockData) {
             root.editor.onBlockRawChanged(root.blockData.bid, newRaw);
+        } else if (root.blockData) {
+            root.blockData.raw = newRaw;
         }
     }
 

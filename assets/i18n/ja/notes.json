@@ -241,7 +241,9 @@
       "persist_undo": "永続的な「元に戻す」(Ctrl+Z)",
       "persist_undo_comment": "ノートを再度開いたときにも「元に戻す/やり直し」スタックを保持します。",
       "show_source_mode_button": "ソースコードボタンを表示",
-      "show_source_mode_button_comment": "エディターツールバーにソースコード切り替えボタンを表示します。"
+      "show_source_mode_button_comment": "エディターツールバーにソースコード切り替えボタンを表示します。",
+      "auto_close_pairs": "引用符とペアを自動で閉じる",
+      "auto_close_pairs_comment": "入力時に引用符 (\"\", '')、丸括弧 ()、角括弧 []、波括弧 {}、バッククォート `` を自動的に閉じます。"
     },
     "spellcheck": {
       "ignore_uppercase": "大文字を無視",
@@ -274,7 +276,8 @@
       "spell_active": "有効",
       "spell_paused": "一時停止中",
       "spell_remove": "削除",
-      "spell_install": "インストール"
+      "spell_install": "インストール",
+      "typing_title": "入力と自動閉じ"
     },
     "appearance": {
       "ui_scale": "UI全体の拡大縮小",
@@ -669,5 +672,8 @@
   "notes.slash.link_desc": "マークダウンリンクを挿入 [テキスト](URL)",
   "slash.link_desc": "マークダウンリンクを挿入 [テキスト](URL)",
   "notes.editor.action.math": "数式 (LaTeX)",
-  "editor.action.math": "数式 (LaTeX)"
+  "editor.action.math": "数式 (LaTeX)",
+  "config.language.typing_title": "入力と自動閉じ",
+  "config.notes.auto_close_pairs": "引用符とペアを自動で閉じる",
+  "config.notes.auto_close_pairs_comment": "入力時に引用符 (\"\", '')、丸括弧 ()、角括弧 []、波括弧 {}、バッククォート `` を自動的に閉じます。"
 }

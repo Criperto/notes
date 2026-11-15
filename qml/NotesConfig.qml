@@ -8,7 +8,7 @@ QtObject {
     // Variable global de versión de la aplicación (Single Source of Truth)
     readonly property string appVersion: {
         var v = Quickshell.env("NOTAS_APP_VERSION", "");
-        return (v && v.trim() !== "") ? v.trim() : "0.3.2";
+        return (v && v.trim() !== "") ? v.trim() : "0.3.3";
     }
 
     readonly property var schema: [
@@ -140,6 +140,13 @@ QtObject {
             default: false,
             label: I18n.t("config.notes.show_source_mode_button", "Mostrar botón de código fuente"),
             comment: I18n.t("config.notes.show_source_mode_button_comment", "Muestra el botón '</>' en la barra de herramientas del editor para alternar al modo de código fuente Markdown.")
+        },
+        {
+            key: "autoClosePairs",
+            type: "bool",
+            default: true,
+            label: I18n.t("config.notes.auto_close_pairs", "Autocerrar comillas y pares"),
+            comment: I18n.t("config.notes.auto_close_pairs_comment", "Cierra automáticamente comillas (\"\", ''), paréntesis (), corchetes [], llaves {} y acentos graves `` al escribir.")
         }
     ]
 
@@ -213,6 +220,11 @@ QtObject {
         if (typeof ConfigBackend !== "undefined" && ConfigBackend.showSourceModeButton !== showSourceModeButton) ConfigBackend.showSourceModeButton = showSourceModeButton;
     }
 
+    property bool autoClosePairs: (typeof ConfigBackend !== "undefined" && ConfigBackend.autoClosePairs !== undefined) ? ConfigBackend.autoClosePairs : true
+    onAutoClosePairsChanged: {
+        if (typeof ConfigBackend !== "undefined" && ConfigBackend.autoClosePairs !== autoClosePairs) ConfigBackend.autoClosePairs = autoClosePairs;
+    }
+
     property real uiScale: (typeof ConfigBackend !== "undefined" && ConfigBackend.uiScale !== undefined) ? ConfigBackend.uiScale : 1.0
     onUiScaleChanged: {
         if (typeof ConfigBackend !== "undefined" && ConfigBackend.uiScale !== uiScale) ConfigBackend.uiScale = uiScale;
@@ -261,6 +273,9 @@ QtObject {
         }
         function onShowSourceModeButtonChanged() {
             if (root.showSourceModeButton !== ConfigBackend.showSourceModeButton) root.showSourceModeButton = ConfigBackend.showSourceModeButton;
+        }
+        function onAutoClosePairsChanged() {
+            if (root.autoClosePairs !== ConfigBackend.autoClosePairs) root.autoClosePairs = ConfigBackend.autoClosePairs;
         }
         function onUiScaleChanged() {
             if (root.uiScale !== ConfigBackend.uiScale) root.uiScale = ConfigBackend.uiScale;

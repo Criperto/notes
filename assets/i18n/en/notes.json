@@ -241,7 +241,9 @@
       "persist_undo": "Persistent undo (Ctrl+Z)",
       "persist_undo_comment": "Retains the undo/redo stack across note reopenings.",
       "show_source_mode_button": "Show source code button",
-      "show_source_mode_button_comment": "Displays the source code toggle button in the editor toolbar."
+      "show_source_mode_button_comment": "Displays the source code toggle button in the editor toolbar.",
+      "auto_close_pairs": "Auto-close quotes and pairs",
+      "auto_close_pairs_comment": "Automatically closes quotes (\"\", ''), parentheses (), brackets [], braces {} and backticks `` while typing."
     },
     "spellcheck": {
       "ignore_uppercase": "Ignore UPPERCASE",
@@ -274,7 +276,8 @@
       "spell_active": "Active",
       "spell_paused": "Paused",
       "spell_remove": "Remove",
-      "spell_install": "Install"
+      "spell_install": "Install",
+      "typing_title": "Typing & Auto-Close"
     },
     "appearance": {
       "ui_scale": "Global UI scale",
@@ -669,5 +672,8 @@
   "notes.slash.link_desc": "Insert a markdown link [text](url)",
   "slash.link_desc": "Insert a markdown link [text](url)",
   "notes.editor.action.math": "Math formula (LaTeX)",
-  "editor.action.math": "Math formula (LaTeX)"
+  "editor.action.math": "Math formula (LaTeX)",
+  "config.language.typing_title": "Typing & Auto-Close",
+  "config.notes.auto_close_pairs": "Auto-close quotes and pairs",
+  "config.notes.auto_close_pairs_comment": "Automatically closes quotes (\"\", ''), parentheses (), brackets [], braces {} and backticks `` while typing."
 }

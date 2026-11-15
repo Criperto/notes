@@ -121,8 +121,11 @@ Rectangle {
         && targetInput.selectionEnd !== undefined
         && targetInput.selectionStart !== targetInput.selectionEnd
 
-    readonly property bool isInputFocused: (targetInput !== null && targetInput.activeFocus === true)
-        || (root.multiSelectionMode && root.hasSelection && targetInput !== null && targetInput.Window.window !== null && targetInput.Window.window.active)
+    readonly property bool _windowActive: targetInput !== null
+        && (targetInput.Window.window === null || targetInput.Window.window.active)
+
+    readonly property bool isInputFocused: (targetInput !== null && targetInput.activeFocus === true && root._windowActive)
+        || (root.hasSelection && targetInput !== null && targetInput.visible && root._windowActive)
 
     readonly property bool showTouchHandles: !root.actingAsCursor
         && root.touchHandlesEnabled
@@ -138,6 +141,9 @@ Rectangle {
     readonly property rect startRect: {
         if (!hasSelection || !targetInput || typeof targetInput.positionToRectangle !== "function")
             return Qt.rect(0, 0, 0, 0)
+        var _w = targetInput.width
+        var _h = targetInput.height
+        var _len = targetInput.length
         var _s = targetInput.selectionStart
         var _c = targetInput.cursorPosition
         var _cr = targetInput.cursorRectangle
@@ -154,6 +160,9 @@ Rectangle {
     readonly property rect endRect: {
         if (!hasSelection || !targetInput || typeof targetInput.positionToRectangle !== "function")
             return Qt.rect(0, 0, 0, 0)
+        var _w = targetInput.width
+        var _h = targetInput.height
+        var _len = targetInput.length
         var _e = targetInput.selectionEnd
         var _c = targetInput.cursorPosition
         var _cr = targetInput.cursorRectangle
@@ -174,10 +183,10 @@ Rectangle {
 
     readonly property bool anchorInBounds: targetInput !== null
         && anchorRect.height > 0
-        && anchorRect.x >= -root.cursorWidth
-        && anchorRect.x <= targetInput.width + root.cursorWidth
-        && anchorRect.y >= -anchorRect.height
-        && anchorRect.y <= targetInput.height
+        && anchorRect.x >= -root.cursorWidth - 2
+        && anchorRect.x <= targetInput.width + root.cursorWidth + 2
+        && anchorRect.y >= -anchorRect.height - 2
+        && anchorRect.y <= targetInput.height + 4
 
     x: 0
     y: 0
@@ -216,12 +225,12 @@ Rectangle {
             opacity: (root.isOverwrite && !root.hasSelection) ? 0.65 : 1.0
             color: root.cursorColor
             visible: parent
-                ? (((parent.activeFocus || (root.multiSelectionMode && root.hasSelection))
+                ? (root.isInputFocused
                     && (root.hasSelection
                         ? (parent.cursorPosition === parent.selectionStart
                             ? (!root.multiSelectionMode || root.showStartBoundary)
                             : (!root.multiSelectionMode || root.showEndBoundary))
-                        : (parent.cursorVisible !== undefined ? parent.cursorVisible : true))))
+                        : (parent.activeFocus && (parent.cursorVisible !== undefined ? parent.cursorVisible : true))))
                 : false
             transform: Translate {
                 x: (!root.actingAsCursor && root.deadKeyIndicatorEnabled && root.isComposingDeadKey && !root.hasSelection) ? root.deadKeySlotWidth : 0

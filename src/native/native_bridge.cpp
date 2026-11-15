@@ -1793,7 +1793,7 @@ void Sys::printStartupDiagnostics() const {
 
     fprintf(stdout, "\n");
     fprintf(stdout, "╭─────────────────────────────────────────────────────────────────────────────╮\n");
-    QString appVer = qEnvironmentVariable("NOTAS_APP_VERSION", "0.3.2");
+    QString appVer = qEnvironmentVariable("NOTAS_APP_VERSION", "0.3.3");
     QString titleLine = QStringLiteral("│ 📝 io.github.criperto.notes v") + appVer + QStringLiteral(" (criperto-notes)");
     titleLine = titleLine.leftJustified(77, ' ') + QStringLiteral("│\n");
     fprintf(stdout, "%s", titleLine.toUtf8().constData());
@@ -2917,6 +2917,13 @@ void ConfigBackend::setShowSourceModeButton(bool val) {
     scheduleSave();
 }
 
+void ConfigBackend::setAutoClosePairs(bool val) {
+    if (m_autoClosePairs == val) return;
+    m_autoClosePairs = val;
+    emit autoClosePairsChanged();
+    scheduleSave();
+}
+
 void ConfigBackend::load() {
     const bool hasPywal = QFile::exists(resolveCacheFile(QStringLiteral("wal/colors.json")));
     QString path = configFilePath();
@@ -2963,6 +2970,7 @@ void ConfigBackend::load() {
                 if (obj.contains("versionHistoryMaxMb")) m_versionHistoryMaxMb = qBound(1, obj["versionHistoryMaxMb"].toInt(5), 100);
                 if (obj.contains("persistUndo")) m_persistUndo = obj["persistUndo"].toBool(true);
                 if (obj.contains("showSourceModeButton")) m_showSourceModeButton = obj["showSourceModeButton"].toBool(false);
+                if (obj.contains("autoClosePairs")) m_autoClosePairs = obj["autoClosePairs"].toBool(true);
                 if (obj.contains("windowControlsMode")) m_windowControlsMode = obj["windowControlsMode"].toString("auto");
                 if (isForcedNoSyncConfigured()) m_syncWithQuickshell = false;
 
@@ -3067,6 +3075,7 @@ void ConfigBackend::save() {
     obj[QStringLiteral("versionHistoryMaxMb")] = m_versionHistoryMaxMb;
     obj[QStringLiteral("persistUndo")] = m_persistUndo;
     obj[QStringLiteral("showSourceModeButton")] = m_showSourceModeButton;
+    obj[QStringLiteral("autoClosePairs")] = m_autoClosePairs;
     obj[QStringLiteral("windowControlsMode")] = m_windowControlsMode;
 
     if (isForcedNoSyncConfigured()) {
@@ -3123,6 +3132,7 @@ void ConfigBackend::reload() {
     emit versionHistoryMaxMbChanged();
     emit persistUndoChanged();
     emit showSourceModeButtonChanged();
+    emit autoClosePairsChanged();
     emit windowControlsModeChanged();
 }
 
