@@ -6,6 +6,7 @@
 #include <QFontDatabase>
 #include <QClipboard>
 #include <QMimeData>
+#include <QBuffer>
 #include <QImage>
 #include <QImageReader>
 #include <QDirIterator>
@@ -1890,6 +1891,57 @@ QString Sys::pasteClipboardImage(const QString &destDir, const QString &baseName
     return QString();
 }
 
+static bool setClipboardQImage(const QImage &img) {
+    if (img.isNull()) return false;
+    auto *cb = QGuiApplication::clipboard();
+    if (!cb) return false;
+    cb->setImage(img, QClipboard::Clipboard);
+
+    // En Wayland, si wl-copy está disponible, propagar PNG de forma asíncrona para que persista al cerrar la ventana.
+    if (qEnvironmentVariableIsSet("WAYLAND_DISPLAY") && !QStandardPaths::findExecutable(QStringLiteral("wl-copy")).isEmpty()) {
+        QByteArray pngBytes;
+        QBuffer buf(&pngBytes);
+        if (buf.open(QIODevice::WriteOnly) && img.save(&buf, "PNG")) {
+            auto *proc = new QProcess(QGuiApplication::instance());
+            proc->setProgram(QStringLiteral("wl-copy"));
+            proc->setArguments({ QStringLiteral("--type"), QStringLiteral("image/png") });
+            QObject::connect(proc, &QProcess::finished, proc, &QObject::deleteLater);
+            QObject::connect(proc, &QProcess::errorOccurred, proc, [proc](QProcess::ProcessError) {
+                proc->deleteLater();
+            });
+            QObject::connect(proc, &QProcess::started, proc, [proc, pngBytes]() {
+                proc->write(pngBytes);
+                proc->closeWriteChannel();
+            });
+            proc->start();
+        }
+    }
+    return true;
+}
+
+bool Sys::copyImageToClipboard(const QString &sourcePathOrUrl) {
+    QString raw = sourcePathOrUrl.trimmed();
+    if (raw.isEmpty()) return false;
+
+    QString localPath = raw;
+    if (raw.startsWith(QStringLiteral("file://"), Qt::CaseInsensitive)) {
+        localPath = QUrl(raw).toLocalFile();
+    }
+    if (localPath.isEmpty() || !QFileInfo::exists(localPath)) return false;
+
+    QImageReader reader(localPath);
+    reader.setAutoTransform(true);
+    QImage img = reader.read();
+    if (img.isNull()) return false;
+
+    return setClipboardQImage(img);
+}
+
+bool Sys::copyImageDataToClipboard(const QVariant &imageVariant) {
+    QImage img = imageVariant.value<QImage>();
+    return setClipboardQImage(img);
+}
+
 static QString historyDirForNote(const QString &notePath) {
     if (notePath.isEmpty()) return QString();
     QFileInfo fi(notePath);
@@ -2635,8 +2687,16 @@ void ConfigBackend::setupQuickshellWatcher() {
         resolveConfigFile(QStringLiteral("quickshell/CripertoShell/config")),
         resolveConfigFile(QStringLiteral("hypr"))
     };
-    const QSet<QString> current = QSet<QString>(m_qsWatcher->files().begin(), m_qsWatcher->files().end())
-                                + QSet<QString>(m_qsWatcher->directories().begin(), m_qsWatcher->directories().end());
+    const QStringList watchedFiles = m_qsWatcher->files();
+    const QStringList watchedDirs = m_qsWatcher->directories();
+    QSet<QString> current;
+    current.reserve(watchedFiles.size() + watchedDirs.size());
+    for (const QString &f : watchedFiles) {
+        current.insert(f);
+    }
+    for (const QString &d : watchedDirs) {
+        current.insert(d);
+    }
     for (const auto &p : qsPaths) {
         if (QFileInfo::exists(p) && !current.contains(p)) {
             m_qsWatcher->addPath(p);

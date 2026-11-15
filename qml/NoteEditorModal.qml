@@ -1324,6 +1324,72 @@ Item {
         });
     }
 
+    function openImageZoom(srcUrl, srcItem, natW, natH) {
+        if (root._isDestroyed || !imageLightbox || !srcUrl) return;
+        imageLightbox.open(srcUrl, srcItem, natW, natH);
+    }
+
+    function handleEscapeKey() {
+        if (root._isDestroyed || root.isClosing || !root.isExpanded || root.isSettingsOpen) return;
+        if (typeof imageLightbox !== "undefined" && imageLightbox && (imageLightbox.isOpen || imageLightbox.isClosing)) {
+            if (!imageLightbox.isClosing) imageLightbox.close();
+            return;
+        }
+        if (typeof editorContextMenu !== "undefined" && editorContextMenu && editorContextMenu.visible) {
+            editorContextMenu.close();
+            return;
+        }
+        if (linkSuggestionMenu && linkSuggestionMenu.isOpen) {
+            linkSuggestionMenu.close();
+            return;
+        }
+        if (blockEditor && blockEditor.slashMenu && blockEditor.slashMenu.isOpen) {
+            blockEditor.slashMenu.close();
+            return;
+        }
+        if (headingMenuPopup.isOpen) {
+            headingMenuPopup.isOpen = false;
+            return;
+        }
+        if (imageMenuPopup.isOpen) {
+            imageMenuPopup.isOpen = false;
+            return;
+        }
+        if (mermaidMenuPopup.isOpen) {
+            mermaidMenuPopup.isOpen = false;
+            return;
+        }
+        if (mathMenuPopup.isOpen) {
+            mathMenuPopup.isOpen = false;
+            return;
+        }
+        if (root.tagSuggestions && root.tagSuggestions.length > 0) {
+            root.hideTagSuggestions();
+            return;
+        }
+        if (root.isFindActive) {
+            root.closeFind();
+            return;
+        }
+        if (blockEditor && blockEditor.hasBlockSelection) {
+            blockEditor.clearBlockSelection();
+            blockEditor.forceActiveFocus();
+            return;
+        }
+        if (!root.isSourceMode && blockEditor && blockEditor.activeBlockBid !== -1) {
+            blockEditor.confirmActiveBlock();
+            return;
+        }
+        root.requestClose();
+    }
+
+    Shortcut {
+        id: editorEscapeShortcut
+        sequence: "Escape"
+        enabled: root.visible && root.isExpanded && !root.isClosing && !root.isSettingsOpen
+        onActivated: root.handleEscapeKey()
+    }
+
     // ── Atajos de teclado en el editor (Fase 1: tabla unificada de atajos) ─────
     Keys.onPressed: (event) => {
         var isCtrl = !!(event.modifiers & Qt.ControlModifier);
@@ -1361,24 +1427,7 @@ Item {
 
         if (event.key === Qt.Key_Escape) {
             event.accepted = true;
-            if (linkSuggestionMenu && linkSuggestionMenu.isOpen) {
-                linkSuggestionMenu.close();
-            } else if (headingMenuPopup.isOpen) {
-                headingMenuPopup.isOpen = false;
-            } else if (imageMenuPopup.isOpen) {
-                imageMenuPopup.isOpen = false;
-            } else if (mermaidMenuPopup.isOpen) {
-                mermaidMenuPopup.isOpen = false;
-            } else if (mathMenuPopup.isOpen) {
-                mathMenuPopup.isOpen = false;
-            } else if (root.isFindActive) {
-                root.closeFind();
-            } else {
-                if (!root.isSourceMode && blockEditor && blockEditor.activeBlockBid !== -1) {
-                    blockEditor.confirmActiveBlock();
-                }
-                root.requestClose();
-            }
+            root.handleEscapeKey();
             return;
         }
 
@@ -4479,6 +4528,19 @@ Item {
     // Capa única no recortada de tooltips para botones de barra y encabezado (Fase 1)
     EditorTooltipLayer {
         id: tooltipLayer
+    }
+
+    // Visor ampliado (lightbox) de imágenes en ventana completa (modo normal y preview)
+    ImageZoomOverlay {
+        id: imageLightbox
+        onClosed: {
+            if (root._isDestroyed || root.isClosing) return;
+            if (root.isSourceMode && sourceCodeEditor) {
+                sourceCodeEditor.forceActiveFocus();
+            } else if (blockEditor) {
+                blockEditor.forceActiveFocus();
+            }
+        }
     }
 
     // Atajo global de zoom en todo el modal con Ctrl + Rueda del ratón

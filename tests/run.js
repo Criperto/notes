@@ -6322,6 +6322,133 @@ runTest("F152: Autoscroll suave al escribir cerca del límite del viewport reuti
         "BlockEditor debe seguir el cursorRectangle del input activo y reutilizar scrollAnim para autoscroll suave al escribir");
 });
 
+runTest("F153: setupQuickshellWatcher no debe usar iteradores colgantes sobre QStringList temporales (SIGSEGV)", () => {
+    const nativeCpp = fs.readFileSync(path.resolve(__dirname, '../src/native/native_bridge.cpp'), 'utf8');
+    const fnStart = nativeCpp.indexOf("void ConfigBackend::setupQuickshellWatcher()");
+    const fnEnd = nativeCpp.indexOf("QString ConfigBackend::configFilePath()", fnStart);
+    assert.ok(fnStart !== -1 && fnEnd !== -1, "setupQuickshellWatcher debe existir en native_bridge.cpp");
+    const body = nativeCpp.slice(fnStart, fnEnd);
+    assert.ok(!body.includes("files().begin()") && !body.includes("directories().begin()"),
+        "No usar iteradores sobre temporales de files()/directories() al construir QSet");
+    assert.ok(body.includes("const QStringList watchedFiles = m_qsWatcher->files();")
+        && body.includes("const QStringList watchedDirs = m_qsWatcher->directories();"),
+        "setupQuickshellWatcher debe almacenar files() y directories() en variables locales antes de iterar");
+});
+
+runTest("F154: Pegar imagen en viñeta vacía reemplaza o divide BlockList en la posición activa", () => {
+    const editorQml = fs.readFileSync(path.resolve(__dirname, '../qml/BlockEditor.qml'), 'utf8');
+    const lpRaw = fs.readFileSync(path.resolve(__dirname, '../qml/ListParser.js'), 'utf8')
+        .replace(/^\.pragma library\s*/, '');
+    const fnStart = editorQml.indexOf("function insertImageBlock(src, alt)");
+    const fnEnd = editorQml.indexOf("function undo()", fnStart);
+    assert.ok(fnStart !== -1 && fnEnd !== -1, "insertImageBlock debe existir en BlockEditor.qml");
+    const fnBody = editorQml.slice(fnStart, fnEnd);
+
+    assert.ok(fnBody.includes("prevLoader.item.activeItemIndex")
+        && fnBody.includes('curBlock.type === "list"')
+        && fnBody.includes("LP.parseList(curBlock.raw")
+        && fnBody.includes("LP.serializeList(")
+        && fnBody.includes("trailingListBlock"),
+        "insertImageBlock debe inspeccionar activeItemIndex y reemplazar/dividir listas al pegar imagen");
+
+    // Ejecutar la lógica de ListParser sobre los escenarios de viñeta vacía
+    const lpMod = {};
+    new Function("exports", lpRaw + "\nexports.parseList = parseList; exports.serializeList = serializeList;")(lpMod);
+    const itemsSingle = lpMod.parseList("* ");
+    assert.strictEqual(itemsSingle.length, 1);
+    assert.strictEqual((itemsSingle[0].text || "").trim(), "");
+
+    const itemsMid = lpMod.parseList("* A\n* \n* B");
+    assert.strictEqual(itemsMid.length, 3);
+    assert.strictEqual((itemsMid[1].text || "").trim(), "");
+    assert.strictEqual(lpMod.serializeList(itemsMid.slice(0, 1)), "* A");
+    assert.strictEqual(lpMod.serializeList(itemsMid.slice(2)), "* B");
+});
+
+runTest("F155: Botón superior derecho al hacer hover en imágenes copia la imagen al portapapeles en modo normal y preview", () => {
+    const readQ = (f) => fs.readFileSync(path.resolve(__dirname, '../qml', f), 'utf8');
+    const copyBtnQml = readQ("ImageCopyButton.qml");
+    const blockImgQml = readQ("BlockImage.qml");
+    const blockListQml = readQ("BlockList.qml");
+    const qmldir = readQ("qmldir");
+    const buildRs = fs.readFileSync(path.resolve(__dirname, '../build.rs'), 'utf8');
+    const nativeH = fs.readFileSync(path.resolve(__dirname, '../src/native/native_bridge.h'), 'utf8');
+    const nativeCpp = fs.readFileSync(path.resolve(__dirname, '../src/native/native_bridge.cpp'), 'utf8');
+
+    assert.ok(qmldir.includes("ImageCopyButton") && buildRs.includes('"qml/ImageCopyButton.qml"'),
+        "ImageCopyButton debe estar registrado en qml/qmldir y build.rs");
+
+    assert.ok(copyBtnQml.includes("anchors.top:") && copyBtnQml.includes("anchors.right:")
+        && copyBtnQml.includes("Sys.copyImageToClipboard")
+        && copyBtnQml.includes("Sys.copyImageDataToClipboard")
+        && copyBtnQml.includes("NumberAnimation")
+        && !copyBtnQml.includes("OpacityAnimator")
+        && copyBtnQml.includes("isShowing: available && (hoveredOutside || isButtonHovered || copiedRecently)"),
+        "ImageCopyButton debe posicionarse arriba a la derecha, aparecer solo en hover, usar NumberAnimation y copiar la imagen directa");
+
+    assert.ok(blockImgQml.includes("ImageCopyButton {") && blockImgQml.includes("HoverHandler {"),
+        "BlockImage debe integrar ImageCopyButton con HoverHandler para modo normal y preview");
+    assert.ok(blockListQml.includes("ImageCopyButton {") && blockListQml.includes("_imageCopyBtnAt("),
+        "BlockList debe integrar ImageCopyButton con soporte en listMa tanto en modo normal como preview");
+
+    assert.ok(nativeH.includes("Q_INVOKABLE bool copyImageToClipboard(const QString &sourcePathOrUrl);")
+        && nativeH.includes("Q_INVOKABLE bool copyImageDataToClipboard(const QVariant &imageVariant);")
+        && nativeCpp.includes("cb->setImage(img, QClipboard::Clipboard)")
+        && nativeCpp.includes("setAutoTransform(true)"),
+        "Sys debe exponer copyImageToClipboard y copyImageDataToClipboard copiando QImage al portapapeles");
+});
+
+runTest("F156: Botón zoom-in.svg en imágenes, visor lightbox con SpringAnimation, rueda ~1x1cm, paneo central y cierre X/ESC", () => {
+    const readQ = (f) => fs.readFileSync(path.resolve(__dirname, '../qml', f), 'utf8');
+    const copyBtnQml = readQ("ImageCopyButton.qml");
+    const lightboxQml = readQ("ImageZoomOverlay.qml");
+    const blockImgQml = readQ("BlockImage.qml");
+    const blockListQml = readQ("BlockList.qml");
+    const modalQml = readQ("NoteEditorModal.qml");
+    const qmldir = readQ("qmldir");
+    const buildRs = fs.readFileSync(path.resolve(__dirname, '../build.rs'), 'utf8');
+
+    assert.ok(fs.existsSync(path.resolve(__dirname, '../assets/icons/zoom-in.svg')),
+        "El ícono assets/icons/zoom-in.svg debe existir");
+    assert.ok(qmldir.includes("ImageZoomOverlay") && buildRs.includes('"qml/ImageZoomOverlay.qml"'),
+        "ImageZoomOverlay debe estar registrado en qml/qmldir y build.rs");
+
+    assert.ok(copyBtnQml.includes("zoom-in.svg")
+        && copyBtnQml.includes("signal zoomRequested()")
+        && copyBtnQml.indexOf("zoomBtn") < copyBtnQml.indexOf("copyBtn"),
+        "El botón zoom-in debe ir a la izquierda del botón Copiar con el ícono zoom-in.svg");
+
+    assert.ok(lightboxQml.includes("SpringAnimation")
+        && lightboxQml.includes("spring: 3.5; damping: 0.38; mass: 0.85; epsilon: 0.25")
+        && lightboxQml.includes("Screen.pixelDensity")
+        && lightboxQml.includes("Qt.MiddleButton")
+        && lightboxQml.includes("Qt.ClosedHandCursor")
+        && lightboxQml.includes("Qt.OpenHandCursor")
+        && lightboxQml.includes('x.svg')
+        && lightboxQml.includes("Theme.color1"),
+        "ImageZoomOverlay debe usar SpringAnimation de apertura/cierre, límite ~1x1cm con Screen.pixelDensity, paneo central con cursor y botón X blanco -> Theme.color1");
+
+    assert.ok(blockImgQml.includes("onZoomRequested:") && blockListQml.includes("onZoomRequested:"),
+        "BlockImage y BlockList deben abrir ImageZoomOverlay al pulsar zoom-in");
+    assert.ok(modalQml.includes("ImageZoomOverlay {") && modalQml.includes("function openImageZoom("),
+        "NoteEditorModal debe alojar ImageZoomOverlay sobre toda la ventana");
+});
+
+runTest("F157: ESC deselecciona el bloque activo y en la siguiente pulsación cierra la nota sin requerir clic", () => {
+    const readQ = (f) => fs.readFileSync(path.resolve(__dirname, '../qml', f), 'utf8');
+    const modalQml = readQ("NoteEditorModal.qml");
+    const editorQml = readQ("BlockEditor.qml");
+
+    assert.ok(modalQml.includes('sequence: "Escape"')
+        && modalQml.includes("function handleEscapeKey()")
+        && modalQml.includes("imageLightbox.close()")
+        && modalQml.includes("blockEditor.confirmActiveBlock();")
+        && modalQml.includes("root.requestClose();"),
+        "NoteEditorModal debe capturar Escape con Shortcut y handleEscapeKey() cerrando lightbox/bloque/nota en orden");
+    assert.ok(editorQml.includes("root.activeBlockBid = -1;") && editorQml.includes("root.forceActiveFocus();"),
+        "BlockEditor.confirmActiveBlock debe conservar foco en el editor tras desactivar bloque");
+});
+
 console.log(`\n========================================`);
 console.log(`Resultados: ${passed} OK, ${failed} FAIL`);
 console.log(`========================================`);

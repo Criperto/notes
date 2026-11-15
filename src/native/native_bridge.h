@@ -272,6 +272,8 @@ public:
     Q_INVOKABLE bool hasCommand(const QString &cmd) const;
     Q_INVOKABLE bool execDetached(const QStringList &args) const;
     Q_INVOKABLE bool clipboardHasImage() const;
+    Q_INVOKABLE bool copyImageToClipboard(const QString &sourcePathOrUrl);
+    Q_INVOKABLE bool copyImageDataToClipboard(const QVariant &imageVariant);
     Q_INVOKABLE QString pasteClipboardImage(const QString &destDir, const QString &baseName, const QString &relPrefix = QStringLiteral("assets/"));
     Q_INVOKABLE QJsonObject indexNotes(const QString &notesDir) const;
     Q_INVOKABLE QString loadHistoryUndo(const QString &notePath) const;

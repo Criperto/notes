@@ -2123,6 +2123,9 @@ Flickable {
         // Si no hubo cambios en este bloque, desactivar sin tocar modelo, sin guardar snapshot y sin emitir markdownEdited
         if (!root._activeBlockDirty && !hasTextChanged) {
             root.activeBlockBid = -1;
+            if (!root._isDestroyed && root.visible && (!root.editorModal || !root.editorModal.isClosing)) {
+                root.forceActiveFocus();
+            }
             return;
         }
 
@@ -2170,6 +2173,16 @@ Flickable {
         root._internalChange = true;
         root.markdownEdited(root.getMarkdown());
         root._internalChange = false;
+        if (!root._isDestroyed && root.visible && (!root.editorModal || !root.editorModal.isClosing)) {
+            root.forceActiveFocus();
+        }
+    }
+
+    function openImageZoom(srcUrl, srcItem, natW, natH) {
+        if (root._isDestroyed || !srcUrl) return;
+        if (root.editorModal && typeof root.editorModal.openImageZoom === "function") {
+            root.editorModal.openImageZoom(srcUrl, srcItem, natW, natH);
+        }
     }
 
     function convertBlockType(bid, newType, newRaw, cursorPos) {
@@ -3783,6 +3796,23 @@ Flickable {
         if (root.readOnly) return;
         root.clearAllSelections();
         var prevBid = root.activeBlockBid;
+        if (prevBid === -1 && root._activeCursorInput) {
+            var cursorParent = root._activeCursorInput;
+            for (var hop = 0; hop < 16 && cursorParent; hop++) {
+                if (cursorParent.blockItemData && cursorParent.blockItemData.bid !== undefined) {
+                    prevBid = cursorParent.blockItemData.bid;
+                    break;
+                }
+                cursorParent = cursorParent.parent;
+            }
+        }
+        var prevListSubIdx = -1;
+        if (prevBid !== -1) {
+            var prevLoader = _getDelegateItemForBid(prevBid);
+            if (prevLoader && prevLoader.item && typeof prevLoader.item.activeItemIndex === "number") {
+                prevListSubIdx = prevLoader.item.activeItemIndex;
+            }
+        }
         var prevIdxBeforeConfirm = _findBlockIndex(prevBid);
         root.confirmActiveBlock();
 
@@ -3791,17 +3821,69 @@ Flickable {
         var curIdx = _findBlockIndex(prevBid);
         var imgIdx = -1;
         var origSep = "\n\n";
+        var trailingListBlock = null;
+        var replaceWithImageAt = function(targetIdx) {
+            blocksModel.setProperty(targetIdx, "bid", imgBid);
+            blocksModel.setProperty(targetIdx, "type", "image");
+            blocksModel.setProperty(targetIdx, "raw", raw);
+            blocksModel.setProperty(targetIdx, "sep", "\n\n");
+            imgIdx = targetIdx;
+        };
 
-        // Si el bloque donde estaba el cursor era un párrafo vacío, reemplazarlo directamente
+        // Si el bloque donde estaba el cursor era un párrafo vacío o una lista, reemplazar/dividir en el punto activo
         if (curIdx !== -1 && curIdx < blocksModel.count) {
             var curBlock = blocksModel.get(curIdx);
             if (curBlock && curBlock.type === "paragraph" && (curBlock.raw || "").trim() === "") {
                 origSep = curBlock.sep || "\n\n";
-                blocksModel.setProperty(curIdx, "bid", imgBid);
-                blocksModel.setProperty(curIdx, "type", "image");
-                blocksModel.setProperty(curIdx, "raw", raw);
-                blocksModel.setProperty(curIdx, "sep", "\n\n");
-                imgIdx = curIdx;
+                replaceWithImageAt(curIdx);
+            } else if (curBlock && curBlock.type === "list") {
+                var listItems = LP.parseList(curBlock.raw || "");
+                if (listItems.length > 0) {
+                    var k = (prevListSubIdx >= 0 && prevListSubIdx < listItems.length)
+                            ? prevListSubIdx
+                            : (listItems.length - 1);
+                    var isEmptyItem = ((listItems[k].text || "").trim() === "");
+                    origSep = curBlock.sep || "\n\n";
+
+                    if (listItems.length === 1 && isEmptyItem) {
+                        // Viñeta única vacía: reemplazar la lista directamente por la imagen
+                        replaceWithImageAt(curIdx);
+                    } else if (k === 0 && isEmptyItem) {
+                        // Primer ítem vacío con más ítems debajo: insertar imagen arriba y conservar el resto debajo
+                        trailingListBlock = {
+                            bid: BlockModel.getNextBid(),
+                            type: "list",
+                            raw: LP.serializeList(listItems.slice(1)),
+                            sep: origSep
+                        };
+                        replaceWithImageAt(curIdx);
+                    } else {
+                        var keepCount = isEmptyItem ? k : (k + 1);
+                        var beforeItems = listItems.slice(0, keepCount);
+                        var afterItems = listItems.slice(k + 1);
+                        if (beforeItems.length > 0) {
+                            blocksModel.setProperty(curIdx, "raw", LP.serializeList(beforeItems));
+                            blocksModel.setProperty(curIdx, "sep", "\n\n");
+                            imgIdx = curIdx + 1;
+                            blocksModel.insert(imgIdx, {
+                                bid: imgBid,
+                                type: "image",
+                                raw: raw,
+                                sep: "\n\n"
+                            });
+                        } else {
+                            replaceWithImageAt(curIdx);
+                        }
+                        if (afterItems.length > 0) {
+                            trailingListBlock = {
+                                bid: BlockModel.getNextBid(),
+                                type: "list",
+                                raw: LP.serializeList(afterItems),
+                                sep: origSep
+                            };
+                        }
+                    }
+                }
             }
         }
 
@@ -3828,7 +3910,7 @@ Flickable {
         // Dejar el cursor de texto en un párrafo vacío debajo de la imagen para seguir escribiendo fluido
         var afterIdx = imgIdx + 1;
         var nextBid = -1;
-        if (afterIdx < blocksModel.count) {
+        if (!trailingListBlock && afterIdx < blocksModel.count) {
             var afterBlock = blocksModel.get(afterIdx);
             if (afterBlock && afterBlock.type === "paragraph" && (afterBlock.raw || "").trim() === "") {
                 nextBid = afterBlock.bid;
@@ -3840,8 +3922,11 @@ Flickable {
                 bid: nextBid,
                 type: "paragraph",
                 raw: "",
-                sep: origSep
+                sep: trailingListBlock ? "\n\n" : origSep
             });
+        }
+        if (trailingListBlock) {
+            blocksModel.insert(afterIdx + 1, trailingListBlock);
         }
 
         root.activeBlockBid = nextBid;

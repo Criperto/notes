@@ -403,6 +403,26 @@ Item {
                         }
                     }
                 }
+
+                HoverHandler {
+                    id: cardHover
+                    enabled: imgCard.loadable && imgItem.status === Image.Ready && !imgCard.isBadge && imgCard.width >= 56 && imgCard.height >= 32
+                }
+
+                ImageCopyButton {
+                    id: imgCopyBtn
+                    z: 10
+                    available: imgCard.loadable && imgItem.status === Image.Ready && !imgCard.isBadge && imgCard.width >= 56 && imgCard.height >= 32
+                    showZoomButton: imgCard.width >= 96
+                    hoveredOutside: cardHover.hovered
+                    localPath: modelData ? root._localImagePath(modelData.src) : ""
+                    targetImageItem: imgItem
+                    onZoomRequested: {
+                        if (root.editor && typeof root.editor.openImageZoom === "function") {
+                            root.editor.openImageZoom(imgItem.source.toString(), imgCard, imgCard.naturalW, imgCard.naturalH);
+                        }
+                    }
+                }
             }
         }
     }

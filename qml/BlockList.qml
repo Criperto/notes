@@ -2493,9 +2493,11 @@ Item {
                     // alineadas a la izquierda con el mismo sangrado del texto.
                     // Solo lectura. El alt sale del texto y va solo al placeholder.
                     Repeater {
+                        id: itemImagesRepeater
                         model: itemRow.itemImages
                         delegate: Item {
                             id: imgWrap
+                            property alias copyBtnRef: listImgCopyBtn
                             readonly property real availW: textCol.width
                             // Tamaño natural capturado una sola vez al cargar (no reactivo a
                             // imgItem.implicit*, que dependía de nuestro propio alto -> binding loop)
@@ -2587,6 +2589,27 @@ Item {
                                     font.pixelSize: EditorMetrics.caption
                                 }
                             }
+
+                            HoverHandler {
+                                id: listImgHover
+                                enabled: !root.isEditing && !itemRow.isSelected && !imgWrap.failed && imgItem.status === Image.Ready && imgWrap.width >= 56 && imgWrap.height >= 32
+                            }
+
+                            ImageCopyButton {
+                                id: listImgCopyBtn
+                                z: 10
+                                available: listImgHover.enabled
+                                showZoomButton: imgWrap.width >= 96
+                                hoveredOutside: listImgHover.hovered
+                                localPath: (imgWrap.fileUrl.startsWith("http://") || imgWrap.fileUrl.startsWith("https://")) ? "" : imgWrap.fileUrl
+                                targetImageItem: imgItem
+                                onZoomRequested: {
+                                    var ed = itemRow.rootBlock ? itemRow.rootBlock.editor : root.editor;
+                                    if (ed && typeof ed.openImageZoom === "function") {
+                                        ed.openImageZoom(imgItem.source.toString(), imgWrap, imgWrap.natW, imgWrap.natH);
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -2596,8 +2619,34 @@ Item {
                     z: 5
                     enabled: true
                     acceptedButtons: Qt.LeftButton | Qt.RightButton
-                    cursorShape: (!root.isEditing && listViewText.hoveredLink !== "") ? Qt.PointingHandCursor : Qt.IBeamCursor
+                    cursorShape: (!root.isEditing && (listViewText.hoveredLink !== "" || _hoveredImageCopyBtn() !== null)) ? Qt.PointingHandCursor : Qt.IBeamCursor
                     preventStealing: dragging
+
+                    function _hoveredImageCopyBtn() {
+                        for (var i = 0; i < itemImagesRepeater.count; i++) {
+                            var wrap = itemImagesRepeater.itemAt(i);
+                            if (wrap && wrap.copyBtnRef && wrap.copyBtnRef.isButtonHovered) {
+                                return wrap.copyBtnRef;
+                            }
+                        }
+                        return null;
+                    }
+
+                    function _imageCopyBtnAt(lx, ly) {
+                        for (var i = 0; i < itemImagesRepeater.count; i++) {
+                            var wrap = itemImagesRepeater.itemAt(i);
+                            if (wrap && wrap.copyBtnRef && wrap.copyBtnRef.containsPointIn(listMa, lx, ly)) {
+                                return wrap.copyBtnRef;
+                            }
+                        }
+                        return null;
+                    }
+
+                    function _imageActionAt(lx, ly) {
+                        var btn = _imageCopyBtnAt(lx, ly);
+                        if (!btn) return null;
+                        return { btn: btn, action: btn.actionAtPoint(listMa, lx, ly) };
+                    }
 
                     property bool dragging: false
                     property bool didDragSelect: false
@@ -2624,6 +2673,12 @@ Item {
                         var r = itemRow.rootBlock || (typeof root !== "undefined" ? root : null);
                         if (!r) return;
                         if (!r.isEditing) {
+                            var imgAct = _imageActionAt(mouse.x, mouse.y);
+                            if (imgAct && imgAct.btn) {
+                                if (imgAct.action === "zoom") imgAct.btn.triggerZoom();
+                                else imgAct.btn.triggerCopy();
+                                return;
+                            }
                             var link = listViewText.linkAt(mouse.x, mouse.y);
                             pressedOnLink = (link && link !== "");
                             if (pressedOnLink) return;
