@@ -724,6 +724,7 @@ Item {
 
         onTextChanged: {
             if (root._syncingModel || (root.editor && root.editor.readOnly)) return;
+            root._lastAppliedHtml = "";
             if (root.isEditing && root.editor && root.blockData) {
                 var prefix = "#".repeat(root.level) + " ";
                 var curClean = Inline.plainText(editInput);

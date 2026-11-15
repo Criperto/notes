@@ -811,6 +811,7 @@ Item {
 
         onTextChanged: {
             if (root._syncingModel || (root.editor && root.editor.readOnly)) return;
+            root._lastAppliedHtml = "";
             if (root.isEditing && root.editor && root.blockData) {
                 var rawClean = Inline.plainText(editInput);
                 if (rawClean !== root.blockData.raw) {

@@ -1026,6 +1026,7 @@ Item {
 
         onTextChanged: {
             if (root._syncingModel || (root.editor && root.editor.readOnly)) return;
+            root._lastAppliedHtml = "";
             if (root.isEditing && root.editor && root.blockData) {
                 var clean = Inline.plainText(editInput);
                 var raw = clean.split("\n").map(function(l) { return "> " + l; }).join("\n");

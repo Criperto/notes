@@ -5991,13 +5991,39 @@ runTest("F143: Regresiones de CripertoShell, hot-reload Qt/Pywal, ciclo de borra
         "SpellService debe resolver callbacks en cola si el proceso hunspell termina");
 
     // 6. Consistencia en README, HYPRLAND y manifiesto Flatpak
-    assert.ok(!readmeMd.includes('Italiano') && !readmeMd.includes('0.1.13') && !readmeMd.includes('0.2.10') && readmeMd.includes('0.3.0')
+    assert.ok(!readmeMd.includes('Italiano') && !readmeMd.includes('0.1.13') && !readmeMd.includes('0.2.10') && readmeMd.includes('0.3.1')
         && readmeMd.includes('qt6-tools') && readmeMd.includes('cargo test'),
-        "README.md debe reflejar versión 0.3.0, idiomas reales, qt6-tools y cargo test");
+        "README.md debe reflejar versión 0.3.1, idiomas reales, qt6-tools y cargo test");
     assert.ok(!hyprDoc.includes('notas toggle') && hyprDoc.includes('criperto-notes toggle'),
         "docs/HYPRLAND.md debe referenciar criperto-notes toggle");
     assert.ok(flatpakYml.includes('--filesystem=xdg-config/cripertoshell:ro'),
         "El manifiesto Flatpak debe permitir lectura de cripertoshell");
+});
+
+runTest("F144: BlockList syncText e invalidación _lastAppliedHtml tras split/edición sin texto duplicado", () => {
+    const readQ = (f) => fs.readFileSync(path.resolve(__dirname, '../qml', f), 'utf8');
+    const blockListQml = readQ("BlockList.qml");
+    const blockParaQml = readQ("BlockParagraph.qml");
+    const blockHeadQml = readQ("BlockHeading.qml");
+    const blockQuoteQml = readQ("BlockQuote.qml");
+
+    assert.ok(blockListQml.includes("curDel.forceSyncText(-1, true)"),
+        "handleItemReturn debe sincronizar el delegate origen tras dividir el ítem con Enter");
+    assert.ok(blockListQml.includes("function forceSyncText(targetCursorPos, asBlurred)"),
+        "forceSyncText debe soportar targetCursorPos y asBlurred manteniendo function syncText()");
+    assert.ok(blockListQml.includes("function _mergeWithNextItem(itemIdx, targetDel, cursorPos)")
+        && blockListQml.includes("prevDel.forceSyncText(prevDispLen)")
+        && blockListQml.includes("firstDel.forceSyncText(prefixTxt.length + inserted.length)"),
+        "Fusiones Delete/Ctrl+Delete/Backspace/replace deben sincronizar el TextEdit afectado");
+    assert.ok(blockListQml.includes("property bool _needsResync: false")
+        && blockListQml.includes('lineEdit._lastAppliedHtml = "";\n                        lineEdit._needsResync = true;')
+        && blockListQml.includes("(lineEdit._needsResync || lineEdit._lastAppliedHtml !== baseT)"),
+        "onTextChanged debe invalidar _lastAppliedHtml/_needsResync y onActiveFocusChanged debe respetarlo");
+
+    for (const [name, src] of [["BlockParagraph.qml", blockParaQml], ["BlockHeading.qml", blockHeadQml], ["BlockQuote.qml", blockQuoteQml]]) {
+        assert.ok(src.includes('if (root._syncingModel || (root.editor && root.editor.readOnly)) return;\n            root._lastAppliedHtml = "";'),
+            `${name}: onTextChanged debe invalidar root._lastAppliedHtml`);
+    }
 });
 
 console.log(`\n========================================`);

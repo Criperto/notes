@@ -27,6 +27,11 @@
   </screenshots>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.3.1" date="2026-11-14">
+      <description>
+        <p>Hotfix: corrige la desincronización visual al dividir ítems de lista con Enter sin formato activo (eliminando texto duplicado al final del ítem anterior) e invalida correctamente la caché HTML tras ediciones en bloques de texto, encabezados, citas y listas.</p>
+      </description>
+    </release>
     <release version="0.3.0" date="2026-11-14">
       <description>
         <p>Detección y sincronización completa con CripertoShell (~/.config/cripertoshell), hot-reload vía FileWatch para temas Qt (qt6ct, qt5ct, Kvantum, kdeglobals) y Pywal standalone (colors.json), optimizaciones de CPU/RAM/GPU y correcciones de estabilidad.</p>

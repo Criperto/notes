@@ -371,6 +371,20 @@ Item {
         root._notifyRawChanged();
     }
 
+    function _mergeWithNextItem(itemIdx, targetDel, cursorPos) {
+        if (!root._itemsRawArray || itemIdx < 0 || itemIdx >= itemsModel.count - 1 || itemIdx + 1 >= root._itemsRawArray.length) return false;
+        var nextItem = root._itemsRawArray[itemIdx + 1];
+        var curItem = root._itemsRawArray[itemIdx];
+        curItem.text = (curItem.text || "") + (nextItem.text || "");
+        itemsModel.setProperty(itemIdx, "text", curItem.text);
+        if (targetDel && typeof targetDel.forceSyncText === "function") {
+            targetDel.forceSyncText(cursorPos);
+        }
+        root._removeItem(itemIdx + 1);
+        root._notifyRawChanged();
+        return true;
+    }
+
     function _focusItem(idx, pos) {
         if (idx < 0 || root._isDestroyed) return;
         var attempts = 0;
@@ -473,6 +487,10 @@ Item {
         if (itemIdx < itemsModel.count) {
             itemsModel.setProperty(itemIdx, "text", textBefore);
         }
+        var curDel = (itemIdx < itemsRepeater.count) ? itemsRepeater.itemAt(itemIdx) : null;
+        if (curDel && typeof curDel.forceSyncText === "function") {
+            curDel.forceSyncText(-1, true);
+        }
 
         var nextMarker = curItem.marker;
         var isOrdered = (nextMarker.indexOf(".") !== -1 || nextMarker.indexOf(")") !== -1);
@@ -527,6 +545,10 @@ Item {
                 curH.text = curSplit.content;
                 if (itemIdx < itemsModel.count) {
                     itemsModel.setProperty(itemIdx, "text", curSplit.content);
+                }
+                var curDelH = (itemIdx < itemsRepeater.count) ? itemsRepeater.itemAt(itemIdx) : null;
+                if (curDelH && typeof curDelH.forceSyncText === "function") {
+                    curDelH.forceSyncText(0);
                 }
                 root._notifyRawChanged();
                 Qt.callLater(() => {
@@ -585,6 +607,10 @@ Item {
                 prevItem.text += dispTxt;
                 if (itemIdx - 1 < itemsModel.count) {
                     itemsModel.setProperty(itemIdx - 1, "text", prevItem.text);
+                }
+                var prevDel = (itemIdx - 1 < itemsRepeater.count) ? itemsRepeater.itemAt(itemIdx - 1) : null;
+                if (prevDel && typeof prevDel.forceSyncText === "function") {
+                    prevDel.forceSyncText(prevDispLen);
                 }
                 root._removeItem(itemIdx);
                 Qt.callLater(() => {
@@ -806,6 +832,9 @@ Item {
             itemsModel.remove(rg.from + 1);
         }
         itemsModel.setProperty(rg.from, "text", root._itemsRawArray[rg.from].text);
+        if (typeof firstDel.forceSyncText === "function") {
+            firstDel.forceSyncText(prefixTxt.length + inserted.length);
+        }
 
         _renumberAllOrdered();
         root._loadingModel = false;
@@ -1295,26 +1324,39 @@ Item {
                     return base;
                 }
 
-                function syncText() {
+                function _syncTextImpl(force, targetCursorPos, asBlurred) {
                     if (!lineEdit) return;
-                    if (root.isEditing && root.activeItemIndex === itemRow.index && lineEdit.activeFocus) {
+                    var isCurrentlyFocused = (root.isEditing && root.activeItemIndex === itemRow.index && lineEdit.activeFocus);
+                    if (!force && isCurrentlyFocused) {
                         return;
                     }
                     var rawT = (itemRow.index >= 0 && itemRow.index < root._itemsRawArray.length)
                         ? (root._itemsRawArray[itemRow.index].text || "")
                         : (itemRow.text || "");
-                    var baseT = itemRow.baseDisplayText(rawT);
-                    if (lineEdit.text !== baseT) {
+                    var dispHtml = (force && isCurrentlyFocused && !asBlurred)
+                        ? itemRow.liveDisplayText(rawT)
+                        : itemRow.baseDisplayText(rawT);
+                    if (force || lineEdit.text !== dispHtml) {
                         var s = lineEdit.selectionStart;
                         var e = lineEdit.selectionEnd;
+                        var curP = (typeof targetCursorPos === "number" && targetCursorPos >= 0) ? targetCursorPos : lineEdit.cursorPosition;
                         lineEdit._syncingLocal = true;
-                        lineEdit._lastAppliedHtml = baseT;
-                        lineEdit.text = baseT;
-                        if (s !== e && lineEdit.length > 0) {
+                        lineEdit._lastAppliedHtml = dispHtml;
+                        lineEdit._needsResync = false;
+                        lineEdit.text = dispHtml;
+                        if (typeof targetCursorPos === "number" && targetCursorPos >= 0) {
+                            lineEdit.cursorPosition = Math.min(lineEdit.length, curP);
+                        } else if (s !== e && lineEdit.length > 0 && !force) {
                             lineEdit.select(Math.min(lineEdit.length, s), Math.min(lineEdit.length, e));
                         }
                         lineEdit._syncingLocal = false;
                     }
+                }
+                function syncText() {
+                    _syncTextImpl(false, -1, false);
+                }
+                function forceSyncText(targetCursorPos, asBlurred) {
+                    _syncTextImpl(true, targetCursorPos, asBlurred);
                 }
                 // Texto vivo del editor: contenido sin `##`, con tamaño de encabezado.
                 function liveDisplayText(raw) {
@@ -1658,6 +1700,7 @@ Item {
                     }
 
                     property bool _syncingLocal: false
+                    property bool _needsResync: false
 
                     onActiveFocusChanged: {
                         if (activeFocus) {
@@ -1673,9 +1716,10 @@ Item {
                             if (itemRow.index >= 0 && itemRow.index < root._itemsRawArray.length) {
                                 var rawT = root._itemsRawArray[itemRow.index].text || "";
                                 var baseT = itemRow.baseDisplayText(rawT);
-                                if (lineEdit._lastAppliedHtml !== baseT && lineEdit.text !== baseT) {
+                                if ((lineEdit._needsResync || lineEdit._lastAppliedHtml !== baseT) && lineEdit.text !== baseT) {
                                     lineEdit._syncingLocal = true;
                                     lineEdit._lastAppliedHtml = baseT;
+                                    lineEdit._needsResync = false;
                                     lineEdit.text = baseT;
                                     lineEdit._syncingLocal = false;
                                 }
@@ -1685,6 +1729,8 @@ Item {
 
                     onTextChanged: {
                         if (_syncingLocal || root._loadingModel || (root.editor && root.editor.readOnly)) return;
+                        lineEdit._lastAppliedHtml = "";
+                        lineEdit._needsResync = true;
                         itemSpellCheckTimer.restart();
                         if (itemRow.index >= 0 && itemRow.index < root._itemsRawArray.length) {
                             // F21: el TextEdit trae CONTENIDO (display); se recompone el crudo.
@@ -1706,8 +1752,11 @@ Item {
                                     itemsModel.setProperty(idxNow, "text", it.text);
                                 }
 
+                                var shHtml = itemRow.liveDisplayText(it.text);
                                 _syncingLocal = true;
-                                lineEdit.text = itemRow.liveDisplayText(it.text);
+                                lineEdit._lastAppliedHtml = shHtml;
+                                lineEdit._needsResync = false;
+                                lineEdit.text = shHtml;
                                 lineEdit.cursorPosition = lineEdit.length;
                                 _syncingLocal = false;
                                 lineEdit.forceActiveFocus();
@@ -1735,8 +1784,11 @@ Item {
                                         itemsModel.setProperty(idxNow, "text", itOrd.text);
                                     }
 
+                                    var ordHtml = itemRow.liveDisplayText(itOrd.text);
                                     _syncingLocal = true;
-                                    lineEdit.text = itemRow.liveDisplayText(itOrd.text);
+                                    lineEdit._lastAppliedHtml = ordHtml;
+                                    lineEdit._needsResync = false;
+                                    lineEdit.text = ordHtml;
                                     lineEdit.cursorPosition = 0;
                                     _syncingLocal = false;
                                     lineEdit.forceActiveFocus();
@@ -1795,6 +1847,7 @@ Item {
                         var newFormatted = itemRow.liveDisplayText(itemRow.displayToRaw(dispRaw));
                         if (lineEdit._lastAppliedHtml !== newFormatted) {
                             lineEdit._lastAppliedHtml = newFormatted;
+                            lineEdit._needsResync = false;
                             var s = lineEdit.selectionStart;
                             var e = lineEdit.selectionEnd;
                             var curPos = lineEdit.cursorPosition;
@@ -1876,12 +1929,7 @@ Item {
                         }
                         if (lineEdit.cursorPosition === lineEdit.length) {
                             if (itemRow.index < itemsModel.count - 1) {
-                                var nextItem = root._itemsRawArray[itemRow.index + 1];
-                                var curItem = root._itemsRawArray[itemRow.index];
-                                curItem.text = (curItem.text || "") + (nextItem.text || "");
-                                itemsModel.setProperty(itemRow.index, "text", curItem.text);
-                                root._removeItem(itemRow.index + 1);
-                                root._notifyRawChanged();
+                                root._mergeWithNextItem(itemRow.index, itemRow, lineEdit.cursorPosition);
                                 event.accepted = true;
                                 return;
                             } else if (itemRow.index === itemsModel.count - 1 && root.editor) {
@@ -2064,12 +2112,7 @@ Item {
                                 lineEdit.remove(lineEdit.cursorPosition, nextWD);
                             } else if (lineEdit.cursorPosition === lineEdit.length) {
                                 if (itemRow.index < itemsModel.count - 1) {
-                                    var nextItem = root._itemsRawArray[itemRow.index + 1];
-                                    var curItem = root._itemsRawArray[itemRow.index];
-                                    curItem.text = (curItem.text || "") + (nextItem.text || "");
-                                    itemsModel.setProperty(itemRow.index, "text", curItem.text);
-                                    root._removeItem(itemRow.index + 1);
-                                    root._notifyRawChanged();
+                                    root._mergeWithNextItem(itemRow.index, itemRow, lineEdit.cursorPosition);
                                 } else if (itemRow.index === itemsModel.count - 1 && rEditor) {
                                     rEditor.handleBlockDeleteAtEnd(root.blockData.bid);
                                 }

@@ -3,7 +3,7 @@
 > Editor moderno y nativo de notas en Markdown con edición visual por bloques, diagramas Mermaid enriquecidos, soporte multilingüe y rendimiento ultra-ligero.
 
 ![License: GPL-3.0-or-later](https://img.shields.io/badge/license-GPL--3.0--or--later-blue.svg)
-![Version: 0.3.0](https://img.shields.io/badge/version-0.3.0-orange.svg)
+![Version: 0.3.1](https://img.shields.io/badge/version-0.3.1-orange.svg)
 ![Platform: Linux / Wayland](https://img.shields.io/badge/platform-Wayland-purple.svg)
 
 ---
@@ -97,24 +97,24 @@ En cada [Release de GitHub](https://github.com/Criperto/notes/releases) se publi
 
 ### Arch Linux (`.pkg.tar.zst`)
 ```bash
-sudo pacman -U criperto-notes-0.3.0-1-x86_64.pkg.tar.zst
+sudo pacman -U criperto-notes-0.3.1-1-x86_64.pkg.tar.zst
 ```
 Archivos PKGBUILD disponibles en [`packaging/arch/PKGBUILD`](packaging/arch/PKGBUILD) y [`packaging/arch/notas-git/PKGBUILD`](packaging/arch/notas-git/PKGBUILD).
 
 ### Debian / Ubuntu (`.deb`)
 ```bash
-sudo dpkg -i criperto-notes_0.3.0_amd64.deb
+sudo dpkg -i criperto-notes_0.3.1_amd64.deb
 ```
 
 ### Fedora / RHEL (`.rpm`)
 ```bash
-sudo dnf install criperto-notes-0.3.0-1.x86_64.rpm
+sudo dnf install criperto-notes-0.3.1-1.x86_64.rpm
 ```
 
 ### AppImage autónomo
 ```bash
-chmod +x criperto-notes-0.3.0-x86_64.AppImage
-./criperto-notes-0.3.0-x86_64.AppImage
+chmod +x criperto-notes-0.3.1-x86_64.AppImage
+./criperto-notes-0.3.1-x86_64.AppImage
 ```
 
 ### Flatpak
