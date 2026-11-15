@@ -27,6 +27,11 @@
   </screenshots>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.3.2" date="2026-11-14">
+      <description>
+        <p>Mejoras de selección de texto (scroll con rueda y auto-scroll suave proporcional a la cercanía al borde vertical), posicionamiento del menú contextual anclado a 3px de las 4 esquinas con pivote dinámico según espacio y deselección correcta al hacer click sobre otra línea.</p>
+      </description>
+    </release>
     <release version="0.3.1" date="2026-11-14">
       <description>
         <p>Hotfix: corrige la desincronización visual al dividir ítems de lista con Enter sin formato activo (eliminando texto duplicado al final del ítem anterior) e invalida correctamente la caché HTML tras ediciones en bloques de texto, encabezados, citas y listas.</p>

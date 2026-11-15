@@ -5991,9 +5991,9 @@ runTest("F143: Regresiones de CripertoShell, hot-reload Qt/Pywal, ciclo de borra
         "SpellService debe resolver callbacks en cola si el proceso hunspell termina");
 
     // 6. Consistencia en README, HYPRLAND y manifiesto Flatpak
-    assert.ok(!readmeMd.includes('Italiano') && !readmeMd.includes('0.1.13') && !readmeMd.includes('0.2.10') && readmeMd.includes('0.3.1')
+    assert.ok(!readmeMd.includes('Italiano') && !readmeMd.includes('0.1.13') && !readmeMd.includes('0.2.10') && readmeMd.includes('0.3.2')
         && readmeMd.includes('qt6-tools') && readmeMd.includes('cargo test'),
-        "README.md debe reflejar versión 0.3.1, idiomas reales, qt6-tools y cargo test");
+        "README.md debe reflejar versión 0.3.2, idiomas reales, qt6-tools y cargo test");
     assert.ok(!hyprDoc.includes('notas toggle') && hyprDoc.includes('criperto-notes toggle'),
         "docs/HYPRLAND.md debe referenciar criperto-notes toggle");
     assert.ok(flatpakYml.includes('--filesystem=xdg-config/cripertoshell:ro'),
@@ -6024,6 +6024,114 @@ runTest("F144: BlockList syncText e invalidación _lastAppliedHtml tras split/ed
         assert.ok(src.includes('if (root._syncingModel || (root.editor && root.editor.readOnly)) return;\n            root._lastAppliedHtml = "";'),
             `${name}: onTextChanged debe invalidar root._lastAppliedHtml`);
     }
+});
+
+runTest("F145: Scroll con rueda y auto-scroll suave por cercanía al borde al seleccionar texto", () => {
+    const readQ = (f) => fs.readFileSync(path.resolve(__dirname, '../qml', f), 'utf8');
+    const editorQml = readQ("BlockEditor.qml");
+
+    assert.ok(editorQml.includes("id: selectionWheelHandler")
+        && editorQml.includes("enabled: root._pointerDragActive || root.isDraggingSelection")
+        && editorQml.includes("_applyDragSelectionAtViewport(root._dragViewportX, root._dragViewportY)"),
+        "BlockEditor debe permitir scroll con rueda/touchpad durante selección y re-extender selección");
+    assert.ok(editorQml.includes("id: selectionAutoScrollTimer")
+        && editorQml.includes("_edgeScrollZone")
+        && editorQml.includes("_inAutoScrollEdge")
+        && editorQml.includes("Math.pow(Math.min(1.0, proxTop)")
+        && editorQml.includes("Math.pow(Math.min(1.0, proxBot)"),
+        "BlockEditor debe ejecutar auto-scroll suave proporcional a la distancia al borde vertical");
+    assert.ok(editorQml.includes("function handleLocalOrCrossDrag(")
+        && editorQml.includes("function endLocalSelectionDrag("),
+        "BlockEditor debe exponer handleLocalOrCrossDrag y endLocalSelectionDrag unificados");
+
+    for (const f of ["BlockParagraph.qml", "BlockHeading.qml", "BlockQuote.qml", "BlockList.qml", "BlockCode.qml"]) {
+        const src = readQ(f);
+        assert.ok(src.includes("handleLocalOrCrossDrag(") && src.includes("endLocalSelectionDrag()"),
+            `${f} debe delegar el arrastre local/cruzado a handleLocalOrCrossDrag y limpiar con endLocalSelectionDrag`);
+    }
+});
+
+runTest("F146: ContextMenu pivote en 4 esquinas, inversión por falta de espacio y distancia <= 5px al cursor", () => {
+    const cmQml = fs.readFileSync(path.resolve(__dirname, '../qml/ContextMenu.qml'), 'utf8');
+
+    assert.ok(cmQml.includes("readonly property real cornerGap: 3")
+        && cmQml.includes("function _repositionFromAnchor()")
+        && cmQml.includes("onTargetMenuHeightChanged:")
+        && cmQml.includes("menuWindow._dynamicMaxMenuHeight"),
+        "ContextMenu debe calcular posición desde _anchorX/_anchorY con cornerGap <= 5px y reajustar tras cambios de altura");
+    assert.ok(cmQml.includes("Item.BottomRight")
+        && cmQml.includes("Item.TopRight")
+        && cmQml.includes("Item.BottomLeft")
+        && cmQml.includes("Item.TopLeft"),
+        "ContextMenu debe rotar el transformOrigin dinámicamente según la esquina pivote");
+
+    // Verificación matemática de los 4 cuadrantes y distancia euclidiana <= 5px a la esquina más cercana
+    const computePlacement = (cx, cy, winW, winH, menuW, naturalH, gap = 3) => {
+        const availRight = winW - (cx + gap);
+        const availLeft = cx - gap;
+        const flipX = (availRight < menuW) && (availLeft >= menuW || availLeft > availRight);
+
+        const availDown = winH - (cy + gap);
+        const availUp = cy - gap;
+        const flipY = (availDown < naturalH) && (availUp >= naturalH || availUp > availDown);
+
+        const dynMax = Math.max(120, Math.min(520, (flipY ? availUp : availDown) - 4));
+        const menuH = Math.min(520, dynMax, naturalH);
+        const posX = flipX ? (cx - gap - menuW) : (cx + gap);
+        const posY = flipY ? (cy - gap - menuH) : (cy + gap);
+
+        const corners = [
+            [posX, posY],
+            [posX + menuW, posY],
+            [posX, posY + menuH],
+            [posX + menuW, posY + menuH],
+        ];
+        const minCornerDist = Math.min(...corners.map(([x, y]) => Math.hypot(x - cx, y - cy)));
+        return { flipX, flipY, posX, posY, menuH, minCornerDist };
+    };
+
+    const qBR = computePlacement(100, 100, 1080, 760, 272, 320);
+    assert.strictEqual(qBR.flipX, false);
+    assert.strictEqual(qBR.flipY, false);
+    assert.ok(qBR.minCornerDist <= 5);
+
+    const qBL = computePlacement(950, 100, 1080, 760, 272, 320);
+    assert.strictEqual(qBL.flipX, true);
+    assert.strictEqual(qBL.flipY, false);
+    assert.ok(qBL.minCornerDist <= 5);
+
+    const qTR = computePlacement(100, 650, 1080, 760, 272, 320);
+    assert.strictEqual(qTR.flipX, false);
+    assert.strictEqual(qTR.flipY, true);
+    assert.ok(qTR.minCornerDist <= 5);
+
+    const qTL = computePlacement(950, 650, 1080, 760, 272, 320);
+    assert.strictEqual(qTL.flipX, true);
+    assert.strictEqual(qTL.flipY, true);
+    assert.ok(qTL.minCornerDist <= 5);
+});
+
+runTest("F147: Click en otra línea limpia selección previa y mueve el cursor del texto en todos los bloques", () => {
+    const readQ = (f) => fs.readFileSync(path.resolve(__dirname, '../qml', f), 'utf8');
+    const editorQml = readQ("BlockEditor.qml");
+
+    assert.ok(editorQml.includes("root.clearAllSelections();\n            root.clearBlockSelection();"),
+        "emptyAreaMa.onPressed debe limpiar selecciones previas incluyendo selección de un solo bloque");
+
+    for (const f of ["BlockList.qml", "BlockParagraph.qml", "BlockHeading.qml", "BlockQuote.qml"]) {
+        const src = readQ(f);
+        assert.ok(src.includes("property bool didDragSelect: false")
+            && src.includes("didDragSelect = true;")
+            && src.includes("else if (!isCrossDragging && !didDragSelect"),
+            `${f} debe distinguir click simple vs arrastre con didDragSelect y mover el cursor en onReleased`);
+        assert.ok(src.includes(".deselect()") && src.includes(".cursorPosition ="),
+            `${f} debe deseleccionar texto previo y posicionar cursorPosition al hacer click`);
+    }
+
+    const codeSrc = readQ("BlockCode.qml");
+    assert.ok(codeSrc.includes("if (editInput && editInput.selectionStart !== editInput.selectionEnd)")
+        && codeSrc.includes("if (previewInput.selectionStart !== previewInput.selectionEnd)"),
+        "BlockCode.qml debe limpiar selecciones previas al hacer click");
 });
 
 console.log(`\n========================================`);

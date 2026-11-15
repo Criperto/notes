@@ -470,6 +470,7 @@ Rectangle {
             }
 
             MouseArea {
+                id: previewMa
                 anchors.fill: parent
                 acceptedButtons: Qt.LeftButton | Qt.RightButton
                 cursorShape: Qt.IBeamCursor
@@ -498,9 +499,14 @@ Rectangle {
                     startX = mouse.x;
                     startY = mouse.y;
                     anchorPos = previewInput.positionAt(mouse.x, mouse.y);
+                    if (editInput && editInput.selectionStart !== editInput.selectionEnd) {
+                        editInput.deselect();
+                    }
+                    if (previewInput.selectionStart !== previewInput.selectionEnd) {
+                        previewInput.deselect();
+                    }
                     if (root.inPreviewMode) {
                         previewInput.forceActiveFocus();
-                        previewInput.deselect();
                         if (anchorPos >= 0 && anchorPos <= previewInput.length) {
                             previewInput.cursorPosition = anchorPos;
                         }
@@ -509,10 +515,9 @@ Rectangle {
 
                 onPositionChanged: (mouse) => {
                     if (!dragging || anchorPos < 0) return;
-                    if (!isCrossDragging && Math.abs(mouse.x - startX) < 3 && Math.abs(mouse.y - startY) < 3) return;
+                    if (!isCrossDragging && !(root.editor && root.editor.isDraggingSelection) && Math.abs(mouse.x - startX) < 3 && Math.abs(mouse.y - startY) < 3) return;
 
-                    var ptRoot = mapToItem(root, mouse.x, mouse.y);
-                    if (ptRoot.y < -4 || ptRoot.y > root.height + 4 || isCrossDragging) {
+                    if (isCrossDragging || (root.editor && root.editor.isDraggingSelection)) {
                         if (!isCrossDragging) {
                             isCrossDragging = true;
                         }
@@ -533,7 +538,23 @@ Rectangle {
                                 codeFlickable.contentX = Math.max(0, codeFlickable.contentX - 16);
                             }
                         }
+                        if (root.editor && typeof root.editor.handleLocalOrCrossDrag === "function") {
+                            var ptView = root.editor.mapFromItem(previewMa, mouse.x, mouse.y);
+                            if (root.editor.handleLocalOrCrossDrag(previewMa, root.blockData.bid, previewInput, anchorPos, ptView.x, ptView.y, 4, root)) {
+                                isCrossDragging = true;
+                            }
+                            return;
+                        }
                         previewInput.select(anchorPos, previewInput.positionAt(mouse.x, mouse.y));
+                    } else {
+                        var ptRoot = mapToItem(root, mouse.x, mouse.y);
+                        if (ptRoot.y < -4 || ptRoot.y > root.height + 4) {
+                            isCrossDragging = true;
+                            if (root.editor && typeof root.editor.handleCrossBlockDrag === "function") {
+                                var ptC = mapToItem(root.editor.contentItem, mouse.x, mouse.y);
+                                root.editor.handleCrossBlockDrag(root.blockData.bid, ptC.y, ptC.x);
+                            }
+                        }
                     }
                 }
 
@@ -554,6 +575,9 @@ Rectangle {
                             root.editor.endCrossBlockDrag();
                         }
                     }
+                    if (root.editor && typeof root.editor.endLocalSelectionDrag === "function") {
+                        root.editor.endLocalSelectionDrag();
+                    }
                 }
 
                 onCanceled: {
@@ -562,6 +586,9 @@ Rectangle {
                     isCrossDragging = false;
                     if (root.editor && typeof root.editor.endCrossBlockDrag === "function") {
                         root.editor.endCrossBlockDrag();
+                    }
+                    if (root.editor && typeof root.editor.endLocalSelectionDrag === "function") {
+                        root.editor.endLocalSelectionDrag();
                     }
                 }
 

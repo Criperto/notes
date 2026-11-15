@@ -558,6 +558,107 @@ Flickable {
     }
 
     property bool isDraggingSelection: false
+    property bool _pointerDragActive: false
+    property real _dragViewportX: -1
+    property real _dragViewportY: -1
+    property int _dragAnchorBid: -1
+    property var _activeLocalDragCallback: null
+    property double _autoScrollLastMs: 0
+    readonly property real _edgeScrollZone: Math.min(72, Math.max(44, root.height * 0.12))
+    readonly property bool _inAutoScrollEdge: root._pointerDragActive && root.height > 0 && (
+        (root._dragViewportY < root._edgeScrollZone && root.contentY > 0)
+        || (root._dragViewportY > (root.height - root._edgeScrollZone) && root.contentY < Math.max(0, root.contentHeight - root.height))
+    )
+
+    function _applyDragSelectionAtViewport(vx, vy) {
+        if (!root || root._isDestroyed || !root._pointerDragActive) return;
+        if (root._activeLocalDragCallback && !root.isDraggingSelection) {
+            root._activeLocalDragCallback(vx, vy);
+            return;
+        }
+        var contentXPos = vx + root.contentX;
+        var contentYPos = vy + root.contentY;
+        var anchor = (root.selAnchorBid !== -1) ? root.selAnchorBid : root._dragAnchorBid;
+        if (anchor !== -1) {
+            root.handleCrossBlockDrag(anchor, contentYPos, contentXPos);
+        }
+    }
+
+    function handleLocalOrCrossDrag(srcItem, blockBid, editInput, anchorPos, vx, vy, yMargin, boundsItem) {
+        if (!root || root._isDestroyed || !srcItem || !editInput || anchorPos < 0) return false;
+        try {
+            var bItem = boundsItem || srcItem;
+            var ptBounds = bItem.mapFromItem(root, vx, vy);
+            var margin = (typeof yMargin === "number") ? yMargin : 4;
+            if (ptBounds.y < -margin || ptBounds.y > bItem.height + margin) {
+                var ptInContent = root.contentItem.mapFromItem(root, vx, vy);
+                root.handleCrossBlockDrag(blockBid, ptInContent.y, ptInContent.x);
+                return true;
+            }
+            var ptLocal = srcItem.mapFromItem(root, vx, vy);
+            root._pointerDragActive = true;
+            root._dragAnchorBid = blockBid;
+            root._dragViewportX = vx;
+            root._dragViewportY = vy;
+            root._activeLocalDragCallback = function(nvx, nvy) {
+                return root.handleLocalOrCrossDrag(srcItem, blockBid, editInput, anchorPos, nvx, nvy, margin, boundsItem);
+            };
+            var ptEdit = srcItem.mapToItem(editInput, ptLocal.x, ptLocal.y);
+            editInput.select(anchorPos, editInput.positionAt(ptEdit.x, ptEdit.y));
+        } catch (e) {
+            root.endLocalSelectionDrag();
+        }
+        return false;
+    }
+
+    function endLocalSelectionDrag() {
+        root._activeLocalDragCallback = null;
+        if (!root.isDraggingSelection) {
+            root._pointerDragActive = false;
+            root._dragAnchorBid = -1;
+        }
+    }
+
+    Timer {
+        id: selectionAutoScrollTimer
+        interval: 16
+        repeat: true
+        running: root._inAutoScrollEdge
+        onRunningChanged: {
+            if (running) {
+                root._autoScrollLastMs = Date.now();
+            }
+        }
+        onTriggered: {
+            if (!root || root._isDestroyed || !root._pointerDragActive) return;
+            var now = Date.now();
+            var dt = (root._autoScrollLastMs > 0) ? Math.min(48, Math.max(8, now - root._autoScrollLastMs)) : 16;
+            root._autoScrollLastMs = now;
+
+            var vy = root._dragViewportY;
+            var h = root.height;
+            var zone = root._edgeScrollZone;
+            if (h <= 0 || zone <= 0) return;
+
+            var speedPerTick = 0;
+            if (vy < zone) {
+                var proxTop = Math.min(2.2, Math.max(0, (zone - vy) / zone));
+                speedPerTick = -(1.5 + 16.5 * Math.pow(Math.min(1.0, proxTop), 1.6) + Math.max(0, proxTop - 1.0) * 14.0);
+            } else if (vy > h - zone) {
+                var proxBot = Math.min(2.2, Math.max(0, (vy - (h - zone)) / zone));
+                speedPerTick = (1.5 + 16.5 * Math.pow(Math.min(1.0, proxBot), 1.6) + Math.max(0, proxBot - 1.0) * 14.0);
+            }
+            if (speedPerTick === 0) return;
+
+            var deltaY = speedPerTick * (dt / 16.0);
+            var maxScroll = Math.max(0, root.contentHeight - root.height);
+            var nextY = Math.max(0, Math.min(maxScroll, root.contentY + deltaY));
+            if (Math.abs(nextY - root.contentY) > 0.01) {
+                root.contentY = nextY;
+                root._applyDragSelectionAtViewport(root._dragViewportX, root._dragViewportY);
+            }
+        }
+    }
 
     function startCrossBlockDrag(anchorBid, anchorPos) {
         root.clearBlockSelection();
@@ -598,8 +699,14 @@ Flickable {
         if (root.selAnchorBid === -1) root.selAnchorBid = anchorBid;
         root.isDraggingSelection = true;
         root.interactive = false;
+        var resolvedX = targetX !== undefined ? targetX : (blocksColumn.x + blocksColumn.width / 2);
+        root._pointerDragActive = true;
+        root._dragAnchorBid = root.selAnchorBid;
+        root._dragViewportX = resolvedX - root.contentX;
+        root._dragViewportY = targetY - root.contentY;
+        root._activeLocalDragCallback = null;
 
-        var targetInfo = root._findBlockAndCharNear(targetX !== undefined ? targetX : (blocksColumn.x + blocksColumn.width / 2), targetY);
+        var targetInfo = root._findBlockAndCharNear(resolvedX, targetY);
         var curBid = targetInfo.bid;
         var curPos = targetInfo.pos;
         if (curBid === -1) return;
@@ -696,6 +803,9 @@ Flickable {
 
     function endCrossBlockDrag() {
         root.isDraggingSelection = false;
+        root._pointerDragActive = false;
+        root._dragAnchorBid = -1;
+        root._activeLocalDragCallback = null;
         root.interactive = true;
         var anchorIdx = root._findBlockIndex(root.selAnchorBid);
         var curIdx = root._findBlockIndex(root.selCurrentBid);
@@ -1350,6 +1460,49 @@ Flickable {
             } else {
                 event.accepted = false;
             }
+        }
+    }
+
+    // Permitir scroll con rueda/touchpad mientras se arrastra una selección de texto
+    WheelHandler {
+        id: selectionWheelHandler
+        target: null
+        enabled: root._pointerDragActive || root.isDraggingSelection
+        acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+        acceptedModifiers: Qt.NoModifier
+        grabPermissions: PointerHandler.CanTakeOverFromItems | PointerHandler.CanTakeOverFromHandlersOfDifferentType | PointerHandler.ApprovesTakeOverByAnything
+        onWheel: (event) => {
+            if (event.modifiers & Qt.ControlModifier) {
+                event.accepted = false;
+                return;
+            }
+            if (!root._pointerDragActive && root.interactive) {
+                event.accepted = false;
+                return;
+            }
+            var dy = 0;
+            if (event.pixelDelta && Math.abs(event.pixelDelta.y) > 0) {
+                dy = -event.pixelDelta.y;
+            } else if (event.angleDelta && event.angleDelta.y !== 0) {
+                dy = -(event.angleDelta.y / 120.0) * 72;
+            }
+            if (dy === 0) {
+                event.accepted = false;
+                return;
+            }
+            var maxScroll = Math.max(0, root.contentHeight - root.height);
+            var nextY = Math.max(0, Math.min(maxScroll, root.contentY + dy));
+            if (Math.abs(nextY - root.contentY) > 0.01) {
+                root.contentY = nextY;
+            }
+            if (root._pointerDragActive) {
+                if (typeof event.x === "number" && typeof event.y === "number") {
+                    root._dragViewportX = event.x;
+                    root._dragViewportY = event.y;
+                }
+                root._applyDragSelectionAtViewport(root._dragViewportX, root._dragViewportY);
+            }
+            event.accepted = true;
         }
     }
 
@@ -4024,6 +4177,7 @@ Flickable {
         preventStealing: selecting
 
         onPressed: (mouse) => {
+            root.clearAllSelections();
             root.clearBlockSelection();
             startY = mouse.y;
             lastMouseY = mouse.y;
@@ -4053,6 +4207,7 @@ Flickable {
         onReleased: (mouse) => {
             root.interactive = true;
             if (!selecting) {
+                root.endLocalSelectionDrag();
                 if (!root.readOnly) {
                     root._focusFromEmptyArea(mouse.x, mouse.y);
                 }
@@ -4065,24 +4220,7 @@ Flickable {
         onCanceled: {
             root.interactive = true;
             selecting = false;
-        }
-
-        Timer {
-            id: selAutoScrollTimer
-            interval: 16
-            repeat: true
-            running: emptyAreaMa.selecting
-            onTriggered: {
-                var viewTop = root.contentY;
-                var viewBottom = root.contentY + root.height;
-                if (emptyAreaMa.lastMouseY < viewTop + 30) {
-                    root.contentY = Math.max(0, root.contentY - 14);
-                    root.handleCrossBlockDrag(root.selAnchorBid, emptyAreaMa.lastMouseY, blocksColumn.x + blocksColumn.width / 2);
-                } else if (emptyAreaMa.lastMouseY > viewBottom - 30) {
-                    root.contentY = Math.min(Math.max(0, root.contentHeight - root.height), root.contentY + 14);
-                    root.handleCrossBlockDrag(root.selAnchorBid, emptyAreaMa.lastMouseY, blocksColumn.x + blocksColumn.width / 2);
-                }
-            }
+            root.endCrossBlockDrag();
         }
     }
 }

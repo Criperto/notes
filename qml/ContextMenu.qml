@@ -74,9 +74,18 @@ Window {
     }
 
     readonly property real shadowPadding: 14
+    readonly property real cornerGap: 3
     readonly property real maxMenuHeight: Math.min(520, (Screen.desktopAvailableHeight > 0) ? (Screen.desktopAvailableHeight - 80) : 520)
+    property real _dynamicMaxMenuHeight: maxMenuHeight
     readonly property real targetMenuWidth: 272
-    readonly property real targetMenuHeight: Math.min(maxMenuHeight, menuLayout.implicitHeight + 16)
+    readonly property real targetMenuHeight: Math.min(Math.min(maxMenuHeight, _dynamicMaxMenuHeight), menuLayout.implicitHeight + 16)
+
+    property bool _flipX: false
+    property bool _flipY: false
+    property real _anchorX: 120
+    property real _anchorY: 120
+    property real _anchorWinW: 1080
+    property real _anchorWinH: 760
 
     width: targetMenuWidth + shadowPadding * 2
     height: targetMenuHeight + shadowPadding * 2
@@ -340,26 +349,52 @@ Window {
         }
     }
 
-    function _applyCoordinates(targetInput, cx, cy) {
-        var win = (targetInput && targetInput.Window && targetInput.Window.window) ? targetInput.Window.window : null;
-        var winW = win ? win.width : 1080;
-        var winH = win ? win.height : 760;
+    onTargetMenuHeightChanged: {
+        if (menuWindow.visible && !menuWindow.isClosing && menuWindow.target) {
+            menuWindow._repositionFromAnchor();
+        }
+    }
+
+    function _repositionFromAnchor() {
+        var winW = menuWindow._anchorWinW > 0 ? menuWindow._anchorWinW : 1080;
+        var winH = menuWindow._anchorWinH > 0 ? menuWindow._anchorWinH : 760;
+        var cx = menuWindow._anchorX;
+        var cy = menuWindow._anchorY;
+        var gap = menuWindow.cornerGap;
 
         var menuW = menuWindow.targetMenuWidth;
+        var availRight = winW - (cx + gap);
+        var availLeft = cx - gap;
+        var flipX = (availRight < menuW) && (availLeft >= menuW || availLeft > availRight);
+
+        var naturalH = Math.min(menuWindow.maxMenuHeight, menuLayout.implicitHeight + 16);
+        var availDown = winH - (cy + gap);
+        var availUp = cy - gap;
+        var flipY = (availDown < naturalH) && (availUp >= naturalH || availUp > availDown);
+
+        var chosenVertSpace = flipY ? availUp : availDown;
+        menuWindow._dynamicMaxMenuHeight = Math.max(120, Math.min(menuWindow.maxMenuHeight, chosenVertSpace - 4));
         var menuH = menuWindow.targetMenuHeight;
 
-        var posX = cx;
-        var posY = cy;
+        menuWindow._flipX = flipX;
+        menuWindow._flipY = flipY;
 
-        if (posX + menuW > winW && (posX - menuW) >= 0) {
-            posX = posX - menuW;
-        }
-        if (posY + menuH > winH && (posY - menuH) >= 0) {
-            posY = posY - menuH;
-        }
+        var posX = flipX ? (cx - gap - menuW) : (cx + gap);
+        var posY = flipY ? (cy - gap - menuH) : (cy + gap);
 
         menuWindow.x = Math.round(posX - menuWindow.shadowPadding);
         menuWindow.y = Math.round(posY - menuWindow.shadowPadding);
+    }
+
+    function _applyCoordinates(targetInput, cx, cy) {
+        var win = (targetInput && targetInput.Window && targetInput.Window.window) ? targetInput.Window.window : null;
+        menuWindow._anchorWinW = (win && win.width > 0) ? win.width : 1080;
+        menuWindow._anchorWinH = (win && win.height > 0) ? win.height : 760;
+        menuWindow._anchorX = cx;
+        menuWindow._anchorY = cy;
+        menuWindow._dynamicMaxMenuHeight = menuWindow.maxMenuHeight;
+
+        menuWindow._repositionFromAnchor();
 
         if (!Theme.animationsEnabled || GamemodeService.gamemodeActive) {
             menuWindow.isExpanded = true;
@@ -368,6 +403,8 @@ Window {
             menuWindow.isExpanded = false;
             menuWindow.visible = true;
             Qt.callLater(function() {
+                if (!menuWindow || menuWindow.isClosing || !menuWindow.visible) return;
+                menuWindow._repositionFromAnchor();
                 menuWindow.isExpanded = true;
             });
         }
@@ -390,7 +427,12 @@ Window {
         radius: menuWindow.windowRadius
         opacity: menuWindow.isExpanded ? 1.0 : 0.0
         scale: menuWindow.isExpanded ? 1.0 : 0.88
-        transformOrigin: Item.TopLeft
+        transformOrigin: {
+            if (menuWindow._flipX && menuWindow._flipY) return Item.BottomRight;
+            if (menuWindow._flipX && !menuWindow._flipY) return Item.TopRight;
+            if (!menuWindow._flipX && menuWindow._flipY) return Item.BottomLeft;
+            return Item.TopLeft;
+        }
 
         Behavior on scale {
             enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive

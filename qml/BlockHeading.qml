@@ -460,6 +460,7 @@ Item {
         preventStealing: dragging
 
         property bool dragging: false
+        property bool didDragSelect: false
         property bool pressedOnLink: false
         property int anchorPos: -1
         property real startX: 0
@@ -486,22 +487,22 @@ Item {
                 root.editor.clearSelectionExcept(root.blockData.bid);
             }
             dragging = true;
+            didDragSelect = false;
             isCrossDragging = false;
             startX = mouse.x;
             startY = mouse.y;
             if (editInput.text === "") _syncTextFromModel();
             var ptEdit = mapToItem(editInput, mouse.x, mouse.y);
+            var clickPos = editInput.positionAt(ptEdit.x, ptEdit.y);
+            anchorPos = clickPos;
+            if (clickPos >= 0 && clickPos <= editInput.length) {
+                editInput.cursorPosition = clickPos;
+            }
+            if (editInput.selectionStart !== editInput.selectionEnd) {
+                editInput.deselect();
+            }
             if (root.isEditing) {
                 editInput.forceActiveFocus();
-                var clickPos = editInput.positionAt(ptEdit.x, ptEdit.y);
-                if (clickPos >= 0 && clickPos <= editInput.length) {
-                    editInput.cursorPosition = clickPos;
-                    anchorPos = clickPos;
-                } else {
-                    anchorPos = editInput.positionAt(ptEdit.x, ptEdit.y);
-                }
-            } else {
-                anchorPos = editInput.positionAt(ptEdit.x, ptEdit.y);
             }
             if (root.editor && root.blockData) {
                 root.editor.requestEditBlock(root.blockData.bid, { x: ptEdit.x, y: ptEdit.y });
@@ -513,10 +514,10 @@ Item {
 
         onPositionChanged: (mouse) => {
             if (!dragging || anchorPos < 0) return;
-            if (!isCrossDragging && Math.abs(mouse.x - startX) < 3 && Math.abs(mouse.y - startY) < 3) return;
+            if (!isCrossDragging && !(root.editor && root.editor.isDraggingSelection) && Math.abs(mouse.x - startX) < 3 && Math.abs(mouse.y - startY) < 3) return;
+            didDragSelect = true;
 
-            // Detectar si el arrastre se salió verticalmente de este bloque
-            if (mouse.y < -4 || mouse.y > height + 4 || isCrossDragging) {
+            if (isCrossDragging || (root.editor && root.editor.isDraggingSelection)) {
                 if (!isCrossDragging) {
                     isCrossDragging = true;
                 }
@@ -527,21 +528,37 @@ Item {
                 }
             }
 
+            if (root.editor && typeof root.editor.handleLocalOrCrossDrag === "function") {
+                var ptView = root.editor.mapFromItem(viewMa, mouse.x, mouse.y);
+                if (root.editor.handleLocalOrCrossDrag(viewMa, root.blockData.bid, editInput, anchorPos, ptView.x, ptView.y, 4)) {
+                    isCrossDragging = true;
+                }
+                return;
+            }
+
+            if (mouse.y < -4 || mouse.y > height + 4) {
+                isCrossDragging = true;
+                return;
+            }
             var ptEdit = mapToItem(editInput, mouse.x, mouse.y);
             editInput.select(anchorPos, editInput.positionAt(ptEdit.x, ptEdit.y));
         }
 
         onReleased: (mouse) => {
-            if (_doubleClickedRecently || (editInput && editInput.selectionStart !== editInput.selectionEnd)) {
+            if (_doubleClickedRecently) {
                 _doubleClickedRecently = false;
-            } else if (!isCrossDragging && Math.abs(mouse.x - startX) < 4 && Math.abs(mouse.y - startY) < 4) {
+            } else if (!isCrossDragging && !didDragSelect && editInput) {
                 var ptEditRel = mapToItem(editInput, mouse.x, mouse.y);
                 var posRel = editInput.positionAt(ptEditRel.x, ptEditRel.y);
                 if (posRel >= 0 && posRel <= editInput.length) {
                     editInput.cursorPosition = posRel;
                 }
+                if (editInput.selectionStart !== editInput.selectionEnd) {
+                    editInput.deselect();
+                }
             }
             dragging = false;
+            didDragSelect = false;
             anchorPos = -1;
             if (isCrossDragging || (root.editor && root.editor.isDraggingSelection)) {
                 isCrossDragging = false;
@@ -549,14 +566,21 @@ Item {
                     root.editor.endCrossBlockDrag();
                 }
             }
+            if (root.editor && typeof root.editor.endLocalSelectionDrag === "function") {
+                root.editor.endLocalSelectionDrag();
+            }
         }
 
         onCanceled: {
             dragging = false;
+            didDragSelect = false;
             anchorPos = -1;
             isCrossDragging = false;
             if (root.editor && typeof root.editor.endCrossBlockDrag === "function") {
                 root.editor.endCrossBlockDrag();
+            }
+            if (root.editor && typeof root.editor.endLocalSelectionDrag === "function") {
+                root.editor.endLocalSelectionDrag();
             }
         }
 
