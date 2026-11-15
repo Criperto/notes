@@ -43,6 +43,7 @@ const Hist = loadModule('History.js');
 const QP = loadModule('QuoteParser.js');
 const LH = loadModule('ListHeading.js');
 const SpellLogic = loadModule('SpellLogic.js');
+const CodeHelper = loadModule('CodeHelper.js');
 const MermaidParser = loadModule('MermaidParser.js');
 const MermaidShapes = loadModule('MermaidShapes.js');
 const MermaidLayout = loadModule('MermaidLayout.js');
@@ -6478,6 +6479,48 @@ runTest("F158: archivos no-md (.lua/.yaml/etc.) abren en texto plano y párrafos
         && modalQml.includes("readOnly: root.isPreviewMode")
         && modalQml.includes("visible: !root.isPreviewMode && !root.isPlainCode && opacity > 0.0"),
         "NoteEditorModal debe abrir archivos no-md en sourceCodeEditor readOnly en preview y sin barra Markdown");
+});
+
+runTest("F159: resaltado nativo QSyntaxHighlighter, numeración de líneas y Smart Indent/Pairs en código", () => {
+    assert.strictEqual(CodeHelper.inferLangFromFileName('/home/u/.config/hypr/monitors.lua'), 'lua');
+    assert.strictEqual(CodeHelper.inferLangFromFileName('script.py'), 'python');
+    assert.strictEqual(CodeHelper.inferLangFromFileName('Cargo.toml'), 'toml');
+    assert.strictEqual(CodeHelper.inferLangFromFileName('.bashrc'), 'bash');
+    assert.strictEqual(CodeHelper.inferLangFromFileName('README.md'), 'markdown');
+    assert.strictEqual(CodeHelper.inferLangFromFileName('notes.txt'), '');
+
+    assert.strictEqual(CodeHelper.lineCountOf('a\nb\nc'), 3);
+    assert.strictEqual(CodeHelper.currentLineNumber('a\nbc\ndef', 4), 2);
+
+    const enterKeep = CodeHelper.computeEnterIndent('  if x then\n    local a = 1', 27, 4);
+    assert.strictEqual(enterKeep.insertText, '\n    ', "Debe conservar indentación de la línea actual");
+    const enterParensSplit = CodeHelper.computeEnterIndent('  if x then\n    foo()', 20, 4);
+    assert.strictEqual(enterParensSplit.splitPair, true, "Enter entre () debe expandir con doble indentación");
+    const enterBlock = CodeHelper.computeEnterIndent('function f() {', 14, 4);
+    assert.strictEqual(enterBlock.insertText, '\n    ', "Debe aumentar indentación tras llave abierta");
+    const enterSplit = CodeHelper.computeEnterIndent('  {}', 3, 4);
+    assert.strictEqual(enterSplit.splitPair, true);
+    assert.strictEqual(enterSplit.insertText, '\n      \n  ', "Enter entre {} debe expandir bloque indentado");
+
+    const tabMulti = CodeHelper.applyTabIndent('a\nb\nc', 0, 5, false, 4);
+    assert.strictEqual(tabMulti.text, '    a\n    b\n    c');
+    const shiftSingle = CodeHelper.applyTabIndent('    foo', 4, 4, true, 4);
+    assert.strictEqual(shiftSingle.text, 'foo');
+
+    const codeQml = fs.readFileSync(path.resolve(__dirname, '../qml/BlockCode.qml'), 'utf8');
+    const modalQml = fs.readFileSync(path.resolve(__dirname, '../qml/NoteEditorModal.qml'), 'utf8');
+    const bridgeH = fs.readFileSync(path.resolve(__dirname, '../src/native/native_bridge.h'), 'utf8');
+    const bridgeCpp = fs.readFileSync(path.resolve(__dirname, '../src/native/native_bridge.cpp'), 'utf8');
+
+    assert.ok(bridgeH.includes("class CodeSyntaxHighlighter : public QSyntaxHighlighter")
+        && bridgeCpp.includes("CodeSyntaxHighlighter::lineGeometries()"),
+        "CodeSyntaxHighlighter C++ debe estar registrado con lineGeometries()");
+    assert.ok(codeQml.includes("id: previewGutter") && codeQml.includes("id: editGutter")
+        && codeQml.includes("id: editActiveLineBg") && codeQml.includes("CodeSyntaxHighlighter {"),
+        "BlockCode debe mostrar gutter de números, línea activa y CodeSyntaxHighlighter");
+    assert.ok(modalQml.includes("id: sourceGutter") && modalQml.includes("id: sourceActiveLineBg")
+        && modalQml.includes("id: sourceHighlighter") && modalQml.includes("CodeHelper.computeEnterIndent"),
+        "NoteEditorModal sourceFlickable debe usar sourceGutter geométrico, highlighter y smart indent");
 });
 
 console.log(`\n========================================`);

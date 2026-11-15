@@ -22,6 +22,8 @@
 #include <QQuickWindow>
 #include <QUuid>
 #include <QSet>
+#include <QAbstractTextDocumentLayout>
+#include <QTextBlock>
 #include <cmath>
 #include <iostream>
 
@@ -3401,4 +3403,371 @@ QJsonObject SpellBackend::checkWords(const QString &lang, const QStringList &wor
     }
 
     return result;
+}
+
+// ── 7. CodeSyntaxHighlighter ────────────────────────────────────────────────
+CodeSyntaxHighlighter::CodeSyntaxHighlighter(QObject *parent)
+    : QSyntaxHighlighter(parent) {
+    rebuildRules();
+}
+
+void CodeSyntaxHighlighter::setTextDocument(QQuickTextDocument *doc) {
+    if (m_quickDoc == doc) return;
+    m_quickDoc = doc;
+    setDocument(doc ? doc->textDocument() : nullptr);
+    emit textDocumentChanged();
+    if (document() && m_enabled) {
+        rehighlight();
+    }
+}
+
+void CodeSyntaxHighlighter::setLanguage(const QString &lang) {
+    if (m_language == lang) return;
+    m_language = lang;
+    m_canonLang = canonicalLang(lang);
+    rebuildRules();
+    emit languageChanged();
+    if (document()) rehighlight();
+}
+
+void CodeSyntaxHighlighter::setEnabled(bool en) {
+    if (m_enabled == en) return;
+    m_enabled = en;
+    emit enabledChanged();
+    if (document()) rehighlight();
+}
+
+void CodeSyntaxHighlighter::setKeywordColor(const QColor &c) {
+    if (m_keywordColor == c) return;
+    m_keywordColor = c;
+    emit themeColorsChanged();
+    if (document()) rehighlight();
+}
+void CodeSyntaxHighlighter::setStringColor(const QColor &c) {
+    if (m_stringColor == c) return;
+    m_stringColor = c;
+    emit themeColorsChanged();
+    if (document()) rehighlight();
+}
+void CodeSyntaxHighlighter::setCommentColor(const QColor &c) {
+    if (m_commentColor == c) return;
+    m_commentColor = c;
+    emit themeColorsChanged();
+    if (document()) rehighlight();
+}
+void CodeSyntaxHighlighter::setNumberColor(const QColor &c) {
+    if (m_numberColor == c) return;
+    m_numberColor = c;
+    emit themeColorsChanged();
+    if (document()) rehighlight();
+}
+void CodeSyntaxHighlighter::setTypeColor(const QColor &c) {
+    if (m_typeColor == c) return;
+    m_typeColor = c;
+    emit themeColorsChanged();
+    if (document()) rehighlight();
+}
+void CodeSyntaxHighlighter::setFunctionColor(const QColor &c) {
+    if (m_functionColor == c) return;
+    m_functionColor = c;
+    emit themeColorsChanged();
+    if (document()) rehighlight();
+}
+void CodeSyntaxHighlighter::setOperatorColor(const QColor &c) {
+    if (m_operatorColor == c) return;
+    m_operatorColor = c;
+    emit themeColorsChanged();
+    if (document()) rehighlight();
+}
+
+QString CodeSyntaxHighlighter::canonicalLang(const QString &raw) const {
+    const QString l = raw.trimmed().toLower();
+    if (l == QLatin1String("py") || l == QLatin1String("pyw") || l == QLatin1String("python3")) return QStringLiteral("python");
+    if (l == QLatin1String("rs")) return QStringLiteral("rust");
+    if (l == QLatin1String("js") || l == QLatin1String("mjs") || l == QLatin1String("cjs") || l == QLatin1String("jsx")) return QStringLiteral("javascript");
+    if (l == QLatin1String("ts") || l == QLatin1String("tsx")) return QStringLiteral("typescript");
+    if (l == QLatin1String("sh") || l == QLatin1String("zsh") || l == QLatin1String("fish") || l == QLatin1String("shell")) return QStringLiteral("bash");
+    if (l == QLatin1String("yml")) return QStringLiteral("yaml");
+    if (l == QLatin1String("conf") || l == QLatin1String("cfg") || l == QLatin1String("desktop") || l == QLatin1String("service") || l == QLatin1String("env")) return QStringLiteral("ini");
+    if (l == QLatin1String("htm") || l == QLatin1String("xml") || l == QLatin1String("svg")) return QStringLiteral("html");
+    if (l == QLatin1String("md") || l == QLatin1String("mdx")) return QStringLiteral("markdown");
+    if (l == QLatin1String("c++") || l == QLatin1String("cc") || l == QLatin1String("cxx") || l == QLatin1String("hpp") || l == QLatin1String("h")) return QStringLiteral("cpp");
+    if (l == QLatin1String("jsonc")) return QStringLiteral("json");
+    if (l == QLatin1String("scss")) return QStringLiteral("css");
+    return l;
+}
+
+QTextCharFormat CodeSyntaxHighlighter::formatForRole(int role) const {
+    QTextCharFormat fmt;
+    switch (role) {
+    case 0: // keyword
+        fmt.setForeground(m_keywordColor);
+        fmt.setFontWeight(QFont::DemiBold);
+        break;
+    case 1: // type / builtin / heading / section
+        fmt.setForeground(m_typeColor);
+        fmt.setFontWeight(QFont::DemiBold);
+        break;
+    case 2: // function
+        fmt.setForeground(m_functionColor);
+        break;
+    case 3: // number / constant
+        fmt.setForeground(m_numberColor);
+        break;
+    case 4: // string
+        fmt.setForeground(m_stringColor);
+        break;
+    case 5: // comment
+        fmt.setForeground(m_commentColor);
+        fmt.setFontItalic(true);
+        break;
+    case 6: // operator / tag / key
+        fmt.setForeground(m_operatorColor);
+        break;
+    default:
+        break;
+    }
+    return fmt;
+}
+
+void CodeSyntaxHighlighter::rebuildRules() {
+    m_rules.clear();
+    const QString &l = m_canonLang;
+    if (l.isEmpty() || l == QLatin1String("text") || l == QLatin1String("plain") || l == QLatin1String("txt")) {
+        return;
+    }
+
+    auto addWordList = [this](const QStringList &words, int role) {
+        if (words.isEmpty()) return;
+        QString pat = QStringLiteral("\\b(") + words.join(QLatin1Char('|')) + QStringLiteral(")\\b");
+        m_rules.push_back({ QRegularExpression(pat), role, 0 });
+    };
+
+    if (l == QLatin1String("markdown")) {
+        m_rules.push_back({ QRegularExpression(QStringLiteral("^#{1,6}\\s.*$")), 1, 0 });
+        m_rules.push_back({ QRegularExpression(QStringLiteral("^\\s*([*+-]|\\d+\\.|>)\\s")), 6, 1 });
+        m_rules.push_back({ QRegularExpression(QStringLiteral("`[^`]+`")), 4, 0 });
+        m_rules.push_back({ QRegularExpression(QStringLiteral("\\*\\*[^*]+\\*\\*|__[^_]+__")), 0, 0 });
+        m_rules.push_back({ QRegularExpression(QStringLiteral("!?\\[[^\\]]*\\]\\([^)]*\\)")), 2, 0 });
+        return;
+    }
+
+    if (l == QLatin1String("json")) {
+        m_rules.push_back({ QRegularExpression(QStringLiteral("\"([^\"\\\\]|\\\\.)*\"(?=\\s*:)")), 6, 0 });
+        m_rules.push_back({ QRegularExpression(QStringLiteral("(?<!:)\\s*\"([^\"\\\\]|\\\\.)*\"(?!\\s*:)")), 4, 0 });
+        m_rules.push_back({ QRegularExpression(QStringLiteral("\\b(true|false|null)\\b")), 0, 0 });
+        m_rules.push_back({ QRegularExpression(QStringLiteral("-?\\b\\d+(\\.\\d+)?([eE][+-]?\\d+)?\\b")), 3, 0 });
+        m_rules.push_back({ QRegularExpression(QStringLiteral("//[^\\n]*")), 5, 0 });
+        return;
+    }
+
+    if (l == QLatin1String("yaml") || l == QLatin1String("toml") || l == QLatin1String("ini")) {
+        m_rules.push_back({ QRegularExpression(QStringLiteral("^\\s*\\[[^\\]]+\\]")), 1, 0 });
+        m_rules.push_back({ QRegularExpression(QStringLiteral("^\\s*[-]?\\s*([A-Za-z0-9_.-]+)(?=\\s*[:=])")), 6, 1 });
+        m_rules.push_back({ QRegularExpression(QStringLiteral("\"([^\"\\\\]|\\\\.)*\"|'([^'\\\\]|\\\\.)*'")), 4, 0 });
+        m_rules.push_back({ QRegularExpression(QStringLiteral("\\b(true|false|yes|no|on|off|null)\\b")), 0, 0 });
+        m_rules.push_back({ QRegularExpression(QStringLiteral("\\b\\d+(\\.\\d+)?\\b")), 3, 0 });
+        m_rules.push_back({ QRegularExpression(QStringLiteral("(^|\\s)[#;][^\\n]*")), 5, 0 });
+        return;
+    }
+
+    if (l == QLatin1String("html") || l == QLatin1String("css")) {
+        if (l == QLatin1String("html")) {
+            m_rules.push_back({ QRegularExpression(QStringLiteral("</?([A-Za-z][A-Za-z0-9:-]*)")), 0, 1 });
+            m_rules.push_back({ QRegularExpression(QStringLiteral("\\b([A-Za-z-]+)(?=\\s*=)")), 6, 1 });
+        } else {
+            m_rules.push_back({ QRegularExpression(QStringLiteral("([.#]?[A-Za-z_-][A-Za-z0-9_-]*)(?=\\s*\\{)")), 1, 1 });
+            m_rules.push_back({ QRegularExpression(QStringLiteral("\\b([a-z-]+)(?=\\s*:)")), 6, 1 });
+            m_rules.push_back({ QRegularExpression(QStringLiteral("#[0-9A-Fa-f]{3,8}\\b")), 3, 0 });
+        }
+        m_rules.push_back({ QRegularExpression(QStringLiteral("\"([^\"\\\\]|\\\\.)*\"|'([^'\\\\]|\\\\.)*'")), 4, 0 });
+        m_rules.push_back({ QRegularExpression(QStringLiteral("\\b\\d+(\\.\\d+)?(px|em|rem|%|vh|vw|s|ms)?\\b")), 3, 0 });
+        return;
+    }
+
+    // Lenguajes de programación generales
+    QStringList keywords;
+    QStringList types;
+
+    if (l == QLatin1String("lua")) {
+        keywords = { "and", "break", "do", "else", "elseif", "end", "false", "for", "function",
+                     "goto", "if", "in", "local", "nil", "not", "or", "repeat", "return", "then",
+                     "true", "until", "while" };
+        types = { "self", "_G", "table", "string", "math", "io", "os", "coroutine", "package", "hl" };
+    } else if (l == QLatin1String("python")) {
+        keywords = { "False", "None", "True", "and", "as", "assert", "async", "await", "break",
+                     "class", "continue", "def", "del", "elif", "else", "except", "finally", "for",
+                     "from", "global", "if", "import", "in", "is", "lambda", "nonlocal", "not",
+                     "or", "pass", "raise", "return", "try", "while", "with", "yield" };
+        types = { "self", "cls", "int", "float", "str", "bool", "list", "dict", "set", "tuple", "object", "Exception" };
+    } else if (l == QLatin1String("rust")) {
+        keywords = { "as", "async", "await", "break", "const", "continue", "crate", "dyn", "else",
+                     "enum", "extern", "false", "fn", "for", "if", "impl", "in", "let", "loop",
+                     "match", "mod", "move", "mut", "pub", "ref", "return", "self", "Self",
+                     "static", "struct", "super", "trait", "true", "type", "unsafe", "use", "where", "while" };
+        types = { "i8", "i16", "i32", "i64", "i128", "isize", "u8", "u16", "u32", "u64", "u128",
+                  "usize", "f32", "f64", "bool", "char", "str", "String", "Vec", "Option", "Result",
+                  "Some", "None", "Ok", "Err", "Box", "Arc", "Rc", "HashMap", "PathBuf" };
+    } else if (l == QLatin1String("javascript") || l == QLatin1String("typescript") || l == QLatin1String("qml")) {
+        keywords = { "as", "async", "await", "break", "case", "catch", "class", "component", "const",
+                     "continue", "debugger", "default", "delete", "do", "else", "enum", "export",
+                     "extends", "false", "finally", "for", "from", "function", "if", "implements",
+                     "import", "in", "instanceof", "interface", "let", "new", "null", "of",
+                     "pragma", "property", "readonly", "required", "return", "signal", "static",
+                     "super", "switch", "this", "throw", "true", "try", "type", "typeof",
+                     "undefined", "var", "void", "while", "with", "yield" };
+        types = { "Array", "Boolean", "Date", "Error", "Function", "Item", "JSON", "ListModel", "Map",
+                  "Math", "Number", "Object", "Promise", "Qt", "QtObject", "Rectangle", "RegExp",
+                  "RowLayout", "ColumnLayout", "Set", "String", "Text", "TextEdit", "TextInput",
+                  "Timer", "MouseArea", "Flickable", "Repeater", "Image", "int", "real", "bool", "string", "var", "color" };
+    } else if (l == QLatin1String("bash")) {
+        keywords = { "case", "do", "done", "elif", "else", "esac", "fi", "for", "function",
+                     "if", "in", "local", "export", "readonly", "return", "select", "then", "until", "while", "true", "false" };
+        types = { "echo", "printf", "cd", "pwd", "ls", "grep", "rg", "sed", "awk", "find", "sudo", "pacman", "git", "exit" };
+    } else if (l == QLatin1String("sql")) {
+        keywords = { "SELECT", "FROM", "WHERE", "INSERT", "INTO", "VALUES", "UPDATE", "SET", "DELETE",
+                     "CREATE", "TABLE", "ALTER", "DROP", "JOIN", "INNER", "LEFT", "RIGHT", "ON",
+                     "GROUP", "BY", "ORDER", "ASC", "DESC", "LIMIT", "AND", "OR", "NOT", "NULL", "AS",
+                     "select", "from", "where", "insert", "into", "values", "update", "set", "delete",
+                     "create", "table", "join", "on", "group", "by", "order", "limit", "and", "or", "not", "null", "as" };
+        types = { "INT", "INTEGER", "TEXT", "VARCHAR", "BOOLEAN", "FLOAT", "TIMESTAMP" };
+    } else {
+        // c / cpp / genérico
+        keywords = { "auto", "break", "case", "catch", "class", "const", "constexpr", "continue",
+                     "default", "delete", "do", "double", "else", "enum", "explicit", "extern",
+                     "false", "for", "friend", "if", "inline", "namespace", "new", "nullptr",
+                     "operator", "override", "private", "protected", "public", "return", "sizeof",
+                     "static", "struct", "switch", "template", "this", "throw", "true", "try",
+                     "typedef", "typename", "using", "virtual", "void", "volatile", "while" };
+        types = { "bool", "char", "int", "long", "short", "float", "double", "size_t", "uint8_t",
+                  "int32_t", "uint32_t", "int64_t", "QString", "QObject", "QColor", "QVariant", "std" };
+    }
+
+    // 1. Números
+    m_rules.push_back({ QRegularExpression(QStringLiteral("\\b(0[xX][0-9A-Fa-f_]+|0[bB][01_]+|\\d[\\d_]*(\\.[\\d_]+)?([eE][+-]?\\d+)?)\\b")), 3, 0 });
+    // 2. Funciones (identificador seguido de '(')
+    m_rules.push_back({ QRegularExpression(QStringLiteral("\\b([A-Za-z_][A-Za-z0-9_]*)(?=\\s*\\()")), 2, 1 });
+    // 3. Palabras clave y tipos
+    addWordList(keywords, 0);
+    addWordList(types, 1);
+
+    // 4. Directivas / decoradores / macros
+    if (l == QLatin1String("cpp") || l == QLatin1String("c")) {
+        m_rules.push_back({ QRegularExpression(QStringLiteral("^\\s*#[A-Za-z_]+")), 6, 0 });
+    } else if (l == QLatin1String("python")) {
+        m_rules.push_back({ QRegularExpression(QStringLiteral("^\\s*@[A-Za-z0-9_.]+")), 6, 0 });
+    } else if (l == QLatin1String("rust")) {
+        m_rules.push_back({ QRegularExpression(QStringLiteral("\\b[A-Za-z_][A-Za-z0-9_]*!")), 6, 0 });
+    }
+
+    // 5. Strings de una línea
+    if (l == QLatin1String("javascript") || l == QLatin1String("typescript") || l == QLatin1String("qml")) {
+        m_rules.push_back({ QRegularExpression(QStringLiteral("\"([^\"\\\\]|\\\\.)*\"|'([^'\\\\]|\\\\.)*'|`([^`\\\\]|\\\\.)*`")), 4, 0 });
+    } else {
+        m_rules.push_back({ QRegularExpression(QStringLiteral("\"([^\"\\\\]|\\\\.)*\"|'([^'\\\\]|\\\\.)*'")), 4, 0 });
+    }
+
+    // 6. Comentarios de una línea
+    if (l == QLatin1String("lua") || l == QLatin1String("sql")) {
+        m_rules.push_back({ QRegularExpression(QStringLiteral("--[^\\n]*")), 5, 0 });
+    } else if (l == QLatin1String("python") || l == QLatin1String("bash")) {
+        m_rules.push_back({ QRegularExpression(QStringLiteral("#[^\\n]*")), 5, 0 });
+    } else {
+        m_rules.push_back({ QRegularExpression(QStringLiteral("//[^\\n]*")), 5, 0 });
+    }
+}
+
+void CodeSyntaxHighlighter::highlightDelimited(const QString &text, const QRegularExpression &startRe,
+                                                 const QRegularExpression &endRe, int stateId,
+                                                 const QTextCharFormat &fmt) {
+    int startIdx = 0;
+    if (previousBlockState() != stateId) {
+        startIdx = text.indexOf(startRe);
+    }
+    while (startIdx >= 0) {
+        int searchFrom = (previousBlockState() == stateId && startIdx == 0)
+            ? 0
+            : startIdx + startRe.match(text, startIdx).capturedLength();
+        QRegularExpressionMatch endMatch = endRe.match(text, searchFrom);
+        int endIdx = endMatch.hasMatch() ? endMatch.capturedStart() : -1;
+        int len = 0;
+        if (endIdx == -1) {
+            setCurrentBlockState(stateId);
+            len = text.length() - startIdx;
+        } else {
+            len = endIdx - startIdx + endMatch.capturedLength();
+        }
+        setFormat(startIdx, len, fmt);
+        startIdx = text.indexOf(startRe, startIdx + len);
+    }
+}
+
+void CodeSyntaxHighlighter::highlightBlock(const QString &text) {
+    if (!m_enabled || m_rules.isEmpty()) {
+        setCurrentBlockState(0);
+        return;
+    }
+
+    setCurrentBlockState(0);
+
+    for (const Rule &r : m_rules) {
+        QRegularExpressionMatchIterator it = r.pattern.globalMatch(text);
+        const QTextCharFormat fmt = formatForRole(r.role);
+        while (it.hasNext()) {
+            QRegularExpressionMatch m = it.next();
+            int start = m.capturedStart(r.captureGroup);
+            int len = m.capturedLength(r.captureGroup);
+            if (start >= 0 && len > 0) {
+                setFormat(start, len, fmt);
+            }
+        }
+    }
+
+    const QTextCharFormat commentFmt = formatForRole(5);
+    const QTextCharFormat strFmt = formatForRole(4);
+
+    if (m_canonLang == QLatin1String("lua")) {
+        highlightDelimited(text, QRegularExpression(QStringLiteral("--\\[\\[")),
+                           QRegularExpression(QStringLiteral("\\]\\]")), 2, commentFmt);
+    } else if (m_canonLang == QLatin1String("html")) {
+        highlightDelimited(text, QRegularExpression(QStringLiteral("<!--")),
+                           QRegularExpression(QStringLiteral("-->")), 5, commentFmt);
+    } else if (m_canonLang == QLatin1String("python")) {
+        highlightDelimited(text, QRegularExpression(QStringLiteral("\"\"\"")),
+                           QRegularExpression(QStringLiteral("\"\"\"")), 3, strFmt);
+        if (currentBlockState() != 3) {
+            highlightDelimited(text, QRegularExpression(QStringLiteral("'''")),
+                               QRegularExpression(QStringLiteral("'''")), 4, strFmt);
+        }
+    } else if (m_canonLang == QLatin1String("javascript") || m_canonLang == QLatin1String("typescript") ||
+               m_canonLang == QLatin1String("qml") || m_canonLang == QLatin1String("rust") ||
+               m_canonLang == QLatin1String("cpp") || m_canonLang == QLatin1String("c") ||
+               m_canonLang == QLatin1String("css")) {
+        highlightDelimited(text, QRegularExpression(QStringLiteral("/\\*")),
+                           QRegularExpression(QStringLiteral("\\*/")), 1, commentFmt);
+    }
+}
+
+QVariantList CodeSyntaxHighlighter::lineGeometries() const {
+    QVariantList list;
+    QTextDocument *doc = document();
+    if (!doc) return list;
+    QAbstractTextDocumentLayout *layout = doc->documentLayout();
+    if (!layout) return list;
+
+    int lineNum = 1;
+    for (QTextBlock blk = doc->begin(); blk.isValid(); blk = blk.next(), ++lineNum) {
+        QRectF r = layout->blockBoundingRect(blk);
+        QVariantMap item;
+        item.insert(QStringLiteral("line"), lineNum);
+        item.insert(QStringLiteral("y"), r.y());
+        item.insert(QStringLiteral("height"), r.height());
+        list.push_back(item);
+    }
+    return list;
+}
+
+int CodeSyntaxHighlighter::lineCount() const {
+    QTextDocument *doc = document();
+    return doc ? qMax(1, doc->blockCount()) : 1;
 }

@@ -19,6 +19,14 @@
 #include <QPointF>
 #include <QLocalServer>
 #include <QLocalSocket>
+#include <QSyntaxHighlighter>
+#include <QTextCharFormat>
+#include <QTextDocument>
+#include <QQuickTextDocument>
+#include <QColor>
+#include <QPointer>
+#include <QRegularExpression>
+#include <QVector>
 #include <QtQmlIntegration/qqmlintegration.h>
 
 // ── 1. SplitParser & StdioCollector ──────────────────────────────────────────
@@ -612,4 +620,88 @@ private:
 
     QStringList m_availableDictionaries;
     QStringList m_personalWords;
+};
+
+// ── 7. CodeSyntaxHighlighter (QML_ELEMENT para TextEdit) ────────────────────
+class CodeSyntaxHighlighter : public QSyntaxHighlighter {
+    Q_OBJECT
+    QML_ELEMENT
+
+    Q_PROPERTY(QQuickTextDocument* textDocument READ textDocument WRITE setTextDocument NOTIFY textDocumentChanged)
+    Q_PROPERTY(QString language READ language WRITE setLanguage NOTIFY languageChanged)
+    Q_PROPERTY(bool enabled READ isEnabled WRITE setEnabled NOTIFY enabledChanged)
+    Q_PROPERTY(QColor keywordColor READ keywordColor WRITE setKeywordColor NOTIFY themeColorsChanged)
+    Q_PROPERTY(QColor stringColor READ stringColor WRITE setStringColor NOTIFY themeColorsChanged)
+    Q_PROPERTY(QColor commentColor READ commentColor WRITE setCommentColor NOTIFY themeColorsChanged)
+    Q_PROPERTY(QColor numberColor READ numberColor WRITE setNumberColor NOTIFY themeColorsChanged)
+    Q_PROPERTY(QColor typeColor READ typeColor WRITE setTypeColor NOTIFY themeColorsChanged)
+    Q_PROPERTY(QColor functionColor READ functionColor WRITE setFunctionColor NOTIFY themeColorsChanged)
+    Q_PROPERTY(QColor operatorColor READ operatorColor WRITE setOperatorColor NOTIFY themeColorsChanged)
+
+public:
+    explicit CodeSyntaxHighlighter(QObject *parent = nullptr);
+
+    QQuickTextDocument* textDocument() const { return m_quickDoc.data(); }
+    void setTextDocument(QQuickTextDocument *doc);
+
+    QString language() const { return m_language; }
+    void setLanguage(const QString &lang);
+
+    bool isEnabled() const { return m_enabled; }
+    void setEnabled(bool en);
+
+    QColor keywordColor() const { return m_keywordColor; }
+    void setKeywordColor(const QColor &c);
+    QColor stringColor() const { return m_stringColor; }
+    void setStringColor(const QColor &c);
+    QColor commentColor() const { return m_commentColor; }
+    void setCommentColor(const QColor &c);
+    QColor numberColor() const { return m_numberColor; }
+    void setNumberColor(const QColor &c);
+    QColor typeColor() const { return m_typeColor; }
+    void setTypeColor(const QColor &c);
+    QColor functionColor() const { return m_functionColor; }
+    void setFunctionColor(const QColor &c);
+    QColor operatorColor() const { return m_operatorColor; }
+    void setOperatorColor(const QColor &c);
+
+    Q_INVOKABLE QVariantList lineGeometries() const;
+    Q_INVOKABLE int lineCount() const;
+
+signals:
+    void textDocumentChanged();
+    void languageChanged();
+    void enabledChanged();
+    void themeColorsChanged();
+
+protected:
+    void highlightBlock(const QString &text) override;
+
+private:
+    struct Rule {
+        QRegularExpression pattern;
+        int role = 0; // 0=kw,1=type,2=fn,3=num,4=str,5=comment,6=op,7=key
+        int captureGroup = 0;
+    };
+
+    void rebuildRules();
+    QString canonicalLang(const QString &raw) const;
+    QTextCharFormat formatForRole(int role) const;
+    void highlightDelimited(const QString &text, const QRegularExpression &startRe,
+                            const QRegularExpression &endRe, int stateId, const QTextCharFormat &fmt);
+
+    QPointer<QQuickTextDocument> m_quickDoc;
+    QString m_language;
+    QString m_canonLang;
+    bool m_enabled = true;
+
+    QColor m_keywordColor = QColor("#c678dd");
+    QColor m_stringColor = QColor("#98c379");
+    QColor m_commentColor = QColor("#7f848e");
+    QColor m_numberColor = QColor("#d19a66");
+    QColor m_typeColor = QColor("#e5c07b");
+    QColor m_functionColor = QColor("#61afef");
+    QColor m_operatorColor = QColor("#56b6c2");
+
+    QVector<Rule> m_rules;
 };

@@ -5,6 +5,7 @@ import QtQuick.Controls
 import Notas
 import "Inline.js" as Inline
 import "BlockModel.js" as BlockModel
+import "CodeHelper.js" as CodeHelper
 import "."
 
 Rectangle {
@@ -47,9 +48,15 @@ Rectangle {
         return lines.join("\n");
     }
 
+    readonly property int previewLineCount: CodeHelper.lineCountOf(root.pureCodeText)
+    readonly property int editLineCount: CodeHelper.lineCountOf(editInput ? editInput.text : (root.blockData ? root.blockData.raw : ""))
+    readonly property real previewGutterW: Math.max(26, (String(previewLineCount).length * EditorMetrics.fs(Theme.fontSizeCaption - 1) * 0.72) + 12)
+    readonly property real editGutterW: Math.max(26, (String(editLineCount).length * EditorMetrics.fs(Theme.fontSizeCaption - 1) * 0.72) + 12)
+    readonly property int editCurrentLine: (editInput && root.isEditing) ? CodeHelper.currentLineNumber(editInput.text, editInput.cursorPosition) : -1
+
     implicitWidth: parent ? parent.width : 400
     implicitHeight: root.showEditView
-        ? (editInput.paintedHeight + 40)
+        ? (editInput.paintedHeight + (editHScrollBar.isShowing ? editHScrollBar.reservedSpace : 0) + 40)
         : (headerRow.height + previewInput.paintedHeight + (codeHScrollBar.isShowing ? codeHScrollBar.reservedSpace : 0) + 38)
 
     radius: 10
@@ -287,15 +294,61 @@ Rectangle {
         }
     }
 
+    // Gutter de números de línea fijo a la izquierda en modo vista
+    Item {
+        id: previewGutter
+        visible: !root.showEditView
+        anchors.top: headerRow.bottom
+        anchors.left: parent.left
+        anchors.bottom: parent.bottom
+        anchors.leftMargin: 8
+        anchors.topMargin: 12
+        anchors.bottomMargin: 12 + (codeHScrollBar.isShowing ? codeHScrollBar.reservedSpace : 0)
+        width: root.previewGutterW
+        clip: true
+
+        Column {
+            width: parent.width - 4
+            readonly property real rowH: (root.previewLineCount > 0 && previewInput.paintedHeight > 0)
+                ? (previewInput.paintedHeight / root.previewLineCount)
+                : Math.max(16, EditorMetrics.fs(Theme.fontSizeCaption + 1) * 1.35)
+            Repeater {
+                model: root.previewLineCount
+                Text {
+                    required property int index
+                    width: parent.width
+                    height: parent.rowH
+                    text: (index + 1).toString()
+                    color: Qt.rgba(Theme.muted.r, Theme.muted.g, Theme.muted.b, 0.55)
+                    font.family: Theme.fontFamilyMonospace || "monospace"
+                    font.pixelSize: EditorMetrics.fs(Theme.fontSizeCaption - 1)
+                    horizontalAlignment: Text.AlignRight
+                    verticalAlignment: Text.AlignVCenter
+                }
+            }
+        }
+
+        Rectangle {
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.bottom: parent.bottom
+            width: 1
+            color: Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.08)
+        }
+    }
+
     // Vista de código renderizada con scroll horizontal dedicado y selección directa sin arrastrar el viewport
     Flickable {
         id: codeFlickable
         visible: !root.showEditView
         anchors.top: headerRow.bottom
-        anchors.left: parent.left
+        anchors.left: previewGutter.right
         anchors.right: parent.right
         anchors.bottom: parent.bottom
-        anchors.margins: 12
+        anchors.topMargin: 12
+        anchors.bottomMargin: 12
+        anchors.rightMargin: 12
+        anchors.leftMargin: 8
         clip: true
         interactive: false
         boundsBehavior: Flickable.StopAtBounds
@@ -370,6 +423,19 @@ Rectangle {
                     (root.blockData ? root.editor.searchActiveOrdinal(root.blockData.bid, 0) : -1),
                     (root.blockData ? root.editor.searchActiveFg(root.blockData.bid, 0) : ""))
                 : root.pureCodeText
+
+            CodeSyntaxHighlighter {
+                textDocument: previewInput.textDocument
+                language: root.lang || ""
+                enabled: !(root.editor && root.editor.searchQuery)
+                keywordColor: Theme.color5
+                stringColor: Theme.color2
+                commentColor: Theme.muted
+                numberColor: Theme.color3
+                typeColor: Theme.color4
+                functionColor: Theme.color6
+                operatorColor: Theme.accent
+            }
 
             CustomTextCursor {
                 multiSelectionMode: root.editor ? root.editor.hasBlockSelection : false
@@ -621,12 +687,63 @@ Rectangle {
         }
     }
 
+    // Gutter de números de línea fijo a la izquierda en modo edición
+    Item {
+        id: editGutter
+        visible: root.showEditView
+        anchors.top: parent.top
+        anchors.left: parent.left
+        anchors.bottom: parent.bottom
+        anchors.leftMargin: 8
+        anchors.topMargin: 12
+        anchors.bottomMargin: 12 + (editHScrollBar.isShowing ? editHScrollBar.reservedSpace : 0)
+        width: root.editGutterW
+        clip: true
+
+        Column {
+            width: parent.width - 4
+            readonly property real rowH: (root.editLineCount > 0 && editInput.paintedHeight > 0)
+                ? (editInput.paintedHeight / root.editLineCount)
+                : Math.max(16, EditorMetrics.fs(Theme.fontSizeCaption + 1) * 1.35)
+            Repeater {
+                model: root.editLineCount
+                Text {
+                    required property int index
+                    readonly property bool isCurrentLine: (index + 1) === root.editCurrentLine
+                    width: parent.width
+                    height: parent.rowH
+                    text: (index + 1).toString()
+                    color: isCurrentLine ? Theme.accent : Qt.rgba(Theme.muted.r, Theme.muted.g, Theme.muted.b, 0.55)
+                    font.family: Theme.fontFamilyMonospace || "monospace"
+                    font.pixelSize: EditorMetrics.fs(Theme.fontSizeCaption - 1)
+                    font.weight: isCurrentLine ? Font.DemiBold : Font.Normal
+                    horizontalAlignment: Text.AlignRight
+                    verticalAlignment: Text.AlignVCenter
+                }
+            }
+        }
+
+        Rectangle {
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.bottom: parent.bottom
+            width: 1
+            color: Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.08)
+        }
+    }
+
     // Vista de edición cruda con scroll horizontal sin desborde
     Flickable {
         id: editFlickable
         visible: root.showEditView
-        anchors.fill: parent
-        anchors.margins: 12
+        anchors.top: parent.top
+        anchors.left: editGutter.right
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        anchors.topMargin: 12
+        anchors.bottomMargin: 12
+        anchors.rightMargin: 12
+        anchors.leftMargin: 8
         clip: true
         interactive: false
         boundsBehavior: Flickable.StopAtBounds
@@ -677,8 +794,20 @@ Rectangle {
             }
         }
 
+        Rectangle {
+            id: editActiveLineBg
+            visible: editInput.activeFocus && root.isEditing
+            x: 0
+            y: editInput.cursorRectangle.y
+            width: Math.max(editFlickable.width, editInput.paintedWidth + 20)
+            height: Math.max(16, editInput.cursorRectangle.height)
+            color: Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.04)
+            z: 0
+        }
+
         TextEdit {
             id: editInput
+            z: 1
             persistentSelection: true
             overwriteMode: root.editor ? root.editor.overwriteMode : false
             width: Math.max(editFlickable.width, paintedWidth + 20)
@@ -694,6 +823,20 @@ Rectangle {
             wrapMode: TextEdit.NoWrap
             selectByMouse: true
             activeFocusOnTab: false
+
+            CodeSyntaxHighlighter {
+                textDocument: editInput.textDocument
+                language: root.lang || ""
+                enabled: root.showEditView && !(root.editor && root.editor.searchQuery)
+                keywordColor: Theme.color5
+                stringColor: Theme.color2
+                commentColor: Theme.muted
+                numberColor: Theme.color3
+                typeColor: Theme.color4
+                functionColor: Theme.color6
+                operatorColor: Theme.accent
+            }
+
         CustomTextCursor {
             multiSelectionMode: root.editor ? root.editor.hasBlockSelection : false
             showStartBoundary: !root.editor || !root.editor.hasBlockSelection || root.editor.isSelectionStartBlock(root.blockData ? root.blockData.bid : -1)
@@ -782,8 +925,20 @@ Rectangle {
                 return;
             }
             var cp = editInput.cursorPosition;
-            editInput.insert(cp, "\n");
-            editInput.cursorPosition = cp + 1;
+            var selStart = editInput.selectionStart;
+            var selEnd = editInput.selectionEnd;
+            if (selStart !== selEnd) {
+                editInput.remove(selStart, selEnd);
+                cp = selStart;
+            }
+            var indentInfo = CodeHelper.computeEnterIndent(editInput.text, cp, 4);
+            if (indentInfo.insertText === "\n") {
+                editInput.insert(cp, "\n");
+                editInput.cursorPosition = cp + 1;
+            } else {
+                editInput.insert(cp, indentInfo.insertText);
+                editInput.cursorPosition = cp + indentInfo.cursorOffset;
+            }
             event.accepted = true;
         }
 
@@ -797,17 +952,10 @@ Rectangle {
                 return;
             }
             if (editInput.selectionStart !== editInput.selectionEnd) {
-                var s = editInput.selectionStart;
-                var e = editInput.selectionEnd;
-                var t = editInput.text;
-                var lineStart = t.lastIndexOf("\n", s - 1) + 1;
-                var lineEnd = t.indexOf("\n", e);
-                if (lineEnd === -1) lineEnd = t.length;
-                var sub = t.substring(lineStart, lineEnd);
-                var indented = sub.split("\n").map(function(l) { return "    " + l; }).join("\n");
-                editInput.remove(lineStart, lineEnd);
-                editInput.insert(lineStart, indented);
-                editInput.select(s + 4, e + (indented.length - sub.length));
+                var res = CodeHelper.applyTabIndent(editInput.text, editInput.selectionStart, editInput.selectionEnd, false, 4);
+                editInput.remove(res.rangeStart, res.rangeEnd);
+                editInput.insert(res.rangeStart, res.replacement);
+                editInput.select(res.newSelStart, res.newSelEnd);
             } else {
                 var tp = editInput.cursorPosition;
                 editInput.insert(tp, "    ");
@@ -817,30 +965,18 @@ Rectangle {
         }
 
         Keys.onBacktabPressed: (event) => {
-            var s = editInput.selectionStart;
-            var e = editInput.selectionEnd;
-            var t = editInput.text;
-            var lineStart = t.lastIndexOf("\n", s - 1) + 1;
-            var lineEnd = t.indexOf("\n", e);
-            if (lineEnd === -1) lineEnd = t.length;
-            var sub = t.substring(lineStart, lineEnd);
-            var lines = sub.split("\n");
-            var diff = 0;
-            var firstLineDiff = 0;
-            var unindented = lines.map(function(l, idx) {
-                var cut = 0;
-                if (l.startsWith("    ")) cut = 4;
-                else if (l.startsWith("   ")) cut = 3;
-                else if (l.startsWith("  ")) cut = 2;
-                else if (l.startsWith(" ")) cut = 1;
-                else if (l.startsWith("\t")) cut = 1;
-                diff += cut;
-                if (idx === 0) firstLineDiff = cut;
-                return l.substring(cut);
-            }).join("\n");
-            editInput.remove(lineStart, lineEnd);
-            editInput.insert(lineStart, unindented);
-            editInput.select(Math.max(lineStart, s - firstLineDiff), Math.max(lineStart, e - diff));
+            if (root.editor && root.editor.readOnly) {
+                event.accepted = true;
+                return;
+            }
+            var res = CodeHelper.applyTabIndent(editInput.text, editInput.selectionStart, editInput.selectionEnd, true, 4);
+            editInput.remove(res.rangeStart, res.rangeEnd);
+            editInput.insert(res.rangeStart, res.replacement);
+            if (editInput.selectionStart !== editInput.selectionEnd || res.newSelStart !== res.newSelEnd) {
+                editInput.select(res.newSelStart, res.newSelEnd);
+            } else {
+                editInput.cursorPosition = res.newSelStart;
+            }
             event.accepted = true;
         }
 
@@ -1052,7 +1188,19 @@ Rectangle {
                     if (root.editor) {
                         root.editor.handleBlockBackspaceAtStart(root.blockData.bid);
                         event.accepted = true;
+                        return;
                     }
+                }
+                if (root.editor && typeof root.editor.handleBackspaceAutoPair === "function" && root.editor.handleBackspaceAutoPair(editInput)) {
+                    event.accepted = true;
+                    return;
+                }
+            }
+
+            if (editInput.text.lastIndexOf("\n", editInput.cursorPosition - 1) !== -1) {
+                if (root.editor && typeof root.editor.handleAutoPair === "function" && root.editor.handleAutoPair(editInput, event)) {
+                    event.accepted = true;
+                    return;
                 }
             }
         }

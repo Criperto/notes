@@ -17,6 +17,7 @@ import "QuoteParser.js" as QP
 import "MermaidTemplates.js" as MermaidTemplates
 import "MathTemplates.js" as MathTemplates
 import "ReferenceLogic.js" as ReferenceLogic
+import "CodeHelper.js" as CodeHelper
 
 Item {
     id: root
@@ -3268,6 +3269,35 @@ Item {
                 contentWidth: width
                 contentHeight: Math.max(height, sourceCodeEditor.implicitHeight + 48)
 
+                readonly property string sourceHighlightLang: {
+                    if (root.isPlainCode) {
+                        var name = (root.noteData && (root.noteData.filePath || root.noteData.fileName || root.noteData.title)) || "";
+                        return CodeHelper.inferLangFromFileName(name);
+                    }
+                    return root.isTxt ? "" : "markdown";
+                }
+                property var lineGeoms: []
+                readonly property int totalLines: Math.max(lineGeoms ? lineGeoms.length : 0, CodeHelper.lineCountOf(sourceCodeEditor.text))
+                readonly property int currentLineNum: CodeHelper.currentLineNumber(sourceCodeEditor.text, sourceCodeEditor.cursorPosition)
+                readonly property real gutterW: Math.max(36, String(totalLines).length * 9 + 14)
+
+                function refreshLineGeoms() {
+                    if (!root.isSourceMode) return;
+                    var geoms = sourceHighlighter.lineGeometries();
+                    if (geoms && geoms.length > 0) {
+                        lineGeoms = geoms;
+                    } else {
+                        lineGeoms = [];
+                    }
+                }
+
+                Timer {
+                    id: sourceGeomTimer
+                    interval: 16
+                    repeat: false
+                    onTriggered: sourceFlickable.refreshLineGeoms()
+                }
+
                 // Barra de scroll vertical con el estilo global
                 ScrollBar.vertical: CustomScrollBar {}
 
@@ -3318,11 +3348,64 @@ Item {
                     }
                 }
 
+                // Gutter de números de línea alineado por geometría de bloque (soporta wrap)
+                Item {
+                    id: sourceGutter
+                    x: 8
+                    y: sourceCodeEditor.y
+                    width: sourceFlickable.gutterW
+                    height: Math.max(sourceFlickable.height, sourceCodeEditor.implicitHeight)
+
+                    Repeater {
+                        model: (sourceFlickable.lineGeoms && sourceFlickable.lineGeoms.length > 0)
+                            ? sourceFlickable.lineGeoms
+                            : sourceFlickable.totalLines
+
+                        Text {
+                            required property int index
+                            required property var modelData
+                            readonly property bool hasGeom: typeof modelData === "object" && modelData !== null && modelData.y !== undefined
+                            readonly property int lineNum: hasGeom ? modelData.line : (index + 1)
+                            readonly property bool isCurrent: lineNum === sourceFlickable.currentLineNum
+                            x: 0
+                            y: hasGeom ? modelData.y : (index * Math.max(18, EditorMetrics.body * 1.35))
+                            width: sourceGutter.width - 8
+                            height: hasGeom ? Math.max(14, modelData.height) : Math.max(18, EditorMetrics.body * 1.35)
+                            text: String(lineNum)
+                            color: isCurrent ? Theme.accent : Qt.rgba(Theme.muted.r, Theme.muted.g, Theme.muted.b, 0.55)
+                            font.family: Theme.fontFamilyMonospace || "monospace"
+                            font.pixelSize: Math.max(10, EditorMetrics.body - 2)
+                            font.weight: isCurrent ? Font.DemiBold : Font.Normal
+                            horizontalAlignment: Text.AlignRight
+                            verticalAlignment: Text.AlignTop
+                        }
+                    }
+
+                    Rectangle {
+                        anchors.right: parent.right
+                        anchors.top: parent.top
+                        anchors.bottom: parent.bottom
+                        width: 1
+                        color: Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.08)
+                    }
+                }
+
+                Rectangle {
+                    id: sourceActiveLineBg
+                    visible: root.isSourceMode && !root.isPreviewMode && sourceCodeEditor.activeFocus
+                    x: sourceCodeEditor.x - 4
+                    y: sourceCodeEditor.y + sourceCodeEditor.cursorRectangle.y
+                    width: sourceCodeEditor.width + 8
+                    height: Math.max(16, sourceCodeEditor.cursorRectangle.height)
+                    radius: 3
+                    color: Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.04)
+                }
+
                 TextEdit {
                     id: sourceCodeEditor
-                    width: parent.width - 48
-                    x: 24
+                    x: 8 + sourceFlickable.gutterW + 10
                     y: 16
+                    width: Math.max(120, parent.width - x - 20)
                     wrapMode: TextEdit.Wrap
                     textFormat: TextEdit.PlainText
                     readOnly: root.isPreviewMode
@@ -3335,6 +3418,30 @@ Item {
                     persistentSelection: true
                     cursorVisible: root.isSourceMode && !root.isPreviewMode && activeFocus
                     CustomTextCursor {}
+
+                    CodeSyntaxHighlighter {
+                        id: sourceHighlighter
+                        textDocument: sourceCodeEditor.textDocument
+                        language: sourceFlickable.sourceHighlightLang
+                        enabled: root.isSourceMode && sourceFlickable.sourceHighlightLang !== ""
+                        keywordColor: Theme.color5
+                        stringColor: Theme.color2
+                        commentColor: Theme.muted
+                        numberColor: Theme.color3
+                        typeColor: Theme.color4
+                        functionColor: Theme.color6
+                        operatorColor: Theme.accent
+                    }
+
+                    onWidthChanged: if (root.isSourceMode) sourceGeomTimer.restart()
+                    onImplicitHeightChanged: if (root.isSourceMode) sourceGeomTimer.restart()
+                    Component.onCompleted: if (root.isSourceMode) sourceGeomTimer.restart()
+                    Connections {
+                        target: root
+                        function onIsSourceModeChanged() {
+                            if (root.isSourceMode) sourceGeomTimer.restart();
+                        }
+                    }
 
                     MouseArea {
                         anchors.fill: parent
@@ -3358,12 +3465,79 @@ Item {
                     onCursorPositionChanged: root.sourceFormatSeq++
 
                     onTextChanged: {
+                        if (root.isSourceMode) sourceGeomTimer.restart();
                         if (root.isSourceMode && !root.isLoading) {
                             root._currentBody = text;
                             if (text !== root._originalBody) {
                                 root.markDirty();
                             }
                         }
+                    }
+
+                    Keys.onReturnPressed: (event) => {
+                        var cm = editorContextMenu;
+                        if (cm && cm.visible && !cm.isClosing) {
+                            if (cm.triggerSelectedItem()) {
+                                event.accepted = true;
+                                return;
+                            }
+                            cm.close();
+                            event.accepted = true;
+                            return;
+                        }
+                        if (root.isPreviewMode) {
+                            event.accepted = true;
+                            return;
+                        }
+                        var selStart = sourceCodeEditor.selectionStart;
+                        var selEnd = sourceCodeEditor.selectionEnd;
+                        var cp = sourceCodeEditor.cursorPosition;
+                        if (selStart !== selEnd) {
+                            sourceCodeEditor.remove(selStart, selEnd);
+                            cp = selStart;
+                        }
+                        var ind = CodeHelper.computeEnterIndent(sourceCodeEditor.text, cp, 4);
+                        sourceCodeEditor.insert(cp, ind.insertText);
+                        sourceCodeEditor.cursorPosition = cp + ind.cursorOffset;
+                        event.accepted = true;
+                    }
+
+                    Keys.onEnterPressed: (event) => {
+                        Keys.onReturnPressed(event);
+                    }
+
+                    Keys.onTabPressed: (event) => {
+                        if (root.isPreviewMode) {
+                            event.accepted = true;
+                            return;
+                        }
+                        var res = CodeHelper.applyTabIndent(sourceCodeEditor.text, sourceCodeEditor.selectionStart, sourceCodeEditor.selectionEnd, false, 4);
+                        if (res.rangeStart !== res.rangeEnd || res.replacement !== "") {
+                            sourceCodeEditor.remove(res.rangeStart, res.rangeEnd);
+                            sourceCodeEditor.insert(res.rangeStart, res.replacement);
+                            if (res.newSelStart !== res.newSelEnd) {
+                                sourceCodeEditor.select(res.newSelStart, res.newSelEnd);
+                            } else {
+                                sourceCodeEditor.cursorPosition = res.newSelStart;
+                            }
+                        }
+                        event.accepted = true;
+                    }
+
+                    Keys.onBacktabPressed: (event) => {
+                        if (root.isPreviewMode) {
+                            event.accepted = true;
+                            return;
+                        }
+                        var res = CodeHelper.applyTabIndent(sourceCodeEditor.text, sourceCodeEditor.selectionStart, sourceCodeEditor.selectionEnd, true, 4);
+                        sourceCodeEditor.remove(res.rangeStart, res.rangeEnd);
+                        sourceCodeEditor.insert(res.rangeStart, res.replacement);
+                        if (res.newSelStart !== res.newSelEnd) {
+                            sourceCodeEditor.select(res.newSelStart, res.newSelEnd);
+                        } else {
+                            sourceCodeEditor.cursorPosition = res.newSelStart;
+                        }
+                        event.accepted = true;
                     }
 
                     // F23: Ctrl+Shift+V fuerza imagen; Ctrl+V decide por MIME real (Wayland).
@@ -3437,6 +3611,20 @@ Item {
                                     },
                                     function() {}
                                 );
+                                return;
+                            }
+                        }
+
+                        if (!root.isPreviewMode && event.key === Qt.Key_Backspace) {
+                            if (blockEditor && typeof blockEditor.handleBackspaceAutoPair === "function" && blockEditor.handleBackspaceAutoPair(sourceCodeEditor)) {
+                                event.accepted = true;
+                                return;
+                            }
+                        }
+
+                        if (!root.isPreviewMode && blockEditor && typeof blockEditor.handleAutoPair === "function") {
+                            if (blockEditor.handleAutoPair(sourceCodeEditor, event)) {
+                                event.accepted = true;
                                 return;
                             }
                         }
