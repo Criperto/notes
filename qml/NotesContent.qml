@@ -2302,7 +2302,7 @@ Item {
                     implicitWidth: docxCancelLbl.implicitWidth + 24
                     implicitHeight: 32
                     radius: 8
-                    color: docxCancelHov.containsMouse ? Qt.hsva(Theme.text.hsvHue, Theme.text.hsvSaturation, Theme.text.hsvValue, 0.10) : "transparent"
+                    color: docxCancelHov.hovered ? Qt.hsva(Theme.text.hsvHue, Theme.text.hsvSaturation, Theme.text.hsvValue, 0.10) : "transparent"
                     border.color: Qt.hsva(Theme.muted.hsvHue, Theme.muted.hsvSaturation, Theme.muted.hsvValue, 0.35)
                     border.width: 1
                     HoverHandler { id: docxCancelHov }
@@ -2310,7 +2310,7 @@ Item {
                         id: docxCancelLbl
                         anchors.centerIn: parent
                         text: I18n.t("common.actions.cancel", "Cancelar")
-                        color: docxCancelHov.containsMouse ? Theme.text : Theme.muted
+                        color: docxCancelHov.hovered ? Theme.text : Theme.muted
                         font.family: Theme.fontFamily
                         font.pixelSize: 12
                     }
@@ -2339,7 +2339,7 @@ Item {
                     }
                     color: copyConvMa.pressed
                         ? Qt.hsva(Theme.accent.hsvHue, Theme.accent.hsvSaturation, Math.min(1, Theme.accent.hsvValue + 0.15), 0.50)
-                        : (copyConvHov.containsMouse
+                        : (copyConvHov.hovered
                             ? Qt.hsva(Theme.accent.hsvHue, Theme.accent.hsvSaturation, Theme.accent.hsvValue, 0.22)
                             : Qt.hsva(Theme.accent.hsvHue, Theme.accent.hsvSaturation, Theme.accent.hsvValue, 0.12))
                     border.color: Qt.hsva(Theme.accent.hsvHue, Theme.accent.hsvSaturation, Theme.accent.hsvValue, 0.45)
@@ -2376,7 +2376,7 @@ Item {
                     }
                     color: docxConvMa.pressed
                         ? Qt.hsva(Theme.accent.hsvHue, Theme.accent.hsvSaturation, Math.min(1, Theme.accent.hsvValue + 0.18), 0.65)
-                        : (docxConvHov.containsMouse
+                        : (docxConvHov.hovered
                             ? Qt.hsva(Theme.accent.hsvHue, Theme.accent.hsvSaturation, Theme.accent.hsvValue, 0.42)
                             : Qt.hsva(Theme.accent.hsvHue, Theme.accent.hsvSaturation, Theme.accent.hsvValue, 0.28))
                     border.color: Theme.accent
@@ -2535,7 +2535,7 @@ Item {
                     implicitWidth: depsCancelLbl.implicitWidth + 24
                     implicitHeight: 32
                     radius: 8
-                    color: depsCancelHov.containsMouse ? Qt.hsva(Theme.text.hsvHue, Theme.text.hsvSaturation, Theme.text.hsvValue, 0.10) : "transparent"
+                    color: depsCancelHov.hovered ? Qt.hsva(Theme.text.hsvHue, Theme.text.hsvSaturation, Theme.text.hsvValue, 0.10) : "transparent"
                     border.color: Qt.hsva(Theme.muted.hsvHue, Theme.muted.hsvSaturation, Theme.muted.hsvValue, 0.35)
                     border.width: 1
                     HoverHandler { id: depsCancelHov }
@@ -2543,7 +2543,7 @@ Item {
                         id: depsCancelLbl
                         anchors.centerIn: parent
                         text: I18n.t("common.actions.cancel", "Cancelar")
-                        color: depsCancelHov.containsMouse ? Theme.text : Theme.muted
+                        color: depsCancelHov.hovered ? Theme.text : Theme.muted
                         font.family: Theme.fontFamily
                         font.pixelSize: 12
                     }
@@ -2570,7 +2570,7 @@ Item {
                     }
                     color: depsInstallMa.pressed
                         ? Qt.hsva(Theme.accent.hsvHue, Theme.accent.hsvSaturation, Math.min(1, Theme.accent.hsvValue + 0.18), 0.65)
-                        : (depsInstallHov.containsMouse
+                        : (depsInstallHov.hovered
                             ? Qt.hsva(Theme.accent.hsvHue, Theme.accent.hsvSaturation, Theme.accent.hsvValue, 0.42)
                             : Qt.hsva(Theme.accent.hsvHue, Theme.accent.hsvSaturation, Theme.accent.hsvValue, 0.28))
                     border.color: Theme.accent
@@ -2781,7 +2781,7 @@ Item {
                     radius: 8
                     enabled: !NotesService.depsInstalling
                     opacity: enabled ? 1.0 : 0.4
-                    color: laterHov.containsMouse ? Qt.hsva(Theme.text.hsvHue, Theme.text.hsvSaturation, Theme.text.hsvValue, 0.10) : "transparent"
+                    color: laterHov.hovered ? Qt.hsva(Theme.text.hsvHue, Theme.text.hsvSaturation, Theme.text.hsvValue, 0.10) : "transparent"
                     border.color: Qt.hsva(Theme.muted.hsvHue, Theme.muted.hsvSaturation, Theme.muted.hsvValue, 0.35)
                     border.width: 1
                     HoverHandler { id: laterHov }
@@ -2789,7 +2789,7 @@ Item {
                         id: laterLbl
                         anchors.centerIn: parent
                         text: I18n.t("notes.deps.later", "Ahora no")
-                        color: laterHov.containsMouse ? Theme.text : Theme.muted
+                        color: laterHov.hovered ? Theme.text : Theme.muted
                         font.family: Theme.fontFamily
                         font.pixelSize: 12
                     }
@@ -2813,7 +2813,7 @@ Item {
                     }
                     color: installMa.pressed
                         ? Qt.hsva(Theme.accent.hsvHue, Theme.accent.hsvSaturation, Math.min(1, Theme.accent.hsvValue + 0.18), 0.65)
-                        : (installHov.containsMouse
+                        : (installHov.hovered
                             ? Qt.hsva(Theme.accent.hsvHue, Theme.accent.hsvSaturation, Theme.accent.hsvValue, 0.42)
                             : Qt.hsva(Theme.accent.hsvHue, Theme.accent.hsvSaturation, Theme.accent.hsvValue, 0.28))
                     border.color: Theme.accent
@@ -3894,7 +3894,7 @@ Item {
         id: importFilePickerProc
         stdout: SplitParser {
             onRead: (line) => {
-                var p = line.trim();
+                var p = String(line).trim();
                 if (p !== "") {
                     root._pickedImportPaths.push(p);
                 }

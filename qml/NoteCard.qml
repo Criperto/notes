@@ -347,7 +347,7 @@ Rectangle {
             // Botón Selección Múltiple — visible al hover o en modo selección
             Rectangle {
                 id: selectBadge
-                width: 24; height: 24; radius: 7
+                Layout.preferredWidth: 24; Layout.preferredHeight: 24; radius: 7
                 visible: root.noteData && !root.noteData.isExternal && !root.noteData.readOnly
                 color: root.isMultiSelected
                     ? Theme.accent
@@ -386,7 +386,7 @@ Rectangle {
 
             // Botón Fijar / Pin — siempre en el layout, fade de opacidad
             Rectangle {
-                width: 28; height: 28; radius: 8
+                Layout.preferredWidth: 28; Layout.preferredHeight: 28; radius: 8
                 color: pinMa.containsMouse ? Qt.hsva(Theme.accent.hsvHue, Theme.accent.hsvSaturation, Theme.accent.hsvValue, 0.22) : "transparent"
                 opacity: (root.noteData && root.noteData.pinned) ? 1.0 : (root.isHovered || root.isCurrent || pinMa.containsMouse ? 1.0 : 0.0)
 
@@ -619,7 +619,7 @@ Rectangle {
 
             // Botón eliminar tarjeta — siempre en layout, fade de opacidad
             Rectangle {
-                width: 28; height: 28; radius: 8
+                Layout.preferredWidth: 28; Layout.preferredHeight: 28; radius: 8
                 color: delMa.containsMouse ? Qt.rgba(1, 0.2, 0.2, 0.22) : "transparent"
                 opacity: (root.isHovered || root.isCurrent || delMa.containsMouse) ? 1.0 : 0.0
 

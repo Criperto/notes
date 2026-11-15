@@ -1,12 +1,12 @@
+pragma ComponentBehavior: Bound
 import QtQuick
-import QtQuick.Layouts
 import QtQuick.Window
 import Notas
 
 Item {
     id: root
 
-    property Window targetWindow: Window.window
+    property var targetWindow: Window.window
     readonly property string mode: (typeof ConfigBackend !== "undefined" && ConfigBackend.windowControlsMode) ? ConfigBackend.windowControlsMode : "auto"
     readonly property bool isWmFloating: (typeof Sys !== "undefined") ? Sys.wmNeedsWindowControls : false
     readonly property bool shouldShow: mode === "always" || (mode === "auto" && isWmFloating)
@@ -185,6 +185,7 @@ Item {
         Repeater {
             model: root.onLeft ? ["close", "min", "max"] : ["min", "max", "close"]
             Loader {
+                required property string modelData
                 sourceComponent: modelData === "close" ? closeBtnComp : (modelData === "min" ? minBtnComp : maxBtnComp)
             }
         }

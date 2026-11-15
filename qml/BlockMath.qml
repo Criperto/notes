@@ -203,7 +203,7 @@ Rectangle {
                 Layout.fillWidth: true
 
                 Image {
-                    width: 14; height: 14
+                    Layout.preferredWidth: 14; Layout.preferredHeight: 14
                     source: Theme.iconsPath + "math.svg"
                     sourceSize: Qt.size(14, 14)
                     layer.enabled: visible && !GamemodeService.gamemodeActive
@@ -341,8 +341,10 @@ Rectangle {
                         cursorShape: Qt.PointingHandCursor
                         onClicked: {
                             var textToCopy = root.pureCodeText;
-                            if (typeof Sys !== "undefined" && Sys && typeof Sys.setClipboardText === "function") {
-                                Sys.setClipboardText(textToCopy);
+                            if (typeof Quickshell !== "undefined" && typeof Quickshell.clipboardText !== "undefined") {
+                                Quickshell.clipboardText = textToCopy;
+                            } else if (typeof Sys !== "undefined" && Sys) {
+                                Sys.clipboardText = textToCopy;
                             }
                             root.copiedRecently = true;
                             copiedTimer.restart();

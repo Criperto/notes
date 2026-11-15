@@ -1,6 +1,7 @@
 // TrashModal.qml — Papelera estándar FreeDesktop ($XDG_DATA_HOME/Trash) filtrada por notasDir
 import "."
 import Notas
+pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls

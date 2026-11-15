@@ -200,7 +200,7 @@ Rectangle {
                 Layout.fillWidth: true
 
                 Image {
-                    width: 14; height: 14
+                    Layout.preferredWidth: 14; Layout.preferredHeight: 14
                     source: Theme.iconsPath + "diagram.svg"
                     sourceSize: Qt.size(14, 14)
                     layer.enabled: true

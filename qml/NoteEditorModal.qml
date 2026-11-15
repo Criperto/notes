@@ -4545,7 +4545,7 @@ Item {
 
         stdout: SplitParser {
             onRead: (line) => {
-                var src = line.trim();
+                var src = String(line).trim();
                 if (src !== "") {
                     root._attachImageFile(src);
                 }

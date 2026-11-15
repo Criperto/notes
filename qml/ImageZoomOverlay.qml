@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Window
 import QtQuick.Effects
@@ -234,7 +235,7 @@ Item {
             cache: true
             smooth: root.currentScale < 3.5
             fillMode: Image.PreserveAspectFit
-            playing: !root._isDestroyed && root.isOpen && Theme.animationsEnabled && !GamemodeService.gamemodeActive && Qt.application.active
+            playing: !root._isDestroyed && root.isOpen && Theme.animationsEnabled && !GamemodeService.gamemodeActive && Qt.application.state === Qt.ApplicationActive
             paused: GamemodeService.gamemodeActive || !playing
             source: root.imageSource
 

@@ -81,19 +81,20 @@ Item {
             res = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"120pt\" height=\"30pt\" viewBox=\"0 0 120 30\"><text x=\"10\" y=\"20\" fill=\"" + colHex + "\">" + raw + "</text></svg>";
         }
 
-        if (!res || res.indexOf("ERROR:") === 0) {
+        var resStr = res ? String(res) : "";
+        if (!resStr || resStr.indexOf("ERROR:") === 0) {
             root._hasError = true;
-            root._errorMessage = res ? res.substring(6) : "Error desconocido al procesar sintaxis LaTeX";
+            root._errorMessage = resStr ? resStr.substring(6) : "Error desconocido al procesar sintaxis LaTeX";
             root._svgMarkup = "";
             return;
         }
 
         root._hasError = false;
         root._errorMessage = "";
-        root._svgMarkup = res;
+        root._svgMarkup = resStr;
 
         // Extraer dimensiones naturales del viewBox
-        var vbMatch = res.match(/viewBox="0 0 ([0-9.]+) ([0-9.]+)"/);
+        var vbMatch = resStr.match(/viewBox="0 0 ([0-9.]+) ([0-9.]+)"/);
         if (vbMatch) {
             var rawW = parseFloat(vbMatch[1]);
             var rawH = parseFloat(vbMatch[2]);

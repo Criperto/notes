@@ -460,7 +460,7 @@ Item {
 
         stdout: SplitParser {
             onRead: (line) => {
-                var l = line.trim();
+                var l = String(line).trim();
                 if (!l) return;
                 var parts = l.split("\t");
                 if (parts.length >= 2) {
@@ -893,7 +893,7 @@ Item {
 
         stdout: SplitParser {
             onRead: (line) => {
-                var l = line.trim();
+                var l = String(line).trim();
                 console.log("[PasteImg] stdout: '" + l + "'");
                 if (l !== "") {
                     pasteImgProc.savedRelTag = l;
@@ -2432,7 +2432,7 @@ Item {
         property string outTypes: ""
         running: false
         stdout: SplitParser {
-            onRead: (line) => { clipCheckProc.outTypes += line.trim() + "\n"; }
+            onRead: (line) => { clipCheckProc.outTypes += String(line).trim() + "\n"; }
         }
         onExited: (exitCode) => {
             var types = clipCheckProc.outTypes;
@@ -3062,7 +3062,7 @@ Item {
             "-name", "*.bmp", ")"]
         stdout: SplitParser {
             onRead: (line) => {
-                var p = line.trim();
+                var p = String(line).trim();
                 if (p) root.registerImagePath(p);
             }
         }
@@ -3891,7 +3891,7 @@ Item {
         ]
         stdout: SplitParser {
             onRead: (line) => {
-                var l = line.trim();
+                var l = String(line).trim();
                 if (l.startsWith("MISSING:")) {
                     depsCheckProc.outText = l.substring(8).trim();
                 }
@@ -3992,7 +3992,7 @@ Item {
         property string missingDepError: ""
         stdout: SplitParser {
             onRead: (line) => {
-                var l = line.trim();
+                var l = String(line).trim();
                 if (l.startsWith("PROGRESS:")) {
                     var p = parseFloat(l.substring(9));
                     if (!isNaN(p)) root.docxConversionProgress = Math.max(0, Math.min(1, p));
@@ -4003,7 +4003,7 @@ Item {
         }
         stderr: SplitParser {
             onRead: (line) => {
-                var l = line.trim();
+                var l = String(line).trim();
                 if (l.startsWith("MISSING_DEP:")) {
                     docxConvertProc.missingDepError = l.substring(12).trim();
                 }
@@ -4133,7 +4133,7 @@ Item {
         property string outJson: ""
         stdout: SplitParser {
             onRead: (line) => {
-                var l = line.trim();
+                var l = String(line).trim();
                 if (l.startsWith("{") && l.endsWith("}")) {
                     webClipProc.outJson = l;
                 }

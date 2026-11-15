@@ -242,8 +242,8 @@ Rectangle {
 
         Rectangle {
             id: copyBtn
-            width: copyRow.implicitWidth + 12
-            height: 22
+            Layout.preferredWidth: copyRow.implicitWidth + 12
+            Layout.preferredHeight: 22
             radius: 6
             color: copyMa.containsMouse ? Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.12) : Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.06)
 
@@ -253,7 +253,7 @@ Rectangle {
                 spacing: 4
 
                 Image {
-                    width: 12; height: 12
+                    Layout.preferredWidth: 12; Layout.preferredHeight: 12
                     source: Theme.iconsPath + (root.copiedRecently ? "check.svg" : "content-copy.svg")
                     sourceSize: Qt.size(12, 12)
                     layer.enabled: true
@@ -308,6 +308,7 @@ Rectangle {
         clip: true
 
         Column {
+            id: previewGutterCol
             width: parent.width - 4
             readonly property real rowH: (root.previewLineCount > 0 && previewInput.paintedHeight > 0)
                 ? (previewInput.paintedHeight / root.previewLineCount)
@@ -317,7 +318,7 @@ Rectangle {
                 Text {
                     required property int index
                     width: parent.width
-                    height: parent.rowH
+                    height: previewGutterCol.rowH
                     text: (index + 1).toString()
                     color: Qt.rgba(Theme.muted.r, Theme.muted.g, Theme.muted.b, 0.55)
                     font.family: Theme.fontFamilyMonospace || "monospace"
@@ -701,6 +702,7 @@ Rectangle {
         clip: true
 
         Column {
+            id: editGutterCol
             width: parent.width - 4
             readonly property real rowH: (root.editLineCount > 0 && editInput.paintedHeight > 0)
                 ? (editInput.paintedHeight / root.editLineCount)
@@ -711,7 +713,7 @@ Rectangle {
                     required property int index
                     readonly property bool isCurrentLine: (index + 1) === root.editCurrentLine
                     width: parent.width
-                    height: parent.rowH
+                    height: editGutterCol.rowH
                     text: (index + 1).toString()
                     color: isCurrentLine ? Theme.accent : Qt.rgba(Theme.muted.r, Theme.muted.g, Theme.muted.b, 0.55)
                     font.family: Theme.fontFamilyMonospace || "monospace"
