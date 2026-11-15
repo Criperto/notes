@@ -44,6 +44,8 @@ Item {
     // Propiedad plana (no binding a noteData): el servicio muta la nota activa en
     // el lugar en varios flujos y los bindings a objetos JS mutados no avisan.
     property bool isTxt: false
+    property bool isPlainCode: false
+    readonly property bool isPlainFormat: isTxt || isPlainCode
     // El modelo de bloques se carga al terminar el morph de apertura
     // (los ~65 delegates no pagan instanciación durante la animación).
     property bool morphReady: true
@@ -72,7 +74,7 @@ Item {
     onMorphReadyChanged: {
         if (root.morphReady) {
             root._flushPendingBody();
-            if (!root.isTxt && !root.isSourceMode && !root.isPreviewMode) {
+            if (!root.isPlainFormat && !root.isSourceMode && !root.isPreviewMode) {
                 if (typeof blockEditor !== "undefined" && blockEditor) {
                     blockEditor.forceActiveFocus();
                 }
@@ -305,9 +307,10 @@ Item {
         root.tagSuggIndex = -1;
         root.dirty = false;
         root.isLoading = false;
-        // Las .txt abren directo en modo fuente (texto plano, sin Markdown)
+        // Las .txt y archivos que no son Markdown (.lua, .conf, .py, etc.) abren directo en modo fuente plano
         root.isTxt = root.noteData.format === "txt";
-        root.isSourceMode = root.isTxt;
+        root.isPlainCode = root.noteData.format === "plain";
+        root.isSourceMode = root.isPlainFormat;
         root.closeFind();
         if (sourceFlickable) sourceFlickable.contentY = 0;
         if (blockEditor) {
@@ -316,7 +319,7 @@ Item {
                 blockEditor.scrollAnim.stop();
             }
         }
-        if (root.isTxt) {
+        if (root.isSourceMode) {
             root._pendingBody = "";
             if (sourceCodeEditor) sourceCodeEditor.text = cleanBody;
         } else if (!root.morphReady) {
@@ -623,15 +626,15 @@ Item {
     // ── Manejo de imágenes (Portal y Copia) ──────────────────────────────────
     // En .txt están bloqueadas: ni picker, ni pegado, ni drop, ni URL
     function _openImagePicker() {
-        if (root.isTxt) return;
+        if (root.isPlainFormat) return;
         imagePickerProc.running = true;
     }
 
     // Maneja un drop de URLs quedándose solo con imágenes. Devuelve true
     // si manejó al menos una (decodifica %20/acentos, antes se rompía).
-    // En .txt no maneja nada.
+    // En .txt o texto plano no maneja nada.
     function _handleImageDrop(urls) {
-        if (root.isTxt) return false;
+        if (root.isPlainFormat) return false;
         var handled = false;
         if (!urls) return false;
         for (var u = 0; u < urls.length; u++) {
@@ -660,7 +663,7 @@ Item {
     }
 
     function _attachImageFile(src) {
-        if (!src || root.isTxt || !root.loadedSlug) return;
+        if (!src || root.isPlainFormat || !root.loadedSlug) return;
         var alt = src.indexOf("/") !== -1 ? src.substring(src.lastIndexOf("/") + 1) : src;
         NotesService.attachImage(root.loadedSlug, src, function(relTag, err, newKey) {
             if (!relTag) {
@@ -690,10 +693,12 @@ Item {
     }
 
     function pasteClipboardImage() {
-        console.log("[PasteImg] Modal.pasteClipboardImage: isTxt=" + root.isTxt + " loadedSlug=" + root.loadedSlug
+        console.log("[PasteImg] Modal.pasteClipboardImage: isTxt=" + root.isTxt + " isPlainCode=" + root.isPlainCode + " loadedSlug=" + root.loadedSlug
             + " sourceMode=" + root.isSourceMode);
-        if (root.isTxt) {
-            root.showToast(I18n.t("notes.editor.txt_no_format", "No disponible en .txt — convertí a .md para usar formato"));
+        if (root.isPlainFormat) {
+            root.showToast(root.isTxt
+                ? I18n.t("notes.editor.txt_no_format", "No disponible en .txt — convertí a .md para usar formato")
+                : I18n.t("notes.editor.plain_no_format", "No disponible en archivos de texto plano"));
             return;
         }
         var slug = root.loadedSlug || (root.noteData ? (root.noteData.slug || root.noteData.id) : "");
@@ -713,7 +718,7 @@ Item {
     }
 
     function _confirmWebImageUrl() {
-        if (root.isTxt) return;
+        if (root.isPlainFormat) return;
         var url = webUrlInput.text.trim();
         if (url.startsWith("http://") || url.startsWith("https://")) {
             if (root.isSourceMode) {
@@ -727,9 +732,9 @@ Item {
     }
 
     // ── Modo Código Fuente con preservación de cursor y scroll ───────────
-    // En .txt el modo fuente está forzado (no aplica alternar)
+    // En .txt o texto plano el modo fuente está forzado (no aplica alternar)
     function toggleSourceMode() {
-        if (root.isTxt) return;
+        if (root.isPlainFormat) return;
         root._flushPendingBody();
         if (!root.isSourceMode) {
             var activeBid = blockEditor ? blockEditor.activeBlockBid : -1;
@@ -920,8 +925,8 @@ Item {
     }
 
     function applyFormatOrAction(action) {
-        // En .txt no hay formato: todo inerte salvo Buscar (que no pasa por acá)
-        if (root.isTxt) return;
+        // En .txt o texto plano no hay formato: todo inerte salvo Buscar (que no pasa por acá)
+        if (root.isPlainFormat) return;
         if (action === "wikilink") {
             root.openWikilinkSuggestions();
             return;
@@ -1774,7 +1779,7 @@ Item {
                         font.pixelSize: Theme.fontSizeTitleLarge
                         font.bold: true
                         selectByMouse: true
-                        readOnly: root.isPreviewMode
+                        readOnly: root.isPreviewMode || root.isPlainCode
                         CustomTextCursor {}
 
                         Text {
@@ -1799,7 +1804,10 @@ Item {
 
                         Keys.onDownPressed: (event) => {
                             root._confirmTitleRename();
-                            if (blockEditor && blockEditor.blocksModel && blockEditor.blocksModel.count > 0) {
+                            if (root.isSourceMode && sourceCodeEditor) {
+                                sourceCodeEditor.forceActiveFocus();
+                                event.accepted = true;
+                            } else if (blockEditor && blockEditor.blocksModel && blockEditor.blocksModel.count > 0) {
                                 blockEditor.requestEditBlock(blockEditor.blocksModel.get(0).bid, 0);
                                 event.accepted = true;
                             }
@@ -1807,7 +1815,10 @@ Item {
 
                         Keys.onReturnPressed: (event) => {
                             root._confirmTitleRename();
-                            if (blockEditor && blockEditor.blocksModel && blockEditor.blocksModel.count > 0) {
+                            if (root.isSourceMode && sourceCodeEditor) {
+                                sourceCodeEditor.forceActiveFocus();
+                                event.accepted = true;
+                            } else if (blockEditor && blockEditor.blocksModel && blockEditor.blocksModel.count > 0) {
                                 blockEditor.requestEditBlock(blockEditor.blocksModel.get(0).bid, 0);
                                 event.accepted = true;
                             }
@@ -1818,6 +1829,9 @@ Item {
                         Keys.onTabPressed: (event) => {
                             if (tagsRow.visible && tagInputBox.visible && tagInput) {
                                 tagInput.forceActiveFocus();
+                                event.accepted = true;
+                            } else if (root.isSourceMode && sourceCodeEditor) {
+                                sourceCodeEditor.forceActiveFocus();
                                 event.accepted = true;
                             } else if (blockEditor && blockEditor.blocksModel && blockEditor.blocksModel.count > 0) {
                                 blockEditor.requestEditBlock(blockEditor.blocksModel.get(0).bid, 0);
@@ -2045,8 +2059,8 @@ Item {
             RowLayout {
                 id: tagsRow
                 Layout.fillWidth: true
-                Layout.preferredHeight: root.isTxt ? 0 : 30
-                visible: !root.isTxt && root.isExpanded && (!root.isPreviewMode || (root.editTags && root.editTags.length > 0))
+                Layout.preferredHeight: root.isPlainFormat ? 0 : 30
+                visible: !root.isPlainFormat && root.isExpanded && (!root.isPreviewMode || (root.editTags && root.editTags.length > 0))
                 opacity: root.isExpanded ? 1.0 : 0.0
                 spacing: 6
                 clip: true
@@ -2456,7 +2470,7 @@ Item {
                 radius: 10
                 color: Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.04)
                 opacity: root.isExpanded ? 1.0 : 0.0
-                visible: !root.isPreviewMode && opacity > 0.0
+                visible: !root.isPreviewMode && !root.isPlainCode && opacity > 0.0
 
                 Behavior on opacity {
                     enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
@@ -2528,7 +2542,7 @@ Item {
                         // 1. Negrita
                         ToolbarButton {
                             actionId: "bold"
-                            disabled: root.isTxt
+                            disabled: root.isPlainFormat
                             tooltipLayer: tooltipLayer
                             iconSource: Theme.iconsPath + "format-bold.svg"
                             active: root.isFormatActive("bold")
@@ -2538,7 +2552,7 @@ Item {
                         // 2. Cursiva
                         ToolbarButton {
                             actionId: "italic"
-                            disabled: root.isTxt
+                            disabled: root.isPlainFormat
                             tooltipLayer: tooltipLayer
                             iconSource: Theme.iconsPath + "format-italic.svg"
                             active: root.isFormatActive("italic")
@@ -2548,7 +2562,7 @@ Item {
                         // 3. Subrayado
                         ToolbarButton {
                             actionId: "underline"
-                            disabled: root.isTxt
+                            disabled: root.isPlainFormat
                             tooltipLayer: tooltipLayer
                             textLabel: "U"
                             underlineText: true
@@ -2559,7 +2573,7 @@ Item {
                         // 4. Tachado
                         ToolbarButton {
                             actionId: "strike"
-                            disabled: root.isTxt
+                            disabled: root.isPlainFormat
                             tooltipLayer: tooltipLayer
                             iconSource: Theme.iconsPath + "format-strikethrough.svg"
                             active: root.isFormatActive("strike")
@@ -2569,7 +2583,7 @@ Item {
                         // 5. Resaltado
                         ToolbarButton {
                             actionId: "highlight"
-                            disabled: root.isTxt
+                            disabled: root.isPlainFormat
                             tooltipLayer: tooltipLayer
                             iconSource: Theme.iconsPath + "format-highlight.svg"
                             active: root.isFormatActive("highlight")
@@ -2579,7 +2593,7 @@ Item {
                         // 6. Código inline
                         ToolbarButton {
                             actionId: "inline_code"
-                            disabled: root.isTxt
+                            disabled: root.isPlainFormat
                             tooltipLayer: tooltipLayer
                             iconSource: Theme.iconsPath + "code.svg"
                             active: root.isFormatActive("inline_code")
@@ -2592,7 +2606,7 @@ Item {
                         ToolbarButton {
                             id: headingToolbarBtn
                             actionId: "heading_menu"
-                            disabled: root.isTxt
+                            disabled: root.isPlainFormat
                             tooltipLayer: tooltipLayer
                             textLabel: {
                                 for (var i = 1; i <= 6; i++) {
@@ -2623,7 +2637,7 @@ Item {
                         // 9. Bullet list
                         ToolbarButton {
                             actionId: "bullet_list"
-                            disabled: root.isTxt
+                            disabled: root.isPlainFormat
                             tooltipLayer: tooltipLayer
                             textLabel: "•"
                             active: root.isFormatActive("bullet_list")
@@ -2633,7 +2647,7 @@ Item {
                         // 10. Numbered list
                         ToolbarButton {
                             actionId: "ordered_list"
-                            disabled: root.isTxt
+                            disabled: root.isPlainFormat
                             tooltipLayer: tooltipLayer
                             textLabel: "1."
                             active: root.isFormatActive("ordered_list")
@@ -2643,7 +2657,7 @@ Item {
                         // 11. Checklist
                         ToolbarButton {
                             actionId: "task_list"
-                            disabled: root.isTxt
+                            disabled: root.isPlainFormat
                             tooltipLayer: tooltipLayer
                             iconSource: Theme.iconsPath + "checklist.svg"
                             active: root.isFormatActive("task_list")
@@ -2655,7 +2669,7 @@ Item {
                         // 12. Blockquote
                         ToolbarButton {
                             actionId: "quote"
-                            disabled: root.isTxt
+                            disabled: root.isPlainFormat
                             tooltipLayer: tooltipLayer
                             textLabel: ">"
                             active: root.isFormatActive("quote")
@@ -2665,7 +2679,7 @@ Item {
                         // 13. Code block
                         ToolbarButton {
                             actionId: "code_block"
-                            disabled: root.isTxt
+                            disabled: root.isPlainFormat
                             tooltipLayer: tooltipLayer
                             iconSource: Theme.iconsPath + "code-blocks.svg"
                             active: root.isFormatActive("code_block")
@@ -2675,7 +2689,7 @@ Item {
                         // 14. Table
                         ToolbarButton {
                             actionId: "table"
-                            disabled: root.isTxt
+                            disabled: root.isPlainFormat
                             tooltipLayer: tooltipLayer
                             iconSource: Theme.iconsPath + "table.svg"
                             active: root.isFormatActive("table")
@@ -2686,7 +2700,7 @@ Item {
                         ToolbarButton {
                             id: mermaidToolbarBtn
                             actionId: "mermaid"
-                            disabled: root.isTxt
+                            disabled: root.isPlainFormat
                             tooltipLayer: tooltipLayer
                             iconSource: Theme.iconsPath + "diagram.svg"
                             active: root.isFormatActive("mermaid")
@@ -2706,7 +2720,7 @@ Item {
                         ToolbarButton {
                             id: mathToolbarBtn
                             actionId: "math"
-                            disabled: root.isTxt
+                            disabled: root.isPlainFormat
                             tooltipLayer: tooltipLayer
                             iconSource: Theme.iconsPath + "math.svg"
                             active: root.isFormatActive("math")
@@ -2726,7 +2740,7 @@ Item {
                         // 15. HR
                         ToolbarButton {
                             actionId: "hr"
-                            disabled: root.isTxt
+                            disabled: root.isPlainFormat
                             tooltipLayer: tooltipLayer
                             iconSource: Theme.iconsPath + "horizontal-rule.svg"
                             onClicked: root.applyFormatOrAction("hr")
@@ -2738,7 +2752,7 @@ Item {
                         ToolbarButton {
                             id: imgToolbarBtn
                             actionId: "image"
-                            disabled: root.isTxt
+                            disabled: root.isPlainFormat
                             tooltipLayer: tooltipLayer
                             iconSource: Theme.iconsPath + "image.svg"
                             onClicked: {
@@ -2756,7 +2770,7 @@ Item {
                         // 17. Link
                         ToolbarButton {
                             actionId: "link"
-                            disabled: root.isTxt
+                            disabled: root.isPlainFormat
                             tooltipLayer: tooltipLayer
                             iconSource: Theme.iconsPath + "link.svg"
                             active: root.isFormatActive("link")
@@ -2767,7 +2781,7 @@ Item {
                         ToolbarButton {
                             id: noteLinkToolbarBtn
                             actionId: "wikilink"
-                            disabled: root.isTxt
+                            disabled: root.isPlainFormat
                             tooltipLayer: tooltipLayer
                             textLabel: "[[ ]]"
                             onClicked: root.openWikilinkSuggestions()
@@ -2777,7 +2791,7 @@ Item {
                         ToolbarButton {
                             id: anchorToolbarBtn
                             actionId: "anchor"
-                            disabled: root.isTxt
+                            disabled: root.isPlainFormat
                             tooltipLayer: tooltipLayer
                             textLabel: "#"
                             onClicked: root.openAnchorSuggestions()
@@ -2800,8 +2814,8 @@ Item {
                         // 19. Modo código fuente — último de la fila scrollable
                         ToolbarButton {
                             actionId: "source_mode"
-                            visible: !root.isTxt && (typeof NotesConfig !== "undefined" && NotesConfig.showSourceModeButton)
-                            disabled: root.isTxt
+                            visible: !root.isPlainFormat && (typeof NotesConfig !== "undefined" && NotesConfig.showSourceModeButton)
+                            disabled: root.isPlainFormat
                             tooltipLayer: tooltipLayer
                             textLabel: "</>"
                             active: root.isSourceMode
@@ -3311,6 +3325,7 @@ Item {
                     y: 16
                     wrapMode: TextEdit.Wrap
                     textFormat: TextEdit.PlainText
+                    readOnly: root.isPreviewMode
                     color: Theme.text
                     font.family: Theme.fontFamilyMonospace || "monospace"
                     font.pixelSize: EditorMetrics.body
@@ -3318,7 +3333,7 @@ Item {
                     // La selección es el marcador de la coincidencia activa en
                     // modo fuente: debe seguir visible con el foco en el buscador
                     persistentSelection: true
-                    cursorVisible: root.isSourceMode && activeFocus
+                    cursorVisible: root.isSourceMode && !root.isPreviewMode && activeFocus
                     CustomTextCursor {}
 
                     MouseArea {
@@ -3400,13 +3415,13 @@ Item {
                             return;
                         }
 
-                        if ((event.modifiers & Qt.ControlModifier) && (event.modifiers & Qt.ShiftModifier) && event.key === Qt.Key_V) {
+                        if (!root.isPlainFormat && !root.isPreviewMode && (event.modifiers & Qt.ControlModifier) && (event.modifiers & Qt.ShiftModifier) && event.key === Qt.Key_V) {
                             root.pasteClipboardImage();
                             event.accepted = true;
                             return;
                         }
-                        if (((event.modifiers & Qt.ControlModifier) && !(event.modifiers & Qt.ShiftModifier) && event.key === Qt.Key_V) ||
-                            ((event.modifiers & Qt.ShiftModifier) && event.key === Qt.Key_Insert)) {
+                        if (!root.isPlainFormat && !root.isPreviewMode && (((event.modifiers & Qt.ControlModifier) && !(event.modifiers & Qt.ShiftModifier) && event.key === Qt.Key_V) ||
+                            ((event.modifiers & Qt.ShiftModifier) && event.key === Qt.Key_Insert))) {
                             var clipText = (typeof Quickshell.clipboardText === "string") ? Quickshell.clipboardText : "";
                             var trimmed = clipText.trim();
                             if (/^(file:\/\/|\/).+\.(png|jpe?g|webp|gif|svg|bmp)$/i.test(trimmed)) {
@@ -4172,7 +4187,7 @@ Item {
     }
 
     function openWikilinkSuggestions() {
-        if (root.isTxt) return;
+        if (root.isPlainFormat) return;
         var input = null;
         var curPos = 0;
         var selText = "";
@@ -4211,7 +4226,7 @@ Item {
     }
 
     function openAnchorSuggestions() {
-        if (root.isTxt) return;
+        if (root.isPlainFormat) return;
         var input = null;
         var curPos = 0;
         var selText = "";

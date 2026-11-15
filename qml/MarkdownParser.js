@@ -233,8 +233,12 @@ function _deriveTitle(body, baseName) {
 function parseNote(fileName, filePath, fileIsDir, rawContent) {
     fileName = fileName || "";
     filePath = filePath || "";
-    var isTxt = /\.txt$/i.test(fileName);
-    var format = isTxt ? "txt" : "md";
+    var nameForExt = fileName || filePath;
+    var isTxt = /\.txt$/i.test(nameForExt);
+    var hasExt = /\.[A-Za-z0-9_+-]+$/.test(nameForExt);
+    var isMarkdownFile = !hasExt || /\.(md|markdown|mdx)$/i.test(nameForExt);
+    var isPlainText = isTxt || !isMarkdownFile;
+    var format = isTxt ? "txt" : (isMarkdownFile ? "md" : "plain");
     var meta = {
         title: "",
         subtitle: "",
@@ -249,9 +253,9 @@ function parseNote(fileName, filePath, fileIsDir, rawContent) {
     var body = content;
 
     // 1. Extraer YAML Frontmatter delimitado por '---' (máximo un bloque, al inicio).
-    // En .txt NO se interpreta: un "---" inicial es texto literal.
+    // En .txt o archivos que no son Markdown (.lua, .conf, .py, etc.) NO se interpreta.
     var hadFm = false;
-    var fm = isTxt ? null : _extractFrontmatter(content);
+    var fm = isPlainText ? null : _extractFrontmatter(content);
     if (fm) {
         hadFm = true;
         body = content.substring(fm.matchedLength);
@@ -270,7 +274,9 @@ function parseNote(fileName, filePath, fileIsDir, rawContent) {
     var baseName = rawName.indexOf("/") !== -1 ? rawName.substring(rawName.lastIndexOf("/") + 1) : rawName;
     var slug = rawName.toLowerCase();
 
-    if (!meta.title || meta.title === "") {
+    if (format === "plain") {
+        meta.title = baseName;
+    } else if (!meta.title || meta.title === "") {
         var derived = _deriveTitle(body, baseName);
         meta.title = derived.title;
         if (!meta.subtitle && derived.subtitle) {
@@ -283,17 +289,19 @@ function parseNote(fileName, filePath, fileIsDir, rawContent) {
 
     // 2. Extraer assets e imágenes referenciadas en el Markdown
     var assets = [];
-    var imgRegex = /!\[.*?\]\((.*?)\)/g;
-    var match;
-    while ((match = imgRegex.exec(body)) !== null) {
-        if (match[1] && match[1].trim().length > 0) {
-            assets.push(match[1].trim());
+    if (!isPlainText) {
+        var imgRegex = /!\[.*?\]\((.*?)\)/g;
+        var match;
+        while ((match = imgRegex.exec(body)) !== null) {
+            if (match[1] && match[1].trim().length > 0) {
+                assets.push(match[1].trim());
+            }
         }
     }
 
     var baseFolder = "";
     if (filePath) {
-        var isActualFile = /\.(md|txt)$/i.test(filePath || "");
+        var isActualFile = /\.(md|txt)$/i.test(filePath || "") || format === "plain";
         if (fileIsDir && !isActualFile) {
             baseFolder = filePath;
         } else {
@@ -305,8 +313,8 @@ function parseNote(fileName, filePath, fileIsDir, rawContent) {
     // Previsualización limpia para la tarjeta (sin etiquetas de imagen para evitar advertencias de carga)
     // Acotamos a los primeros 2000 caracteres para no correr regex pesados sobre archivos enormes
     var bodySlice = (body.length > 2000) ? body.substring(0, 2000) : body;
-    var cleanBodyForPreview = bodySlice.replace(/!\[.*?\]\(.*?\)/g, "").trim();
-    var firstH1Match = cleanBodyForPreview.match(/^#+\s*(.+)\r?\n+/);
+    var cleanBodyForPreview = isPlainText ? bodySlice.trim() : bodySlice.replace(/!\[.*?\]\(.*?\)/g, "").trim();
+    var firstH1Match = isPlainText ? null : cleanBodyForPreview.match(/^#+\s*(.+)\r?\n+/);
     if (firstH1Match) {
         var h1Text = firstH1Match[1].trim().toLowerCase();
         var titleText = (meta.title || "").trim().toLowerCase();
@@ -341,7 +349,7 @@ function parseNote(fileName, filePath, fileIsDir, rawContent) {
     return {
         id: slug,
         slug: slug,
-        format: format, // "md" | "txt" (F6: el editor no interpreta Markdown en txt)
+        format: format, // "md" | "txt" | "plain" (F6: el editor no interpreta Markdown en txt ni archivos no-md)
         fileName: fileName,
         filePath: filePath,
         baseFolder: baseFolder,
@@ -376,7 +384,9 @@ function serializeNote(meta, body) {
     cleanBody = cleanBody.replace(/[\u200B\uFEFF]/g, "");
 
     var fn0 = meta.fileName || meta.filePath || "";
-    if (meta.format === "txt" || (/\.txt$/i.test(fn0))) {
+    var fnHasExt = /\.[A-Za-z0-9_+-]+$/.test(fn0);
+    var fnIsMd = !fn0 || !fnHasExt || /\.(md|markdown|mdx)$/i.test(fn0);
+    if (meta.format === "txt" || meta.format === "plain" || !fnIsMd) {
         return cleanBody;
     }
 

@@ -457,6 +457,9 @@ function inlineToHtml(src, opts) {
         return prefix + '<span style="background-color: ' + highlightBg + '; padding: 0 3px; border-radius: 3px;">' + inner + '</span>';
     });
 
+    // 7b. Preservar saltos de línea en RichText para no colapsar párrafos multilínea al desenfocar
+    text = text.replace(/\r?\n/g, "<br/>");
+
     // 8. Restaurar imágenes
     for (var m = 0; m < images.length; m++) {
         var imgHtml = images[m];

@@ -6449,6 +6449,37 @@ runTest("F157: ESC deselecciona el bloque activo y en la siguiente pulsación ci
         "BlockEditor.confirmActiveBlock debe conservar foco en el editor tras desactivar bloque");
 });
 
+runTest("F158: archivos no-md (.lua/.yaml/etc.) abren en texto plano y párrafos multilínea conservan saltos en RichText", () => {
+    const luaSrc = '-- Auto-generated\nhl.monitor({\n  output = "Virtual-1",\n})\n';
+    const parsedLua = MD.parseNote('monitors.lua', '/home/user/.config/hypr/monitors.lua', false, luaSrc);
+    assert.strictEqual(parsedLua.format, 'plain', "Un .lua debe detectarse con format 'plain'");
+    assert.strictEqual(parsedLua.title, 'monitors.lua', "El título de un archivo plain debe ser su nombre");
+    assert.strictEqual(parsedLua.body, luaSrc, "El cuerpo de un .lua no debe ser recortado ni alterado");
+    assert.strictEqual(MD.serializeNote({ format: 'plain', fileName: 'monitors.lua', title: 'monitors.lua' }, luaSrc), luaSrc,
+        "serializeNote en archivo no-md no debe inyectar frontmatter YAML");
+
+    const yamlSrc = '---\nfoo: bar\n# Comentario con ![img](x.png)\n';
+    const parsedYaml = MD.parseNote('cfg.yaml', '/tmp/cfg.yaml', false, yamlSrc);
+    assert.strictEqual(parsedYaml.format, 'plain', "Un .yaml debe tener format 'plain'");
+    assert.strictEqual(parsedYaml.body, yamlSrc, "No debe consumir '---' inicial como frontmatter en archivos no-md");
+    assert.strictEqual(parsedYaml.title, 'cfg.yaml', "No debe extraer '# Comentario' como título en archivos no-md");
+    assert.strictEqual(parsedYaml.assets.length, 0, "No debe sondear imágenes Markdown dentro de código fuente");
+
+    const mdParsed = MD.parseNote('nota.md', '/tmp/nota.md', false, '---\ntitle: "Real"\n---\nHola\n');
+    assert.strictEqual(mdParsed.format, 'md', "Un .md sigue con format 'md'");
+
+    const multiHtml = Inline.inlineToHtml('Línea **uno**\nLínea dos\nLínea tres', {});
+    assert.strictEqual(multiHtml, 'Línea <b>uno</b><br/>Línea dos<br/>Línea tres',
+        "inlineToHtml debe convertir saltos de línea a <br/> para que RichText no los colapse al desenfocar");
+
+    const modalQml = fs.readFileSync(path.resolve(__dirname, '../qml/NoteEditorModal.qml'), 'utf8');
+    assert.ok(modalQml.includes('root.isPlainCode = root.noteData.format === "plain"')
+        && modalQml.includes("root.isSourceMode = root.isPlainFormat")
+        && modalQml.includes("readOnly: root.isPreviewMode")
+        && modalQml.includes("visible: !root.isPreviewMode && !root.isPlainCode && opacity > 0.0"),
+        "NoteEditorModal debe abrir archivos no-md en sourceCodeEditor readOnly en preview y sin barra Markdown");
+});
+
 console.log(`\n========================================`);
 console.log(`Resultados: ${passed} OK, ${failed} FAIL`);
 console.log(`========================================`);
