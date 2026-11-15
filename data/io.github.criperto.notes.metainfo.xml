@@ -27,6 +27,11 @@
   </screenshots>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.3.4" date="2026-11-15">
+      <description>
+        <p>Visor zoom-in para imágenes con SpringAnimation, botón de copia directa de imagen al portapapeles, pegado en viñetas, cierre con ESC y fix de SIGSEGV con CripertoShell</p>
+      </description>
+    </release>
     <release version="0.3.3" date="2026-11-15">
       <description>
         <p>Enfoque automático al párrafo debajo al pegar imágenes, autocierre configurable para comilla simple y bloques de código (triple backtick y unwrap inmediato al borrar el último fence), preservación de selección al usar click derecho y al alternar foco de ventana con cursores de esquina estables, mejoras de Deshacer/Rehacer (Ctrl+Z/Ctrl+Y) en cambios multilínea/multibloque y autoscroll suave al escribir en los límites del viewport.</p>
