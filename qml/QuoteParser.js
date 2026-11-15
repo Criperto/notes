@@ -22,7 +22,7 @@ var CALLOUT_TYPES = ["NOTE", "TIP", "IMPORTANT", "WARNING", "CAUTION"];
 // O con título personalizado:
 // > [!NOTE] Mi título personalizado
 // > Información adicional...
-// Devuelve { type: "NOTE"|"TIP"|"IMPORTANT"|"WARNING"|"CAUTION", title: string, bodyRaw: string } o null.
+// Devuelve { type, foldState, collapsible, collapsedByDefault, title, bodyRaw } o null.
 function parseCallout(raw) {
     if (!raw || typeof raw !== "string") return null;
     var lines = raw.split("\n");
@@ -33,20 +33,38 @@ function parseCallout(raw) {
     if (firstInfo.depth === 0) return null;
 
     var content = (firstInfo.content || "").trim();
-    var match = content.match(/^\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]([ \t]+(.*))?$/i);
+    var match = content.match(/^\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]([+-])?([ \t]+(.*))?$/i);
     if (!match) return null;
 
     var type = match[1].toUpperCase();
-    var customTitle = (match[3] !== undefined && match[3] !== null) ? match[3].trim() : "";
+    var foldState = match[2] || "";
+    var customTitle = (match[4] !== undefined && match[4] !== null) ? match[4].trim() : "";
 
     var bodyLines = lines.slice(1);
     var bodyRaw = bodyLines.join("\n");
 
     return {
         type: type,
+        foldState: foldState,
+        collapsible: foldState !== "",
+        collapsedByDefault: foldState === "-",
         title: customTitle,
         bodyRaw: bodyRaw
     };
+}
+
+// Alterna el marcador de colapso ([!TYPE]- <-> [!TYPE]+) en la primera línea.
+function toggleCalloutFoldInRaw(raw) {
+    if (!raw || typeof raw !== "string") return raw;
+    var lines = raw.split("\n");
+    if (lines.length === 0) return raw;
+    var first = lines[0];
+    var m = first.match(/^([ \t]*>[ \t]*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\])([+-])?([\s\S]*)$/i);
+    if (!m) return raw;
+    var current = m[3] || "+";
+    var nextMark = (current === "-") ? "+" : "-";
+    lines[0] = m[1] + nextMark + (m[4] || "");
+    return lines.join("\n");
 }
 
 // Cuenta los `>` iniciales tolerando espacios/tabs entre ellos.

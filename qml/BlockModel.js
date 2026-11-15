@@ -856,3 +856,53 @@ function extractLatex(raw) {
     return str;
 }
 
+function headingLevelOfRaw(raw) {
+    if (!raw || typeof raw !== "string") return 0;
+    var m = raw.match(/^[ \t]*(#{1,6})(?:[ \t]+|$)/);
+    return m ? m[1].length : 0;
+}
+
+// Calcula qué bids quedan ocultos bajo encabezados colapsados (hasta otro
+// encabezado de nivel <= al que inició el colapso).
+function computeHiddenBids(blocks, collapsedBids) {
+    var hidden = {};
+    if (!blocks || !collapsedBids) return hidden;
+    var hideUntilLevel = 0;
+    for (var i = 0; i < blocks.length; i++) {
+        var b = blocks[i];
+        if (!b) continue;
+        var lvl = (b.type === "heading") ? headingLevelOfRaw(b.raw) : 0;
+        if (hideUntilLevel > 0) {
+            if (lvl > 0 && lvl <= hideUntilLevel) {
+                hideUntilLevel = 0;
+            } else {
+                hidden[b.bid] = true;
+                continue;
+            }
+        }
+        if (lvl > 0 && collapsedBids[b.bid] === true) {
+            hideUntilLevel = lvl;
+        }
+    }
+    return hidden;
+}
+
+// Reordena un bloque en una lista pura conservando separadores entre bloques.
+function moveBlockInArray(blocks, index, delta) {
+    if (!Array.isArray(blocks) || index < 0 || index >= blocks.length) return blocks;
+    var target = index + delta;
+    if (target < 0 || target >= blocks.length || target === index) return blocks;
+    var copy = blocks.map(function(b) {
+        return { bid: b.bid, type: b.type, raw: b.raw, sep: b.sep };
+    });
+    var item = copy.splice(index, 1)[0];
+    copy.splice(target, 0, item);
+    // Normalizar sep: todos los bloques no-finales necesitan al menos "\n\n"
+    for (var i = 0; i < copy.length; i++) {
+        if (i < copy.length - 1) {
+            if (!copy[i].sep || copy[i].sep === "") copy[i].sep = "\n\n";
+        }
+    }
+    return copy;
+}
+

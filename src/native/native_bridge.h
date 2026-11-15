@@ -303,6 +303,7 @@ public:
     Q_INVOKABLE QVariantMap restoreTrashEntry(const QString &entryId, const QString &notesDir) const;
     Q_INVOKABLE bool purgeTrashEntry(const QString &entryId) const;
     Q_INVOKABLE bool movePath(const QString &oldPath, const QString &newPath);
+    Q_INVOKABLE QVariantList listAssetFiles(const QString &notesDir) const;
 
 signals:
     void clipboardTextChanged();

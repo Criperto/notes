@@ -3386,6 +3386,110 @@ Item {
                         }
 
                         BentoCard {
+                            implicitHeight: colOrphans.implicitHeight + 8
+                            ColumnLayout {
+                                id: colOrphans
+                                anchors.fill: parent
+                                anchors.leftMargin: 4
+                                anchors.rightMargin: 4
+                                anchors.topMargin: 2
+                                anchors.bottomMargin: 6
+                                spacing: 8
+                                property var orphanList: []
+                                property bool scannedOnce: false
+
+                                function scan() {
+                                    orphanList = NotesService.findOrphanAssets();
+                                    scannedOnce = true;
+                                }
+
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 8
+                                    Image {
+                                        width: 15; height: 15
+                                        source: Theme.iconsPath + "image.svg"
+                                        sourceSize: Qt.size(15, 15)
+                                        layer.enabled: !GamemodeService.gamemodeActive
+                                        layer.effect: MultiEffect { colorization: 1.0; colorizationColor: Theme.muted }
+                                    }
+                                    Text {
+                                        Layout.fillWidth: true
+                                        text: I18n.t("config.storage.orphan_assets", "Mantenimiento de imágenes (assets/)")
+                                        font.family: Theme.fontFamily
+                                        font.pixelSize: Theme.fontSizeSubheading
+                                        font.bold: true
+                                        color: Theme.text
+                                    }
+                                    Rectangle {
+                                        Layout.preferredHeight: 28
+                                        Layout.preferredWidth: scanBtnTxt.implicitWidth + 18
+                                        radius: 8
+                                        color: scanBtnMa.containsMouse ? Theme.accent : Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.16)
+                                        Text {
+                                            id: scanBtnTxt
+                                            anchors.centerIn: parent
+                                            text: I18n.t("config.storage.scan_orphans", "Buscar huérfanas")
+                                            color: scanBtnMa.containsMouse ? Theme.textOn(Theme.accent) : Theme.accent
+                                            font.family: Theme.fontFamily
+                                            font.pixelSize: Theme.fontSizeSmall
+                                            font.weight: Font.Medium
+                                        }
+                                        MouseArea {
+                                            id: scanBtnMa
+                                            anchors.fill: parent
+                                            hoverEnabled: true
+                                            cursorShape: Qt.PointingHandCursor
+                                            onClicked: colOrphans.scan()
+                                        }
+                                    }
+                                }
+
+                                Text {
+                                    Layout.fillWidth: true
+                                    visible: colOrphans.scannedOnce
+                                    text: colOrphans.orphanList.length === 0
+                                        ? I18n.t("config.storage.no_orphans", "No se encontraron imágenes sin referenciar.")
+                                        : (colOrphans.orphanList.length + " " + I18n.t("config.storage.orphans_found", "imágenes sin usar en ninguna nota"))
+                                    color: Theme.muted
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: Theme.fontSizeBodySecondary
+                                    wrapMode: Text.WordWrap
+                                }
+
+                                Rectangle {
+                                    visible: colOrphans.orphanList.length > 0
+                                    Layout.preferredHeight: 30
+                                    Layout.preferredWidth: cleanOrphansTxt.implicitWidth + 20
+                                    radius: 8
+                                    color: cleanOrphansMa.containsMouse
+                                        ? Qt.rgba(Theme.color1.r, Theme.color1.g, Theme.color1.b, 0.25)
+                                        : Qt.rgba(Theme.color1.r, Theme.color1.g, Theme.color1.b, 0.14)
+                                    Text {
+                                        id: cleanOrphansTxt
+                                        anchors.centerIn: parent
+                                        text: I18n.t("config.storage.trash_orphans", "Enviar a la papelera") + " (" + colOrphans.orphanList.length + ")"
+                                        color: Theme.color1
+                                        font.family: Theme.fontFamily
+                                        font.pixelSize: Theme.fontSizeSmall
+                                        font.weight: Font.Medium
+                                    }
+                                    MouseArea {
+                                        id: cleanOrphansMa
+                                        anchors.fill: parent
+                                        hoverEnabled: true
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: {
+                                            var paths = colOrphans.orphanList.map(function(it) { return it.path; });
+                                            NotesService.trashOrphanAssets(paths);
+                                            colOrphans.scan();
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        BentoCard {
                             implicitHeight: colPaths.implicitHeight + 8
                             ColumnLayout {
                                 id: colPaths

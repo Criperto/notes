@@ -333,15 +333,97 @@ Item {
 
     function toggleAlignment(c) {
         if (!_activeTable || (root.editor && root.editor.readOnly)) return;
+        if (root.editor && typeof root.editor._saveSnapshot === "function") root.editor._saveSnapshot();
         TP.toggleColAlign(_activeTable, c);
         var newRaw = TP.serializeTable(_activeTable);
         _lastSyncedRaw = newRaw;
         _activeTable = TP.parseTable(newRaw);
         if (root.editor && root.blockData) {
             root.editor.onBlockRawChanged(root.blockData.bid, newRaw);
+            if (typeof root.editor._saveSnapshot === "function") root.editor._saveSnapshot();
         } else if (root.blockData) {
             root.blockData.raw = newRaw;
         }
+    }
+
+    function moveFocusedCol(delta) {
+        if (!_activeTable || (root.editor && root.editor.readOnly)) return;
+        var fromCol = Math.max(0, root.focusedCol);
+        var toCol = fromCol + delta;
+        if (toCol < 0 || toCol >= _activeTable.headers.length) return;
+        if (root.editor && typeof root.editor._saveSnapshot === "function") root.editor._saveSnapshot();
+        TP.moveCol(_activeTable, fromCol, toCol);
+        var newRaw = TP.serializeTable(_activeTable);
+        _lastSyncedRaw = newRaw;
+        _activeTable = TP.parseTable(newRaw);
+        root.focusedCol = toCol;
+        if (root.editor && root.blockData) {
+            root.editor.onBlockRawChanged(root.blockData.bid, newRaw);
+            if (typeof root.editor._saveSnapshot === "function") root.editor._saveSnapshot();
+        } else if (root.blockData) {
+            root.blockData.raw = newRaw;
+        }
+        Qt.callLater(() => { root.focusCell(root.focusedRow, toCol); });
+    }
+
+    function moveFocusedRow(delta) {
+        if (!_activeTable || (root.editor && root.editor.readOnly)) return;
+        var fromRow = root.focusedRow;
+        if (fromRow < 0) return; // header no se mueve como fila de datos
+        var toRow = fromRow + delta;
+        if (toRow < 0 || toRow >= _activeTable.rows.length) return;
+        if (root.editor && typeof root.editor._saveSnapshot === "function") root.editor._saveSnapshot();
+        TP.moveRow(_activeTable, fromRow, toRow);
+        var newRaw = TP.serializeTable(_activeTable);
+        _lastSyncedRaw = newRaw;
+        _activeTable = TP.parseTable(newRaw);
+        root.focusedRow = toRow;
+        if (root.editor && root.blockData) {
+            root.editor.onBlockRawChanged(root.blockData.bid, newRaw);
+            if (typeof root.editor._saveSnapshot === "function") root.editor._saveSnapshot();
+        } else if (root.blockData) {
+            root.blockData.raw = newRaw;
+        }
+        Qt.callLater(() => { root.focusCell(toRow, root.focusedCol); });
+    }
+
+    function pasteDelimitedIntoCells(clipText, startRow, startCol) {
+        if (!_activeTable || (root.editor && root.editor.readOnly)) return false;
+        var parsed = TP.parseDelimitedText(clipText);
+        if (!parsed) return false;
+        var matrix = [parsed.headers].concat(parsed.rows);
+        var baseRow = (typeof startRow === "number") ? startRow : -1;
+        var baseCol = (typeof startCol === "number" && startCol >= 0) ? startCol : 0;
+        var needCols = baseCol + parsed.headers.length;
+        if (root.editor && typeof root.editor._saveSnapshot === "function") root.editor._saveSnapshot();
+        while (_activeTable.headers.length < needCols) {
+            TP.addCol(_activeTable, _activeTable.headers.length, I18n.t("notes.table_col_new", "Columna"));
+        }
+        for (var r = 0; r < matrix.length; r++) {
+            var targetRow = baseRow + r;
+            if (targetRow === -1) {
+                for (var c0 = 0; c0 < matrix[r].length; c0++) {
+                    _activeTable.headers[baseCol + c0] = matrix[r][c0];
+                }
+            } else {
+                while (_activeTable.rows.length <= targetRow) {
+                    TP.addRow(_activeTable, _activeTable.rows.length);
+                }
+                for (var c1 = 0; c1 < matrix[r].length; c1++) {
+                    _activeTable.rows[targetRow][baseCol + c1] = matrix[r][c1];
+                }
+            }
+        }
+        var newRaw = TP.serializeTable(_activeTable);
+        _lastSyncedRaw = newRaw;
+        _activeTable = TP.parseTable(newRaw);
+        if (root.editor && root.blockData) {
+            root.editor.onBlockRawChanged(root.blockData.bid, newRaw);
+            if (typeof root.editor._saveSnapshot === "function") root.editor._saveSnapshot();
+        } else if (root.blockData) {
+            root.blockData.raw = newRaw;
+        }
+        return true;
     }
 
     function _getAlignment(colIndex) {
@@ -643,6 +725,11 @@ Item {
         }
         if (((event.modifiers & Qt.ControlModifier) && !(event.modifiers & Qt.ShiftModifier) && event.key === Qt.Key_V) ||
             ((event.modifiers & Qt.ShiftModifier) && event.key === Qt.Key_Insert)) {
+            var clipRaw = (typeof Quickshell.clipboardText === "string") ? Quickshell.clipboardText : "";
+            if (clipRaw && root.pasteDelimitedIntoCells(clipRaw, root.focusedRow, root.focusedCol)) {
+                event.accepted = true;
+                return;
+            }
             if (root.editor && typeof root.editor.handlePaste === "function") {
                 var cellInput = root._getCellInput(root.focusedRow, root.focusedCol);
                 if (cellInput) {
@@ -683,6 +770,71 @@ Item {
         visible: root.parsedTable !== null
         width: parent.width
         implicitHeight: tableFlickable.height + 28 + ((addRowDot && addRowDot.visible) ? 26 : 0)
+
+        // Barra compacta de acciones de columna/fila (cuando está editando la tabla)
+        Row {
+            id: tableToolsRow
+            visible: !root.isReadOnly && root.isEditing && root._activeTable !== null
+            anchors.right: deleteTableBtn.left
+            anchors.rightMargin: 6
+            anchors.bottom: tableFlickable.top
+            anchors.bottomMargin: 4
+            spacing: 4
+
+            Repeater {
+                model: [
+                    { id: "align", icon: root._getAlignIcon(Math.max(0, root.focusedCol)), text: "" },
+                    { id: "colLeft", icon: "", text: "←Col" },
+                    { id: "colRight", icon: "", text: "Col→" },
+                    { id: "rowUp", icon: "", text: "↑Fila" },
+                    { id: "rowDown", icon: "", text: "↓Fila" }
+                ]
+                delegate: Rectangle {
+                    required property var modelData
+                    height: 22
+                    width: modelData.icon !== "" ? 24 : (toolBtnTxt.implicitWidth + 12)
+                    radius: 6
+                    color: toolBtnMa.containsMouse ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.2) : Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.07)
+
+                    Image {
+                        visible: modelData.icon !== ""
+                        anchors.centerIn: parent
+                        width: 12; height: 12
+                        source: modelData.icon
+                        sourceSize: Qt.size(12, 12)
+                        layer.enabled: visible && !GamemodeService.gamemodeActive
+                        layer.effect: MultiEffect {
+                            colorization: 1.0
+                            colorizationColor: Theme.text
+                        }
+                    }
+
+                    Text {
+                        id: toolBtnTxt
+                        visible: modelData.icon === ""
+                        anchors.centerIn: parent
+                        text: modelData.text
+                        color: Theme.text
+                        font.family: Theme.fontFamily
+                        font.pixelSize: 10
+                    }
+
+                    MouseArea {
+                        id: toolBtnMa
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            if (modelData.id === "align") root.toggleAlignment(Math.max(0, root.focusedCol));
+                            else if (modelData.id === "colLeft") root.moveFocusedCol(-1);
+                            else if (modelData.id === "colRight") root.moveFocusedCol(1);
+                            else if (modelData.id === "rowUp") root.moveFocusedRow(-1);
+                            else if (modelData.id === "rowDown") root.moveFocusedRow(1);
+                        }
+                    }
+                }
+            }
+        }
 
         // Botón para borrar la tabla (por fuera arriba a la derecha)
         Rectangle {

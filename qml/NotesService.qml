@@ -2354,6 +2354,70 @@ Item {
         root.refreshTrash();
     }
 
+    // ── Detector y limpiador de assets huérfanos ──────────────────────────
+    function _canonicalizeLocalAsset(url, baseFolder) {
+        if (!url || typeof url !== "string") return "";
+        var clean = url.trim().split("#")[0].split("?")[0];
+        if (!clean || /^https?:\/\//i.test(clean) || /^data:/i.test(clean)) return "";
+        if (clean.startsWith("file://")) {
+            clean = clean.replace(/^file:\/\/(localhost\/)?/i, "");
+            try { clean = decodeURIComponent(clean); } catch (e) {}
+        } else if (!clean.startsWith("/")) {
+            var base = baseFolder || root.notesDir;
+            clean = base + "/" + clean;
+        }
+        return clean.replace(/\/+/g, "/");
+    }
+
+    function findOrphanAssets() {
+        if (typeof Sys === "undefined" || typeof Sys.listAssetFiles !== "function" || !root.notesDir) {
+            return [];
+        }
+        var diskAssets = Sys.listAssetFiles(root.notesDir) || [];
+        if (diskAssets.length === 0) return [];
+
+        var referenced = {};
+        for (var i = 0; i < root.notes.length; i++) {
+            var n = root.notes[i];
+            if (!n) continue;
+            var base = n.baseFolder || root.notesDir;
+            var imgs = Array.isArray(n.assets) ? n.assets : [];
+            for (var a = 0; a < imgs.length; a++) {
+                var p1 = root._canonicalizeLocalAsset(imgs[a], base);
+                if (p1) referenced[p1] = true;
+            }
+            var bodyImgs = MD.extractImages(n.body || "");
+            for (var b = 0; b < bodyImgs.length; b++) {
+                var p2 = root._canonicalizeLocalAsset(bodyImgs[b], base);
+                if (p2) referenced[p2] = true;
+            }
+        }
+
+        var orphans = [];
+        for (var k = 0; k < diskAssets.length; k++) {
+            var entry = diskAssets[k];
+            if (!entry || !entry.path) continue;
+            var normPath = String(entry.path).replace(/\/+/g, "/");
+            if (!referenced[normPath]) {
+                orphans.push(entry);
+            }
+        }
+        return orphans;
+    }
+
+    function trashOrphanAssets(paths) {
+        if (!Array.isArray(paths) || paths.length === 0 || typeof Sys === "undefined" || typeof Sys.moveToTrash !== "function") {
+            return 0;
+        }
+        var moved = 0;
+        for (var i = 0; i < paths.length; i++) {
+            var p = paths[i];
+            if (!p || !ImportLogic.isInsideDir(p, root.notesDir)) continue;
+            if (Sys.moveToTrash(p)) moved++;
+        }
+        return moved;
+    }
+
     // Compat: el modal usa attachImage; queda como alias al portapapeles.
     function pasteImage(slug, callback) {
         root.attachImage(slug, "clipboard", callback);

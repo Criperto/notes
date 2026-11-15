@@ -320,7 +320,9 @@ function inlineToHtml(src, opts) {
     // e imageExists(absPath)->bool; sin ellos se mantiene lo de siempre.
     var images = [];
     var imgRegex = /!\[([^\]]*)\]\(((?:[^()\s]+|\([^()\s]*\))+)(?:\s+"([^"]*)")?\)/g;
-    text = text.replace(imgRegex, function(match, alt, url, title) {
+    text = text.replace(imgRegex, function(match, rawAlt, url, title) {
+        var parsedAlt = parseImageAlt(rawAlt);
+        var alt = parsedAlt.alt;
         var token = "\uE000IMG_" + images.length + "\uE000";
         var resolvedUrl = url;
         if (options.baseFolder && !/^(?:https?:\/\/|file:\/\/|\/)/i.test(resolvedUrl)) {
@@ -347,7 +349,8 @@ function inlineToHtml(src, opts) {
         var safeUrl = escapeHtml(resolvedUrl);
         var safeAlt = escapeHtml(alt);
         var titleAttr = title ? ' title="' + escapeHtml(title) + '"' : '';
-        var html = '<img src="' + safeUrl + '" alt="' + safeAlt + '"' + titleAttr + ' />';
+        var widthAttr = parsedAlt.width > 0 ? ' width="' + parsedAlt.width + '"' : '';
+        var html = '<img src="' + safeUrl + '" alt="' + safeAlt + '"' + widthAttr + titleAttr + ' />';
         images.push(html);
         return token;
     });
@@ -1308,4 +1311,35 @@ function findNextWordEnd(text, pos) {
     var sub = text.substring(pos);
     var m = sub.match(/^(\s+|[^\s\w\u00C0-\u024F\u0400-\u04FF]+|[\w\u00C0-\u024F\u0400-\u04FF]+)\s*/);
     return pos + (m ? m[0].length : 1);
+}
+
+// Parsea sintaxis Obsidian ![alt|ancho](url) o ![alt|anchoxalto](url).
+function parseImageAlt(rawAlt) {
+    var s = (typeof rawAlt === "string") ? rawAlt : "";
+    var pipeIdx = s.lastIndexOf("|");
+    if (pipeIdx !== -1) {
+        var suffix = s.substring(pipeIdx + 1).trim();
+        var dimMatch = suffix.match(/^(\d{2,4})(?:x(\d{2,4}))?$/);
+        if (dimMatch) {
+            return {
+                alt: s.substring(0, pipeIdx),
+                width: parseInt(dimMatch[1], 10),
+                height: dimMatch[2] ? parseInt(dimMatch[2], 10) : 0
+            };
+        }
+    }
+    return { alt: s, width: 0, height: 0 };
+}
+
+// Actualiza o inserta `|W` (estilo Obsidian) para la imagen imgIndex en raw.
+function setImageWidthInRaw(raw, imgIndex, newWidth) {
+    if (typeof raw !== "string") return raw;
+    var idx = 0;
+    var targetW = Math.max(40, Math.round(Number(newWidth) || 0));
+    return raw.replace(/!\[([^\]]*)\]\(((?:[^()\s]+|\([^()\s]*\))+)(\s+"[^"]*")?\)/g, function(m, rawAlt, url, titlePart) {
+        if (idx++ !== imgIndex) return m;
+        var parsed = parseImageAlt(rawAlt);
+        var nextAlt = parsed.alt + "|" + targetW;
+        return "![" + nextAlt + "](" + url + (titlePart || "") + ")";
+    });
 }

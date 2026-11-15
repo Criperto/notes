@@ -231,6 +231,8 @@ Item {
     readonly property var calloutTypeDef: isCallout ? CalloutTypes.getType(calloutType) : null
     readonly property color calloutColor: isCallout ? CalloutTypes.getColor(calloutType, Theme) : Theme.accent
     readonly property bool hasCustomTitle: isCallout && calloutInfo.title && calloutInfo.title.trim() !== ""
+    property bool _previewFolded: false
+    readonly property bool effectiveFolded: isCallout && ((root.editor && root.editor.readOnly) ? _previewFolded : (calloutInfo ? calloutInfo.collapsedByDefault : false))
     readonly property string calloutTitleText: {
         if (!isCallout || !calloutTypeDef) return "";
         if (hasCustomTitle) return calloutInfo.title.trim();
@@ -351,6 +353,7 @@ Item {
     }
 
     onBlockDataChanged: {
+        _previewFolded = calloutInfo ? !!calloutInfo.collapsedByDefault : false;
         if (root.isEditing || root.isSelected) {
             _syncTextFromModel();
         }
@@ -596,12 +599,58 @@ Item {
                         cursorShape: Qt.PointingHandCursor
                     }
                 }
+
+                Item {
+                    width: Math.max(16, Math.round(20 * EditorMetrics.zoom))
+                    height: width
+                    anchors.verticalCenter: parent.verticalCenter
+                    visible: root.isCallout && root.quoteSegments.length > 0
+
+                    Image {
+                        anchors.centerIn: parent
+                        width: Math.max(10, Math.round(12 * EditorMetrics.zoom))
+                        height: width
+                        source: Theme.iconsPath + "chevron-down.svg"
+                        sourceSize: Qt.size(width, height)
+                        rotation: root.effectiveFolded ? -90 : 0
+                        Behavior on rotation {
+                            enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                            NumberAnimation { duration: 140; easing.type: Easing.OutCubic }
+                        }
+                        layer.enabled: visible && !GamemodeService.gamemodeActive
+                        layer.effect: MultiEffect {
+                            colorization: 1.0
+                            colorizationColor: root.calloutColor
+                        }
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: (mouse) => {
+                            mouse.accepted = true;
+                            if (!root.editor || root.editor.readOnly) {
+                                root._previewFolded = !root._previewFolded;
+                                return;
+                            }
+                            if (root.blockData && typeof root.blockData.raw === "string") {
+                                var nextRaw = QP.toggleCalloutFoldInRaw(root.blockData.raw);
+                                if (nextRaw !== root.blockData.raw) {
+                                    if (typeof root.editor._saveSnapshot === "function") root.editor._saveSnapshot();
+                                    root.editor.onBlockRawChanged(root.blockData.bid, nextRaw);
+                                    if (typeof root.editor._saveSnapshot === "function") root.editor._saveSnapshot();
+                                }
+                            }
+                        }
+                    }
+                }
             }
 
             Column {
                 id: segmentsCol
                 width: parent.width
                 spacing: 4
+                visible: !(root.isCallout && root.effectiveFolded)
 
                 Repeater {
                     id: segmentsRepeater

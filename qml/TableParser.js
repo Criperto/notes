@@ -167,3 +167,129 @@ function toggleColAlign(table, colIndex) {
     table.aligns[colIndex] = next;
     return table;
 }
+
+function setColAlign(table, colIndex, align) {
+    if (!table || !table.headers || colIndex < 0 || colIndex >= table.headers.length) return table;
+    if (!table.aligns) {
+        table.aligns = [];
+        for (var i = 0; i < table.headers.length; i++) table.aligns.push("none");
+    }
+    var valid = (align === "left" || align === "center" || align === "right" || align === "none") ? align : "none";
+    table._alignsChanged = true;
+    table.aligns[colIndex] = valid;
+    return table;
+}
+
+function moveCol(table, fromIndex, toIndex) {
+    if (!table || !table.headers) return table;
+    var n = table.headers.length;
+    if (fromIndex < 0 || fromIndex >= n || toIndex < 0 || toIndex >= n || fromIndex === toIndex) return table;
+    table.rawDelimLine = null;
+    var h = table.headers.splice(fromIndex, 1)[0];
+    table.headers.splice(toIndex, 0, h);
+    if (table.aligns && table.aligns.length === n) {
+        var a = table.aligns.splice(fromIndex, 1)[0];
+        table.aligns.splice(toIndex, 0, a);
+    }
+    for (var r = 0; r < table.rows.length; r++) {
+        var cell = table.rows[r].splice(fromIndex, 1)[0];
+        table.rows[r].splice(toIndex, 0, cell !== undefined ? cell : "");
+    }
+    return table;
+}
+
+function moveRow(table, fromIndex, toIndex) {
+    if (!table || !table.rows) return table;
+    var n = table.rows.length;
+    if (fromIndex < 0 || fromIndex >= n || toIndex < 0 || toIndex >= n || fromIndex === toIndex) return table;
+    var row = table.rows.splice(fromIndex, 1)[0];
+    table.rows.splice(toIndex, 0, row);
+    return table;
+}
+
+function _parseCsvLine(line, delimiter) {
+    if (delimiter === "\t") {
+        return line.split("\t").map(function(c) { return c.trim(); });
+    }
+    var cells = [];
+    var cur = "";
+    var inQuotes = false;
+    for (var i = 0; i < line.length; i++) {
+        var ch = line[i];
+        if (inQuotes) {
+            if (ch === "\"") {
+                if (i + 1 < line.length && line[i + 1] === "\"") {
+                    cur += "\"";
+                    i++;
+                } else {
+                    inQuotes = false;
+                }
+            } else {
+                cur += ch;
+            }
+        } else {
+            if (ch === "\"" && cur === "") {
+                inQuotes = true;
+            } else if (ch === delimiter) {
+                cells.push(cur.trim());
+                cur = "";
+            } else {
+                cur += ch;
+            }
+        }
+    }
+    cells.push(cur.trim());
+    return cells;
+}
+
+// Detecta TSV o CSV tabular (ej. copiado de Excel / LibreOffice Calc / Google Sheets).
+// Devuelve { headers, aligns, rows, delimiter } o null si no es tabular.
+function parseDelimitedText(text) {
+    if (!text || typeof text !== "string") return null;
+    var trimmed = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").trim();
+    if (!trimmed || /^\s*\|/.test(trimmed) || /^\s*(`{3,}|~{3,})/.test(trimmed)) return null;
+
+    var rawLines = trimmed.split("\n").filter(function(l) { return l.trim() !== ""; });
+    if (rawLines.length < 2) return null;
+
+    var delimiter = "";
+    if (rawLines[0].indexOf("\t") !== -1) {
+        delimiter = "\t";
+    } else if (rawLines[0].indexOf(",") !== -1) {
+        delimiter = ",";
+    } else {
+        return null;
+    }
+
+    var parsedRows = rawLines.map(function(l) { return _parseCsvLine(l, delimiter); });
+    var colCount = parsedRows[0].length;
+    if (colCount < 2) return null;
+
+    // Para CSV con comas, exigir conteo consistente de columnas para no convertir prosa con comas
+    if (delimiter === ",") {
+        for (var i = 1; i < parsedRows.length; i++) {
+            if (parsedRows[i].length !== colCount) return null;
+        }
+    } else {
+        var maxCols = colCount;
+        for (var j = 1; j < parsedRows.length; j++) {
+            if (parsedRows[j].length > maxCols) maxCols = parsedRows[j].length;
+        }
+        colCount = maxCols;
+        for (var k = 0; k < parsedRows.length; k++) {
+            while (parsedRows[k].length < colCount) parsedRows[k].push("");
+        }
+    }
+
+    var headers = parsedRows[0];
+    var rows = parsedRows.slice(1);
+    var aligns = [];
+    for (var c = 0; c < colCount; c++) aligns.push("left");
+    return {
+        headers: headers,
+        aligns: aligns,
+        rows: rows,
+        delimiter: delimiter,
+        rawDelimLine: null
+    };
+}

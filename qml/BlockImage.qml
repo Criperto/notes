@@ -4,6 +4,7 @@ import QtQuick.Effects
 import Notas
 import "."
 import "PreviewLogic.js" as PreviewLogic
+import "Inline.js" as Inline
 
 Item {
     id: root
@@ -286,6 +287,8 @@ Item {
                 readonly property real availW: (root.width > 0) ? root.width : (parent ? parent.width : 400)
                 readonly property real zoomFactor: (typeof EditorMetrics !== "undefined" && EditorMetrics.zoom) ? EditorMetrics.zoom : 1.0
                 readonly property real maxH: Math.round(560 * zoomFactor)
+                readonly property int obsidianWidth: modelData ? Inline.parseImageAlt(modelData.alt).width : 0
+                property real _dragWidth: -1
                 readonly property real naturalW: {
                     if (imgItem.implicitWidth > 0) return imgItem.implicitWidth;
                     if (_headerDim && _headerDim.w > 0) return _headerDim.w;
@@ -298,6 +301,12 @@ Item {
                 }
 
                 readonly property real targetW: {
+                    if (_dragWidth > 0) {
+                        return Math.min(availW, Math.max(48, Math.round(_dragWidth)));
+                    }
+                    if (obsidianWidth > 0) {
+                        return Math.min(availW, Math.max(48, Math.round(obsidianWidth * zoomFactor)));
+                    }
                     if (isBadge) {
                         return naturalW > 0 ? Math.min(availW, Math.round(naturalW * zoomFactor)) : 120;
                     }
@@ -421,6 +430,85 @@ Item {
                         if (root.editor && typeof root.editor.openImageZoom === "function") {
                             root.editor.openImageZoom(imgItem.source.toString(), imgCard, imgCard.naturalW, imgCard.naturalH);
                         }
+                    }
+                }
+
+                // Tirador de redimensionamiento estilo Obsidian (![alt|ancho](url))
+                Rectangle {
+                    id: resizeHandle
+                    z: 12
+                    visible: imgCard.loadable && imgItem.status === Image.Ready && !imgCard.isBadge && (!root.editor || !root.editor.readOnly)
+                    anchors.right: parent.right
+                    anchors.rightMargin: 3
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 6
+                    height: Math.min(48, Math.max(20, imgCard.height * 0.35))
+                    radius: 3
+                    color: resizeMa.pressed || resizeMa.containsMouse ? Theme.accent : Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.55)
+                    opacity: (cardHover.hovered || resizeMa.containsMouse || resizeMa.pressed) ? 0.92 : 0.0
+
+                    Behavior on opacity {
+                        enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                        NumberAnimation { duration: 120 }
+                    }
+
+                    MouseArea {
+                        id: resizeMa
+                        anchors.fill: parent
+                        anchors.margins: -4
+                        hoverEnabled: true
+                        cursorShape: Qt.SizeHorCursor
+                        property real startGlobalX: 0
+                        property real startWidth: 0
+                        onPressed: (mouse) => {
+                            mouse.accepted = true;
+                            startGlobalX = mapToGlobal(mouse.x, mouse.y).x;
+                            startWidth = imgCard.width;
+                            imgCard._dragWidth = startWidth;
+                        }
+                        onPositionChanged: (mouse) => {
+                            if (!pressed) return;
+                            var gx = mapToGlobal(mouse.x, mouse.y).x;
+                            var nextW = Math.max(60, Math.min(imgCard.availW, startWidth + (gx - startGlobalX)));
+                            imgCard._dragWidth = nextW;
+                        }
+                        onReleased: {
+                            if (imgCard._dragWidth > 0 && root.editor && root.blockData) {
+                                var logicalW = Math.max(48, Math.round(imgCard._dragWidth / Math.max(0.25, imgCard.zoomFactor)));
+                                var updated = Inline.setImageWidthInRaw(root.blockData.raw, index, logicalW);
+                                if (updated !== root.blockData.raw) {
+                                    if (typeof root.editor._saveSnapshot === "function") root.editor._saveSnapshot();
+                                    root.editor.onBlockRawChanged(root.blockData.bid, updated);
+                                    if (typeof root.editor._saveSnapshot === "function") root.editor._saveSnapshot();
+                                }
+                            }
+                            imgCard._dragWidth = -1;
+                        }
+                        onCanceled: {
+                            imgCard._dragWidth = -1;
+                        }
+                    }
+                }
+
+                // Indicador flotante de ancho durante el arrastre
+                Rectangle {
+                    z: 13
+                    visible: imgCard._dragWidth > 0
+                    anchors.bottom: parent.bottom
+                    anchors.right: parent.right
+                    anchors.margins: 8
+                    width: widthBadgeTxt.implicitWidth + 12
+                    height: 22
+                    radius: 6
+                    color: Qt.rgba(0, 0, 0, 0.72)
+                    Text {
+                        id: widthBadgeTxt
+                        anchors.centerIn: parent
+                        text: Math.max(48, Math.round(imgCard._dragWidth / Math.max(0.25, imgCard.zoomFactor))) + "px"
+                        color: "#ffffff"
+                        font.family: Theme.fontFamilyMonospace || "monospace"
+                        font.pixelSize: 10
+                        font.bold: true
                     }
                 }
             }

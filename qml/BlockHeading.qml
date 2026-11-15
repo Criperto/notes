@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Effects
 import Notas
 import "."
 import "Inline.js" as Inline
@@ -665,6 +666,58 @@ Item {
     }
 
     // Insignia H1-H6 visible durante foco / edición para feedback visual inmediato
+    readonly property bool isSectionCollapsed: !!(root.editor && root.blockData && root.editor.collapsedHeadingBids && root.editor.collapsedHeadingBids[root.blockData.bid] === true)
+
+    HoverHandler {
+        id: headingHover
+    }
+
+    Rectangle {
+        id: foldToggleBtn
+        visible: (!root.isEditing) && (root.isSectionCollapsed || headingHover.hovered)
+        anchors.right: parent.left
+        anchors.rightMargin: headingBadge.visible ? 34 : 8
+        anchors.verticalCenter: parent.top
+        anchors.verticalCenterOffset: root.headingFontSize * 0.7
+        width: 18
+        height: 18
+        radius: 5
+        z: 10
+        color: foldMa.containsMouse
+            ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.22)
+            : Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, root.isSectionCollapsed ? 0.12 : 0.06)
+
+        Image {
+            anchors.centerIn: parent
+            width: 11; height: 11
+            source: Theme.iconsPath + "chevron-down.svg"
+            sourceSize: Qt.size(11, 11)
+            rotation: root.isSectionCollapsed ? -90 : 0
+            Behavior on rotation {
+                enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                NumberAnimation { duration: 140; easing.type: Easing.OutCubic }
+            }
+            layer.enabled: visible && !GamemodeService.gamemodeActive
+            layer.effect: MultiEffect {
+                colorization: 1.0
+                colorizationColor: root.isSectionCollapsed ? Theme.accent : Theme.muted
+            }
+        }
+
+        MouseArea {
+            id: foldMa
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: (mouse) => {
+                mouse.accepted = true;
+                if (root.editor && root.blockData && typeof root.editor.toggleHeadingFold === "function") {
+                    root.editor.toggleHeadingFold(root.blockData.bid);
+                }
+            }
+        }
+    }
+
     Rectangle {
         id: headingBadge
         visible: (!root.editor || !root.editor.readOnly) && (root.isEditing || root.isSelected || (root.editor && root.blockData && root.editor.activeBlockBid === root.blockData.bid))

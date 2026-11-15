@@ -13,6 +13,7 @@ import "Selection.js" as Sel
 import "MermaidTemplates.js" as MermaidTemplates
 import "MathTemplates.js" as MathTemplates
 import "ReferenceLogic.js" as ReferenceLogic
+import "TableParser.js" as TP
 
 Flickable {
     id: root
@@ -23,6 +24,62 @@ Flickable {
     signal contentModified()
 
     property bool _isDestroyed: false
+    property var collapsedHeadingBids: ({})
+    property var hiddenBlockBids: ({})
+
+    function _recomputeHiddenBlocks() {
+        var list = [];
+        for (var i = 0; i < blocksModel.count; i++) {
+            var it = blocksModel.get(i);
+            list.push({ bid: it.bid, type: it.type, raw: it.raw });
+        }
+        hiddenBlockBids = BlockModel.computeHiddenBids(list, collapsedHeadingBids || ({}));
+    }
+
+    function toggleHeadingFold(bid) {
+        if (!bid) return;
+        var next = Object.assign({}, collapsedHeadingBids || ({}));
+        if (next[bid]) delete next[bid];
+        else next[bid] = true;
+        collapsedHeadingBids = next;
+        _recomputeHiddenBlocks();
+    }
+
+    function moveBlock(bid, delta) {
+        if (root.readOnly || !bid || !delta) return false;
+        var idx = _findBlockIndex(bid);
+        if (idx === -1) return false;
+        var targetIdx = idx + delta;
+        if (targetIdx < 0 || targetIdx >= blocksModel.count) return false;
+
+        _saveSnapshot();
+        blocksModel.move(idx, targetIdx, 1);
+        for (var i = 0; i < blocksModel.count; i++) {
+            var b = blocksModel.get(i);
+            if (i < blocksModel.count - 1 && (!b.sep || b.sep === "")) {
+                blocksModel.setProperty(i, "sep", "\n\n");
+            }
+        }
+        root.activeBlockBid = bid;
+        _saveSnapshot();
+        _recomputeHiddenBlocks();
+        contentModified();
+        debouncedMarkdownTimer.restart();
+        safeFocusDelegate(bid);
+        return true;
+    }
+
+    Shortcut {
+        sequence: "Alt+Up"
+        enabled: !root.readOnly && root.activeBlockBid > 0
+        onActivated: root.moveBlock(root.activeBlockBid, -1)
+    }
+
+    Shortcut {
+        sequence: "Alt+Down"
+        enabled: !root.readOnly && root.activeBlockBid > 0
+        onActivated: root.moveBlock(root.activeBlockBid, 1)
+    }
     Component.onDestruction: {
         _isDestroyed = true;
         debouncedMarkdownTimer.stop();
@@ -1304,6 +1361,28 @@ Flickable {
                     return;
                 }
 
+                // Auto-conversión de texto tabular TSV/CSV pegado en párrafo vacío -> tabla Markdown
+                var pastedTable = TP.parseDelimitedText(clipText);
+                if (pastedTable) {
+                    var tblBid = root.activeBlockBid;
+                    var tblIdx = root._findBlockIndex(tblBid);
+                    if (tblIdx !== -1) {
+                        var tblBlock = root.blocksModel.get(tblIdx);
+                        if (tblBlock && tblBlock.type === "paragraph" && Inline.plainText(targetEdit).trim() === "") {
+                            var mdTable = TP.serializeTable(pastedTable);
+                            root._saveSnapshot();
+                            root.blocksModel.setProperty(tblIdx, "type", "table");
+                            root.blocksModel.setProperty(tblIdx, "raw", mdTable);
+                            root.activeBlockBid = tblBid;
+                            root._saveSnapshot();
+                            root.safeFocusDelegate(tblBid, "cell_0_0");
+                            root.contentModified();
+                            root.debouncedMarkdownTimer.restart();
+                            return;
+                        }
+                    }
+                }
+
                 // Multi-block paste: si el texto pegado contiene múltiples párrafos o bloques compuestos
                 if (clipText.indexOf("\n\n") !== -1 || /^(?:```|~~~|\||[-*+]\s|\d+\.\s|>)/m.test(clipText)) {
                     var curBid = root.activeBlockBid;
@@ -1858,6 +1937,8 @@ Flickable {
     }
 
     function loadMarkdown(md) {
+        collapsedHeadingBids = ({});
+        hiddenBlockBids = ({});
         if (scrollAnim && scrollAnim.running) {
             scrollAnim.stop();
         }
@@ -4291,13 +4372,15 @@ Flickable {
                 readonly property bool blockIsEditing: root.activeBlockBid === model.bid
                 readonly property bool isSelected: !!(root.selectedBids && root.selectedBids[model.bid] === true)
                 readonly property bool isSearchTarget: root.activeMatchBid === model.bid
+                readonly property bool isFoldedHidden: !!(root.hiddenBlockBids && root.hiddenBlockBids[model.bid] === true)
+                visible: !isFoldedHidden
 
                 // Intersección con la ventana visible por rango atómico (evita binding loops)
                 readonly property bool inViewportChunk: (blocksModel.count <= 35) || (index >= root.visibleChunk.x && index <= root.visibleChunk.y)
 
                 property bool isLoaded: false
                 readonly property bool mustBeActive: inViewportChunk || blockIsEditing || isSelected || isSearchTarget
-                active: isLoaded || mustBeActive
+                active: !isFoldedHidden && (isLoaded || mustBeActive)
 
                 onMustBeActiveChanged: {
                     if (mustBeActive && (blocksModel.count <= 150 || model.type === "image")) {
@@ -4306,6 +4389,7 @@ Flickable {
                 }
 
                 height: {
+                    if (isFoldedHidden) return 0;
                     if (item && item.implicitHeight > 0) {
                         if (model.type === "image" && item.isLayoutReady === false) {
                             var cachedImg = root._measuredHeights ? root._measuredHeights[model.bid] : 0;
@@ -4403,6 +4487,44 @@ Flickable {
                     value: blockLoader.inViewportChunk
                     when: blockLoader.status === Loader.Ready
                     restoreMode: Binding.RestoreNone
+                }
+
+                // Botones discretos ↑/↓ en el margen derecho para reordenar el bloque activo
+                Column {
+                    visible: !root.readOnly && blockLoader.blockIsEditing && blocksModel.count > 1 && !blockLoader.isFoldedHidden
+                    anchors.left: parent.right
+                    anchors.leftMargin: 6
+                    anchors.top: parent.top
+                    spacing: 2
+                    z: 20
+
+                    Rectangle {
+                        width: 18; height: 18; radius: 5
+                        visible: index > 0
+                        color: upBlkMa.containsMouse ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.22) : Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.06)
+                        Text { anchors.centerIn: parent; text: "↑"; color: upBlkMa.containsMouse ? Theme.accent : Theme.muted; font.pixelSize: 10; font.bold: true }
+                        MouseArea {
+                            id: upBlkMa
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: root.moveBlock(model.bid, -1)
+                        }
+                    }
+
+                    Rectangle {
+                        width: 18; height: 18; radius: 5
+                        visible: index < blocksModel.count - 1
+                        color: downBlkMa.containsMouse ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.22) : Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.06)
+                        Text { anchors.centerIn: parent; text: "↓"; color: downBlkMa.containsMouse ? Theme.accent : Theme.muted; font.pixelSize: 10; font.bold: true }
+                        MouseArea {
+                            id: downBlkMa
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: root.moveBlock(model.bid, 1)
+                        }
+                    }
                 }
             }
         }

@@ -1699,6 +1699,36 @@ bool Sys::movePath(const QString &oldPath, const QString &newPath) {
     return false;
 }
 
+QVariantList Sys::listAssetFiles(const QString &notesDir) const {
+    QVariantList out;
+    const QString cleanNotesDir = QDir::cleanPath(notesDir);
+    if (cleanNotesDir.isEmpty() || !QDir(cleanNotesDir).exists()) return out;
+    const QString notesPrefix = cleanNotesDir.endsWith(QLatin1Char('/')) ? cleanNotesDir : (cleanNotesDir + QLatin1Char('/'));
+
+    QDirIterator it(cleanNotesDir, QDir::Files | QDir::Readable, QDirIterator::Subdirectories);
+    while (it.hasNext()) {
+        const QString absPath = QDir::cleanPath(it.next());
+        if (!absPath.startsWith(notesPrefix)) continue;
+        const QString relPath = absPath.mid(notesPrefix.length());
+        // Solo escanear archivos dentro de carpetas assets/ (raíz o subcarpetas/notas-carpeta)
+        if (!relPath.startsWith(QStringLiteral("assets/")) && !relPath.contains(QStringLiteral("/assets/"))) {
+            continue;
+        }
+        const QFileInfo fi = it.fileInfo();
+        QVariantMap item;
+        item.insert(QStringLiteral("path"), absPath);
+        item.insert(QStringLiteral("relativePath"), relPath);
+        item.insert(QStringLiteral("sizeBytes"), fi.size());
+        out.append(item);
+    }
+
+    std::sort(out.begin(), out.end(), [](const QVariant &a, const QVariant &b) {
+        return a.toMap().value(QStringLiteral("relativePath")).toString()
+             < b.toMap().value(QStringLiteral("relativePath")).toString();
+    });
+    return out;
+}
+
 bool Sys::hasQuickshellConfig() const {
     if (isForcedNoSyncConfigured()) {
         return false;

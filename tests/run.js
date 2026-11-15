@@ -6575,6 +6575,66 @@ runTest("F160: organización del panel principal (operadores búsqueda, snippet 
         "NotesContent debe alojar chips de carpeta, barra de acciones por lote y TrashModal");
 });
 
+runTest("F161: bloques avanzados (reordenar, plegar H1-H6 y callouts, tablas CSV/TSV/move, ancho imagen Obsidian y assets huérfanos)", () => {
+    const foldBlocks = [
+        { bid: 1, type: 'heading', raw: '# Top' },
+        { bid: 2, type: 'heading', raw: '## Sub' },
+        { bid: 3, type: 'paragraph', raw: 'Body' },
+        { bid: 4, type: 'heading', raw: '### SubSub' },
+        { bid: 5, type: 'heading', raw: '## Sibling' },
+        { bid: 6, type: 'paragraph', raw: 'After' }
+    ];
+    const hidden = BlockModel.computeHiddenBids(foldBlocks, { 2: true });
+    assert.strictEqual(!!hidden[2], false);
+    assert.strictEqual(!!hidden[3], true);
+    assert.strictEqual(!!hidden[4], true);
+    assert.strictEqual(!!hidden[5], false);
+    assert.strictEqual(!!hidden[6], false);
+
+    const movedArr = BlockModel.moveBlockInArray([
+        { bid: 1, type: 'paragraph', raw: 'Uno', sep: '\n\n' },
+        { bid: 2, type: 'paragraph', raw: 'Dos', sep: '' }
+    ], 1, -1);
+    assert.strictEqual(movedArr[0].bid, 2);
+    assert.strictEqual(movedArr[0].sep, '\n\n');
+
+    const cMin = QP.parseCallout('> [!WARNING]- Título custom\n> Cuerpo');
+    assert.strictEqual(cMin.type, 'WARNING');
+    assert.strictEqual(cMin.collapsible, true);
+    assert.strictEqual(cMin.collapsedByDefault, true);
+    assert.strictEqual(cMin.title, 'Título custom');
+    const toggled = QP.toggleCalloutFoldInRaw('> [!WARNING]- Título custom\n> Cuerpo');
+    assert.ok(toggled.startsWith('> [!WARNING]+ Título custom'), "Debe alternar - a +");
+
+    const tParsed = TableParser.parseDelimitedText('Nombre\tEdad\nAna\t30\nLuis\t25');
+    assert.ok(tParsed && tParsed.headers.length === 2 && tParsed.rows.length === 2, "TSV debe convertirse en tabla");
+    const csvParsed = TableParser.parseDelimitedText('"Nombre, Apellido",Rol\n"Pérez, Juan",Dev\n"Gómez, María",QA');
+    assert.ok(csvParsed && csvParsed.headers[0] === 'Nombre, Apellido' && csvParsed.rows[0][0] === 'Pérez, Juan');
+    assert.strictEqual(TableParser.parseDelimitedText('Solo texto normal\nsin columnas'), null);
+
+    TableParser.moveCol(tParsed, 0, 1);
+    assert.strictEqual(tParsed.headers[0], 'Edad');
+    TableParser.moveRow(tParsed, 0, 1);
+    assert.strictEqual(tParsed.rows[0][1], 'Luis');
+
+    const imgMeta = Inline.parseImageAlt('diagrama|420');
+    assert.strictEqual(imgMeta.alt, 'diagrama');
+    assert.strictEqual(imgMeta.width, 420);
+    const imgHtml = Inline.inlineToHtml('![diagrama|420](assets/a.png)', {});
+    assert.ok(imgHtml.includes('alt="diagrama"') && imgHtml.includes('width="420"'), "inlineToHtml debe aplicar width Obsidian");
+    const updatedImg = Inline.setImageWidthInRaw('![foto](assets/x.png)', 0, 360);
+    assert.strictEqual(updatedImg, '![foto|360](assets/x.png)');
+
+    const readQ = (f) => fs.readFileSync(path.resolve(__dirname, '../qml', f), 'utf8');
+    assert.ok(readQ('BlockEditor.qml').includes('function moveBlock(')
+        && readQ('BlockEditor.qml').includes('TP.parseDelimitedText'), "BlockEditor debe soportar moveBlock y TSV/CSV auto-tabla");
+    assert.ok(readQ('BlockHeading.qml').includes('toggleHeadingFold'), "BlockHeading debe exponer toggleHeadingFold");
+    assert.ok(readQ('BlockQuote.qml').includes('toggleCalloutFoldInRaw'), "BlockQuote debe soportar callouts colapsables");
+    assert.ok(readQ('BlockTable.qml').includes('moveFocusedCol') && readQ('BlockTable.qml').includes('pasteDelimitedIntoCells'));
+    assert.ok(readQ('BlockImage.qml').includes('setImageWidthInRaw') && readQ('BlockImage.qml').includes('resizeHandle'));
+    assert.ok(readQ('NotesService.qml').includes('findOrphanAssets') && readQ('NotesSettingsModal.qml').includes('trashOrphanAssets'));
+});
+
 console.log(`\n========================================`);
 console.log(`Resultados: ${passed} OK, ${failed} FAIL`);
 console.log(`========================================`);
