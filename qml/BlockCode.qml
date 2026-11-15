@@ -711,7 +711,7 @@ Rectangle {
                 model: root.editLineCount
                 Text {
                     required property int index
-                    readonly property bool isCurrentLine: (index + 1) === root.editCurrentLine
+                    readonly property bool isCurrentLine: root.showEditView && editInput.activeFocus && (index + 1) === root.editCurrentLine
                     width: parent.width
                     height: editGutterCol.rowH
                     text: (index + 1).toString()

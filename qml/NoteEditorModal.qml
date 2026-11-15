@@ -3366,7 +3366,7 @@ Item {
                             required property var modelData
                             readonly property bool hasGeom: typeof modelData === "object" && modelData !== null && modelData.y !== undefined
                             readonly property int lineNum: hasGeom ? modelData.line : (index + 1)
-                            readonly property bool isCurrent: lineNum === sourceFlickable.currentLineNum
+                            readonly property bool isCurrent: !root.isPreviewMode && sourceCodeEditor.activeFocus && (lineNum === sourceFlickable.currentLineNum)
                             x: 0
                             y: hasGeom ? modelData.y : (index * Math.max(18, EditorMetrics.body * 1.35))
                             width: sourceGutter.width - 8

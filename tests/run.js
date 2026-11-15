@@ -6635,6 +6635,29 @@ runTest("F161: bloques avanzados (reordenar, plegar H1-H6 y callouts, tablas CSV
     assert.ok(readQ('NotesService.qml').includes('findOrphanAssets') && readQ('NotesSettingsModal.qml').includes('trashOrphanAssets'));
 });
 
+runTest("F162: hotfixes v0.3.5 (gutter solo en modo edición, TrashModal morph idéntico a NotesSettingsModal y Vaciar todo estilo Restaurar)", () => {
+    const readQ = (f) => fs.readFileSync(path.resolve(__dirname, '../qml', f), 'utf8');
+    const editorModal = readQ('NoteEditorModal.qml');
+    const blockCode = readQ('BlockCode.qml');
+    const trashModal = readQ('TrashModal.qml');
+    const notesContent = readQ('NotesContent.qml');
+
+    assert.ok(editorModal.includes('!root.isPreviewMode && sourceCodeEditor.activeFocus && (lineNum === sourceFlickable.currentLineNum)'),
+        "NoteEditorModal sourceGutter solo debe resaltar número de línea en modo edición con foco");
+    assert.ok(blockCode.includes('root.showEditView && editInput.activeFocus && (index + 1) === root.editCurrentLine'),
+        "BlockCode editGutter solo debe resaltar número de línea en modo edición con foco");
+    assert.ok(trashModal.includes('color: "transparent"') && !trashModal.includes('rgba(0, 0, 0, 0.55)')
+        && trashModal.includes('id: openCardAnim') && trashModal.includes('id: closeCardAnim')
+        && trashModal.includes('backgroundSourceItem.getTrashButtonRect') && trashModal.includes('SpringAnimation { target: card; property: "x"'),
+        "TrashModal debe replicar fondo transparente, frosted glass y morph SpringAnimation de NotesSettingsModal");
+    assert.ok(trashModal.includes('id: emptyAllBtn') && trashModal.includes('emptyTxt.implicitWidth + 18')
+        && trashModal.includes('Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.16)')
+        && trashModal.includes('emptyMa.containsMouse ? Theme.textOn(Theme.accent) : Theme.accent'),
+        "Botón Vaciar todo debe usar el mismo estilo pill sin borde que Restaurar");
+    assert.ok(notesContent.includes('function getTrashButtonRect()') && notesContent.includes('backgroundSourceItem: surfaceLayer'),
+        "NotesContent debe exponer getTrashButtonRect y alojar surfaceLayer + TrashModal");
+});
+
 console.log(`\n========================================`);
 console.log(`Resultados: ${passed} OK, ${failed} FAIL`);
 console.log(`========================================`);

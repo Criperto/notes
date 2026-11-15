@@ -15,6 +15,7 @@ Item {
     signal closeRequested
     signal openSettingsRequested(var originRect, string initialTab)
     property bool isSettingsOpen: false
+    readonly property bool isTrashOpen: trashModal ? (trashModal.isOpen || trashModal.isClosing) : false
     property real windowControlsWidth: 0
     property bool windowControlsOnLeft: false
 
@@ -23,6 +24,16 @@ Item {
         try {
             var origin = settingsBtn.mapToItem(null, 0, 0);
             return Qt.rect(origin.x, origin.y, settingsBtn.width, settingsBtn.height);
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function getTrashButtonRect() {
+        if (!trashBtn) return null;
+        try {
+            var origin = trashBtn.mapToItem(null, 0, 0);
+            return Qt.rect(origin.x, origin.y, trashBtn.width, trashBtn.height);
         } catch (e) {
             return null;
         }
@@ -467,6 +478,10 @@ Item {
     }
 
     // ── Fondo de tarjeta con Glow dinámico y Blur ─────────────────────────
+    Item {
+        id: surfaceLayer
+        anchors.fill: parent
+
     Rectangle {
         id: bgCard
         anchors.fill: parent
@@ -669,6 +684,7 @@ Item {
                         Layout.preferredHeight: 38
                         Layout.preferredWidth: 38
                         radius: 10
+                        opacity: root.isTrashOpen ? 0.0 : 1.0
                         color: trashMa.containsMouse ? Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.1) : Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.05)
                         border.color: Qt.hsva(Theme.text.hsvHue, Theme.text.hsvSaturation, Theme.text.hsvValue, 0.12)
                         border.width: 1
@@ -696,16 +712,22 @@ Item {
                             anchors.fill: parent
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: trashModal.open()
+                            onClicked: {
+                                var origin = trashBtn.mapToItem(null, 0, 0);
+                                trashModal.open(Qt.rect(origin.x, origin.y, trashBtn.width, trashBtn.height));
+                            }
                         }
 
                         activeFocusOnTab: true
                         Accessible.role: Accessible.Button
                         Accessible.name: I18n.t("trash.modal.title", "Papelera de notas")
                         FocusRing { target: trashBtn }
-                        Keys.onReturnPressed: trashModal.open()
-                        Keys.onEnterPressed: trashModal.open()
-                        Keys.onSpacePressed: trashModal.open()
+                        Keys.onReturnPressed: {
+                            var origin = trashBtn.mapToItem(null, 0, 0);
+                            trashModal.open(Qt.rect(origin.x, origin.y, trashBtn.width, trashBtn.height));
+                        }
+                        Keys.onEnterPressed: Keys.onReturnPressed()
+                        Keys.onSpacePressed: Keys.onReturnPressed()
                     }
 
                     // Botón de Configuración
@@ -973,7 +995,7 @@ Item {
                     contentWidth: foldersRow.implicitWidth
                     flickableDirection: Flickable.HorizontalFlick
                     boundsBehavior: Flickable.StopAtBounds
-                    interactive: !root.isSettingsOpen
+                    interactive: !root.isSettingsOpen && !root.isTrashOpen
 
                     RowLayout {
                         id: foldersRow
@@ -1101,7 +1123,7 @@ Item {
                     contentWidth: tagsRow.implicitWidth
                     flickableDirection: Flickable.HorizontalFlick
                     boundsBehavior: Flickable.StopAtBounds
-                    interactive: !root.isSettingsOpen
+                    interactive: !root.isSettingsOpen && !root.isTrashOpen
 
                     RowLayout {
                         id: tagsRow
@@ -1324,8 +1346,8 @@ Item {
                         contentWidth: width
                         contentHeight: scrollMainCol.implicitHeight + 96
                         boundsBehavior: Flickable.StopAtBounds
-                        enabled: !morphContainer.isVisible && !morphContainer.isExpanded && !root.isSettingsOpen
-                        interactive: !root.isSettingsOpen && !morphContainer.isVisible && !morphContainer.isExpanded
+                        enabled: !morphContainer.isVisible && !morphContainer.isExpanded && !root.isSettingsOpen && !root.isTrashOpen
+                        interactive: !root.isSettingsOpen && !root.isTrashOpen && !morphContainer.isVisible && !morphContainer.isExpanded
 
                         // Barra de scroll vertical con el estilo global
                         ScrollBar.vertical: CustomScrollBar {}
@@ -1893,10 +1915,6 @@ Item {
             }
         }
 
-        TrashModal {
-            id: trashModal
-        }
-
         // ── Toast flotante de Deshacer borrado ───────────────────────────────
         Rectangle {
             id: undoToast
@@ -2042,6 +2060,14 @@ Item {
                 }
             }
         }
+    }
+    }
+
+    TrashModal {
+        id: trashModal
+        anchors.fill: parent
+        z: 9999
+        backgroundSourceItem: surfaceLayer
     }
 
     // ── Drop de archivos .md a nivel ventana ─────────────────────────
