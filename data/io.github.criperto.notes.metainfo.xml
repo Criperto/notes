@@ -27,6 +27,11 @@
   </screenshots>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.3.6" date="2026-11-18">
+      <description>
+        <p>Iconos chevron en mover, fix hover de multiselección, guardado manual para archivos externos con aviso al salir y ventana sin borde 1px</p>
+      </description>
+    </release>
     <release version="0.3.5" date="2026-11-15">
       <description>
         <p>Resaltado nativo en código, organización por carpetas/lotes/papelera FreeDesktop, bloques avanzados y limpieza qmllint</p>
