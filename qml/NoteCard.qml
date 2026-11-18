@@ -30,7 +30,12 @@ Rectangle {
     signal pinToggled
     signal selectionToggled(string noteKey)
 
-    readonly property bool isHovered: cardMa.containsMouse
+    HoverHandler {
+        id: cardHover
+        acceptedDevices: PointerDevice.Mouse
+    }
+
+    readonly property bool isHovered: cardHover.hovered || cardMa.containsMouse || selMa.containsMouse || pinMa.containsMouse || delMa.containsMouse
 
     readonly property color cardBgColor: Qt.hsva(Theme.surface.hsvHue,
                                                   Math.min(1, Theme.surface.hsvSaturation),
@@ -352,7 +357,7 @@ Rectangle {
                 color: root.isMultiSelected
                     ? Theme.accent
                     : (selMa.containsMouse ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.22) : Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.08))
-                opacity: root.isMultiSelected || (NotesService.selectedNoteKeys && NotesService.selectedNoteKeys.length > 0) || root.isHovered ? 1.0 : 0.0
+                opacity: root.isMultiSelected || (NotesService.selectedNoteKeys && NotesService.selectedNoteKeys.length > 0) || root.isHovered || root.isCurrent || selMa.containsMouse ? 1.0 : 0.0
 
                 Behavior on opacity {
                     enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive

@@ -783,40 +783,48 @@ Item {
 
             Repeater {
                 model: [
-                    { id: "align", icon: root._getAlignIcon(Math.max(0, root.focusedCol)), text: "" },
-                    { id: "colLeft", icon: "", text: "←Col" },
-                    { id: "colRight", icon: "", text: "Col→" },
-                    { id: "rowUp", icon: "", text: "↑Fila" },
-                    { id: "rowDown", icon: "", text: "↓Fila" }
+                    { id: "align", icon: root._getAlignIcon(Math.max(0, root.focusedCol)), text: "", rot: 0, iconAfter: false },
+                    { id: "colLeft", icon: Theme.iconsPath + "chevron-left.svg", text: "Col", rot: 0, iconAfter: false },
+                    { id: "colRight", icon: Theme.iconsPath + "chevron-right.svg", text: "Col", rot: 0, iconAfter: true },
+                    { id: "rowUp", icon: Theme.iconsPath + "chevron-down.svg", text: "Fila", rot: 180, iconAfter: false },
+                    { id: "rowDown", icon: Theme.iconsPath + "chevron-down.svg", text: "Fila", rot: 0, iconAfter: false }
                 ]
                 delegate: Rectangle {
                     required property var modelData
                     height: 22
-                    width: modelData.icon !== "" ? 24 : (toolBtnTxt.implicitWidth + 12)
+                    width: Math.max(24, toolBtnRow.implicitWidth + 12)
                     radius: 6
                     color: toolBtnMa.containsMouse ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.2) : Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.07)
 
-                    Image {
-                        visible: modelData.icon !== ""
+                    Row {
+                        id: toolBtnRow
                         anchors.centerIn: parent
-                        width: 12; height: 12
-                        source: modelData.icon
-                        sourceSize: Qt.size(12, 12)
-                        layer.enabled: visible && !GamemodeService.gamemodeActive
-                        layer.effect: MultiEffect {
-                            colorization: 1.0
-                            colorizationColor: Theme.text
-                        }
-                    }
+                        spacing: 3
+                        layoutDirection: modelData.iconAfter ? Qt.RightToLeft : Qt.LeftToRight
 
-                    Text {
-                        id: toolBtnTxt
-                        visible: modelData.icon === ""
-                        anchors.centerIn: parent
-                        text: modelData.text
-                        color: Theme.text
-                        font.family: Theme.fontFamily
-                        font.pixelSize: 10
+                        Image {
+                            visible: modelData.icon !== ""
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 12; height: 12
+                            source: modelData.icon
+                            sourceSize: Qt.size(12, 12)
+                            rotation: modelData.rot || 0
+                            layer.enabled: visible && !GamemodeService.gamemodeActive
+                            layer.effect: MultiEffect {
+                                colorization: 1.0
+                                colorizationColor: Theme.text
+                            }
+                        }
+
+                        Text {
+                            id: toolBtnTxt
+                            visible: modelData.text !== ""
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: modelData.text
+                            color: Theme.text
+                            font.family: Theme.fontFamily
+                            font.pixelSize: 10
+                        }
                     }
 
                     MouseArea {

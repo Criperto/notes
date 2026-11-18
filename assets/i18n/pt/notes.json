@@ -100,7 +100,13 @@
     "overwrite_disk": "Sobrescrever",
     "find_placeholder": "Buscar na nota...",
     "no_matches": "Nenhuma correspondência",
-    "reset_zoom": "Redefinir zoom"
+    "reset_zoom": "Redefinir zoom",
+    "unsaved_title": "Alterações não salvas",
+    "unsaved_message": "Você tem alterações não salvas neste arquivo externo. O que deseja fazer antes de sair?",
+    "unsaved_cancel": "Cancelar",
+    "unsaved_save_exit": "Salvar e sair",
+    "unsaved_discard_exit": "Sair sem salvar",
+    "unsaved_shortcut_hint": "Ctrl+S salva e continua fechando automaticamente"
   },
   "import": {
     "drop_hint": "Drop to import",
@@ -243,7 +249,9 @@
       "show_source_mode_button": "Mostrar botão de código-fonte",
       "show_source_mode_button_comment": "Exibe o botão de alternância de código-fonte na barra de ferramentas do editor.",
       "auto_close_pairs": "Fechar aspas e pares automaticamente",
-      "auto_close_pairs_comment": "Fecha automaticamente aspas (\"\", ''), parênteses (), colchetes [], chaves {} e crases `` ao digitar."
+      "auto_close_pairs_comment": "Fecha automaticamente aspas (\"\", ''), parênteses (), colchetes [], chaves {} e crases `` ao digitar.",
+      "disable_external_autosave": "Salvamento manual em arquivos externos",
+      "disable_external_autosave_comment": "Desativa o salvamento automático ao editar arquivos fora da pasta de notas e avisa antes de sair se houver alterações não salvas."
     },
     "spellcheck": {
       "ignore_uppercase": "Ignorar MAIÚSCULAS",
@@ -675,5 +683,19 @@
   "editor.action.math": "Fórmula matemática (LaTeX)",
   "config.language.typing_title": "Digitação e Fechamento Automático",
   "config.notes.auto_close_pairs": "Fechar aspas e pares automaticamente",
-  "config.notes.auto_close_pairs_comment": "Fecha automaticamente aspas (\"\", ''), parênteses (), colchetes [], chaves {} e crases `` ao digitar."
+  "config.notes.auto_close_pairs_comment": "Fecha automaticamente aspas (\"\", ''), parênteses (), colchetes [], chaves {} e crases `` ao digitar.",
+  "config.notes.disable_external_autosave": "Salvamento manual em arquivos externos",
+  "config.notes.disable_external_autosave_comment": "Desativa o salvamento automático ao editar arquivos fora da pasta de notas e avisa antes de sair se houver alterações não salvas.",
+  "notes.editor.unsaved_title": "Alterações não salvas",
+  "editor.unsaved_title": "Alterações não salvas",
+  "notes.editor.unsaved_message": "Você tem alterações não salvas neste arquivo externo. O que deseja fazer antes de sair?",
+  "editor.unsaved_message": "Você tem alterações não salvas neste arquivo externo. O que deseja fazer antes de sair?",
+  "notes.editor.unsaved_cancel": "Cancelar",
+  "editor.unsaved_cancel": "Cancelar",
+  "notes.editor.unsaved_save_exit": "Salvar e sair",
+  "editor.unsaved_save_exit": "Salvar e sair",
+  "notes.editor.unsaved_discard_exit": "Sair sem salvar",
+  "editor.unsaved_discard_exit": "Sair sem salvar",
+  "notes.editor.unsaved_shortcut_hint": "Ctrl+S salva e continua fechando automaticamente",
+  "editor.unsaved_shortcut_hint": "Ctrl+S salva e continua fechando automaticamente"
 }

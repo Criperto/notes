@@ -93,6 +93,10 @@ Item {
     property bool isRenaming: false
     property bool isExpanded: true
     property bool isClosing: false
+    readonly property bool isManualSaveOnly: root.isExternalNote && (typeof NotesConfig === "undefined" || NotesConfig.disableExternalAutoSave !== false)
+    property bool _discardUnsavedOnClose: false
+    property bool _pendingCloseAfterPrompt: false
+    property bool _pendingQuitAfterPrompt: false
 
     property string _originalTitle: ""
     property string _originalBody: ""
@@ -110,6 +114,7 @@ Item {
     property bool _matchEverNavigated: false
 
     signal closeRequested()
+    signal quitAppRequested()
     signal noteKeyChanged(string oldKey, string newKey)
     signal saveRequested(var data, var callback)
     signal deleteRequested(string slug)
@@ -124,7 +129,7 @@ Item {
         interval: 500 // 500ms después de escribir para respuesta ágil
         repeat: false
         onTriggered: {
-            if (root._isDeleting || root.isPreviewMode) return;
+            if (root._isDeleting || root.isPreviewMode || root.isManualSaveOnly) return;
             if (root.dirty && root.loadedSlug && !(typeof NotesService !== "undefined" && NotesService.isDeletingKey && NotesService.isDeletingKey(root.loadedSlug))) {
                 if (NotesService.debug) console.log("[NoteEditorModal] Auto-guardado de 500ms ejecutándose:", root.loadedSlug);
                 root.performSave();
@@ -132,15 +137,28 @@ Item {
         }
     }
 
+    Connections {
+        target: (typeof NotesConfig !== "undefined") ? NotesConfig : null
+        function onDisableExternalAutoSaveChanged() {
+            if (root.isManualSaveOnly) {
+                autoSaveTimer.stop();
+            }
+        }
+    }
+
     function markDirty() {
         if (root.isLoading || !root.loadedSlug || root.isRenaming || root._isDeleting || root.isPreviewMode) return;
         root.dirty = true;
-        autoSaveTimer.restart();
+        if (root.isManualSaveOnly) {
+            autoSaveTimer.stop();
+        } else {
+            autoSaveTimer.restart();
+        }
     }
 
     Component.onDestruction: {
         root._isDestroyed = true;
-        if (root._isDeleting || root.isPreviewMode) return;
+        if (root._isDeleting || root.isPreviewMode || root.isManualSaveOnly || root._discardUnsavedOnClose) return;
         if (root.loadedSlug && !(typeof NotesService !== "undefined" && NotesService.isDeletingKey && NotesService.isDeletingKey(root.loadedSlug))) {
             if (root.isSourceMode) {
                 root._currentBody = sourceCodeEditor ? sourceCodeEditor.text : root._currentBody;
@@ -164,7 +182,7 @@ Item {
     }
 
     onVisibleChanged: {
-        if (!visible && root.loadedSlug && !root._isDeleting && !root.isPreviewMode) {
+        if (!visible && root.loadedSlug && !root._isDeleting && !root.isPreviewMode && !root.isManualSaveOnly && !root._discardUnsavedOnClose) {
             if (typeof NotesService !== "undefined" && NotesService.isDeletingKey && NotesService.isDeletingKey(root.loadedSlug)) return;
             var newTitle = titleInput.text.trim() || I18n.t("notes.card.untitled", "Sin título");
             var hasPending = root.dirty || (blockEditor && blockEditor.hasPendingChanges) || (newTitle !== root._originalTitle);
@@ -192,6 +210,12 @@ Item {
         root.isClosing = false;
         root._isDeleting = false;
         root.forceReadOnly = false;
+        root._discardUnsavedOnClose = false;
+        root._pendingCloseAfterPrompt = false;
+        root._pendingQuitAfterPrompt = false;
+        if (typeof unsavedConfirmOverlay !== "undefined" && unsavedConfirmOverlay) {
+            unsavedConfirmOverlay.isOpen = false;
+        }
         root.loadedSlug = "";
         root._originalBody = "";
         root._originalTitle = "";
@@ -209,6 +233,12 @@ Item {
         root.isClosing = false;
         root._isDeleting = false;
         root.forceReadOnly = false;
+        root._discardUnsavedOnClose = false;
+        root._pendingCloseAfterPrompt = false;
+        root._pendingQuitAfterPrompt = false;
+        if (typeof unsavedConfirmOverlay !== "undefined" && unsavedConfirmOverlay) {
+            unsavedConfirmOverlay.isOpen = false;
+        }
         if (!root.noteData) {
             root.loadedSlug = "";
             return;
@@ -283,7 +313,7 @@ Item {
             return;
         }
 
-        if (root.loadedSlug && root.dirty) {
+        if (root.loadedSlug && root.dirty && !root.isManualSaveOnly && !root._discardUnsavedOnClose) {
             if (NotesService.debug) console.log("[StateDebug:Editor] Persistiendo nota previa antes de abrir nueva:", root.loadedSlug);
             root.performSave();
         }
@@ -392,7 +422,7 @@ Item {
         var newTitle = titleInput.text.trim() || I18n.t("notes.card.untitled", "Sin título");
         var tagsNow = (root.editTags || []).join("\n");
         var tagsOrig = (root._originalTags || []).join("\n");
-        var metaChanged = (newTitle !== root._originalTitle || root.isPinned !== root._originalPinned || tagsNow !== tagsOrig);
+        var metaChanged = !root.isPlainFormat && (tagsNow !== tagsOrig || root.isPinned !== root._originalPinned || (!root.isExternalNote && newTitle !== root._originalTitle));
 
         // Si no hay cambios forzados ni pendientes y los metadatos son iguales, salir en O(1)
         if (!force && !root.dirty && !metaChanged && (!blockEditor || !blockEditor.hasPendingChanges)) {
@@ -423,7 +453,7 @@ Item {
             tags: (root.editTags || []).slice()
         };
 
-        if (newTitle !== root._originalTitle && root.loadedSlug && !root.isLoading) {
+        if (!root.isExternalNote && newTitle !== root._originalTitle && root.loadedSlug && !root.isLoading) {
             NotesService.renameNote(root.loadedSlug, newTitle, function(newSlug, success) {
                 if (success) {
                     var oldKey = root.loadedSlug;
@@ -486,8 +516,100 @@ Item {
         });
     }
 
+    function hasUnsavedChanges() {
+        if (root._isDestroyed || root._isDeleting || root._discardUnsavedOnClose || root.isPreviewMode || !root.loadedSlug) {
+            return false;
+        }
+        root._flushPendingBody();
+        var bodyNow = root._currentBody;
+        if (root.isSourceMode && sourceCodeEditor) {
+            bodyNow = sourceCodeEditor.text;
+        } else if (blockEditor) {
+            bodyNow = blockEditor.getMarkdown();
+        }
+        if (bodyNow !== root._originalBody) return true;
+        if (!root.isPlainFormat) {
+            var tagsNow = (root.editTags || []).join("\n");
+            var tagsOrig = (root._originalTags || []).join("\n");
+            if (tagsNow !== tagsOrig || root.isPinned !== root._originalPinned) return true;
+            if (!root.isExternalNote) {
+                var newTitle = (titleInput ? titleInput.text.trim() : "") || I18n.t("notes.card.untitled", "Sin título");
+                if (newTitle !== root._originalTitle) return true;
+            }
+        }
+        return false;
+    }
+
+    function promptUnsavedChanges(forAppQuit) {
+        if (root._isDestroyed || !unsavedConfirmOverlay) return;
+        root._pendingQuitAfterPrompt = !!forAppQuit;
+        root._pendingCloseAfterPrompt = !forAppQuit;
+        unsavedConfirmOverlay.open();
+    }
+
+    function cancelUnsavedPrompt() {
+        root._pendingQuitAfterPrompt = false;
+        root._pendingCloseAfterPrompt = false;
+        if (unsavedConfirmOverlay) unsavedConfirmOverlay.close();
+        Qt.callLater(() => {
+            if (root._isDestroyed) return;
+            if (root.isSourceMode && sourceCodeEditor) sourceCodeEditor.forceActiveFocus();
+            else if (blockEditor) blockEditor.forceActiveFocus();
+        });
+    }
+
+    function saveAndContinueClose() {
+        var quitAfter = root._pendingQuitAfterPrompt;
+        root._pendingQuitAfterPrompt = false;
+        root._pendingCloseAfterPrompt = false;
+        if (unsavedConfirmOverlay) unsavedConfirmOverlay.close();
+
+        try {
+            if (!root.isSourceMode && blockEditor && blockEditor.activeBlockBid !== -1) {
+                blockEditor.confirmActiveBlock();
+            }
+        } catch(e) {}
+
+        root.performSave(function() {
+            if (typeof NotesService !== "undefined") {
+                NotesService.flushPendingSave();
+            }
+            root._discardUnsavedOnClose = true;
+            if (quitAfter) {
+                root.quitAppRequested();
+            } else {
+                root.requestClose();
+            }
+        }, true);
+    }
+
+    function discardAndContinueClose() {
+        var quitAfter = root._pendingQuitAfterPrompt;
+        root._pendingQuitAfterPrompt = false;
+        root._pendingCloseAfterPrompt = false;
+        if (unsavedConfirmOverlay) unsavedConfirmOverlay.close();
+
+        autoSaveTimer.stop();
+        if (typeof NotesService !== "undefined" && NotesService._pendingSlug === root.loadedSlug) {
+            NotesService._pendingSave = null;
+            NotesService._pendingSlug = "";
+        }
+        root._discardUnsavedOnClose = true;
+        root.dirty = false;
+
+        if (quitAfter) {
+            root.quitAppRequested();
+        } else {
+            root.requestClose();
+        }
+    }
+
     function requestClose() {
         if (root.isClosing) return;
+        if (!root._isDeleting && !root._discardUnsavedOnClose && !root.isPreviewMode && root.isManualSaveOnly && root.hasUnsavedChanges()) {
+            root.promptUnsavedChanges(false);
+            return;
+        }
         root.isClosing = true;
 
         try {
@@ -1337,6 +1459,10 @@ Item {
 
     function handleEscapeKey() {
         if (root._isDestroyed || root.isClosing || !root.isExpanded || root.isSettingsOpen) return;
+        if (typeof unsavedConfirmOverlay !== "undefined" && unsavedConfirmOverlay && unsavedConfirmOverlay.isOpen) {
+            root.cancelUnsavedPrompt();
+            return;
+        }
         if (typeof imageLightbox !== "undefined" && imageLightbox && (imageLightbox.isOpen || imageLightbox.isClosing)) {
             if (!imageLightbox.isClosing) imageLightbox.close();
             return;
@@ -1394,6 +1520,19 @@ Item {
         sequence: "Escape"
         enabled: root.visible && root.isExpanded && !root.isClosing && !root.isSettingsOpen
         onActivated: root.handleEscapeKey()
+    }
+
+    Shortcut {
+        id: editorSaveShortcut
+        sequence: "Ctrl+S"
+        enabled: root.visible && root.isExpanded && !root.isClosing && !root.isSettingsOpen && !root.isPreviewMode
+        onActivated: {
+            if (typeof unsavedConfirmOverlay !== "undefined" && unsavedConfirmOverlay && unsavedConfirmOverlay.isOpen) {
+                root.saveAndContinueClose();
+            } else {
+                root.performSave(null, true);
+            }
+        }
     }
 
     // ── Atajos de teclado en el editor (Fase 1: tabla unificada de atajos) ─────
@@ -1566,11 +1705,6 @@ Item {
             if (event.key === Qt.Key_0) {
                 EditorMetrics.zoomReset();
                 event.accepted = true;
-                return;
-            }
-            if (event.key === Qt.Key_S) {
-                event.accepted = true;
-                root.performSave(null, true);
                 return;
             }
             if (event.key === Qt.Key_W) {
@@ -4742,6 +4876,209 @@ Item {
                 sourceCodeEditor.forceActiveFocus();
             } else if (blockEditor) {
                 blockEditor.forceActiveFocus();
+            }
+        }
+    }
+
+    // Diálogo de confirmación para cambios sin guardar en archivos externos con autoguardado desactivado
+    Item {
+        id: unsavedConfirmOverlay
+        anchors.fill: parent
+        z: 9600
+        property bool isOpen: false
+        visible: isOpen || opacity > 0
+        opacity: isOpen ? 1.0 : 0.0
+
+        Behavior on opacity {
+            enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+            NumberAnimation { duration: 150; easing.type: Easing.OutCubic }
+        }
+
+        function open() {
+            isOpen = true;
+            unsavedCard.forceActiveFocus();
+        }
+
+        function close() {
+            isOpen = false;
+        }
+
+        MouseArea {
+            anchors.fill: parent
+            enabled: unsavedConfirmOverlay.isOpen
+            acceptedButtons: Qt.AllButtons
+            onClicked: root.cancelUnsavedPrompt()
+            onWheel: (wheel) => { wheel.accepted = true; }
+        }
+
+        Rectangle {
+            id: unsavedCard
+            anchors.centerIn: parent
+            width: Math.min(parent.width - 48, 460)
+            height: unsavedCol.implicitHeight + 36
+            radius: 14
+            color: Theme.surface
+            border.color: Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.14)
+            border.width: 1
+            scale: unsavedConfirmOverlay.isOpen ? 1.0 : 0.94
+
+            Behavior on scale {
+                enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                SpringAnimation { spring: 3.5; damping: 0.38; mass: 0.85; epsilon: 0.25 }
+            }
+
+            layer.enabled: unsavedConfirmOverlay.visible && !GamemodeService.gamemodeActive
+            layer.effect: MultiEffect {
+                shadowEnabled: true
+                shadowColor: Qt.rgba(0, 0, 0, 0.42)
+                shadowBlur: 0.65
+                shadowVerticalOffset: 6
+                shadowHorizontalOffset: 0
+            }
+
+            MouseArea {
+                anchors.fill: parent
+                acceptedButtons: Qt.AllButtons
+                onClicked: {}
+            }
+
+            ColumnLayout {
+                id: unsavedCol
+                anchors.fill: parent
+                anchors.margins: 18
+                spacing: 12
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 10
+
+                    Image {
+                        Layout.preferredWidth: 20
+                        Layout.preferredHeight: 20
+                        source: Theme.iconsPath + "warning.svg"
+                        sourceSize: Qt.size(20, 20)
+                        layer.enabled: visible && !GamemodeService.gamemodeActive
+                        layer.effect: MultiEffect {
+                            colorization: 1.0
+                            colorizationColor: Theme.warning
+                        }
+                    }
+
+                    Text {
+                        Layout.fillWidth: true
+                        text: I18n.t("notes.editor.unsaved_title", "Cambios sin guardar")
+                        color: Theme.text
+                        font.family: Theme.fontFamilyDisplay
+                        font.pixelSize: Theme.fontSizeTitle
+                        font.bold: true
+                        elide: Text.ElideRight
+                    }
+                }
+
+                Text {
+                    Layout.fillWidth: true
+                    text: I18n.t("notes.editor.unsaved_message", "Tenés cambios sin guardar en este archivo externo. ¿Qué querés hacer antes de salir?")
+                    color: Theme.muted
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontSizeBody
+                    wrapMode: Text.WordWrap
+                }
+
+                Text {
+                    Layout.fillWidth: true
+                    text: I18n.t("notes.editor.unsaved_shortcut_hint", "Ctrl+S guarda y continúa el cierre automáticamente")
+                    color: Theme.accent
+                    font.family: Theme.fontFamily
+                    font.pixelSize: Theme.fontSizeCaption
+                    wrapMode: Text.WordWrap
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    Layout.topMargin: 4
+                    spacing: 8
+
+                    // Cancelar
+                    Rectangle {
+                        id: unsavedCancelBtn
+                        Layout.preferredHeight: 32
+                        Layout.preferredWidth: unsavedCancelTxt.implicitWidth + 20
+                        radius: 8
+                        color: unsavedCancelMa.containsMouse ? Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.12) : Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.06)
+                        Text {
+                            id: unsavedCancelTxt
+                            anchors.centerIn: parent
+                            text: I18n.t("notes.editor.unsaved_cancel", "Cancelar")
+                            color: Theme.text
+                            font.family: Theme.fontFamily
+                            font.pixelSize: Theme.fontSizeSmall
+                            font.weight: Font.Medium
+                        }
+                        MouseArea {
+                            id: unsavedCancelMa
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: root.cancelUnsavedPrompt()
+                        }
+                    }
+
+                    Item { Layout.fillWidth: true }
+
+                    // Salir sin guardar
+                    Rectangle {
+                        id: unsavedDiscardBtn
+                        Layout.preferredHeight: 32
+                        Layout.preferredWidth: unsavedDiscardTxt.implicitWidth + 20
+                        radius: 8
+                        color: unsavedDiscardMa.containsMouse
+                            ? Qt.rgba(Theme.color1.r, Theme.color1.g, Theme.color1.b, 0.28)
+                            : Qt.rgba(Theme.color1.r, Theme.color1.g, Theme.color1.b, 0.15)
+                        Text {
+                            id: unsavedDiscardTxt
+                            anchors.centerIn: parent
+                            text: I18n.t("notes.editor.unsaved_discard_exit", "Salir sin guardar")
+                            color: Theme.color1
+                            font.family: Theme.fontFamily
+                            font.pixelSize: Theme.fontSizeSmall
+                            font.weight: Font.Medium
+                        }
+                        MouseArea {
+                            id: unsavedDiscardMa
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: root.discardAndContinueClose()
+                        }
+                    }
+
+                    // Guardar y salir
+                    Rectangle {
+                        id: unsavedSaveExitBtn
+                        Layout.preferredHeight: 32
+                        Layout.preferredWidth: unsavedSaveExitTxt.implicitWidth + 20
+                        radius: 8
+                        color: unsavedSaveExitMa.containsMouse
+                            ? Theme.accent
+                            : Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.18)
+                        Text {
+                            id: unsavedSaveExitTxt
+                            anchors.centerIn: parent
+                            text: I18n.t("notes.editor.unsaved_save_exit", "Guardar y salir")
+                            color: unsavedSaveExitMa.containsMouse ? Theme.textOn(Theme.accent) : Theme.accent
+                            font.family: Theme.fontFamily
+                            font.pixelSize: Theme.fontSizeSmall
+                            font.weight: Font.Medium
+                        }
+                        MouseArea {
+                            id: unsavedSaveExitMa
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: root.saveAndContinueClose()
+                        }
+                    }
+                }
             }
         }
     }

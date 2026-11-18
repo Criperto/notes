@@ -1559,6 +1559,20 @@ Item {
                                             }
                                         }
                                     }
+
+                                    Item {
+                                        Layout.fillWidth: true
+                                        implicitHeight: 6
+                                    }
+
+                                    SchemaSwitchRow {
+                                        label: I18n.t("config.notes.disable_external_autosave", "Guardado manual en archivos externos")
+                                        comment: I18n.t("config.notes.disable_external_autosave_comment", "Desactiva el autoguardado al editar archivos fuera de la carpeta de notas y avisa antes de salir si hay cambios sin guardar.")
+                                        checked: (typeof ConfigBackend !== "undefined" && ConfigBackend.disableExternalAutoSave !== undefined) ? ConfigBackend.disableExternalAutoSave : true
+                                        onToggled: (v) => {
+                                            if (typeof ConfigBackend !== "undefined") ConfigBackend.disableExternalAutoSave = v;
+                                        }
+                                    }
                                 }
                             }
                         }

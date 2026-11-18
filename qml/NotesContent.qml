@@ -13,9 +13,23 @@ Item {
     id: root
 
     signal closeRequested
+    signal quitAppRequested
     signal openSettingsRequested(var originRect, string initialTab)
     property bool isSettingsOpen: false
     readonly property bool isTrashOpen: trashModal ? (trashModal.isOpen || trashModal.isClosing) : false
+
+    function hasManualUnsavedBeforeQuit() {
+        return (typeof NotesService !== "undefined" && NotesService.isEditing)
+            && editorModal && editorModal.visible && !editorModal.isPreviewMode
+            && editorModal.isManualSaveOnly && !editorModal._discardUnsavedOnClose
+            && editorModal.hasUnsavedChanges();
+    }
+
+    function promptUnsavedBeforeQuit() {
+        if (editorModal && typeof editorModal.promptUnsavedChanges === "function") {
+            editorModal.promptUnsavedChanges(true);
+        }
+    }
     property real windowControlsWidth: 0
     property bool windowControlsOnLeft: false
 
@@ -362,7 +376,11 @@ Item {
     Keys.onPressed: (event) => {
         if (morphContainer.isExpanded || NotesService.isEditing || editorModal.visible || root.activeMorphSlug !== "") {
             if (event.key === Qt.Key_Escape) {
-                root.closeNoteWithMorph();
+                if (editorModal && editorModal.visible && typeof editorModal.requestClose === "function") {
+                    editorModal.requestClose();
+                } else {
+                    root.closeNoteWithMorph();
+                }
                 event.accepted = true;
             }
             return;
@@ -490,8 +508,8 @@ Item {
                        Math.min(1, Theme.surface.hsvSaturation),
                        Math.min(1, Theme.surface.hsvValue + 0.04),
                        GamemodeService.gamemodeActive ? 1.0 : Theme.panelOpacity)
-        border.color: Qt.hsva(Theme.text.hsvHue, Theme.text.hsvSaturation, Theme.text.hsvValue, 0.08)
-        border.width: 1
+        border.color: "transparent"
+        border.width: 0
 
         layer.enabled: false
     }
@@ -1672,6 +1690,7 @@ Item {
                 }
 
                 onCloseRequested: root.closeNoteWithMorph()
+                onQuitAppRequested: root.quitAppRequested()
                 onNoteKeyChanged: (oldKey, newKey) => {
                     root.activeMorphSlug = newKey;
                 }
@@ -3434,7 +3453,7 @@ Item {
             if (editorModal.blockEditor && editorModal.blockEditor.activeBlockBid !== -1) {
                 editorModal.blockEditor.confirmActiveBlock();
             }
-            if (!NotesService.isPendingDelete(curSlug)) {
+            if (!NotesService.isPendingDelete(curSlug) && !editorModal.isManualSaveOnly && !editorModal._discardUnsavedOnClose) {
                 editorModal.performSave();
                 NotesService.flushPendingSave();
             }

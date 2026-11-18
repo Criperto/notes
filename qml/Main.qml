@@ -23,6 +23,34 @@ ApplicationWindow {
     color: "transparent"
     flags: Qt.Window | (winControls.visible ? Qt.FramelessWindowHint : 0)
 
+    property bool _confirmedQuit: false
+    onVisibleChanged: {
+        if (visible) _confirmedQuit = false;
+    }
+
+    function requestAppClose() {
+        if (content && typeof content.hasManualUnsavedBeforeQuit === "function" && content.hasManualUnsavedBeforeQuit()) {
+            content.promptUnsavedBeforeQuit();
+            return;
+        }
+        root._confirmedQuit = true;
+        NotesService.prepareToQuit();
+        root.close();
+    }
+
+    onClosing: (close) => {
+        if (root._confirmedQuit) {
+            NotesService.prepareToQuit();
+            return;
+        }
+        if (content && typeof content.hasManualUnsavedBeforeQuit === "function" && content.hasManualUnsavedBeforeQuit()) {
+            close.accepted = false;
+            content.promptUnsavedBeforeQuit();
+            return;
+        }
+        NotesService.prepareToQuit();
+    }
+
     NotesContent {
         id: content
         anchors.fill: parent
@@ -31,7 +59,12 @@ ApplicationWindow {
         initialAction: (typeof Sys !== "undefined") ? Sys.initialAction : ""
         initialTarget: (typeof Sys !== "undefined") ? Sys.initialTarget : ""
         isSettingsOpen: settingsModal.isOpen || settingsModal.isClosing
-        onCloseRequested: root.close()
+        onCloseRequested: root.requestAppClose()
+        onQuitAppRequested: {
+            root._confirmedQuit = true;
+            NotesService.prepareToQuit();
+            root.close();
+        }
         onOpenSettingsRequested: (originRect, initialTab) => settingsModal.open(originRect, initialTab)
     }
 
@@ -135,10 +168,7 @@ ApplicationWindow {
 
     Shortcut {
         sequence: "Ctrl+Q"
-        onActivated: {
-            NotesService.prepareToQuit();
-            root.close();
-        }
+        onActivated: root.requestAppClose()
     }
 
     onActiveChanged: {
@@ -160,8 +190,7 @@ ApplicationWindow {
         }
         function onIpcCommandReceived(action, target) {
             if (action === "close") {
-                NotesService.prepareToQuit();
-                root.close();
+                root.requestAppClose();
                 return;
             }
             if (action === "sync") {

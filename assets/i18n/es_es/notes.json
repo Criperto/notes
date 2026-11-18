@@ -100,7 +100,13 @@
     "overwrite_disk": "Sobrescribir",
     "find_placeholder": "Buscar en la nota...",
     "no_matches": "Sin coincidencias",
-    "reset_zoom": "Restablecer zoom"
+    "reset_zoom": "Restablecer zoom",
+    "unsaved_title": "Cambios sin guardar",
+    "unsaved_message": "Tienes cambios sin guardar en este archivo externo. ¿Qué quieres hacer antes de salir?",
+    "unsaved_cancel": "Cancelar",
+    "unsaved_save_exit": "Guardar y salir",
+    "unsaved_discard_exit": "Salir sin guardar",
+    "unsaved_shortcut_hint": "Ctrl+S guarda y continúa el cierre automáticamente"
   },
   "import": {
     "drop_hint": "Soltá para importar",
@@ -243,7 +249,9 @@
       "show_source_mode_button": "Mostrar botón de código fuente",
       "show_source_mode_button_comment": "Muestra el botón de alternar código fuente en la barra de herramientas del editor.",
       "auto_close_pairs": "Autocerrar comillas y pares",
-      "auto_close_pairs_comment": "Cierra automáticamente comillas (\"\", ''), paréntesis (), corchetes [], llaves {} y acentos graves `` al escribir."
+      "auto_close_pairs_comment": "Cierra automáticamente comillas (\"\", ''), paréntesis (), corchetes [], llaves {} y acentos graves `` al escribir.",
+      "disable_external_autosave": "Guardado manual en archivos externos",
+      "disable_external_autosave_comment": "Desactiva el guardado automático al editar archivos fuera de la carpeta de notas y avisa antes de salir si hay cambios sin guardar."
     },
     "spellcheck": {
       "ignore_uppercase": "Ignorar MAYÚSCULAS",
@@ -675,5 +683,19 @@
   "editor.action.math": "Fórmula matemática (LaTeX)",
   "config.language.typing_title": "Escritura y Autocierre",
   "config.notes.auto_close_pairs": "Autocerrar comillas y pares",
-  "config.notes.auto_close_pairs_comment": "Cierra automáticamente comillas (\"\", ''), paréntesis (), corchetes [], llaves {} y acentos graves `` al escribir."
+  "config.notes.auto_close_pairs_comment": "Cierra automáticamente comillas (\"\", ''), paréntesis (), corchetes [], llaves {} y acentos graves `` al escribir.",
+  "config.notes.disable_external_autosave": "Guardado manual en archivos externos",
+  "config.notes.disable_external_autosave_comment": "Desactiva el guardado automático al editar archivos fuera de la carpeta de notas y avisa antes de salir si hay cambios sin guardar.",
+  "notes.editor.unsaved_title": "Cambios sin guardar",
+  "editor.unsaved_title": "Cambios sin guardar",
+  "notes.editor.unsaved_message": "Tienes cambios sin guardar en este archivo externo. ¿Qué quieres hacer antes de salir?",
+  "editor.unsaved_message": "Tienes cambios sin guardar en este archivo externo. ¿Qué quieres hacer antes de salir?",
+  "notes.editor.unsaved_cancel": "Cancelar",
+  "editor.unsaved_cancel": "Cancelar",
+  "notes.editor.unsaved_save_exit": "Guardar y salir",
+  "editor.unsaved_save_exit": "Guardar y salir",
+  "notes.editor.unsaved_discard_exit": "Salir sin guardar",
+  "editor.unsaved_discard_exit": "Salir sin guardar",
+  "notes.editor.unsaved_shortcut_hint": "Ctrl+S guarda y continúa el cierre automáticamente",
+  "editor.unsaved_shortcut_hint": "Ctrl+S guarda y continúa el cierre automáticamente"
 }

@@ -2622,6 +2622,7 @@ void ConfigBackend::loadQuickshellConfig() {
     bool changedImportMode = false;
     bool changedExternalMode = false;
     bool changedCloseAction = false;
+    bool changedDisableExtAutoSave = false;
     bool changedZoom = false;
     bool changedSpellMode = false;
     bool changedSpellPrimary = false;
@@ -2780,6 +2781,12 @@ void ConfigBackend::loadQuickshellConfig() {
                     m_previewCloseAction = v;
                     changedCloseAction = true;
                 }
+            } else if (k == QStringLiteral("disableExternalAutoSave")) {
+                bool b = (v.compare(QStringLiteral("true"), Qt::CaseInsensitive) == 0);
+                if (m_disableExternalAutoSave != b) {
+                    m_disableExternalAutoSave = b;
+                    changedDisableExtAutoSave = true;
+                }
             } else if (k == QStringLiteral("editorZoom")) {
                 int z = qBound(50, v.toInt(), 300);
                 if (z > 0 && m_editorZoom != z) {
@@ -2920,6 +2927,7 @@ void ConfigBackend::loadQuickshellConfig() {
     if (changedImportMode) emit importModeChanged();
     if (changedExternalMode) emit externalFileOpenModeChanged();
     if (changedCloseAction) emit previewCloseActionChanged();
+    if (changedDisableExtAutoSave) emit disableExternalAutoSaveChanged();
     if (changedZoom) emit editorZoomChanged();
     if (changedSpellMode) emit spellcheckModeChanged();
     if (changedSpellPrimary) emit primarySpellLanguageChanged();
@@ -3252,6 +3260,13 @@ void ConfigBackend::setAutoClosePairs(bool val) {
     scheduleSave();
 }
 
+void ConfigBackend::setDisableExternalAutoSave(bool val) {
+    if (m_disableExternalAutoSave == val) return;
+    m_disableExternalAutoSave = val;
+    emit disableExternalAutoSaveChanged();
+    scheduleSave();
+}
+
 void ConfigBackend::load() {
     const bool hasPywal = QFile::exists(resolveCacheFile(QStringLiteral("wal/colors.json")));
     QString path = configFilePath();
@@ -3280,6 +3295,7 @@ void ConfigBackend::load() {
                 if (obj.contains("importMode")) m_importMode = obj["importMode"].toString("move");
                 if (obj.contains("externalFileOpenMode")) m_externalFileOpenMode = obj["externalFileOpenMode"].toString("preview");
                 if (obj.contains("previewCloseAction")) m_previewCloseAction = obj["previewCloseAction"].toString("home");
+                if (obj.contains("disableExternalAutoSave")) m_disableExternalAutoSave = obj["disableExternalAutoSave"].toBool(true);
                 if (obj.contains("spellcheckMode")) m_spellcheckMode = obj["spellcheckMode"].toString("auto");
                 if (obj.contains("disabledSpellLanguages")) m_disabledSpellLanguages = obj["disabledSpellLanguages"].toString();
                 if (obj.contains("primarySpellLanguage")) m_primarySpellLanguage = obj["primarySpellLanguage"].toString();
@@ -3385,6 +3401,7 @@ void ConfigBackend::save() {
     obj[QStringLiteral("importMode")] = m_importMode;
     obj[QStringLiteral("externalFileOpenMode")] = m_externalFileOpenMode;
     obj[QStringLiteral("previewCloseAction")] = m_previewCloseAction;
+    obj[QStringLiteral("disableExternalAutoSave")] = m_disableExternalAutoSave;
     obj[QStringLiteral("spellcheckMode")] = m_spellcheckMode;
     obj[QStringLiteral("disabledSpellLanguages")] = m_disabledSpellLanguages;
     obj[QStringLiteral("primarySpellLanguage")] = m_primarySpellLanguage;
@@ -3443,6 +3460,7 @@ void ConfigBackend::reload() {
     emit importModeChanged();
     emit externalFileOpenModeChanged();
     emit previewCloseActionChanged();
+    emit disableExternalAutoSaveChanged();
     emit spellcheckModeChanged();
     emit disabledSpellLanguagesChanged();
     emit primarySpellLanguageChanged();

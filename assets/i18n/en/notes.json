@@ -100,7 +100,13 @@
     "overwrite_disk": "Overwrite",
     "find_placeholder": "Find in note...",
     "no_matches": "No matches",
-    "reset_zoom": "Reset zoom"
+    "reset_zoom": "Reset zoom",
+    "unsaved_title": "Unsaved changes",
+    "unsaved_message": "You have unsaved changes in this external file. What would you like to do before leaving?",
+    "unsaved_cancel": "Cancel",
+    "unsaved_save_exit": "Save & exit",
+    "unsaved_discard_exit": "Exit without saving",
+    "unsaved_shortcut_hint": "Ctrl+S saves and continues closing automatically"
   },
   "import": {
     "drop_hint": "Drop to import",
@@ -243,7 +249,9 @@
       "show_source_mode_button": "Show source code button",
       "show_source_mode_button_comment": "Displays the source code toggle button in the editor toolbar.",
       "auto_close_pairs": "Auto-close quotes and pairs",
-      "auto_close_pairs_comment": "Automatically closes quotes (\"\", ''), parentheses (), brackets [], braces {} and backticks `` while typing."
+      "auto_close_pairs_comment": "Automatically closes quotes (\"\", ''), parentheses (), brackets [], braces {} and backticks `` while typing.",
+      "disable_external_autosave": "Manual save for external files",
+      "disable_external_autosave_comment": "Disables auto-save when editing files outside the notes folder and prompts before closing if there are unsaved changes."
     },
     "spellcheck": {
       "ignore_uppercase": "Ignore UPPERCASE",
@@ -675,5 +683,19 @@
   "editor.action.math": "Math formula (LaTeX)",
   "config.language.typing_title": "Typing & Auto-Close",
   "config.notes.auto_close_pairs": "Auto-close quotes and pairs",
-  "config.notes.auto_close_pairs_comment": "Automatically closes quotes (\"\", ''), parentheses (), brackets [], braces {} and backticks `` while typing."
+  "config.notes.auto_close_pairs_comment": "Automatically closes quotes (\"\", ''), parentheses (), brackets [], braces {} and backticks `` while typing.",
+  "config.notes.disable_external_autosave": "Manual save for external files",
+  "config.notes.disable_external_autosave_comment": "Disables auto-save when editing files outside the notes folder and prompts before closing if there are unsaved changes.",
+  "notes.editor.unsaved_title": "Unsaved changes",
+  "editor.unsaved_title": "Unsaved changes",
+  "notes.editor.unsaved_message": "You have unsaved changes in this external file. What would you like to do before leaving?",
+  "editor.unsaved_message": "You have unsaved changes in this external file. What would you like to do before leaving?",
+  "notes.editor.unsaved_cancel": "Cancel",
+  "editor.unsaved_cancel": "Cancel",
+  "notes.editor.unsaved_save_exit": "Save & exit",
+  "editor.unsaved_save_exit": "Save & exit",
+  "notes.editor.unsaved_discard_exit": "Exit without saving",
+  "editor.unsaved_discard_exit": "Exit without saving",
+  "notes.editor.unsaved_shortcut_hint": "Ctrl+S saves and continues closing automatically",
+  "editor.unsaved_shortcut_hint": "Ctrl+S saves and continues closing automatically"
 }

@@ -6658,6 +6658,53 @@ runTest("F162: hotfixes v0.3.5 (gutter solo en modo edición, TrashModal morph i
         "NotesContent debe exponer getTrashButtonRect y alojar surfaceLayer + TrashModal");
 });
 
+runTest("F163: v0.3.6 — iconos chevron en mover, hover estable en multiselección, guardado manual externo y ventana sin borde 1px", () => {
+    const readQ = (f) => fs.readFileSync(path.resolve(__dirname, '../qml', f), 'utf8');
+    const readRel = (f) => fs.readFileSync(path.resolve(__dirname, '..', f), 'utf8');
+
+    for (const ic of ['chevron-left.svg', 'chevron-right.svg', 'chevron-down.svg']) {
+        assert.ok(fs.existsSync(path.resolve(__dirname, '../assets/icons', ic)), `Debe existir assets/icons/${ic}`);
+    }
+
+    const blockEditor = readQ('BlockEditor.qml');
+    const blockTable = readQ('BlockTable.qml');
+    assert.ok(blockEditor.includes('chevron-down.svg') && !blockEditor.includes('text: "↑"') && !blockEditor.includes('text: "↓"'),
+        "BlockEditor debe usar iconos chevron SVG en vez de flechas ASCII para mover bloques");
+    assert.ok(blockTable.includes('chevron-left.svg') && blockTable.includes('chevron-right.svg') && blockTable.includes('chevron-down.svg'),
+        "BlockTable debe usar iconos chevron SVG para mover columnas y filas");
+
+    const noteCard = readQ('NoteCard.qml');
+    assert.ok(noteCard.includes('cardHover.hovered') && noteCard.includes('selMa.containsMouse') && noteCard.includes('id: cardHover'),
+        "NoteCard debe mantener hover visible al pasar el puntero sobre selectBadge");
+
+    const bridgeH = readRel('src/native/native_bridge.h');
+    const bridgeCpp = readRel('src/native/native_bridge.cpp');
+    const notesConfig = readQ('NotesConfig.qml');
+    const settingsModal = readQ('NotesSettingsModal.qml');
+    const notesService = readQ('NotesService.qml');
+    const editorModal = readQ('NoteEditorModal.qml');
+    const notesContent = readQ('NotesContent.qml');
+    const mainQml = readQ('Main.qml');
+
+    assert.ok(bridgeH.includes('bool m_disableExternalAutoSave = true;') && bridgeH.includes('disableExternalAutoSave'),
+        "ConfigBackend C++ debe exponer disableExternalAutoSave con default true");
+    assert.ok(bridgeCpp.includes('setDisableExternalAutoSave') && bridgeCpp.includes('"disableExternalAutoSave"'),
+        "ConfigBackend debe persistir disableExternalAutoSave");
+    assert.ok(notesConfig.includes('key: "disableExternalAutoSave"') && settingsModal.includes('config.notes.disable_external_autosave'),
+        "NotesConfig y NotesSettingsModal deben exponer el toggle de guardado manual en externos");
+    assert.ok(notesService.includes('String(slug).startsWith("__external__:")'),
+        "NotesService._resolveSaveKey y queueSave deben preservar claves externas");
+    assert.ok(editorModal.includes('isManualSaveOnly') && editorModal.includes('id: unsavedConfirmOverlay')
+        && editorModal.includes('saveAndContinueClose') && editorModal.includes('discardAndContinueClose')
+        && editorModal.includes('id: editorSaveShortcut') && editorModal.includes('unsavedConfirmOverlay.isOpen'),
+        "NoteEditorModal debe desactivar autoguardado en externos, mostrar diálogo Cancela/Guardar/Salir y continuar cierre con Ctrl+S");
+    assert.ok(notesContent.includes('hasManualUnsavedBeforeQuit') && notesContent.includes('promptUnsavedBeforeQuit')
+        && notesContent.includes('border.width: 0'),
+        "NotesContent debe chequear cambios externos antes de salir y eliminar borde 1px de bgCard");
+    assert.ok(mainQml.includes('onClosing:') && mainQml.includes('requestAppClose') && mainQml.includes('onQuitAppRequested'),
+        "Main debe interceptar cierre de ventana si hay cambios sin guardar en modo manual externo");
+});
+
 console.log(`\n========================================`);
 console.log(`Resultados: ${passed} OK, ${failed} FAIL`);
 console.log(`========================================`);

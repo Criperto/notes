@@ -80,6 +80,13 @@ QtObject {
             comment: I18n.t("config.notes.preview_close_action_comment", "Define si la 'X' cierra la aplicación o vuelve al inicio normal de Notas.")
         },
         {
+            key: "disableExternalAutoSave",
+            type: "bool",
+            default: true,
+            label: I18n.t("config.notes.disable_external_autosave", "Guardado manual en archivos externos"),
+            comment: I18n.t("config.notes.disable_external_autosave_comment", "Desactiva el autoguardado al editar archivos fuera de la carpeta de notas y avisa antes de salir si hay cambios sin guardar.")
+        },
+        {
             key: "editorZoom",
             type: "int",
             min: 50,
@@ -185,6 +192,11 @@ QtObject {
         if (ConfigBackend.previewCloseAction !== previewCloseAction) ConfigBackend.previewCloseAction = previewCloseAction;
     }
 
+    property bool disableExternalAutoSave: (typeof ConfigBackend !== "undefined" && ConfigBackend.disableExternalAutoSave !== undefined) ? ConfigBackend.disableExternalAutoSave : true
+    onDisableExternalAutoSaveChanged: {
+        if (typeof ConfigBackend !== "undefined" && ConfigBackend.disableExternalAutoSave !== disableExternalAutoSave) ConfigBackend.disableExternalAutoSave = disableExternalAutoSave;
+    }
+
     property int editorZoom: (ConfigBackend && ConfigBackend.editorZoom >= 50) ? ConfigBackend.editorZoom : 100 // editorZoom: 100
     onEditorZoomChanged: {
         if (ConfigBackend.editorZoom !== editorZoom) ConfigBackend.editorZoom = editorZoom;
@@ -253,6 +265,9 @@ QtObject {
         function onPreviewCloseActionChanged() {
             if (root.previewCloseAction !== ConfigBackend.previewCloseAction) root.previewCloseAction = ConfigBackend.previewCloseAction;
         }
+        function onDisableExternalAutoSaveChanged() {
+            if (root.disableExternalAutoSave !== ConfigBackend.disableExternalAutoSave) root.disableExternalAutoSave = ConfigBackend.disableExternalAutoSave;
+        }
         function onEditorZoomChanged() {
             if (root.editorZoom !== ConfigBackend.editorZoom) root.editorZoom = ConfigBackend.editorZoom;
         }
@@ -286,6 +301,9 @@ QtObject {
         if (!raw) return;
         if (raw.previewCloseAction !== undefined && root.previewCloseAction !== raw.previewCloseAction) {
             root.previewCloseAction = String(raw.previewCloseAction);
+        }
+        if (raw.disableExternalAutoSave !== undefined && root.disableExternalAutoSave !== !!raw.disableExternalAutoSave) {
+            root.disableExternalAutoSave = !!raw.disableExternalAutoSave;
         }
         if (raw.zoom !== undefined && raw.editorZoom === undefined) {
             var z = parseInt(raw.zoom, 10);

@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
+import QtQuick.Effects
 import Notas
 import "."
 import "MarkdownParser.js" as MD
@@ -4502,7 +4503,18 @@ Flickable {
                         width: 18; height: 18; radius: 5
                         visible: index > 0
                         color: upBlkMa.containsMouse ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.22) : Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.06)
-                        Text { anchors.centerIn: parent; text: "↑"; color: upBlkMa.containsMouse ? Theme.accent : Theme.muted; font.pixelSize: 10; font.bold: true }
+                        Image {
+                            anchors.centerIn: parent
+                            width: 13; height: 13
+                            source: Theme.iconsPath + "chevron-down.svg"
+                            sourceSize: Qt.size(13, 13)
+                            rotation: 180
+                            layer.enabled: visible && !GamemodeService.gamemodeActive
+                            layer.effect: MultiEffect {
+                                colorization: 1.0
+                                colorizationColor: upBlkMa.containsMouse ? Theme.accent : Theme.muted
+                            }
+                        }
                         MouseArea {
                             id: upBlkMa
                             anchors.fill: parent
@@ -4516,7 +4528,17 @@ Flickable {
                         width: 18; height: 18; radius: 5
                         visible: index < blocksModel.count - 1
                         color: downBlkMa.containsMouse ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.22) : Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.06)
-                        Text { anchors.centerIn: parent; text: "↓"; color: downBlkMa.containsMouse ? Theme.accent : Theme.muted; font.pixelSize: 10; font.bold: true }
+                        Image {
+                            anchors.centerIn: parent
+                            width: 13; height: 13
+                            source: Theme.iconsPath + "chevron-down.svg"
+                            sourceSize: Qt.size(13, 13)
+                            layer.enabled: visible && !GamemodeService.gamemodeActive
+                            layer.effect: MultiEffect {
+                                colorization: 1.0
+                                colorizationColor: downBlkMa.containsMouse ? Theme.accent : Theme.muted
+                            }
+                        }
                         MouseArea {
                             id: downBlkMa
                             anchors.fill: parent

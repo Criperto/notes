@@ -270,6 +270,7 @@ Item {
     // slug plano se prefiere la variante existente (.md primero, luego .txt).
     function _resolveSaveKey(slug) {
         if (!slug) return "";
+        if (String(slug).startsWith("__external__:")) return String(slug);
         if ((slug || "").indexOf(root._keySep()) !== -1) return slug;
         var canon = root._canonSlug(slug);
         var mdKey = root._dictKey(canon, "md");
@@ -1440,6 +1441,33 @@ Item {
     }
 
     function queueSave(slug, data, callback) {
+        var isExt = String(slug).startsWith("__external__:")
+            || (data && data.isExternal)
+            || (root.activeNote && root.activeNote.isExternal && (root.activeNote.key === slug || root.activeNote.slug === slug));
+        if (isExt) {
+            if (!data) return;
+            var extBase = (root.activeNote && (root.activeNote.key === slug || root.activeNote.slug === slug))
+                ? root.activeNote
+                : {};
+            var extUpdated = Object.assign({}, extBase, data);
+            extUpdated.isExternal = true;
+            extUpdated.key = String(slug);
+            if (data.content !== undefined) {
+                extUpdated.content = data.content;
+                extUpdated.body = data.content;
+            }
+            if (root.activeNote && (root.activeNote.key === extUpdated.key || root.activeNote.filePath === extUpdated.filePath)) {
+                Object.assign(root.activeNote, extUpdated);
+            }
+            if (root.saveState !== "saving") {
+                root.saveState = "dirty";
+            }
+            root._pendingSlug = extUpdated.key;
+            root._pendingSave = extUpdated;
+            if (typeof callback === "function") root._pendingCallback = callback;
+            saveDebounceTimer.restart();
+            return;
+        }
         var key = root._resolveSaveKey(slug);
         var canon = root._slugOfKey(key);
         if (!canon || !data || root._deletingKeys[key]) return;

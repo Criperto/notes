@@ -162,7 +162,13 @@ const catalogs = {
       "overwrite_disk": "Sobrescribir",
       "find_placeholder": "Buscar en la nota...",
       "no_matches": "Sin coincidencias",
-      "reset_zoom": "Restablecer zoom"
+      "reset_zoom": "Restablecer zoom",
+      "unsaved_title": "Cambios sin guardar",
+      "unsaved_message": "Tienes cambios sin guardar en este archivo externo. ¿Qué quieres hacer antes de salir?",
+      "unsaved_cancel": "Cancelar",
+      "unsaved_save_exit": "Guardar y salir",
+      "unsaved_discard_exit": "Salir sin guardar",
+      "unsaved_shortcut_hint": "Ctrl+S guarda y continúa el cierre automáticamente"
     },
     "import": {
       "drop_hint": "Soltá para importar",
@@ -305,7 +311,9 @@ const catalogs = {
         "show_source_mode_button": "Mostrar botón de código fuente",
         "show_source_mode_button_comment": "Muestra el botón de alternar código fuente en la barra de herramientas del editor.",
         "auto_close_pairs": "Autocerrar comillas y pares",
-        "auto_close_pairs_comment": "Cierra automáticamente comillas (\"\", ''), paréntesis (), corchetes [], llaves {} y acentos graves `` al escribir."
+        "auto_close_pairs_comment": "Cierra automáticamente comillas (\"\", ''), paréntesis (), corchetes [], llaves {} y acentos graves `` al escribir.",
+        "disable_external_autosave": "Guardado manual en archivos externos",
+        "disable_external_autosave_comment": "Desactiva el guardado automático al editar archivos fuera de la carpeta de notas y avisa antes de salir si hay cambios sin guardar."
       },
       "spellcheck": {
         "ignore_uppercase": "Ignorar MAYÚSCULAS",
@@ -737,7 +745,21 @@ const catalogs = {
     "editor.action.math": "Fórmula matemática (LaTeX)",
     "config.language.typing_title": "Escritura y Autocierre",
     "config.notes.auto_close_pairs": "Autocerrar comillas y pares",
-    "config.notes.auto_close_pairs_comment": "Cierra automáticamente comillas (\"\", ''), paréntesis (), corchetes [], llaves {} y acentos graves `` al escribir."
+    "config.notes.auto_close_pairs_comment": "Cierra automáticamente comillas (\"\", ''), paréntesis (), corchetes [], llaves {} y acentos graves `` al escribir.",
+    "config.notes.disable_external_autosave": "Guardado manual en archivos externos",
+    "config.notes.disable_external_autosave_comment": "Desactiva el guardado automático al editar archivos fuera de la carpeta de notas y avisa antes de salir si hay cambios sin guardar.",
+    "notes.editor.unsaved_title": "Cambios sin guardar",
+    "editor.unsaved_title": "Cambios sin guardar",
+    "notes.editor.unsaved_message": "Tienes cambios sin guardar en este archivo externo. ¿Qué quieres hacer antes de salir?",
+    "editor.unsaved_message": "Tienes cambios sin guardar en este archivo externo. ¿Qué quieres hacer antes de salir?",
+    "notes.editor.unsaved_cancel": "Cancelar",
+    "editor.unsaved_cancel": "Cancelar",
+    "notes.editor.unsaved_save_exit": "Guardar y salir",
+    "editor.unsaved_save_exit": "Guardar y salir",
+    "notes.editor.unsaved_discard_exit": "Salir sin guardar",
+    "editor.unsaved_discard_exit": "Salir sin guardar",
+    "notes.editor.unsaved_shortcut_hint": "Ctrl+S guarda y continúa el cierre automáticamente",
+    "editor.unsaved_shortcut_hint": "Ctrl+S guarda y continúa el cierre automáticamente"
   },
   "es_ar": {
     "header": {
@@ -841,7 +863,13 @@ const catalogs = {
       "overwrite_disk": "Sobrescribir",
       "find_placeholder": "Buscar en la nota...",
       "no_matches": "Sin coincidencias",
-      "reset_zoom": "Restablecer zoom"
+      "reset_zoom": "Restablecer zoom",
+      "unsaved_title": "Cambios sin guardar",
+      "unsaved_message": "Tenés cambios sin guardar en este archivo externo. ¿Qué querés hacer antes de salir?",
+      "unsaved_cancel": "Cancelar",
+      "unsaved_save_exit": "Guardar y salir",
+      "unsaved_discard_exit": "Salir sin guardar",
+      "unsaved_shortcut_hint": "Ctrl+S guarda y continúa el cierre automáticamente"
     },
     "import": {
       "drop_hint": "Soltá para importar",
@@ -984,7 +1012,9 @@ const catalogs = {
         "show_source_mode_button": "Mostrar botón de código fuente",
         "show_source_mode_button_comment": "Muestra el botón de alternar código fuente en la barra de herramientas del editor.",
         "auto_close_pairs": "Autocerrar comillas y pares",
-        "auto_close_pairs_comment": "Cierra automáticamente comillas (\"\", ''), paréntesis (), corchetes [], llaves {} y acentos graves `` al escribir."
+        "auto_close_pairs_comment": "Cierra automáticamente comillas (\"\", ''), paréntesis (), corchetes [], llaves {} y acentos graves `` al escribir.",
+        "disable_external_autosave": "Guardado manual en archivos externos",
+        "disable_external_autosave_comment": "Desactiva el autoguardado al editar archivos fuera de la carpeta de notas y avisa antes de salir si hay cambios sin guardar."
       },
       "spellcheck": {
         "ignore_uppercase": "Ignorar MAYÚSCULAS",
@@ -1416,7 +1446,21 @@ const catalogs = {
     "editor.action.math": "Fórmula matemática (LaTeX)",
     "config.language.typing_title": "Escritura y Autocierre",
     "config.notes.auto_close_pairs": "Autocerrar comillas y pares",
-    "config.notes.auto_close_pairs_comment": "Cierra automáticamente comillas (\"\", ''), paréntesis (), corchetes [], llaves {} y acentos graves `` al escribir."
+    "config.notes.auto_close_pairs_comment": "Cierra automáticamente comillas (\"\", ''), paréntesis (), corchetes [], llaves {} y acentos graves `` al escribir.",
+    "config.notes.disable_external_autosave": "Guardado manual en archivos externos",
+    "config.notes.disable_external_autosave_comment": "Desactiva el autoguardado al editar archivos fuera de la carpeta de notas y avisa antes de salir si hay cambios sin guardar.",
+    "notes.editor.unsaved_title": "Cambios sin guardar",
+    "editor.unsaved_title": "Cambios sin guardar",
+    "notes.editor.unsaved_message": "Tenés cambios sin guardar en este archivo externo. ¿Qué querés hacer antes de salir?",
+    "editor.unsaved_message": "Tenés cambios sin guardar en este archivo externo. ¿Qué querés hacer antes de salir?",
+    "notes.editor.unsaved_cancel": "Cancelar",
+    "editor.unsaved_cancel": "Cancelar",
+    "notes.editor.unsaved_save_exit": "Guardar y salir",
+    "editor.unsaved_save_exit": "Guardar y salir",
+    "notes.editor.unsaved_discard_exit": "Salir sin guardar",
+    "editor.unsaved_discard_exit": "Salir sin guardar",
+    "notes.editor.unsaved_shortcut_hint": "Ctrl+S guarda y continúa el cierre automáticamente",
+    "editor.unsaved_shortcut_hint": "Ctrl+S guarda y continúa el cierre automáticamente"
   },
   "en": {
     "header": {
@@ -1520,7 +1564,13 @@ const catalogs = {
       "overwrite_disk": "Overwrite",
       "find_placeholder": "Find in note...",
       "no_matches": "No matches",
-      "reset_zoom": "Reset zoom"
+      "reset_zoom": "Reset zoom",
+      "unsaved_title": "Unsaved changes",
+      "unsaved_message": "You have unsaved changes in this external file. What would you like to do before leaving?",
+      "unsaved_cancel": "Cancel",
+      "unsaved_save_exit": "Save & exit",
+      "unsaved_discard_exit": "Exit without saving",
+      "unsaved_shortcut_hint": "Ctrl+S saves and continues closing automatically"
     },
     "import": {
       "drop_hint": "Drop to import",
@@ -1663,7 +1713,9 @@ const catalogs = {
         "show_source_mode_button": "Show source code button",
         "show_source_mode_button_comment": "Displays the source code toggle button in the editor toolbar.",
         "auto_close_pairs": "Auto-close quotes and pairs",
-        "auto_close_pairs_comment": "Automatically closes quotes (\"\", ''), parentheses (), brackets [], braces {} and backticks `` while typing."
+        "auto_close_pairs_comment": "Automatically closes quotes (\"\", ''), parentheses (), brackets [], braces {} and backticks `` while typing.",
+        "disable_external_autosave": "Manual save for external files",
+        "disable_external_autosave_comment": "Disables auto-save when editing files outside the notes folder and prompts before closing if there are unsaved changes."
       },
       "spellcheck": {
         "ignore_uppercase": "Ignore UPPERCASE",
@@ -2095,7 +2147,21 @@ const catalogs = {
     "editor.action.math": "Math formula (LaTeX)",
     "config.language.typing_title": "Typing & Auto-Close",
     "config.notes.auto_close_pairs": "Auto-close quotes and pairs",
-    "config.notes.auto_close_pairs_comment": "Automatically closes quotes (\"\", ''), parentheses (), brackets [], braces {} and backticks `` while typing."
+    "config.notes.auto_close_pairs_comment": "Automatically closes quotes (\"\", ''), parentheses (), brackets [], braces {} and backticks `` while typing.",
+    "config.notes.disable_external_autosave": "Manual save for external files",
+    "config.notes.disable_external_autosave_comment": "Disables auto-save when editing files outside the notes folder and prompts before closing if there are unsaved changes.",
+    "notes.editor.unsaved_title": "Unsaved changes",
+    "editor.unsaved_title": "Unsaved changes",
+    "notes.editor.unsaved_message": "You have unsaved changes in this external file. What would you like to do before leaving?",
+    "editor.unsaved_message": "You have unsaved changes in this external file. What would you like to do before leaving?",
+    "notes.editor.unsaved_cancel": "Cancel",
+    "editor.unsaved_cancel": "Cancel",
+    "notes.editor.unsaved_save_exit": "Save & exit",
+    "editor.unsaved_save_exit": "Save & exit",
+    "notes.editor.unsaved_discard_exit": "Exit without saving",
+    "editor.unsaved_discard_exit": "Exit without saving",
+    "notes.editor.unsaved_shortcut_hint": "Ctrl+S saves and continues closing automatically",
+    "editor.unsaved_shortcut_hint": "Ctrl+S saves and continues closing automatically"
   },
   "pt": {
     "header": {
@@ -2199,7 +2265,13 @@ const catalogs = {
       "overwrite_disk": "Sobrescrever",
       "find_placeholder": "Buscar na nota...",
       "no_matches": "Nenhuma correspondência",
-      "reset_zoom": "Redefinir zoom"
+      "reset_zoom": "Redefinir zoom",
+      "unsaved_title": "Alterações não salvas",
+      "unsaved_message": "Você tem alterações não salvas neste arquivo externo. O que deseja fazer antes de sair?",
+      "unsaved_cancel": "Cancelar",
+      "unsaved_save_exit": "Salvar e sair",
+      "unsaved_discard_exit": "Sair sem salvar",
+      "unsaved_shortcut_hint": "Ctrl+S salva e continua fechando automaticamente"
     },
     "import": {
       "drop_hint": "Drop to import",
@@ -2342,7 +2414,9 @@ const catalogs = {
         "show_source_mode_button": "Mostrar botão de código-fonte",
         "show_source_mode_button_comment": "Exibe o botão de alternância de código-fonte na barra de ferramentas do editor.",
         "auto_close_pairs": "Fechar aspas e pares automaticamente",
-        "auto_close_pairs_comment": "Fecha automaticamente aspas (\"\", ''), parênteses (), colchetes [], chaves {} e crases `` ao digitar."
+        "auto_close_pairs_comment": "Fecha automaticamente aspas (\"\", ''), parênteses (), colchetes [], chaves {} e crases `` ao digitar.",
+        "disable_external_autosave": "Salvamento manual em arquivos externos",
+        "disable_external_autosave_comment": "Desativa o salvamento automático ao editar arquivos fora da pasta de notas e avisa antes de sair se houver alterações não salvas."
       },
       "spellcheck": {
         "ignore_uppercase": "Ignorar MAIÚSCULAS",
@@ -2774,7 +2848,21 @@ const catalogs = {
     "editor.action.math": "Fórmula matemática (LaTeX)",
     "config.language.typing_title": "Digitação e Fechamento Automático",
     "config.notes.auto_close_pairs": "Fechar aspas e pares automaticamente",
-    "config.notes.auto_close_pairs_comment": "Fecha automaticamente aspas (\"\", ''), parênteses (), colchetes [], chaves {} e crases `` ao digitar."
+    "config.notes.auto_close_pairs_comment": "Fecha automaticamente aspas (\"\", ''), parênteses (), colchetes [], chaves {} e crases `` ao digitar.",
+    "config.notes.disable_external_autosave": "Salvamento manual em arquivos externos",
+    "config.notes.disable_external_autosave_comment": "Desativa o salvamento automático ao editar arquivos fora da pasta de notas e avisa antes de sair se houver alterações não salvas.",
+    "notes.editor.unsaved_title": "Alterações não salvas",
+    "editor.unsaved_title": "Alterações não salvas",
+    "notes.editor.unsaved_message": "Você tem alterações não salvas neste arquivo externo. O que deseja fazer antes de sair?",
+    "editor.unsaved_message": "Você tem alterações não salvas neste arquivo externo. O que deseja fazer antes de sair?",
+    "notes.editor.unsaved_cancel": "Cancelar",
+    "editor.unsaved_cancel": "Cancelar",
+    "notes.editor.unsaved_save_exit": "Salvar e sair",
+    "editor.unsaved_save_exit": "Salvar e sair",
+    "notes.editor.unsaved_discard_exit": "Sair sem salvar",
+    "editor.unsaved_discard_exit": "Sair sem salvar",
+    "notes.editor.unsaved_shortcut_hint": "Ctrl+S salva e continua fechando automaticamente",
+    "editor.unsaved_shortcut_hint": "Ctrl+S salva e continua fechando automaticamente"
   },
   "ja": {
     "header": {
@@ -2878,7 +2966,13 @@ const catalogs = {
       "overwrite_disk": "上書き",
       "find_placeholder": "ノート内を検索...",
       "no_matches": "一致なし",
-      "reset_zoom": "ズームをリセット"
+      "reset_zoom": "ズームをリセット",
+      "unsaved_title": "未保存の変更",
+      "unsaved_message": "この外部ファイルには未保存の変更があります。閉じる前にどうしますか？",
+      "unsaved_cancel": "キャンセル",
+      "unsaved_save_exit": "保存して閉じる",
+      "unsaved_discard_exit": "保存せずに閉じる",
+      "unsaved_shortcut_hint": "Ctrl+S で保存して自動的に閉じます"
     },
     "import": {
       "drop_hint": "Drop to import",
@@ -3021,7 +3115,9 @@ const catalogs = {
         "show_source_mode_button": "ソースコードボタンを表示",
         "show_source_mode_button_comment": "エディターツールバーにソースコード切り替えボタンを表示します。",
         "auto_close_pairs": "引用符とペアを自動で閉じる",
-        "auto_close_pairs_comment": "入力時に引用符 (\"\", '')、丸括弧 ()、角括弧 []、波括弧 {}、バッククォート `` を自動的に閉じます。"
+        "auto_close_pairs_comment": "入力時に引用符 (\"\", '')、丸括弧 ()、角括弧 []、波括弧 {}、バッククォート `` を自動的に閉じます。",
+        "disable_external_autosave": "外部ファイルの手動保存",
+        "disable_external_autosave_comment": "ノートフォルダ外のファイル編集中は自動保存を無効にし、未保存の変更がある場合は閉じる前に確認します。"
       },
       "spellcheck": {
         "ignore_uppercase": "大文字を無視",
@@ -3453,7 +3549,21 @@ const catalogs = {
     "editor.action.math": "数式 (LaTeX)",
     "config.language.typing_title": "入力と自動閉じ",
     "config.notes.auto_close_pairs": "引用符とペアを自動で閉じる",
-    "config.notes.auto_close_pairs_comment": "入力時に引用符 (\"\", '')、丸括弧 ()、角括弧 []、波括弧 {}、バッククォート `` を自動的に閉じます。"
+    "config.notes.auto_close_pairs_comment": "入力時に引用符 (\"\", '')、丸括弧 ()、角括弧 []、波括弧 {}、バッククォート `` を自動的に閉じます。",
+    "config.notes.disable_external_autosave": "外部ファイルの手動保存",
+    "config.notes.disable_external_autosave_comment": "ノートフォルダ外のファイル編集中は自動保存を無効にし、未保存の変更がある場合は閉じる前に確認します。",
+    "notes.editor.unsaved_title": "未保存の変更",
+    "editor.unsaved_title": "未保存の変更",
+    "notes.editor.unsaved_message": "この外部ファイルには未保存の変更があります。閉じる前にどうしますか？",
+    "editor.unsaved_message": "この外部ファイルには未保存の変更があります。閉じる前にどうしますか？",
+    "notes.editor.unsaved_cancel": "キャンセル",
+    "editor.unsaved_cancel": "キャンセル",
+    "notes.editor.unsaved_save_exit": "保存して閉じる",
+    "editor.unsaved_save_exit": "保存して閉じる",
+    "notes.editor.unsaved_discard_exit": "保存せずに閉じる",
+    "editor.unsaved_discard_exit": "保存せずに閉じる",
+    "notes.editor.unsaved_shortcut_hint": "Ctrl+S で保存して自動的に閉じます",
+    "editor.unsaved_shortcut_hint": "Ctrl+S で保存して自動的に閉じます"
   },
   "zh": {
     "header": {
@@ -3557,7 +3667,13 @@ const catalogs = {
       "overwrite_disk": "覆盖",
       "find_placeholder": "在笔记中查找...",
       "no_matches": "无匹配",
-      "reset_zoom": "重置缩放"
+      "reset_zoom": "重置缩放",
+      "unsaved_title": "未保存的更改",
+      "unsaved_message": "此外部文件有未保存的更改。退出前您想如何处理？",
+      "unsaved_cancel": "取消",
+      "unsaved_save_exit": "保存并退出",
+      "unsaved_discard_exit": "不保存退出",
+      "unsaved_shortcut_hint": "Ctrl+S 保存并自动继续关闭"
     },
     "import": {
       "drop_hint": "Drop to import",
@@ -3700,7 +3816,9 @@ const catalogs = {
         "show_source_mode_button": "显示源代码按钮",
         "show_source_mode_button_comment": "在编辑器工具栏中显示源代码切换按钮。",
         "auto_close_pairs": "自动闭合引号与成对符号",
-        "auto_close_pairs_comment": "输入时自动闭合引号 (\"\", '')、圆括号 ()、方括号 []、花括号 {} 和反引号 ``。"
+        "auto_close_pairs_comment": "输入时自动闭合引号 (\"\", '')、圆括号 ()、方括号 []、花括号 {} 和反引号 ``。",
+        "disable_external_autosave": "外部文件手动保存",
+        "disable_external_autosave_comment": "编辑笔记文件夹之外的文件时禁用自动保存，并在有未保存更改时于关闭前提示。"
       },
       "spellcheck": {
         "ignore_uppercase": "忽略大写字母",
@@ -4132,7 +4250,21 @@ const catalogs = {
     "editor.action.math": "数学公式 (LaTeX)",
     "config.language.typing_title": "输入与自动闭合",
     "config.notes.auto_close_pairs": "自动闭合引号与成对符号",
-    "config.notes.auto_close_pairs_comment": "输入时自动闭合引号 (\"\", '')、圆括号 ()、方括号 []、花括号 {} 和反引号 ``。"
+    "config.notes.auto_close_pairs_comment": "输入时自动闭合引号 (\"\", '')、圆括号 ()、方括号 []、花括号 {} 和反引号 ``。",
+    "config.notes.disable_external_autosave": "外部文件手动保存",
+    "config.notes.disable_external_autosave_comment": "编辑笔记文件夹之外的文件时禁用自动保存，并在有未保存更改时于关闭前提示。",
+    "notes.editor.unsaved_title": "未保存的更改",
+    "editor.unsaved_title": "未保存的更改",
+    "notes.editor.unsaved_message": "此外部文件有未保存的更改。退出前您想如何处理？",
+    "editor.unsaved_message": "此外部文件有未保存的更改。退出前您想如何处理？",
+    "notes.editor.unsaved_cancel": "取消",
+    "editor.unsaved_cancel": "取消",
+    "notes.editor.unsaved_save_exit": "保存并退出",
+    "editor.unsaved_save_exit": "保存并退出",
+    "notes.editor.unsaved_discard_exit": "不保存退出",
+    "editor.unsaved_discard_exit": "不保存退出",
+    "notes.editor.unsaved_shortcut_hint": "Ctrl+S 保存并自动继续关闭",
+    "editor.unsaved_shortcut_hint": "Ctrl+S 保存并自动继续关闭"
   },
   "de": {
     "header": {
@@ -4236,7 +4368,13 @@ const catalogs = {
       "overwrite_disk": "Überschreiben",
       "find_placeholder": "In Notiz suchen...",
       "no_matches": "Keine Treffer",
-      "reset_zoom": "Zoom zurücksetzen"
+      "reset_zoom": "Zoom zurücksetzen",
+      "unsaved_title": "Ungespeicherte Änderungen",
+      "unsaved_message": "Sie haben ungespeicherte Änderungen in dieser externen Datei. Was möchten Sie vor dem Schließen tun?",
+      "unsaved_cancel": "Abbrechen",
+      "unsaved_save_exit": "Speichern & beenden",
+      "unsaved_discard_exit": "Ohne Speichern beenden",
+      "unsaved_shortcut_hint": "Strg+S speichert und setzt das Schließen automatisch fort"
     },
     "import": {
       "drop_hint": "Drop to import",
@@ -4379,7 +4517,9 @@ const catalogs = {
         "show_source_mode_button": "Quellcode-Schaltfläche anzeigen",
         "show_source_mode_button_comment": "Zeigt die Quellcode-Schaltfläche in der Editor-Symbolleiste an.",
         "auto_close_pairs": "Anführungszeichen und Paare automatisch schließen",
-        "auto_close_pairs_comment": "Schließt Anführungszeichen (\"\", ''), Klammern (), eckige Klammern [], geschweifte Klammern {} und Backticks `` beim Tippen automatisch."
+        "auto_close_pairs_comment": "Schließt Anführungszeichen (\"\", ''), Klammern (), eckige Klammern [], geschweifte Klammern {} und Backticks `` beim Tippen automatisch.",
+        "disable_external_autosave": "Manuelles Speichern für externe Dateien",
+        "disable_external_autosave_comment": "Deaktiviert das automatische Speichern bei Dateien außerhalb des Notizen-Ordners und warnt vor dem Schließen bei ungesicherten Änderungen."
       },
       "spellcheck": {
         "ignore_uppercase": "GROSSBUCHSTABEN ignorieren",
@@ -4811,7 +4951,21 @@ const catalogs = {
     "editor.action.math": "Mathematische Formel (LaTeX)",
     "config.language.typing_title": "Eingabe & Automatisches Schließen",
     "config.notes.auto_close_pairs": "Anführungszeichen und Paare automatisch schließen",
-    "config.notes.auto_close_pairs_comment": "Schließt Anführungszeichen (\"\", ''), Klammern (), eckige Klammern [], geschweifte Klammern {} und Backticks `` beim Tippen automatisch."
+    "config.notes.auto_close_pairs_comment": "Schließt Anführungszeichen (\"\", ''), Klammern (), eckige Klammern [], geschweifte Klammern {} und Backticks `` beim Tippen automatisch.",
+    "config.notes.disable_external_autosave": "Manuelles Speichern für externe Dateien",
+    "config.notes.disable_external_autosave_comment": "Deaktiviert das automatische Speichern bei Dateien außerhalb des Notizen-Ordners und warnt vor dem Schließen bei ungesicherten Änderungen.",
+    "notes.editor.unsaved_title": "Ungespeicherte Änderungen",
+    "editor.unsaved_title": "Ungespeicherte Änderungen",
+    "notes.editor.unsaved_message": "Sie haben ungespeicherte Änderungen in dieser externen Datei. Was möchten Sie vor dem Schließen tun?",
+    "editor.unsaved_message": "Sie haben ungespeicherte Änderungen in dieser externen Datei. Was möchten Sie vor dem Schließen tun?",
+    "notes.editor.unsaved_cancel": "Abbrechen",
+    "editor.unsaved_cancel": "Abbrechen",
+    "notes.editor.unsaved_save_exit": "Speichern & beenden",
+    "editor.unsaved_save_exit": "Speichern & beenden",
+    "notes.editor.unsaved_discard_exit": "Ohne Speichern beenden",
+    "editor.unsaved_discard_exit": "Ohne Speichern beenden",
+    "notes.editor.unsaved_shortcut_hint": "Strg+S speichert und setzt das Schließen automatisch fort",
+    "editor.unsaved_shortcut_hint": "Strg+S speichert und setzt das Schließen automatisch fort"
   },
   "fr": {
     "header": {
@@ -4915,7 +5069,13 @@ const catalogs = {
       "overwrite_disk": "Écraser",
       "find_placeholder": "Rechercher dans la note...",
       "no_matches": "Aucune correspondance",
-      "reset_zoom": "Réinitialiser le zoom"
+      "reset_zoom": "Réinitialiser le zoom",
+      "unsaved_title": "Modifications non enregistrées",
+      "unsaved_message": "Vous avez des modifications non enregistrées dans ce fichier externe. Que voulez-vous faire avant de quitter ?",
+      "unsaved_cancel": "Annuler",
+      "unsaved_save_exit": "Enregistrer et quitter",
+      "unsaved_discard_exit": "Quitter sans enregistrer",
+      "unsaved_shortcut_hint": "Ctrl+S enregistre et poursuit la fermeture automatiquement"
     },
     "import": {
       "drop_hint": "Drop to import",
@@ -5058,7 +5218,9 @@ const catalogs = {
         "show_source_mode_button": "Afficher le bouton de code source",
         "show_source_mode_button_comment": "Affiche le bouton de bascule vers le code source dans la barre d'outils de l'éditeur.",
         "auto_close_pairs": "Fermer automatiquement les guillemets et paires",
-        "auto_close_pairs_comment": "Ferme automatiquement les guillemets (\"\", ''), parenthèses (), crochets [], accolades {} et accents graves `` lors de la saisie."
+        "auto_close_pairs_comment": "Ferme automatiquement les guillemets (\"\", ''), parenthèses (), crochets [], accolades {} et accents graves `` lors de la saisie.",
+        "disable_external_autosave": "Enregistrement manuel pour fichiers externes",
+        "disable_external_autosave_comment": "Désactive l'enregistrement automatique pour les fichiers hors du dossier de notes et avertit avant de fermer si des modifications ne sont pas enregistrées."
       },
       "spellcheck": {
         "ignore_uppercase": "Ignorer les MAJUSCULES",
@@ -5490,7 +5652,21 @@ const catalogs = {
     "editor.action.math": "Formule mathématique (LaTeX)",
     "config.language.typing_title": "Saisie et Fermeture Automatique",
     "config.notes.auto_close_pairs": "Fermer automatiquement les guillemets et paires",
-    "config.notes.auto_close_pairs_comment": "Ferme automatiquement les guillemets (\"\", ''), parenthèses (), crochets [], accolades {} et accents graves `` lors de la saisie."
+    "config.notes.auto_close_pairs_comment": "Ferme automatiquement les guillemets (\"\", ''), parenthèses (), crochets [], accolades {} et accents graves `` lors de la saisie.",
+    "config.notes.disable_external_autosave": "Enregistrement manuel pour fichiers externes",
+    "config.notes.disable_external_autosave_comment": "Désactive l'enregistrement automatique pour les fichiers hors du dossier de notes et avertit avant de fermer si des modifications ne sont pas enregistrées.",
+    "notes.editor.unsaved_title": "Modifications non enregistrées",
+    "editor.unsaved_title": "Modifications non enregistrées",
+    "notes.editor.unsaved_message": "Vous avez des modifications non enregistrées dans ce fichier externe. Que voulez-vous faire avant de quitter ?",
+    "editor.unsaved_message": "Vous avez des modifications non enregistrées dans ce fichier externe. Que voulez-vous faire avant de quitter ?",
+    "notes.editor.unsaved_cancel": "Annuler",
+    "editor.unsaved_cancel": "Annuler",
+    "notes.editor.unsaved_save_exit": "Enregistrer et quitter",
+    "editor.unsaved_save_exit": "Enregistrer et quitter",
+    "notes.editor.unsaved_discard_exit": "Quitter sans enregistrer",
+    "editor.unsaved_discard_exit": "Quitter sans enregistrer",
+    "notes.editor.unsaved_shortcut_hint": "Ctrl+S enregistre et poursuit la fermeture automatiquement",
+    "editor.unsaved_shortcut_hint": "Ctrl+S enregistre et poursuit la fermeture automatiquement"
   },
   "ru": {
     "header": {
@@ -5594,7 +5770,13 @@ const catalogs = {
       "overwrite_disk": "Перезаписать",
       "find_placeholder": "Поиск в заметке...",
       "no_matches": "Совпадений нет",
-      "reset_zoom": "Сбросить масштаб"
+      "reset_zoom": "Сбросить масштаб",
+      "unsaved_title": "Несохранённые изменения",
+      "unsaved_message": "В этом внешнем файле есть несохранённые изменения. Что сделать перед выходом?",
+      "unsaved_cancel": "Отмена",
+      "unsaved_save_exit": "Сохранить и выйти",
+      "unsaved_discard_exit": "Выйти без сохранения",
+      "unsaved_shortcut_hint": "Ctrl+S сохранит файл и продолжит закрытие"
     },
     "import": {
       "drop_hint": "Drop to import",
@@ -5737,7 +5919,9 @@ const catalogs = {
         "show_source_mode_button": "Показывать кнопку исходного кода",
         "show_source_mode_button_comment": "Отображает кнопку переключения исходного кода на панели инструментов редактора.",
         "auto_close_pairs": "Автозакрытие кавычек и пар",
-        "auto_close_pairs_comment": "Автоматически закрывает кавычки (\"\", ''), круглые (), квадратные [], фигурные {} скобки и обратные апострофы `` при вводе."
+        "auto_close_pairs_comment": "Автоматически закрывает кавычки (\"\", ''), круглые (), квадратные [], фигурные {} скобки и обратные апострофы `` при вводе.",
+        "disable_external_autosave": "Ручное сохранение для внешних файлов",
+        "disable_external_autosave_comment": "Отключает автосохранение при редактировании файлов вне папки заметок и предупреждает перед выходом о несохранённых изменениях."
       },
       "spellcheck": {
         "ignore_uppercase": "Игнорировать ЗАГЛАВНЫЕ",
@@ -6169,6 +6353,20 @@ const catalogs = {
     "editor.action.math": "Математическая формула (LaTeX)",
     "config.language.typing_title": "Ввод и автозакрытие",
     "config.notes.auto_close_pairs": "Автозакрытие кавычек и пар",
-    "config.notes.auto_close_pairs_comment": "Автоматически закрывает кавычки (\"\", ''), круглые (), квадратные [], фигурные {} скобки и обратные апострофы `` при вводе."
+    "config.notes.auto_close_pairs_comment": "Автоматически закрывает кавычки (\"\", ''), круглые (), квадратные [], фигурные {} скобки и обратные апострофы `` при вводе.",
+    "config.notes.disable_external_autosave": "Ручное сохранение для внешних файлов",
+    "config.notes.disable_external_autosave_comment": "Отключает автосохранение при редактировании файлов вне папки заметок и предупреждает перед выходом о несохранённых изменениях.",
+    "notes.editor.unsaved_title": "Несохранённые изменения",
+    "editor.unsaved_title": "Несохранённые изменения",
+    "notes.editor.unsaved_message": "В этом внешнем файле есть несохранённые изменения. Что сделать перед выходом?",
+    "editor.unsaved_message": "В этом внешнем файле есть несохранённые изменения. Что сделать перед выходом?",
+    "notes.editor.unsaved_cancel": "Отмена",
+    "editor.unsaved_cancel": "Отмена",
+    "notes.editor.unsaved_save_exit": "Сохранить и выйти",
+    "editor.unsaved_save_exit": "Сохранить и выйти",
+    "notes.editor.unsaved_discard_exit": "Выйти без сохранения",
+    "editor.unsaved_discard_exit": "Выйти без сохранения",
+    "notes.editor.unsaved_shortcut_hint": "Ctrl+S сохранит файл и продолжит закрытие",
+    "editor.unsaved_shortcut_hint": "Ctrl+S сохранит файл и продолжит закрытие"
   }
 };

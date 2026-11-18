@@ -100,7 +100,13 @@
     "overwrite_disk": "覆盖",
     "find_placeholder": "在笔记中查找...",
     "no_matches": "无匹配",
-    "reset_zoom": "重置缩放"
+    "reset_zoom": "重置缩放",
+    "unsaved_title": "未保存的更改",
+    "unsaved_message": "此外部文件有未保存的更改。退出前您想如何处理？",
+    "unsaved_cancel": "取消",
+    "unsaved_save_exit": "保存并退出",
+    "unsaved_discard_exit": "不保存退出",
+    "unsaved_shortcut_hint": "Ctrl+S 保存并自动继续关闭"
   },
   "import": {
     "drop_hint": "Drop to import",
@@ -243,7 +249,9 @@
       "show_source_mode_button": "显示源代码按钮",
       "show_source_mode_button_comment": "在编辑器工具栏中显示源代码切换按钮。",
       "auto_close_pairs": "自动闭合引号与成对符号",
-      "auto_close_pairs_comment": "输入时自动闭合引号 (\"\", '')、圆括号 ()、方括号 []、花括号 {} 和反引号 ``。"
+      "auto_close_pairs_comment": "输入时自动闭合引号 (\"\", '')、圆括号 ()、方括号 []、花括号 {} 和反引号 ``。",
+      "disable_external_autosave": "外部文件手动保存",
+      "disable_external_autosave_comment": "编辑笔记文件夹之外的文件时禁用自动保存，并在有未保存更改时于关闭前提示。"
     },
     "spellcheck": {
       "ignore_uppercase": "忽略大写字母",
@@ -675,5 +683,19 @@
   "editor.action.math": "数学公式 (LaTeX)",
   "config.language.typing_title": "输入与自动闭合",
   "config.notes.auto_close_pairs": "自动闭合引号与成对符号",
-  "config.notes.auto_close_pairs_comment": "输入时自动闭合引号 (\"\", '')、圆括号 ()、方括号 []、花括号 {} 和反引号 ``。"
+  "config.notes.auto_close_pairs_comment": "输入时自动闭合引号 (\"\", '')、圆括号 ()、方括号 []、花括号 {} 和反引号 ``。",
+  "config.notes.disable_external_autosave": "外部文件手动保存",
+  "config.notes.disable_external_autosave_comment": "编辑笔记文件夹之外的文件时禁用自动保存，并在有未保存更改时于关闭前提示。",
+  "notes.editor.unsaved_title": "未保存的更改",
+  "editor.unsaved_title": "未保存的更改",
+  "notes.editor.unsaved_message": "此外部文件有未保存的更改。退出前您想如何处理？",
+  "editor.unsaved_message": "此外部文件有未保存的更改。退出前您想如何处理？",
+  "notes.editor.unsaved_cancel": "取消",
+  "editor.unsaved_cancel": "取消",
+  "notes.editor.unsaved_save_exit": "保存并退出",
+  "editor.unsaved_save_exit": "保存并退出",
+  "notes.editor.unsaved_discard_exit": "不保存退出",
+  "editor.unsaved_discard_exit": "不保存退出",
+  "notes.editor.unsaved_shortcut_hint": "Ctrl+S 保存并自动继续关闭",
+  "editor.unsaved_shortcut_hint": "Ctrl+S 保存并自动继续关闭"
 }

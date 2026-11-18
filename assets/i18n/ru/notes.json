@@ -100,7 +100,13 @@
     "overwrite_disk": "Перезаписать",
     "find_placeholder": "Поиск в заметке...",
     "no_matches": "Совпадений нет",
-    "reset_zoom": "Сбросить масштаб"
+    "reset_zoom": "Сбросить масштаб",
+    "unsaved_title": "Несохранённые изменения",
+    "unsaved_message": "В этом внешнем файле есть несохранённые изменения. Что сделать перед выходом?",
+    "unsaved_cancel": "Отмена",
+    "unsaved_save_exit": "Сохранить и выйти",
+    "unsaved_discard_exit": "Выйти без сохранения",
+    "unsaved_shortcut_hint": "Ctrl+S сохранит файл и продолжит закрытие"
   },
   "import": {
     "drop_hint": "Drop to import",
@@ -243,7 +249,9 @@
       "show_source_mode_button": "Показывать кнопку исходного кода",
       "show_source_mode_button_comment": "Отображает кнопку переключения исходного кода на панели инструментов редактора.",
       "auto_close_pairs": "Автозакрытие кавычек и пар",
-      "auto_close_pairs_comment": "Автоматически закрывает кавычки (\"\", ''), круглые (), квадратные [], фигурные {} скобки и обратные апострофы `` при вводе."
+      "auto_close_pairs_comment": "Автоматически закрывает кавычки (\"\", ''), круглые (), квадратные [], фигурные {} скобки и обратные апострофы `` при вводе.",
+      "disable_external_autosave": "Ручное сохранение для внешних файлов",
+      "disable_external_autosave_comment": "Отключает автосохранение при редактировании файлов вне папки заметок и предупреждает перед выходом о несохранённых изменениях."
     },
     "spellcheck": {
       "ignore_uppercase": "Игнорировать ЗАГЛАВНЫЕ",
@@ -675,5 +683,19 @@
   "editor.action.math": "Математическая формула (LaTeX)",
   "config.language.typing_title": "Ввод и автозакрытие",
   "config.notes.auto_close_pairs": "Автозакрытие кавычек и пар",
-  "config.notes.auto_close_pairs_comment": "Автоматически закрывает кавычки (\"\", ''), круглые (), квадратные [], фигурные {} скобки и обратные апострофы `` при вводе."
+  "config.notes.auto_close_pairs_comment": "Автоматически закрывает кавычки (\"\", ''), круглые (), квадратные [], фигурные {} скобки и обратные апострофы `` при вводе.",
+  "config.notes.disable_external_autosave": "Ручное сохранение для внешних файлов",
+  "config.notes.disable_external_autosave_comment": "Отключает автосохранение при редактировании файлов вне папки заметок и предупреждает перед выходом о несохранённых изменениях.",
+  "notes.editor.unsaved_title": "Несохранённые изменения",
+  "editor.unsaved_title": "Несохранённые изменения",
+  "notes.editor.unsaved_message": "В этом внешнем файле есть несохранённые изменения. Что сделать перед выходом?",
+  "editor.unsaved_message": "В этом внешнем файле есть несохранённые изменения. Что сделать перед выходом?",
+  "notes.editor.unsaved_cancel": "Отмена",
+  "editor.unsaved_cancel": "Отмена",
+  "notes.editor.unsaved_save_exit": "Сохранить и выйти",
+  "editor.unsaved_save_exit": "Сохранить и выйти",
+  "notes.editor.unsaved_discard_exit": "Выйти без сохранения",
+  "editor.unsaved_discard_exit": "Выйти без сохранения",
+  "notes.editor.unsaved_shortcut_hint": "Ctrl+S сохранит файл и продолжит закрытие",
+  "editor.unsaved_shortcut_hint": "Ctrl+S сохранит файл и продолжит закрытие"
 }

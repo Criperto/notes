@@ -368,6 +368,7 @@ class ConfigBackend : public QObject {
     Q_PROPERTY(QString importMode READ importMode WRITE setImportMode NOTIFY importModeChanged)
     Q_PROPERTY(QString externalFileOpenMode READ externalFileOpenMode WRITE setExternalFileOpenMode NOTIFY externalFileOpenModeChanged)
     Q_PROPERTY(QString previewCloseAction READ previewCloseAction WRITE setPreviewCloseAction NOTIFY previewCloseActionChanged)
+    Q_PROPERTY(bool disableExternalAutoSave READ disableExternalAutoSave WRITE setDisableExternalAutoSave NOTIFY disableExternalAutoSaveChanged)
     Q_PROPERTY(QString spellcheckMode READ spellcheckMode WRITE setSpellcheckMode NOTIFY spellcheckModeChanged)
     Q_PROPERTY(QString disabledSpellLanguages READ disabledSpellLanguages WRITE setDisabledSpellLanguages NOTIFY disabledSpellLanguagesChanged)
     Q_PROPERTY(QString primarySpellLanguage READ primarySpellLanguage WRITE setPrimarySpellLanguage NOTIFY primarySpellLanguageChanged)
@@ -446,6 +447,9 @@ public:
     QString previewCloseAction() const { return m_previewCloseAction; }
     void setPreviewCloseAction(const QString &val);
 
+    bool disableExternalAutoSave() const { return m_disableExternalAutoSave; }
+    void setDisableExternalAutoSave(bool val);
+
     QString spellcheckMode() const { return m_spellcheckMode; }
     void setSpellcheckMode(const QString &val);
 
@@ -520,6 +524,7 @@ signals:
     void importModeChanged();
     void externalFileOpenModeChanged();
     void previewCloseActionChanged();
+    void disableExternalAutoSaveChanged();
     void spellcheckModeChanged();
     void disabledSpellLanguagesChanged();
     void primarySpellLanguageChanged();
@@ -568,6 +573,7 @@ private:
     QString m_importMode = QStringLiteral("move");
     QString m_externalFileOpenMode = QStringLiteral("preview");
     QString m_previewCloseAction = QStringLiteral("home");
+    bool m_disableExternalAutoSave = true;
     QString m_spellcheckMode = QStringLiteral("auto");
     QString m_disabledSpellLanguages;
     QString m_primarySpellLanguage;

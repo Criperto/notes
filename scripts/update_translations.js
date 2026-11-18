@@ -771,6 +771,94 @@ const translations = {
     ja: "入力時に引用符 (\"\", '')、丸括弧 ()、角括弧 []、波括弧 {}、バッククォート `` を自動的に閉じます。",
     ru: "Автоматически закрывает кавычки (\"\", ''), круглые (), квадратные [], фигурные {} скобки и обратные апострофы `` при вводе.",
     zh: "输入时自动闭合引号 (\"\", '')、圆括号 ()、方括号 []、花括号 {} 和反引号 ``。"
+  },
+  "config.notes.disable_external_autosave": {
+    es_ar: "Guardado manual en archivos externos",
+    es_es: "Guardado manual en archivos externos",
+    en: "Manual save for external files",
+    pt: "Salvamento manual em arquivos externos",
+    de: "Manuelles Speichern für externe Dateien",
+    fr: "Enregistrement manuel pour fichiers externes",
+    ja: "外部ファイルの手動保存",
+    ru: "Ручное сохранение для внешних файлов",
+    zh: "外部文件手动保存"
+  },
+  "config.notes.disable_external_autosave_comment": {
+    es_ar: "Desactiva el autoguardado al editar archivos fuera de la carpeta de notas y avisa antes de salir si hay cambios sin guardar.",
+    es_es: "Desactiva el guardado automático al editar archivos fuera de la carpeta de notas y avisa antes de salir si hay cambios sin guardar.",
+    en: "Disables auto-save when editing files outside the notes folder and prompts before closing if there are unsaved changes.",
+    pt: "Desativa o salvamento automático ao editar arquivos fora da pasta de notas e avisa antes de sair se houver alterações não salvas.",
+    de: "Deaktiviert das automatische Speichern bei Dateien außerhalb des Notizen-Ordners und warnt vor dem Schließen bei ungesicherten Änderungen.",
+    fr: "Désactive l'enregistrement automatique pour les fichiers hors du dossier de notes et avertit avant de fermer si des modifications ne sont pas enregistrées.",
+    ja: "ノートフォルダ外のファイル編集中は自動保存を無効にし、未保存の変更がある場合は閉じる前に確認します。",
+    ru: "Отключает автосохранение при редактировании файлов вне папки заметок и предупреждает перед выходом о несохранённых изменениях.",
+    zh: "编辑笔记文件夹之外的文件时禁用自动保存，并在有未保存更改时于关闭前提示。"
+  },
+  "notes.editor.unsaved_title": {
+    es_ar: "Cambios sin guardar",
+    es_es: "Cambios sin guardar",
+    en: "Unsaved changes",
+    pt: "Alterações não salvas",
+    de: "Ungespeicherte Änderungen",
+    fr: "Modifications non enregistrées",
+    ja: "未保存の変更",
+    ru: "Несохранённые изменения",
+    zh: "未保存的更改"
+  },
+  "notes.editor.unsaved_message": {
+    es_ar: "Tenés cambios sin guardar en este archivo externo. ¿Qué querés hacer antes de salir?",
+    es_es: "Tienes cambios sin guardar en este archivo externo. ¿Qué quieres hacer antes de salir?",
+    en: "You have unsaved changes in this external file. What would you like to do before leaving?",
+    pt: "Você tem alterações não salvas neste arquivo externo. O que deseja fazer antes de sair?",
+    de: "Sie haben ungespeicherte Änderungen in dieser externen Datei. Was möchten Sie vor dem Schließen tun?",
+    fr: "Vous avez des modifications non enregistrées dans ce fichier externe. Que voulez-vous faire avant de quitter ?",
+    ja: "この外部ファイルには未保存の変更があります。閉じる前にどうしますか？",
+    ru: "В этом внешнем файле есть несохранённые изменения. Что сделать перед выходом?",
+    zh: "此外部文件有未保存的更改。退出前您想如何处理？"
+  },
+  "notes.editor.unsaved_cancel": {
+    es_ar: "Cancelar",
+    es_es: "Cancelar",
+    en: "Cancel",
+    pt: "Cancelar",
+    de: "Abbrechen",
+    fr: "Annuler",
+    ja: "キャンセル",
+    ru: "Отмена",
+    zh: "取消"
+  },
+  "notes.editor.unsaved_save_exit": {
+    es_ar: "Guardar y salir",
+    es_es: "Guardar y salir",
+    en: "Save & exit",
+    pt: "Salvar e sair",
+    de: "Speichern & beenden",
+    fr: "Enregistrer et quitter",
+    ja: "保存して閉じる",
+    ru: "Сохранить и выйти",
+    zh: "保存并退出"
+  },
+  "notes.editor.unsaved_discard_exit": {
+    es_ar: "Salir sin guardar",
+    es_es: "Salir sin guardar",
+    en: "Exit without saving",
+    pt: "Sair sem salvar",
+    de: "Ohne Speichern beenden",
+    fr: "Quitter sans enregistrer",
+    ja: "保存せずに閉じる",
+    ru: "Выйти без сохранения",
+    zh: "不保存退出"
+  },
+  "notes.editor.unsaved_shortcut_hint": {
+    es_ar: "Ctrl+S guarda y continúa el cierre automáticamente",
+    es_es: "Ctrl+S guarda y continúa el cierre automáticamente",
+    en: "Ctrl+S saves and continues closing automatically",
+    pt: "Ctrl+S salva e continua fechando automaticamente",
+    de: "Strg+S speichert und setzt das Schließen automatisch fort",
+    fr: "Ctrl+S enregistre et poursuit la fermeture automatiquement",
+    ja: "Ctrl+S で保存して自動的に閉じます",
+    ru: "Ctrl+S сохранит файл и продолжит закрытие",
+    zh: "Ctrl+S 保存并自动继续关闭"
   }
 };
 
