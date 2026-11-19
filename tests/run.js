@@ -6743,6 +6743,21 @@ runTest("F164: v0.3.7 — moveLinePill sobre el texto con ambos botones y atajos
         "ImageCopyButton debe sacar ambos botones (ver y copiar) hacia el costado externo cuando la imagen es chica");
 });
 
+runTest("F165: hotfix moveLinePill transparente escalado por zoom y subviñetas Pywal con Theme.color2", () => {
+    const readQ = (f) => fs.readFileSync(path.resolve(__dirname, '../qml', f), 'utf8');
+    const blockEditor = readQ('BlockEditor.qml');
+    const blockList = readQ('BlockList.qml');
+
+    assert.ok(blockEditor.includes('Item {\n                    id: moveLinePill')
+        && blockEditor.includes('EditorMetrics.zoom')
+        && blockEditor.includes('moveLinePill.btnSize')
+        && blockEditor.includes('moveLinePill.iconSize'),
+        "moveLinePill debe ser contenedor Item transparente y escalar botones/iconos con EditorMetrics.zoom");
+    assert.ok(blockList.includes('Theme.themeMode === "pywal" && itemRow.indent && itemRow.indent.length > 0')
+        && blockList.includes('Theme.color2'),
+        "Las subviñetas con sangría deben usar Theme.color2 en modo pywal");
+});
+
 console.log(`\n========================================`);
 console.log(`Resultados: ${passed} OK, ${failed} FAIL`);
 console.log(`========================================`);

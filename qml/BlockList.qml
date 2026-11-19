@@ -1582,7 +1582,9 @@ Item {
                         id: markerText
                         anchors.centerIn: parent
                         text: itemRow.marker.indexOf(".") !== -1 || itemRow.marker.indexOf(")") !== -1 ? itemRow.marker : "•"
-                        color: Theme.accent
+                        color: (Theme.themeMode === "pywal" && itemRow.indent && itemRow.indent.length > 0)
+                            ? Theme.color2
+                            : Theme.accent
                         font.family: Theme.fontFamily
                         font.pixelSize: EditorMetrics.body
                         font.bold: true

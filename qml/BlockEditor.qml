@@ -4488,8 +4488,8 @@ Flickable {
                     restoreMode: Binding.RestoreNone
                 }
 
-                // Botones flotantes ↑/↓ sobre el extremo derecho de la línea/bloque activo (no se cortan al achicar ventana)
-                Rectangle {
+                // Botones flotantes ↑/↓ transparentes sobre el extremo derecho de la línea/bloque activo (escalables con zoom)
+                Item {
                     id: moveLinePill
                     readonly property bool itemCanMoveUp: (blockLoader.item && blockLoader.item.canMoveLineUp === true)
                     readonly property bool itemCanMoveDown: (blockLoader.item && blockLoader.item.canMoveLineDown === true)
@@ -4497,35 +4497,39 @@ Flickable {
                     readonly property bool canMoveDown: (index < blocksModel.count - 1) || itemCanMoveDown
                     readonly property real activeLineOffsetY: (blockLoader.item && typeof blockLoader.item.activeLineY === "number")
                         ? blockLoader.item.activeLineY : 0
+                    readonly property real zScale: (typeof EditorMetrics !== "undefined" && EditorMetrics.zoom) ? EditorMetrics.zoom : 1.0
+                    readonly property int btnSize: Math.max(14, Math.min(36, Math.round(18 * zScale)))
+                    readonly property int iconSize: Math.max(10, Math.min(26, Math.round(13 * zScale)))
+                    readonly property int btnRadius: Math.max(4, Math.round(5 * zScale))
+                    readonly property int btnSpacing: Math.max(2, Math.round(2 * zScale))
 
                     visible: !root.readOnly && blockLoader.blockIsEditing && !blockLoader.isFoldedHidden && (canMoveUp || canMoveDown)
                     anchors.right: parent.right
                     anchors.rightMargin: 4
                     y: Math.max(0, Math.min(Math.max(0, parent.height - height), activeLineOffsetY))
-                    width: 22
-                    height: 40
-                    radius: 6
-                    color: Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, 0.90)
-                    border.width: 1
-                    border.color: Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.14)
+                    width: btnSize
+                    height: btnSize * 2 + btnSpacing
                     z: 80
 
                     Column {
                         anchors.centerIn: parent
-                        spacing: 2
+                        spacing: moveLinePill.btnSpacing
 
                         Rectangle {
                             id: upMoveBtn
-                            width: 18; height: 17; radius: 4
+                            width: moveLinePill.btnSize
+                            height: moveLinePill.btnSize
+                            radius: moveLinePill.btnRadius
                             opacity: moveLinePill.canMoveUp ? 1.0 : 0.32
                             color: (moveLinePill.canMoveUp && upBlkMa.containsMouse)
-                                ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.24)
+                                ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.22)
                                 : Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.06)
                             Image {
                                 anchors.centerIn: parent
-                                width: 13; height: 13
+                                width: moveLinePill.iconSize
+                                height: moveLinePill.iconSize
                                 source: Theme.iconsPath + "chevron-down.svg"
-                                sourceSize: Qt.size(13, 13)
+                                sourceSize: Qt.size(moveLinePill.iconSize, moveLinePill.iconSize)
                                 rotation: 180
                                 layer.enabled: visible && !GamemodeService.gamemodeActive
                                 layer.effect: MultiEffect {
@@ -4545,16 +4549,19 @@ Flickable {
 
                         Rectangle {
                             id: downMoveBtn
-                            width: 18; height: 17; radius: 4
+                            width: moveLinePill.btnSize
+                            height: moveLinePill.btnSize
+                            radius: moveLinePill.btnRadius
                             opacity: moveLinePill.canMoveDown ? 1.0 : 0.32
                             color: (moveLinePill.canMoveDown && downBlkMa.containsMouse)
-                                ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.24)
+                                ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.22)
                                 : Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.06)
                             Image {
                                 anchors.centerIn: parent
-                                width: 13; height: 13
+                                width: moveLinePill.iconSize
+                                height: moveLinePill.iconSize
                                 source: Theme.iconsPath + "chevron-down.svg"
-                                sourceSize: Qt.size(13, 13)
+                                sourceSize: Qt.size(moveLinePill.iconSize, moveLinePill.iconSize)
                                 layer.enabled: visible && !GamemodeService.gamemodeActive
                                 layer.effect: MultiEffect {
                                     colorization: 1.0
