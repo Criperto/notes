@@ -3723,6 +3723,16 @@ Item {
                             return;
                         }
 
+                        if (!root.isPreviewMode && (event.modifiers & Qt.AltModifier) && (event.key === Qt.Key_Up || event.key === Qt.Key_Down)) {
+                            var mv = CodeHelper.moveLineInText(sourceCodeEditor.text, sourceCodeEditor.cursorPosition, event.key === Qt.Key_Up ? -1 : 1);
+                            if (mv.moved) {
+                                sourceCodeEditor.text = mv.text;
+                                sourceCodeEditor.cursorPosition = mv.cursorPosition;
+                            }
+                            event.accepted = true;
+                            return;
+                        }
+
                         if (!root.isPlainFormat && !root.isPreviewMode && (event.modifiers & Qt.ControlModifier) && (event.modifiers & Qt.ShiftModifier) && event.key === Qt.Key_V) {
                             root.pasteClipboardImage();
                             event.accepted = true;

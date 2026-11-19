@@ -415,14 +415,14 @@ Item {
 
                 HoverHandler {
                     id: cardHover
-                    enabled: imgCard.loadable && imgItem.status === Image.Ready && !imgCard.isBadge && imgCard.width >= 56 && imgCard.height >= 32
+                    enabled: imgCard.loadable && imgItem.status === Image.Ready && !imgCard.isBadge
                 }
 
                 ImageCopyButton {
                     id: imgCopyBtn
                     z: 10
-                    available: imgCard.loadable && imgItem.status === Image.Ready && !imgCard.isBadge && imgCard.width >= 56 && imgCard.height >= 32
-                    showZoomButton: imgCard.width >= 96
+                    available: imgCard.loadable && imgItem.status === Image.Ready && !imgCard.isBadge
+                    showZoomButton: true
                     hoveredOutside: cardHover.hovered
                     localPath: modelData ? root._localImagePath(modelData.src) : ""
                     targetImageItem: imgItem

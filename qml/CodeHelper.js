@@ -188,3 +188,44 @@ function applyTabIndent(text, selStart, selEnd, isShiftTab, tabWidth) {
         replacement: replaced
     };
 }
+
+// Mueve la línea donde se ubica cursorPos hacia arriba (delta < 0) o abajo (delta > 0).
+// Devuelve { moved: bool, text: string, cursorPosition: number }.
+function moveLineInText(text, cursorPos, delta) {
+    var src = (typeof text === "string") ? text : "";
+    if (!delta || src.indexOf("\n") === -1) {
+        return { moved: false, text: src, cursorPosition: cursorPos || 0 };
+    }
+    var pos = Math.max(0, Math.min(src.length, typeof cursorPos === "number" ? cursorPos : 0));
+    var lines = src.split("\n");
+    var lineIdx = 0;
+    var acc = 0;
+    var colOffset = 0;
+    for (var i = 0; i < lines.length; i++) {
+        var lineEnd = acc + lines[i].length;
+        if (pos <= lineEnd) {
+            lineIdx = i;
+            colOffset = pos - acc;
+            break;
+        }
+        acc = lineEnd + 1;
+    }
+    var targetIdx = lineIdx + (delta < 0 ? -1 : 1);
+    if (targetIdx < 0 || targetIdx >= lines.length) {
+        return { moved: false, text: src, cursorPosition: pos };
+    }
+    var tmp = lines[lineIdx];
+    lines[lineIdx] = lines[targetIdx];
+    lines[targetIdx] = tmp;
+
+    var newAcc = 0;
+    for (var j = 0; j < targetIdx; j++) {
+        newAcc += lines[j].length + 1;
+    }
+    var newCursor = newAcc + Math.min(colOffset, lines[targetIdx].length);
+    return {
+        moved: true,
+        text: lines.join("\n"),
+        cursorPosition: newCursor
+    };
+}

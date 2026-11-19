@@ -51,6 +51,71 @@ Item {
     }
 
     property int activeItemIndex: -1
+    readonly property bool canMoveLineUp: root.activeItemIndex > 0
+    readonly property bool canMoveLineDown: root.activeItemIndex >= 0 && root.activeItemIndex < (itemsModel.count - 1)
+    readonly property real activeLineY: {
+        var idx = root.activeItemIndex;
+        if (idx >= 0 && idx < itemsRepeater.count) {
+            var del = itemsRepeater.itemAt(idx);
+            if (del) return del.y;
+        }
+        return 0;
+    }
+
+    function moveActiveLine(delta) {
+        var idx = root.activeItemIndex;
+        if (idx < 0 || !root._itemsRawArray || idx >= root._itemsRawArray.length) return false;
+        var targetIdx = idx + (delta < 0 ? -1 : 1);
+        if (targetIdx < 0 || targetIdx >= root._itemsRawArray.length) return false;
+
+        var curDel = (idx < itemsRepeater.count) ? itemsRepeater.itemAt(idx) : null;
+        var te = (curDel && typeof curDel.getTextEdit === "function") ? curDel.getTextEdit() : null;
+        var curPos = te ? te.cursorPosition : -1;
+        var selS = te ? te.selectionStart : -1;
+        var selE = te ? te.selectionEnd : -1;
+
+        if (te && curDel && typeof curDel.displayToRaw === "function") {
+            var latestRaw = curDel.displayToRaw(Inline.plainText(te));
+            if (root._itemsRawArray[idx].text !== latestRaw) {
+                root._itemsRawArray[idx].text = latestRaw;
+                if (idx < itemsModel.count) itemsModel.setProperty(idx, "text", latestRaw);
+            }
+        }
+
+        if (root.editor && typeof root.editor._saveSnapshot === "function") {
+            root.editor._saveSnapshot();
+        }
+
+        root._loadingModel = true;
+        var moved = root._itemsRawArray.splice(idx, 1)[0];
+        root._itemsRawArray.splice(targetIdx, 0, moved);
+        itemsModel.move(idx, targetIdx, 1);
+        root._loadingModel = false;
+
+        root.activeItemIndex = targetIdx;
+        _renumberAllOrdered();
+        _notifyRawChanged();
+
+        var newDel = (targetIdx < itemsRepeater.count) ? itemsRepeater.itemAt(targetIdx) : null;
+        if (newDel && typeof newDel.forceSyncText === "function") {
+            newDel.forceSyncText(curPos, false);
+        }
+        var otherDel = (idx < itemsRepeater.count) ? itemsRepeater.itemAt(idx) : null;
+        if (otherDel && typeof otherDel.forceSyncText === "function") {
+            otherDel.forceSyncText(-1, true);
+        }
+        var newTe = (newDel && typeof newDel.getTextEdit === "function") ? newDel.getTextEdit() : null;
+        if (newTe) {
+            newTe.forceActiveFocus();
+            if (selS !== -1 && selS !== selE) {
+                newTe.select(Math.min(newTe.length, selS), Math.min(newTe.length, selE));
+            } else if (curPos !== -1) {
+                newTe.cursorPosition = Math.min(newTe.length, curPos);
+            }
+        }
+        return true;
+    }
+
     property bool _internalSync: false
     property bool _loadingModel: false
     property var _itemsRawArray: []
@@ -2342,6 +2407,14 @@ Item {
                             root.handleItemBacktab(itemRow.index, lineEdit);
                             event.accepted = true;
                         } else if (event.key === Qt.Key_Up) {
+                            if (event.modifiers & Qt.AltModifier) {
+                                var edUp = (itemRow.rootBlock && itemRow.rootBlock.editor) ? itemRow.rootBlock.editor : root.editor;
+                                if (edUp && root.blockData && typeof edUp.moveBlock === "function") {
+                                    edUp.moveBlock(root.blockData.bid, -1);
+                                }
+                                event.accepted = true;
+                                return;
+                            }
                             var curX = lineEdit.positionToRectangle(lineEdit.cursorPosition).x;
                             var targetX = (rEditor && typeof rEditor.getPreferredCursorX === "function") ? rEditor.getPreferredCursorX(curX) : curX;
                             if (event.modifiers & Qt.ShiftModifier) {
@@ -2386,6 +2459,14 @@ Item {
                                 }
                             }
                         } else if (event.key === Qt.Key_Down) {
+                            if (event.modifiers & Qt.AltModifier) {
+                                var edDown = (itemRow.rootBlock && itemRow.rootBlock.editor) ? itemRow.rootBlock.editor : root.editor;
+                                if (edDown && root.blockData && typeof edDown.moveBlock === "function") {
+                                    edDown.moveBlock(root.blockData.bid, 1);
+                                }
+                                event.accepted = true;
+                                return;
+                            }
                             var curXDown = lineEdit.positionToRectangle(lineEdit.cursorPosition).x;
                             var targetXDown = (rEditor && typeof rEditor.getPreferredCursorX === "function") ? rEditor.getPreferredCursorX(curXDown) : curXDown;
                             if (event.modifiers & Qt.ShiftModifier) {
@@ -2592,14 +2673,14 @@ Item {
 
                             HoverHandler {
                                 id: listImgHover
-                                enabled: !root.isEditing && !itemRow.isSelected && !imgWrap.failed && imgItem.status === Image.Ready && imgWrap.width >= 56 && imgWrap.height >= 32
+                                enabled: !root.isEditing && !itemRow.isSelected && !imgWrap.failed && imgItem.status === Image.Ready
                             }
 
                             ImageCopyButton {
                                 id: listImgCopyBtn
                                 z: 10
                                 available: listImgHover.enabled
-                                showZoomButton: imgWrap.width >= 96
+                                showZoomButton: true
                                 hoveredOutside: listImgHover.hovered
                                 localPath: (imgWrap.fileUrl.startsWith("http://") || imgWrap.fileUrl.startsWith("https://")) ? "" : imgWrap.fileUrl
                                 targetImageItem: imgItem

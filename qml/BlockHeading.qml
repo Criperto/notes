@@ -1116,6 +1116,13 @@ Item {
         }
 
         Keys.onUpPressed: (event) => {
+            if (event.modifiers & Qt.AltModifier) {
+                if (root.editor && root.blockData && typeof root.editor.moveBlock === "function") {
+                    root.editor.moveBlock(root.blockData.bid, -1);
+                    event.accepted = true;
+                    return;
+                }
+            }
             var cm = root.editor ? root.editor.contextMenu : null;
             if (cm && cm.visible && !cm.isClosing) {
                 cm.selectPreviousItem();
@@ -1162,6 +1169,13 @@ Item {
         }
 
         Keys.onDownPressed: (event) => {
+            if (event.modifiers & Qt.AltModifier) {
+                if (root.editor && root.blockData && typeof root.editor.moveBlock === "function") {
+                    root.editor.moveBlock(root.blockData.bid, 1);
+                    event.accepted = true;
+                    return;
+                }
+            }
             var cm = root.editor ? root.editor.contextMenu : null;
             if (cm && cm.visible && !cm.isClosing) {
                 cm.selectNextItem();

@@ -1308,6 +1308,13 @@ Item {
                                                 }
                                             }
                                             Keys.onUpPressed: (event) => {
+                                                if (event.modifiers & Qt.AltModifier) {
+                                                    if (root.editor && root.blockData && typeof root.editor.moveBlock === "function") {
+                                                        root.editor.moveBlock(root.blockData.bid, -1);
+                                                    }
+                                                    event.accepted = true;
+                                                    return;
+                                                }
                                                 var curRect = hInput.positionToRectangle(hInput.cursorPosition);
                                                 if (curRect.y <= 2) {
                                                     root._handleCellUp(-1, colIndex, event);
@@ -1316,6 +1323,13 @@ Item {
                                                 }
                                             }
                                             Keys.onDownPressed: (event) => {
+                                                if (event.modifiers & Qt.AltModifier) {
+                                                    if (root.editor && root.blockData && typeof root.editor.moveBlock === "function") {
+                                                        root.editor.moveBlock(root.blockData.bid, 1);
+                                                    }
+                                                    event.accepted = true;
+                                                    return;
+                                                }
                                                 var curRect = hInput.positionToRectangle(hInput.cursorPosition);
                                                 if (curRect.y + curRect.height >= hInput.paintedHeight - 3) {
                                                     root._handleCellDown(-1, colIndex, event);
@@ -1734,6 +1748,15 @@ Item {
                                         }
                                     }
                                     Keys.onUpPressed: (event) => {
+                                        if (event.modifiers & Qt.AltModifier) {
+                                            if (rowRect.rowIndex > 0) {
+                                                root.moveFocusedRow(-1);
+                                            } else if (root.editor && root.blockData && typeof root.editor.moveBlock === "function") {
+                                                root.editor.moveBlock(root.blockData.bid, -1);
+                                            }
+                                            event.accepted = true;
+                                            return;
+                                        }
                                         var curRect = cellInput.positionToRectangle(cellInput.cursorPosition);
                                         if (curRect.y <= 2) {
                                             root._handleCellUp(rowRect.rowIndex, colIndex, event);
@@ -1742,6 +1765,15 @@ Item {
                                         }
                                     }
                                     Keys.onDownPressed: (event) => {
+                                        if (event.modifiers & Qt.AltModifier) {
+                                            if (rowRect.rowIndex < rowsModel.count - 1) {
+                                                root.moveFocusedRow(1);
+                                            } else if (root.editor && root.blockData && typeof root.editor.moveBlock === "function") {
+                                                root.editor.moveBlock(root.blockData.bid, 1);
+                                            }
+                                            event.accepted = true;
+                                            return;
+                                        }
                                         var curRect = cellInput.positionToRectangle(cellInput.cursorPosition);
                                         if (curRect.y + curRect.height >= cellInput.paintedHeight - 3) {
                                             root._handleCellDown(rowRect.rowIndex, colIndex, event);

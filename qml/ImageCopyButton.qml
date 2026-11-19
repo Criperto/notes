@@ -20,16 +20,41 @@ Item {
 
     signal zoomRequested()
 
+    readonly property real parentW: parent ? parent.width : 0
+    readonly property real parentH: parent ? parent.height : 0
+    readonly property bool placeOutside: (parentW > 0 && parentW < (actionRow.implicitWidth + 24)) || (parentH > 0 && parentH < 44)
+
     readonly property bool isZoomHovered: root.showZoomButton && (zoomMa.containsMouse || zoomHover.hovered)
     readonly property bool isCopyHovered: copyMa.containsMouse || btnHover.hovered
-    readonly property bool isButtonHovered: isCopyHovered || isZoomHovered
+    readonly property bool isButtonHovered: isCopyHovered || isZoomHovered || bridgeHover.hovered || hoverGraceTimer.running
     readonly property bool isShowing: available && (hoveredOutside || isButtonHovered || copiedRecently)
 
-    anchors.top: parent ? parent.top : undefined
-    anchors.right: parent ? parent.right : undefined
-    anchors.margins: 8
+    onHoveredOutsideChanged: {
+        if (!hoveredOutside && placeOutside) {
+            hoverGraceTimer.restart();
+        }
+    }
 
-    width: actionRow.implicitWidth
+    Timer {
+        id: hoverGraceTimer
+        interval: 160
+        repeat: false
+    }
+
+    HoverHandler {
+        id: bridgeHover
+        enabled: root.available
+    }
+
+    anchors.top: parent ? parent.top : undefined
+    anchors.right: parent ? (placeOutside ? undefined : parent.right) : undefined
+    anchors.left: parent ? (placeOutside ? parent.right : undefined) : undefined
+    anchors.margins: 8
+    anchors.topMargin: placeOutside ? Math.max(0, Math.min(8, Math.round((parentH - height) / 2))) : 8
+    anchors.rightMargin: 8
+    anchors.leftMargin: 0
+
+    width: actionRow.implicitWidth + (placeOutside ? 6 : 0)
     height: 22
     visible: available && opacity > 0.0
     opacity: isShowing ? 1.0 : 0.0
@@ -102,6 +127,7 @@ Item {
 
     Row {
         id: actionRow
+        x: root.placeOutside ? 6 : 0
         anchors.verticalCenter: parent.verticalCenter
         spacing: 4
 

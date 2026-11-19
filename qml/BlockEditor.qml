@@ -48,6 +48,14 @@ Flickable {
 
     function moveBlock(bid, delta) {
         if (root.readOnly || !bid || !delta) return false;
+        var loader = _getDelegateItemForBid(bid);
+        if (loader && loader.item && typeof loader.item.moveActiveLine === "function") {
+            if (loader.item.moveActiveLine(delta)) {
+                contentModified();
+                debouncedMarkdownTimer.restart();
+                return true;
+            }
+        }
         var idx = _findBlockIndex(bid);
         if (idx === -1) return false;
         var targetIdx = idx + delta;
@@ -2030,21 +2038,11 @@ Flickable {
     }
 
     function moveBlockUp(bid) {
-        var idx = _findBlockIndex(bid);
-        if (idx <= 0) return;
-        _saveSnapshot();
-        blocksModel.move(idx, idx - 1, 1);
-        safeFocusDelegate(bid);
-        _saveSnapshot();
+        root.moveBlock(bid, -1);
     }
 
     function moveBlockDown(bid) {
-        var idx = _findBlockIndex(bid);
-        if (idx === -1 || idx >= blocksModel.count - 1) return;
-        _saveSnapshot();
-        blocksModel.move(idx, idx + 1, 1);
-        safeFocusDelegate(bid);
-        _saveSnapshot();
+        root.moveBlock(bid, 1);
     }
 
     function clearEditor() {
@@ -4490,61 +4488,87 @@ Flickable {
                     restoreMode: Binding.RestoreNone
                 }
 
-                // Botones discretos ↑/↓ en el margen derecho para reordenar el bloque activo
-                Column {
-                    visible: !root.readOnly && blockLoader.blockIsEditing && blocksModel.count > 1 && !blockLoader.isFoldedHidden
-                    anchors.left: parent.right
-                    anchors.leftMargin: 6
-                    anchors.top: parent.top
-                    spacing: 2
-                    z: 20
+                // Botones flotantes ↑/↓ sobre el extremo derecho de la línea/bloque activo (no se cortan al achicar ventana)
+                Rectangle {
+                    id: moveLinePill
+                    readonly property bool itemCanMoveUp: (blockLoader.item && blockLoader.item.canMoveLineUp === true)
+                    readonly property bool itemCanMoveDown: (blockLoader.item && blockLoader.item.canMoveLineDown === true)
+                    readonly property bool canMoveUp: index > 0 || itemCanMoveUp
+                    readonly property bool canMoveDown: (index < blocksModel.count - 1) || itemCanMoveDown
+                    readonly property real activeLineOffsetY: (blockLoader.item && typeof blockLoader.item.activeLineY === "number")
+                        ? blockLoader.item.activeLineY : 0
 
-                    Rectangle {
-                        width: 18; height: 18; radius: 5
-                        visible: index > 0
-                        color: upBlkMa.containsMouse ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.22) : Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.06)
-                        Image {
-                            anchors.centerIn: parent
-                            width: 13; height: 13
-                            source: Theme.iconsPath + "chevron-down.svg"
-                            sourceSize: Qt.size(13, 13)
-                            rotation: 180
-                            layer.enabled: visible && !GamemodeService.gamemodeActive
-                            layer.effect: MultiEffect {
-                                colorization: 1.0
-                                colorizationColor: upBlkMa.containsMouse ? Theme.accent : Theme.muted
+                    visible: !root.readOnly && blockLoader.blockIsEditing && !blockLoader.isFoldedHidden && (canMoveUp || canMoveDown)
+                    anchors.right: parent.right
+                    anchors.rightMargin: 4
+                    y: Math.max(0, Math.min(Math.max(0, parent.height - height), activeLineOffsetY))
+                    width: 22
+                    height: 40
+                    radius: 6
+                    color: Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, 0.90)
+                    border.width: 1
+                    border.color: Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.14)
+                    z: 80
+
+                    Column {
+                        anchors.centerIn: parent
+                        spacing: 2
+
+                        Rectangle {
+                            id: upMoveBtn
+                            width: 18; height: 17; radius: 4
+                            opacity: moveLinePill.canMoveUp ? 1.0 : 0.32
+                            color: (moveLinePill.canMoveUp && upBlkMa.containsMouse)
+                                ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.24)
+                                : Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.06)
+                            Image {
+                                anchors.centerIn: parent
+                                width: 13; height: 13
+                                source: Theme.iconsPath + "chevron-down.svg"
+                                sourceSize: Qt.size(13, 13)
+                                rotation: 180
+                                layer.enabled: visible && !GamemodeService.gamemodeActive
+                                layer.effect: MultiEffect {
+                                    colorization: 1.0
+                                    colorizationColor: (moveLinePill.canMoveUp && upBlkMa.containsMouse) ? Theme.accent : Theme.muted
+                                }
+                            }
+                            MouseArea {
+                                id: upBlkMa
+                                anchors.fill: parent
+                                enabled: moveLinePill.canMoveUp
+                                hoverEnabled: true
+                                cursorShape: moveLinePill.canMoveUp ? Qt.PointingHandCursor : Qt.ArrowCursor
+                                onClicked: root.moveBlock(model.bid, -1)
                             }
                         }
-                        MouseArea {
-                            id: upBlkMa
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: root.moveBlock(model.bid, -1)
-                        }
-                    }
 
-                    Rectangle {
-                        width: 18; height: 18; radius: 5
-                        visible: index < blocksModel.count - 1
-                        color: downBlkMa.containsMouse ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.22) : Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.06)
-                        Image {
-                            anchors.centerIn: parent
-                            width: 13; height: 13
-                            source: Theme.iconsPath + "chevron-down.svg"
-                            sourceSize: Qt.size(13, 13)
-                            layer.enabled: visible && !GamemodeService.gamemodeActive
-                            layer.effect: MultiEffect {
-                                colorization: 1.0
-                                colorizationColor: downBlkMa.containsMouse ? Theme.accent : Theme.muted
+                        Rectangle {
+                            id: downMoveBtn
+                            width: 18; height: 17; radius: 4
+                            opacity: moveLinePill.canMoveDown ? 1.0 : 0.32
+                            color: (moveLinePill.canMoveDown && downBlkMa.containsMouse)
+                                ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.24)
+                                : Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.06)
+                            Image {
+                                anchors.centerIn: parent
+                                width: 13; height: 13
+                                source: Theme.iconsPath + "chevron-down.svg"
+                                sourceSize: Qt.size(13, 13)
+                                layer.enabled: visible && !GamemodeService.gamemodeActive
+                                layer.effect: MultiEffect {
+                                    colorization: 1.0
+                                    colorizationColor: (moveLinePill.canMoveDown && downBlkMa.containsMouse) ? Theme.accent : Theme.muted
+                                }
                             }
-                        }
-                        MouseArea {
-                            id: downBlkMa
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: root.moveBlock(model.bid, 1)
+                            MouseArea {
+                                id: downBlkMa
+                                anchors.fill: parent
+                                enabled: moveLinePill.canMoveDown
+                                hoverEnabled: true
+                                cursorShape: moveLinePill.canMoveDown ? Qt.PointingHandCursor : Qt.ArrowCursor
+                                onClicked: root.moveBlock(model.bid, 1)
+                            }
                         }
                     }
                 }

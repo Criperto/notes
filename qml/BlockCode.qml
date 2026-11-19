@@ -53,6 +53,18 @@ Rectangle {
     readonly property real previewGutterW: Math.max(26, (String(previewLineCount).length * EditorMetrics.fs(Theme.fontSizeCaption - 1) * 0.72) + 12)
     readonly property real editGutterW: Math.max(26, (String(editLineCount).length * EditorMetrics.fs(Theme.fontSizeCaption - 1) * 0.72) + 12)
     readonly property int editCurrentLine: (editInput && root.isEditing) ? CodeHelper.currentLineNumber(editInput.text, editInput.cursorPosition) : -1
+    readonly property bool canMoveLineUp: root.showEditView && root.editCurrentLine > 1
+    readonly property bool canMoveLineDown: root.showEditView && root.editCurrentLine >= 1 && root.editCurrentLine < root.editLineCount
+    readonly property real activeLineY: (root.showEditView && editInput) ? Math.max(0, editInput.cursorRectangle.y) : 0
+
+    function moveActiveLine(delta) {
+        if (!root.showEditView || !editInput) return false;
+        var mv = CodeHelper.moveLineInText(editInput.text, editInput.cursorPosition, delta);
+        if (!mv.moved) return false;
+        editInput.text = mv.text;
+        editInput.cursorPosition = mv.cursorPosition;
+        return true;
+    }
 
     implicitWidth: parent ? parent.width : 400
     implicitHeight: root.showEditView
@@ -1228,6 +1240,17 @@ Rectangle {
         }
 
         Keys.onUpPressed: (event) => {
+            if (event.modifiers & Qt.AltModifier) {
+                if (root.moveActiveLine(-1)) {
+                    event.accepted = true;
+                    return;
+                }
+                if (root.editor && root.blockData && typeof root.editor.moveBlock === "function") {
+                    root.editor.moveBlock(root.blockData.bid, -1);
+                    event.accepted = true;
+                    return;
+                }
+            }
             var cm = root.editor ? root.editor.contextMenu : null;
             if (cm && cm.visible && !cm.isClosing) {
                 cm.selectPreviousItem();
@@ -1258,6 +1281,17 @@ Rectangle {
         }
 
         Keys.onDownPressed: (event) => {
+            if (event.modifiers & Qt.AltModifier) {
+                if (root.moveActiveLine(1)) {
+                    event.accepted = true;
+                    return;
+                }
+                if (root.editor && root.blockData && typeof root.editor.moveBlock === "function") {
+                    root.editor.moveBlock(root.blockData.bid, 1);
+                    event.accepted = true;
+                    return;
+                }
+            }
             var cm = root.editor ? root.editor.contextMenu : null;
             if (cm && cm.visible && !cm.isClosing) {
                 cm.selectNextItem();

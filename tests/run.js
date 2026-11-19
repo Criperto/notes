@@ -6705,6 +6705,44 @@ runTest("F163: v0.3.6 — iconos chevron en mover, hover estable en multiselecci
         "Main debe interceptar cierre de ventana si hay cambios sin guardar en modo manual externo");
 });
 
+runTest("F164: v0.3.7 — moveLinePill sobre el texto con ambos botones y atajos Alt+Up/Down en listas/bloques, e ImageCopyButton externo para imágenes chicas", () => {
+    const readQ = (f) => fs.readFileSync(path.resolve(__dirname, '../qml', f), 'utf8');
+
+    const mvDown = CodeHelper.moveLineInText("primera\nsegunda\ntercera", 2, 1);
+    assert.strictEqual(mvDown.moved, true);
+    assert.strictEqual(mvDown.text, "segunda\nprimera\ntercera");
+    assert.strictEqual(mvDown.cursorPosition, "segunda\n".length + 2);
+
+    const mvUp = CodeHelper.moveLineInText(mvDown.text, mvDown.cursorPosition, -1);
+    assert.strictEqual(mvUp.moved, true);
+    assert.strictEqual(mvUp.text, "primera\nsegunda\ntercera");
+    assert.strictEqual(mvUp.cursorPosition, 2);
+
+    const mvTop = CodeHelper.moveLineInText("primera\nsegunda", 1, -1);
+    assert.strictEqual(mvTop.moved, false);
+
+    const blockEditor = readQ('BlockEditor.qml');
+    const blockList = readQ('BlockList.qml');
+    const blockCode = readQ('BlockCode.qml');
+    const blockHeading = readQ('BlockHeading.qml');
+    const blockQuote = readQ('BlockQuote.qml');
+    const imageCopyBtn = readQ('ImageCopyButton.qml');
+    const blockImage = readQ('BlockImage.qml');
+
+    assert.ok(blockEditor.includes('id: moveLinePill') && blockEditor.includes('anchors.right: parent.right')
+        && blockEditor.includes('id: upMoveBtn') && blockEditor.includes('id: downMoveBtn')
+        && blockEditor.includes('loader.item.moveActiveLine(delta)'),
+        "BlockEditor debe mostrar ambos botones dentro de moveLinePill sobre el borde derecho del bloque/línea sin recortarse");
+    assert.ok(blockList.includes('function moveActiveLine(delta)') && blockList.includes('canMoveLineUp')
+        && blockList.includes('canMoveLineDown') && blockList.includes('Qt.AltModifier'),
+        "BlockList debe soportar moveActiveLine por ítem y atajos Alt+Up/Down");
+    assert.ok(blockCode.includes('function moveActiveLine(delta)') && blockHeading.includes('Qt.AltModifier') && blockQuote.includes('Qt.AltModifier'),
+        "BlockCode, BlockHeading y BlockQuote deben soportar Alt+Up/Down para mover línea/bloque");
+    assert.ok(imageCopyBtn.includes('readonly property bool placeOutside:') && imageCopyBtn.includes('anchors.left: parent ? (placeOutside ? parent.right : undefined)')
+        && blockImage.includes('showZoomButton: true') && blockList.includes('showZoomButton: true'),
+        "ImageCopyButton debe sacar ambos botones (ver y copiar) hacia el costado externo cuando la imagen es chica");
+});
+
 console.log(`\n========================================`);
 console.log(`Resultados: ${passed} OK, ${failed} FAIL`);
 console.log(`========================================`);
