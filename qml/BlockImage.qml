@@ -5,6 +5,7 @@ import Notas
 import "."
 import "PreviewLogic.js" as PreviewLogic
 import "Inline.js" as Inline
+import "ImageProbe.js" as ImageProbe
 
 Item {
     id: root
@@ -110,12 +111,7 @@ Item {
     property var _probedDimPaths: ({})
 
     function _localImagePath(src) {
-        if (!src) return "";
-        if (src.startsWith("http://") || src.startsWith("https://")) return "";
-        if (src.startsWith("file://localhost/")) return decodeURIComponent(src.substring(16));
-        if (src.startsWith("file://")) return decodeURIComponent(src.substring(7));
-        if (src.startsWith("/")) return src;
-        return root.imgBaseDir ? (root.imgBaseDir + "/" + src) : "";
+        return ImageProbe.resolveLocal(root.imgBaseDir, src);
     }
 
     function _probeImageDimensions(src) {
@@ -142,14 +138,7 @@ Item {
     }
 
     function resolveSource(src) {
-        if (!src) return "";
-        if (src.startsWith("http://") || src.startsWith("https://") || src.startsWith("file://")) {
-            return src;
-        }
-        if (src.startsWith("/")) {
-            return "file://" + encodeURI(src);
-        }
-        return "file://" + encodeURI(root.imgBaseDir + "/" + src);
+        return ImageProbe.toFileUrl(root.imgBaseDir, src);
     }
 
     // Proxy de foco para navegación fluida con flechas cuando la imagen está renderizada
@@ -257,10 +246,8 @@ Item {
                 id: imgCard
                 // No se setea source hasta saber que existe (o remota).
                 // imageStateFor lee imageProbeReady/_imageExists: re-evalúa solo.
-                readonly property bool loadable: {
-                    var st = NotesService.imageStateFor(modelData.src, root.imgBaseDir);
-                    return st === "yes" || st === "remote";
-                }
+                readonly property string imgState: NotesService.imageStateFor(modelData.src, root.imgBaseDir)
+                readonly property bool loadable: imgState === "yes" || imgState === "remote"
                 readonly property bool isCardReady: {
                     if (!loadable) return true;
                     if (imgItem.status === Image.Ready || imgItem.status === Image.Error) return true;
@@ -369,7 +356,7 @@ Item {
                     Column {
                         anchors.centerIn: parent
                         spacing: 4
-                        visible: imgItem.status === Image.Error || !imgCard.loadable
+                        visible: imgItem.status === Image.Error || imgCard.imgState === "no"
 
                         Image {
                             anchors.horizontalCenter: parent.horizontalCenter

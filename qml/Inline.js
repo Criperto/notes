@@ -314,49 +314,104 @@ function inlineToHtml(src, opts) {
         return token;
     });
 
-    // 3. Extraer imágenes markdown antes que enlaces: ![alt](url)
+    // 3. Extraer imágenes markdown y HTML (<img ...>) antes que enlaces
     // Con imageSkipMissing las locales inexistentes se reemplazan por su
     // texto (sin <img>) para no disparar warnings de carga. Necesita baseFolder
     // e imageExists(absPath)->bool; sin ellos se mantiene lo de siempre.
-    var images = [];
-    var imgRegex = /!\[([^\]]*)\]\(((?:[^()\s]+|\([^()\s]*\))+)(?:\s+"([^"]*)")?\)/g;
-    text = text.replace(imgRegex, function(match, rawAlt, url, title) {
-        var parsedAlt = parseImageAlt(rawAlt);
-        var alt = parsedAlt.alt;
-        var token = "\uE000IMG_" + images.length + "\uE000";
+    function _normalizeImgLocal(pathStr) {
+        if (!pathStr || typeof pathStr !== "string") return "";
+        var s = pathStr.trim();
+        if (s === "") return "";
+        var isAbs = s.startsWith("/");
+        var parts = s.split("/");
+        var stack = [];
+        for (var i = 0; i < parts.length; i++) {
+            var seg = parts[i];
+            if (seg === "" || seg === ".") continue;
+            if (seg === "..") {
+                if (stack.length > 0 && stack[stack.length - 1] !== "..") stack.pop();
+                else if (!isAbs) stack.push("..");
+                continue;
+            }
+            stack.push(seg);
+        }
+        return (isAbs ? "/" : "") + stack.join("/");
+    }
+
+    function _buildInlineImgHtml(rawUrl, altText, reqWidth, reqHeight, titleText) {
+        var url = (rawUrl || "").trim();
+        var alt = (altText || "");
+        var isRemoteOrData = /^(?:https?:\/\/|data:)/i.test(url);
         var resolvedUrl = url;
-        if (options.baseFolder && !/^(?:https?:\/\/|file:\/\/|\/)/i.test(resolvedUrl)) {
-            resolvedUrl = options.baseFolder + "/" + resolvedUrl;
+        if (options.baseFolder && !isRemoteOrData && !/^(?:file:\/\/|\/)/i.test(resolvedUrl)) {
+            resolvedUrl = _normalizeImgLocal(options.baseFolder + "/" + resolvedUrl);
+        } else if (resolvedUrl.startsWith("/")) {
+            resolvedUrl = _normalizeImgLocal(resolvedUrl);
         }
         if (options.imageSkipMissing && typeof options.imageExists === "function") {
             var probePath = "";
-            if (/^(?:https?:\/\/)/i.test(url)) {
-                probePath = ""; // remota: no pre-verificable, se carga igual
+            if (isRemoteOrData) {
+                probePath = "";
             } else if (/^file:\/\//i.test(url)) {
-                probePath = url.replace(/^file:\/\/(localhost\/)?/i, "");
+                probePath = url.replace(/^file:\/\/(localhost\/)?/i, "").replace(/[?#].*$/, "");
                 try { probePath = decodeURIComponent(probePath); } catch (e) {}
+                probePath = _normalizeImgLocal(probePath);
             } else if (url.startsWith("/")) {
-                probePath = url;
+                probePath = _normalizeImgLocal(url.replace(/[?#].*$/, ""));
             } else if (options.baseFolder) {
-                probePath = resolvedUrl;
+                probePath = _normalizeImgLocal(options.baseFolder + "/" + url.replace(/[?#].*$/, ""));
             }
             if (probePath !== "" && !options.imageExists(probePath)) {
-                // Local inexistente: texto plano escapado en vez de <img>
-                images.push(escapeHtml("[" + alt + "]"));
-                return token;
+                return escapeHtml("[" + alt + "]");
             }
         }
         var safeUrl = escapeHtml(resolvedUrl);
         var safeAlt = escapeHtml(alt);
-        var titleAttr = title ? ' title="' + escapeHtml(title) + '"' : '';
-        var widthAttr = parsedAlt.width > 0 ? ' width="' + parsedAlt.width + '"' : '';
-        var html = '<img src="' + safeUrl + '" alt="' + safeAlt + '"' + widthAttr + titleAttr + ' />';
-        images.push(html);
+        var titleAttr = titleText ? ' title="' + escapeHtml(titleText) + '"' : '';
+        var w = (typeof reqWidth === "number" && reqWidth > 0) ? Math.round(reqWidth * zoomVal) : 0;
+        var h = (typeof reqHeight === "number" && reqHeight > 0) ? Math.round(reqHeight * zoomVal) : 0;
+        if (options.maxImgWidth && options.maxImgWidth > 0 && w > options.maxImgWidth) {
+            if (h > 0 && w > 0) h = Math.max(1, Math.round(h * options.maxImgWidth / w));
+            w = Math.round(options.maxImgWidth);
+        }
+        var widthAttr = w > 0 ? ' width="' + w + '"' : '';
+        var heightAttr = h > 0 ? ' height="' + h + '"' : '';
+        return '<img src="' + safeUrl + '" alt="' + safeAlt + '"' + widthAttr + heightAttr + titleAttr + ' />';
+    }
+
+    var images = [];
+    var imgRegex = /!\[([^\]]*)\]\(((?:[^()\s]+|\([^()\s]*\))+)(?:\s+"([^"]*)")?\)/g;
+    text = text.replace(imgRegex, function(match, rawAlt, url, title) {
+        var parsedAlt = parseImageAlt(rawAlt);
+        var token = "\uE000IMG_" + images.length + "\uE000";
+        images.push(_buildInlineImgHtml(url, parsedAlt.alt, parsedAlt.width, parsedAlt.height, title));
+        return token;
+    });
+
+    // 3b. Extraer etiquetas HTML <img ...> reales (fuera de inline code)
+    var htmlImgRegex = /<img\b([^>]*?)\/?\s*>/gi;
+    text = text.replace(htmlImgRegex, function(match, attrsStr) {
+        var parsedTag = parseHtmlImgTag(match);
+        if (!parsedTag || !parsedTag.src) return match;
+        var token = "\uE000IMG_" + images.length + "\uE000";
+        images.push(_buildInlineImgHtml(parsedTag.src, parsedTag.alt, parsedTag.width, parsedTag.height, parsedTag.title));
+        return token;
+    });
+
+    // 3c. Preservar <a href="...">...</a> HTML simple (e.g. imágenes o texto enlazado en tablas/README)
+    var links = [];
+    var htmlAnchorRegex = /<a\b[^>]*\bhref\s*=\s*(?:"([^"]*)"|'([^']*)')[^>]*>([\s\S]*?)<\/a>/gi;
+    text = text.replace(htmlAnchorRegex, function(match, h1, h2, innerBody) {
+        var href = (h1 !== undefined ? h1 : (h2 || "")).trim();
+        if (!href || /^(?:javascript|data:text\/html)/i.test(href)) href = "#";
+        var token = "\uE000LINK_" + links.length + "\uE000";
+        var safeBody = innerBody.replace(/<[^>]+>/g, "");
+        var html = '<a href="' + escapeHtml(href) + '" style="color: ' + linkColor + '; text-decoration: none;">' + safeBody + '</a>';
+        links.push(html);
         return token;
     });
 
     // 4. Autolinks: <https://...> o <http://...> o <mailto:...>
-    var links = [];
     text = text.replace(/<(https?:\/\/[^\s>]+|mailto:[^\s>]+)>/g, function(match, url) {
         var token = "\uE000LINK_" + links.length + "\uE000";
         var safeUrl = escapeHtml(url);
@@ -1342,4 +1397,122 @@ function setImageWidthInRaw(raw, imgIndex, newWidth) {
         var nextAlt = parsed.alt + "|" + targetW;
         return "![" + nextAlt + "](" + url + (titlePart || "") + ")";
     });
+}
+
+function _readHtmlAttr(attrsStr, attrName) {
+    if (!attrsStr || !attrName) return "";
+    var re = new RegExp("(?:^|\\s)" + attrName + "\\s*=\\s*(?:\"([^\"]*)\"|'([^']*)'|([^\\s\"'=<>`]+))", "i");
+    var m = re.exec(attrsStr);
+    if (!m) return "";
+    return (m[1] !== undefined ? m[1] : (m[2] !== undefined ? m[2] : (m[3] || ""))).trim();
+}
+
+// Parsea una etiqueta HTML <img ...> extrayendo src, alt, width, height y title.
+function parseHtmlImgTag(tagHtml) {
+    if (!tagHtml || typeof tagHtml !== "string") return null;
+    var m = tagHtml.match(/^<img\b([\s\S]*?)\/?\s*>$/i);
+    if (!m) return null;
+    var attrs = m[1] || "";
+    var src = _readHtmlAttr(attrs, "src");
+    if (!src) return null;
+    var alt = _readHtmlAttr(attrs, "alt");
+    var title = _readHtmlAttr(attrs, "title");
+    var wRaw = _readHtmlAttr(attrs, "width");
+    var hRaw = _readHtmlAttr(attrs, "height");
+    var w = /^\d{1,5}(?:px)?$/i.test(wRaw) ? parseInt(wRaw, 10) : 0;
+    var h = /^\d{1,5}(?:px)?$/i.test(hRaw) ? parseInt(hRaw, 10) : 0;
+    return { src: src, alt: alt, width: w, height: h, title: title };
+}
+
+// Segmenta una celda de tabla en bloques ordenados de texto e imagen (Markdown o HTML <img>).
+// Devuelve [] si la celda no contiene imágenes (vía rápida para solo-texto).
+function extractTableCellSegments(raw) {
+    if (!raw || typeof raw !== "string") return [];
+    if (raw.indexOf("![") === -1 && !/<img\b/i.test(raw)) return [];
+
+    // Enmascarar tramos de código `...` para no extraer <img> ni ![]() literales dentro de backticks.
+    var codeMasks = [];
+    var masked = raw.replace(/`+[^`\r\n]*`+/g, function(m) {
+        var tok = "\uE001TCODE_" + codeMasks.length + "\uE001";
+        codeMasks.push(m);
+        return tok;
+    });
+    function unmask(s) {
+        var out = s;
+        for (var i = 0; i < codeMasks.length; i++) {
+            out = out.replace("\uE001TCODE_" + i + "\uE001", function() { return codeMasks[i]; });
+        }
+        return out;
+    }
+
+    var tokenRe = /(<a\b[^>]*\bhref\s*=\s*(?:"([^"]*)"|'([^']*)')[^>]*>\s*(<img\b[^>]*>)\s*<\/a>)|(\[!\[([^\]]*)\]\(((?:[^()\s]+|\([^()\s]*\))+)(?:\s+"([^"]*)")?\)\]\(([^)]+)\))|(!\[([^\]]*)\]\(((?:[^()\s]+|\([^()\s]*\))+)(?:\s+"([^"]*)")?\))|(<img\b[^>]*\/?\s*>)/gi;
+    var segments = [];
+    var lastIdx = 0;
+    var m;
+    while ((m = tokenRe.exec(masked)) !== null) {
+        if (m.index > lastIdx) {
+            var pre = unmask(masked.substring(lastIdx, m.index)).replace(/^(?:\s|<br\s*\/?>)+|(?:\s|<br\s*\/?>)+$/gi, "");
+            if (pre !== "") segments.push({ type: "text", text: pre });
+        }
+        if (m[1]) {
+            var parsedLinkedHtml = parseHtmlImgTag(m[4]);
+            if (parsedLinkedHtml && parsedLinkedHtml.src) {
+                segments.push({
+                    type: "image",
+                    src: parsedLinkedHtml.src,
+                    alt: parsedLinkedHtml.alt,
+                    width: parsedLinkedHtml.width,
+                    height: parsedLinkedHtml.height,
+                    title: parsedLinkedHtml.title,
+                    link: (m[2] !== undefined ? m[2] : (m[3] || "")).trim()
+                });
+            } else {
+                segments.push({ type: "text", text: unmask(m[0]) });
+            }
+        } else if (m[5]) {
+            var pLinkedMd = parseImageAlt(m[6]);
+            segments.push({
+                type: "image",
+                src: m[7],
+                alt: pLinkedMd.alt,
+                width: pLinkedMd.width,
+                height: pLinkedMd.height,
+                title: m[8] || "",
+                link: (m[9] || "").trim()
+            });
+        } else if (m[10]) {
+            var pMd = parseImageAlt(m[11]);
+            segments.push({
+                type: "image",
+                src: m[12],
+                alt: pMd.alt,
+                width: pMd.width,
+                height: pMd.height,
+                title: m[13] || "",
+                link: ""
+            });
+        } else if (m[14]) {
+            var pHtml = parseHtmlImgTag(m[14]);
+            if (pHtml && pHtml.src) {
+                segments.push({
+                    type: "image",
+                    src: pHtml.src,
+                    alt: pHtml.alt,
+                    width: pHtml.width,
+                    height: pHtml.height,
+                    title: pHtml.title,
+                    link: ""
+                });
+            } else {
+                segments.push({ type: "text", text: unmask(m[0]) });
+            }
+        }
+        lastIdx = tokenRe.lastIndex;
+    }
+    if (segments.length === 0) return [];
+    if (lastIdx < masked.length) {
+        var tail = unmask(masked.substring(lastIdx)).replace(/^(?:\s|<br\s*\/?>)+|(?:\s|<br\s*\/?>)+$/gi, "");
+        if (tail !== "") segments.push({ type: "text", text: tail });
+    }
+    return segments;
 }

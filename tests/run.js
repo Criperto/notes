@@ -6758,6 +6758,75 @@ runTest("F165: hotfix moveLinePill transparente escalado por zoom y subviñetas 
         "Las subviñetas con sangría deben usar Theme.color2 en modo pywal");
 });
 
+runTest("F166: ImageProbe y NotesService resuelven subcarpetas hermanas en archivos externos sin perder caché", () => {
+    assert.strictEqual(ImageProbe.normalizePath('/repo/docs/../assets/screenshots/home.png'), '/repo/assets/screenshots/home.png');
+    assert.strictEqual(ImageProbe.resolveLocal('/repo', './assets/screenshots/home.png'), '/repo/assets/screenshots/home.png');
+    assert.strictEqual(ImageProbe.resolveLocal('/repo/docs', '../assets/screenshots/home.png'), '/repo/assets/screenshots/home.png');
+    assert.strictEqual(ImageProbe.resolveLocal('/repo', 'assets/screenshots/home.png?raw=true#top'), '/repo/assets/screenshots/home.png');
+    assert.strictEqual(ImageProbe.toFileUrl('/repo', 'assets/screenshots/home.png'), 'file:///repo/assets/screenshots/home.png');
+    assert.strictEqual(ImageProbe.toFileUrl('/repo', 'https://example.com/a.png'), 'https://example.com/a.png');
+
+    const readQ = (f) => fs.readFileSync(path.resolve(__dirname, '../qml', f), 'utf8');
+    const ns = readQ('NotesService.qml');
+    const bi = readQ('BlockImage.qml');
+
+    assert.ok(ns.includes('_externalImageExists') && ns.includes('_isUnderNotesDir')
+        && ns.includes('Sys.fileExists(norm)') && ns.includes('queuedFolder'),
+        "NotesService debe separar caché externa de _imageExists, validar rutas externas con Sys.fileExists y encolar escaneos");
+    assert.ok(ns.includes('"-maxdepth", "8"') && ns.includes('"-prune"') && ns.includes('"-iname"'),
+        "externalImageProbeProc debe podar directorios pesados y buscar extensiones insensibles a mayúsculas");
+    assert.ok(bi.includes('ImageProbe.resolveLocal') && bi.includes('ImageProbe.toFileUrl')
+        && bi.includes('imgCard.imgState === "no"'),
+        "BlockImage debe normalizar rutas con ImageProbe y evitar error prematuro cuando imgState es unknown");
+});
+
+runTest("F167: Imágenes HTML/Markdown dentro de tablas Markdown con soporte de zoom", () => {
+    const parsedTag = Inline.parseHtmlImgTag('<img src="docs/screenshots/standby_aod.png" alt="Modo StandBy" width="460" />');
+    assert.ok(parsedTag && parsedTag.src === 'docs/screenshots/standby_aod.png'
+        && parsedTag.alt === 'Modo StandBy' && parsedTag.width === 460 && parsedTag.height === 0,
+        "parseHtmlImgTag debe extraer src, alt y width");
+
+    const cellHtml = '<img src="docs/screenshots/standby_aod.png" alt="Modo StandBy AMOLED con Material You" width="460" />';
+    const segs = Inline.extractTableCellSegments(cellHtml);
+    assert.strictEqual(segs.length, 1);
+    assert.strictEqual(segs[0].type, 'image');
+    assert.strictEqual(segs[0].src, 'docs/screenshots/standby_aod.png');
+    assert.strictEqual(segs[0].width, 460);
+
+    const mixedSegs = Inline.extractTableCellSegments('Captura:<br>![Vista|220](docs/a.png)<br>`<img src="ignored.png">`');
+    assert.strictEqual(mixedSegs.length, 3);
+    assert.strictEqual(mixedSegs[0].type, 'text');
+    assert.strictEqual(mixedSegs[1].type, 'image');
+    assert.strictEqual(mixedSegs[1].width, 220);
+    assert.strictEqual(mixedSegs[2].type, 'text');
+    assert.ok(mixedSegs[2].text.includes('<img src="ignored.png">'), "Los backticks no deben parsearse como imagen real");
+
+    const linkedSegs = Inline.extractTableCellSegments('<a href="https://example.com"><img src="docs/b.png" width="120"></a>');
+    assert.strictEqual(linkedSegs.length, 1);
+    assert.strictEqual(linkedSegs[0].link, 'https://example.com');
+    assert.strictEqual(linkedSegs[0].src, 'docs/b.png');
+
+    const renderedZoom = Inline.inlineToHtml(cellHtml, { baseFolder: '/repo', zoom: 1.5, maxImgWidth: 500 });
+    assert.ok(renderedZoom.includes('src="/repo/docs/screenshots/standby_aod.png"') && renderedZoom.includes('width="500"'),
+        "inlineToHtml debe convertir <img> relativo, aplicar zoom y respetar maxImgWidth");
+
+    const renderedCode = Inline.inlineToHtml('`<img src="docs/x.png" />`', { baseFolder: '/repo' });
+    assert.ok(!renderedCode.includes('<img src="file://'), "El HTML dentro de inline code debe permanecer escapado");
+
+    const noteParsed = MD.parseNote('README.md', '/repo/README.md', false, '# R\n\n| A | B |\n| --- | --- |\n| <img src="docs/screenshots/standby_aod.png" width="460" /> | ok |\n');
+    assert.ok(noteParsed.assets.includes('docs/screenshots/standby_aod.png'),
+        "MarkdownParser.parseNote debe registrar imágenes HTML <img src> en assets");
+
+    const readQ = (f) => fs.readFileSync(path.resolve(__dirname, '../qml', f), 'utf8');
+    const bt = readQ('BlockTable.qml');
+    const tcv = readQ('TableCellView.qml');
+    assert.ok(bt.includes('TableCellView') && bt.includes('hasCellImages') && bt.includes('_zoomedImgColWidth'),
+        "BlockTable debe usar TableCellView y escalar columnas de tabla con imágenes al hacer zoom");
+    assert.ok(tcv.includes('Inline.extractTableCellSegments') && tcv.includes('EditorMetrics.zoom')
+        && tcv.includes('ImageProbe.toFileUrl') && tcv.includes('openImageZoom') && tcv.includes('ImageCopyButton'),
+        "TableCellView debe renderizar imágenes con escala de zoom, probe local y visor zoom/copia");
+});
+
 console.log(`\n========================================`);
 console.log(`Resultados: ${passed} OK, ${failed} FAIL`);
 console.log(`========================================`);

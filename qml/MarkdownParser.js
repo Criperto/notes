@@ -287,7 +287,7 @@ function parseNote(fileName, filePath, fileIsDir, rawContent) {
         meta.title = baseName;
     }
 
-    // 2. Extraer assets e imágenes referenciadas en el Markdown
+    // 2. Extraer assets e imágenes referenciadas en el Markdown (![...](...) y <img src="...">)
     var assets = [];
     if (!isPlainText) {
         var imgRegex = /!\[.*?\]\((.*?)\)/g;
@@ -295,6 +295,13 @@ function parseNote(fileName, filePath, fileIsDir, rawContent) {
         while ((match = imgRegex.exec(body)) !== null) {
             if (match[1] && match[1].trim().length > 0) {
                 assets.push(match[1].trim());
+            }
+        }
+        var htmlImgRegex = /<img\b[^>]*?\bsrc\s*=\s*(?:"([^"]+)"|'([^']+)'|([^\s"'=<>`]+))[^>]*>/gi;
+        while ((match = htmlImgRegex.exec(body)) !== null) {
+            var hSrc = (match[1] || match[2] || match[3] || "").trim();
+            if (hSrc.length > 0) {
+                assets.push(hSrc);
             }
         }
     }

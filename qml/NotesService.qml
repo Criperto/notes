@@ -3051,9 +3051,16 @@ Item {
     // remota: así no hay warnings "Cannot open". La caché se invalida con
     // refresh/rescan-con-cambios y se registra al agregar imágenes desde la app.
     property var _imageExists: ({})
+    property var _externalImageExists: ({})
     property bool imageProbeReady: false
     property int imageProbeSeq: 0
     property int _lastProbeCount: -1
+
+    function _isUnderNotesDir(absPath) {
+        if (!absPath || !root.notesDir) return false;
+        var cleanRoot = ImageProbe.normalizePath(root.notesDir);
+        return absPath === cleanRoot || absPath.indexOf(cleanRoot + "/") === 0;
+    }
 
     // "yes" | "no" | "remote" | "unknown" (sin probe aún: no setear source)
     function imageStateFor(src, baseFolder) {
@@ -3062,20 +3069,45 @@ Item {
             if ((src || "").trim() === "") return "no";
             return "remote";
         }
-        if (root._imageExists && root._imageExists[abs]) return "yes";
+        if (root.imageExistsCached(abs)) return "yes";
+        if (externalImageProbeProc.running && externalImageProbeProc.pendingFolder) {
+            var pf = externalImageProbeProc.pendingFolder;
+            if (abs === pf || abs.indexOf(pf + "/") === 0) return "unknown";
+        }
         if (!root.imageProbeReady) return "unknown";
         return "no";
     }
 
     function imageExistsCached(absPath) {
-        return !!(absPath && root._imageExists && root._imageExists[absPath]);
+        var norm = ImageProbe.normalizePath(absPath || "");
+        if (!norm) return false;
+        if (root._imageExists && root._imageExists[norm]) return true;
+        if (root._externalImageExists && root._externalImageExists[norm]) return true;
+        // Para notas/READMEs externos (o rutas en subcarpetas fuera de notesDir), verificar
+        // en disco de forma síncrona sin disparar señales ni borrar caché al re-sondear notesDir.
+        var isExt = (root.activeNote && root.activeNote.isExternal) || !root._isUnderNotesDir(norm);
+        if (isExt && typeof Sys !== "undefined" && Sys && typeof Sys.fileExists === "function") {
+            if (Sys.fileExists(norm)) {
+                if (!root._externalImageExists) root._externalImageExists = ({});
+                root._externalImageExists[norm] = true;
+                return true;
+            }
+        }
+        return false;
     }
 
     function registerImagePath(absPath) {
-        if (!absPath) return;
-        var m = Object.assign({}, root._imageExists);
-        m[absPath] = true;
-        root._imageExists = m;
+        var norm = ImageProbe.normalizePath(absPath || "");
+        if (!norm) return;
+        if (root._isUnderNotesDir(norm)) {
+            var m = Object.assign({}, root._imageExists);
+            m[norm] = true;
+            root._imageExists = m;
+        } else {
+            var em = Object.assign({}, root._externalImageExists);
+            em[norm] = true;
+            root._externalImageExists = em;
+        }
         root.imageProbeReady = true;
         root.imageProbeSeq++;
     }
@@ -3083,24 +3115,56 @@ Item {
     Process {
         id: externalImageProbeProc
         property string pendingFolder: ""
+        property string queuedFolder: ""
+        property string outText: ""
         running: false
-        command: ["find", pendingFolder, "-maxdepth", "3", "-type", "f", "(",
-            "-name", "*.png", "-o", "-name", "*.jpg", "-o", "-name", "*.jpeg", "-o",
-            "-name", "*.webp", "-o", "-name", "*.gif", "-o", "-name", "*.svg", "-o",
-            "-name", "*.bmp", ")"]
         stdout: SplitParser {
             onRead: (line) => {
-                var p = String(line).trim();
-                if (p) root.registerImagePath(p);
+                externalImageProbeProc.outText += line + "\n";
+            }
+        }
+        onExited: (exitCode) => {
+            var extMap = Object.assign({}, root._externalImageExists || {});
+            var changed = false;
+            if (exitCode === 0 || externalImageProbeProc.outText !== "") {
+                var lines = externalImageProbeProc.outText.split("\n");
+                for (var i = 0; i < lines.length; i++) {
+                    var p = ImageProbe.normalizePath(lines[i]);
+                    if (p && !extMap[p]) {
+                        extMap[p] = true;
+                        changed = true;
+                    }
+                }
+            }
+            outText = "";
+            if (changed) {
+                root._externalImageExists = extMap;
+                root.imageProbeSeq++;
+            }
+            var nextFolder = queuedFolder;
+            queuedFolder = "";
+            pendingFolder = "";
+            if (nextFolder !== "") {
+                scan(nextFolder);
             }
         }
         function scan(folder) {
-            if (!folder || running) return;
-            pendingFolder = folder;
-            command = ["find", folder, "-maxdepth", "3", "-type", "f", "(",
-                "-name", "*.png", "-o", "-name", "*.jpg", "-o", "-name", "*.jpeg", "-o",
-                "-name", "*.webp", "-o", "-name", "*.gif", "-o", "-name", "*.svg", "-o",
-                "-name", "*.bmp", ")"];
+            var clean = ImageProbe.normalizePath(folder || "");
+            if (!clean) return;
+            if (running) {
+                if (clean !== pendingFolder) queuedFolder = clean;
+                return;
+            }
+            pendingFolder = clean;
+            outText = "";
+            command = ["find", clean, "-maxdepth", "8",
+                "(", "-name", ".git", "-o", "-name", "node_modules", "-o", "-name", "target",
+                "-o", "-name", "build", "-o", "-name", "dist", "-o", "-name", ".gradle",
+                "-o", "-name", "__pycache__", ")", "-prune", "-o",
+                "-type", "f", "(",
+                "-iname", "*.png", "-o", "-iname", "*.jpg", "-o", "-iname", "*.jpeg", "-o",
+                "-iname", "*.webp", "-o", "-iname", "*.gif", "-o", "-iname", "*.svg", "-o",
+                "-iname", "*.bmp", ")", "-print"];
             running = true;
         }
         Component.onDestruction: { running = false; }

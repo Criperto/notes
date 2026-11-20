@@ -62,6 +62,7 @@ fn main() {
         "qml/BlockCode.qml",
         "qml/BlockList.qml",
         "qml/BlockTable.qml",
+        "qml/TableCellView.qml",
         "qml/BlockImage.qml",
         "qml/ImageCopyButton.qml",
         "qml/ImageZoomOverlay.qml",

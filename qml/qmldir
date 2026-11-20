@@ -40,6 +40,7 @@ BlockHr            1.0 BlockHr.qml
 BlockCode          1.0 BlockCode.qml
 BlockList          1.0 BlockList.qml
 BlockTable         1.0 BlockTable.qml
+TableCellView      1.0 TableCellView.qml
 BlockImage         1.0 BlockImage.qml
 ImageCopyButton    1.0 ImageCopyButton.qml
 ImageZoomOverlay   1.0 ImageZoomOverlay.qml

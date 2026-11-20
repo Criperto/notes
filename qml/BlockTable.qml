@@ -84,10 +84,36 @@ Item {
     property int focusedCol: 0
 
     // ── Dimensiones dinámicas de columnas y tabla ─────────────────────────
+    readonly property bool hasCellImages: {
+        var tbl = root.parsedTable;
+        if (!tbl) return false;
+        var hasImgToken = function(s) {
+            return typeof s === "string" && (s.indexOf("![") !== -1 || /<img\b/i.test(s));
+        };
+        if (tbl.headers) {
+            for (var c = 0; c < tbl.headers.length; c++) {
+                if (hasImgToken(tbl.headers[c])) return true;
+            }
+        }
+        if (tbl.rows) {
+            for (var r = 0; r < tbl.rows.length; r++) {
+                var row = tbl.rows[r];
+                if (!row) continue;
+                for (var j = 0; j < row.length; j++) {
+                    if (hasImgToken(row[j])) return true;
+                }
+            }
+        }
+        return false;
+    }
     readonly property real minColWidth: Math.max(96, Math.round(96 * (EditorMetrics.zoom || 1.0)))
     readonly property int colCount: (root.parsedTable && root.parsedTable.headers) ? Math.max(1, root.parsedTable.headers.length) : 1
     readonly property real availableTableWidth: Math.max(100, (tableFlickable ? tableFlickable.width : 400) - ((addColDot && addColDot.visible) ? (addColDot.width + 12) : 0))
-    readonly property real colWidth: Math.max(minColWidth, Math.floor(availableTableWidth / colCount))
+    readonly property real _baseColWidth: Math.max(minColWidth, Math.floor(availableTableWidth / colCount))
+    readonly property real _zoomedImgColWidth: (hasCellImages && (EditorMetrics.zoom || 1.0) > 1.0)
+        ? Math.floor((availableTableWidth / colCount) * EditorMetrics.zoom)
+        : 0
+    readonly property real colWidth: Math.max(_baseColWidth, _zoomedImgColWidth)
     readonly property real tableColWidth: colCount * colWidth
 
     function ensureCellVisible(colIndex) {
@@ -1004,7 +1030,7 @@ Item {
                                     border.color: isCurrentCell ? Theme.accent : Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.08)
                                     border.width: isCurrentCell ? 1.5 : 1
 
-                                    readonly property real cellHeight: Math.max(headerContainer.minHeaderHeight, (isCurrentCell ? hInput.paintedHeight : hViewText.paintedHeight) + 14)
+                                    readonly property real cellHeight: Math.max(headerContainer.minHeaderHeight, (isCurrentCell ? hInput.paintedHeight : headerCellView.contentHeight) + 14)
                                     onCellHeightChanged: headerContainer.updateHeaderHeight()
                                     property bool _isDestroyed: false
                                     Component.onDestruction: {
@@ -1146,82 +1172,44 @@ Item {
                                     }
 
                                     // Modo lectura: Text con RichText y clic en enlaces
-                                    Text {
-                                        id: hViewText
+                                    TableCellView {
+                                        id: headerCellView
                                         visible: !headerCell.isCurrentCell
                                         anchors.left: parent.left
                                         anchors.right: parent.right
                                         anchors.leftMargin: 8
                                         anchors.rightMargin: 8
                                         anchors.verticalCenter: parent.verticalCenter
-                                        text: Inline.inlineToHtml(modelData, {
-                                            zoom: EditorMetrics.zoom,
-                                            textColor: "" + Theme.text,
-                                            mathColor: "" + Theme.text,
-                                            mathPtSize: Math.max(8.0, EditorMetrics.body * 0.75),
-                                            linkColor: "" + Theme.accent, highlightBg: EditorMetrics.highlightBg,
-                                            codeBg: Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.08),
-                                            codeColor: Theme.text,
-                                            kbdBezel: Theme.lightMode ? "#dcdcdc" : ("" + Theme.accent),
-                                            kbdShadow1: Theme.lightMode ? "#9f9f9f" : ("" + Qt.darker(Theme.accent, 1.55)),
-                                            kbdShadow2: Theme.lightMode ? "#b0b0b0" : ("" + Qt.darker(Theme.accent, 1.25)),
-                                            kbdPlate: Theme.lightMode ? "#ffffff" : ("" + Theme.surface),
-                                            kbdText: Theme.lightMode ? "#1c1c1c" : ("" + Theme.color15),
-                                            fontFamilyMonospace: Theme.fontFamilyMonospace || "JetBrains Mono",
-                                            lightMode: Theme.lightMode,
-                                            baseFolder: root.editor ? root.editor.imgBaseFolder : "",
-                                            imageSkipMissing: true,
-                                            imageExists: root.editor ? root.editor.imageExistsFn : null,
-                                            probeTick: NotesService.imageProbeSeq,
-                                            searchQuery: root.editor ? root.editor.searchQuery : "",
-                                            searchHighlightBg: root.editor ? ("" + root.editor.searchHighlightColor) : "",
-                                            searchHighlightActiveBg: (root.editor && root.blockData) ? root.editor.searchActiveBg(root.blockData.bid, colIndex) : "",
-                                            searchActiveOrdinal: (root.editor && root.blockData) ? root.editor.searchActiveOrdinal(root.blockData.bid, colIndex) : -1,
-                                            searchHighlightActiveFg: (root.editor && root.blockData) ? root.editor.searchActiveFg(root.blockData.bid, colIndex) : ""
-                                        })
-                                        textFormat: Text.RichText
-                                        font.family: Theme.fontFamily
-                                        font.pixelSize: EditorMetrics.fs(Theme.fontSizeCaption + 1)
-                                        font.bold: true
-                                        color: Theme.text
-                                        wrapMode: Text.WrapAtWordBoundaryOrAnywhere
-                                        horizontalAlignment: root._getAlignment(colIndex)
-
-                                        HoverHandler {
-                                            enabled: parent.hoveredLink !== ""
-                                            cursorShape: Qt.PointingHandCursor
+                                        rawText: modelData || ""
+                                        editor: root.editor
+                                        blockData: root.blockData
+                                        cellUnitIndex: colIndex
+                                        cellAlignment: root._getAlignment(colIndex)
+                                        fontPixelSize: EditorMetrics.fs(Theme.fontSizeCaption + 1)
+                                        fontBold: true
+                                        isReadOnly: root.isReadOnly
+                                        onLinkClicked: (url) => {
+                                            if (root.editor && typeof root.editor.handleLink === "function") {
+                                                root.editor.handleLink(url);
+                                            }
                                         }
-
-                                        MouseArea {
-                                            anchors.fill: parent
-                                            acceptedButtons: Qt.LeftButton | Qt.RightButton
-                                            cursorShape: hViewText.hoveredLink !== "" ? Qt.PointingHandCursor : Qt.IBeamCursor
-                                            onClicked: (mouse) => {
-                                                if (mouse.button === Qt.RightButton) {
-                                                    if (root.editor) {
-                                                        root.editor.requestEditBlock(root.blockData.bid);
-                                                        root.focusCell(-1, colIndex);
-                                                        Qt.callLater(() => {
-                                                            var input = root._getCellInput(-1, colIndex);
-                                                            if (input) {
-                                                                var p = input.positionAt ? input.positionAt(mouse.x, mouse.y) : -1;
-                                                                headerCell._openContextMenuAt(input, p, false);
-                                                            }
-                                                        });
+                                        onEditRequested: {
+                                            if (root.editor) {
+                                                root.editor.requestEditBlock(root.blockData.bid);
+                                                root.focusCell(-1, colIndex);
+                                            }
+                                        }
+                                        onContextMenuRequested: (mx, my) => {
+                                            if (root.editor) {
+                                                root.editor.requestEditBlock(root.blockData.bid);
+                                                root.focusCell(-1, colIndex);
+                                                Qt.callLater(() => {
+                                                    var input = root._getCellInput(-1, colIndex);
+                                                    if (input) {
+                                                        var p = input.positionAt ? input.positionAt(mx, my) : -1;
+                                                        headerCell._openContextMenuAt(input, p, false);
                                                     }
-                                                    return;
-                                                }
-                                                var link = hViewText.linkAt(mouse.x, mouse.y);
-                                                if (link && link !== "") {
-                                                    if (root.editor && typeof root.editor.handleLink === "function") {
-                                                        root.editor.handleLink(link);
-                                                    }
-                                                    return;
-                                                }
-                                                if (root.editor) {
-                                                    root.editor.requestEditBlock(root.blockData.bid);
-                                                    root.focusCell(-1, colIndex);
-                                                }
+                                                });
                                             }
                                         }
                                     }
@@ -1449,7 +1437,7 @@ Item {
                                 border.color: isCurrentCell ? Theme.accent : Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.06)
                                 border.width: isCurrentCell ? 1.5 : 1
 
-                                readonly property real cellHeight: Math.max(rowRect.minRowHeight, (isCurrentCell ? cellInput.paintedHeight : cellViewText.paintedHeight) + 14)
+                                readonly property real cellHeight: Math.max(rowRect.minRowHeight, (isCurrentCell ? cellInput.paintedHeight : dataCellView.contentHeight) + 14)
                                 onCellHeightChanged: rowRect.updateRowHeight()
                                 Component.onCompleted: rowRect.updateRowHeight()
 
@@ -1591,81 +1579,44 @@ Item {
                                 }
 
                                 // Modo lectura: RichText con detección de enlaces y wrap multilínea
-                                Text {
-                                    id: cellViewText
+                                TableCellView {
+                                    id: dataCellView
                                     visible: !dataCell.isCurrentCell
                                     anchors.left: parent.left
                                     anchors.right: parent.right
                                     anchors.leftMargin: 8
                                     anchors.rightMargin: 8
                                     anchors.verticalCenter: parent.verticalCenter
-                                    text: Inline.inlineToHtml(modelData, {
-                                        zoom: EditorMetrics.zoom,
-                                        textColor: "" + Theme.text,
-                                        mathColor: "" + Theme.text,
-                                        mathPtSize: Math.max(8.0, EditorMetrics.body * 0.75),
-                                        linkColor: "" + Theme.accent, highlightBg: EditorMetrics.highlightBg,
-                                        codeBg: Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.08),
-                                        codeColor: Theme.text,
-                                        kbdBezel: Theme.lightMode ? "#dcdcdc" : ("" + Theme.accent),
-                                        kbdShadow1: Theme.lightMode ? "#9f9f9f" : ("" + Qt.darker(Theme.accent, 1.55)),
-                                        kbdShadow2: Theme.lightMode ? "#b0b0b0" : ("" + Qt.darker(Theme.accent, 1.25)),
-                                        kbdPlate: Theme.lightMode ? "#ffffff" : ("" + Theme.surface),
-                                        kbdText: Theme.lightMode ? "#1c1c1c" : ("" + Theme.color15),
-                                        fontFamilyMonospace: Theme.fontFamilyMonospace || "JetBrains Mono",
-                                        lightMode: Theme.lightMode,
-                                        baseFolder: root.editor ? root.editor.imgBaseFolder : "",
-                                        imageSkipMissing: true,
-                                        imageExists: root.editor ? root.editor.imageExistsFn : null,
-                                        probeTick: NotesService.imageProbeSeq,
-                                        searchQuery: root.editor ? root.editor.searchQuery : "",
-                                        searchHighlightBg: root.editor ? ("" + root.editor.searchHighlightColor) : "",
-                                        searchHighlightActiveBg: (root.editor && root.blockData && root.parsedTable) ? root.editor.searchActiveBg(root.blockData.bid, root.parsedTable.headers.length + rowRect.rowIndex * root.parsedTable.headers.length + colIndex) : "",
-                                        searchActiveOrdinal: (root.editor && root.blockData && root.parsedTable) ? root.editor.searchActiveOrdinal(root.blockData.bid, root.parsedTable.headers.length + rowRect.rowIndex * root.parsedTable.headers.length + colIndex) : -1,
-                                        searchHighlightActiveFg: (root.editor && root.blockData && root.parsedTable) ? root.editor.searchActiveFg(root.blockData.bid, root.parsedTable.headers.length + rowRect.rowIndex * root.parsedTable.headers.length + colIndex) : ""
-                                    })
-                                    textFormat: Text.RichText
-                                    font.family: Theme.fontFamily
-                                    font.pixelSize: EditorMetrics.caption
-                                    color: Theme.text
-                                    wrapMode: Text.WrapAtWordBoundaryOrAnywhere
-                                    horizontalAlignment: root._getAlignment(colIndex)
-
-                                    HoverHandler {
-                                        enabled: parent.hoveredLink !== ""
-                                        cursorShape: Qt.PointingHandCursor
+                                    rawText: modelData || ""
+                                    editor: root.editor
+                                    blockData: root.blockData
+                                    cellUnitIndex: (root.parsedTable) ? (root.parsedTable.headers.length + rowRect.rowIndex * root.parsedTable.headers.length + colIndex) : 0
+                                    cellAlignment: root._getAlignment(colIndex)
+                                    fontPixelSize: EditorMetrics.caption
+                                    fontBold: false
+                                    isReadOnly: root.isReadOnly
+                                    onLinkClicked: (url) => {
+                                        if (root.editor && typeof root.editor.handleLink === "function") {
+                                            root.editor.handleLink(url);
+                                        }
                                     }
-
-                                    MouseArea {
-                                        anchors.fill: parent
-                                        acceptedButtons: Qt.LeftButton | Qt.RightButton
-                                        cursorShape: cellViewText.hoveredLink !== "" ? Qt.PointingHandCursor : Qt.IBeamCursor
-                                        onClicked: (mouse) => {
-                                            if (mouse.button === Qt.RightButton) {
-                                                if (root.editor) {
-                                                    root.editor.requestEditBlock(root.blockData.bid);
-                                                    root.focusCell(rowRect.rowIndex, colIndex);
-                                                    Qt.callLater(() => {
-                                                        var input = root._getCellInput(rowRect.rowIndex, colIndex);
-                                                        if (input) {
-                                                            var p = input.positionAt ? input.positionAt(mouse.x, mouse.y) : -1;
-                                                            dataCell._openContextMenuAt(input, p, false);
-                                                        }
-                                                    });
+                                    onEditRequested: {
+                                        if (root.editor) {
+                                            root.editor.requestEditBlock(root.blockData.bid);
+                                            root.focusCell(rowRect.rowIndex, colIndex);
+                                        }
+                                    }
+                                    onContextMenuRequested: (mx, my) => {
+                                        if (root.editor) {
+                                            root.editor.requestEditBlock(root.blockData.bid);
+                                            root.focusCell(rowRect.rowIndex, colIndex);
+                                            Qt.callLater(() => {
+                                                var input = root._getCellInput(rowRect.rowIndex, colIndex);
+                                                if (input) {
+                                                    var p = input.positionAt ? input.positionAt(mx, my) : -1;
+                                                    dataCell._openContextMenuAt(input, p, false);
                                                 }
-                                                return;
-                                            }
-                                            var link = cellViewText.linkAt(mouse.x, mouse.y);
-                                            if (link && link !== "") {
-                                                if (root.editor && typeof root.editor.handleLink === "function") {
-                                                    root.editor.handleLink(link);
-                                                }
-                                                return;
-                                            }
-                                            if (root.editor) {
-                                                root.editor.requestEditBlock(root.blockData.bid);
-                                                root.focusCell(rowRect.rowIndex, colIndex);
-                                            }
+                                            });
                                         }
                                     }
                                 }
