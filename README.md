@@ -8,6 +8,30 @@
 
 ---
 
+## 📸 Capturas de Pantalla
+
+### Panel Principal y Búsqueda Rápida
+Vista principal con búsqueda instantánea (`Ctrl+F`), ordenamiento, filtro por carpetas/etiquetas, papelera estándar del sistema y creación rápida de notas.
+
+![Panel principal de Notas](assets/screenshots/home.png)
+
+### Editor Visual por Bloques y Temas Dinámicos
+Edición fluida en *Live Preview* con jerarquía de encabezados, formatos enriquecidos, corrector ortográfico integrado y adaptación automática de colores desde **Pywal**, **CripertoShell** o el tema Qt del sistema.
+
+![Editor visual por bloques y temas dinámicos](assets/screenshots/editor-blocks.png)
+
+### Fórmulas Matemáticas LaTeX (`inline` y `display`)
+Renderizado nativo mediante `latex-rust` para fórmulas dentro de párrafos (`$...$`) y bloques centrados (`$$...$$`) con edición y copiado directo.
+
+![Fórmulas matemáticas LaTeX en Notas](assets/screenshots/latex-math.png)
+
+### Edición y Vista Previa de Otros Archivos y Código Externo
+Además de tus notas Markdown, podés abrir y editar otros archivos (`.lua`, `.conf`, `.py`, `.rs`, `.json`, `.yaml`, etc.) desde cualquier ruta del sistema con numeración de líneas, resaltado de sintaxis nativo, apertura segura en solo lectura (`Editar acá` / `Importar a Notas`) y guardado manual opcional para evitar recargas automáticas al editar configuraciones en vivo.
+
+![Vista previa y edición de archivos externos de código](assets/screenshots/external-code.png)
+
+---
+
 ## 🌟 Características Principales
 
 - **Edición Híbrida Live-Preview:** Edición fluida por bloques de párrafos, listas con checkboxes interactivos, citas multinivel, tablas dinámicas y código resaltado con selector de lenguajes.
