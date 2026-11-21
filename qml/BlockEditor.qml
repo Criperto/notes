@@ -175,7 +175,9 @@ Flickable {
             scrollAnim.restart();
         } else {
             if (scrollAnim && scrollAnim.running) scrollAnim.stop();
+            root._programmaticScroll = true;
             root.contentY = targetY;
+            root._programmaticScroll = false;
         }
     }
 
@@ -204,8 +206,51 @@ Flickable {
     }
 
     property bool _ensureCursorPending: false
+    property bool _windowWasInactive: false
+    property bool _suppressFocusReturnScroll: false
+    property bool _allowCursorRectScroll: false
+    property bool _programmaticScroll: false
+
+    Timer {
+        id: windowReactivateGuardTimer
+        interval: 260
+        repeat: false
+        onTriggered: {
+            root._suppressFocusReturnScroll = false;
+        }
+    }
+
+    Connections {
+        target: root.Window.window
+        ignoreUnknownSignals: true
+        function onActiveChanged() {
+            var w = root.Window.window;
+            if (!w) return;
+            if (!w.active) {
+                root._windowWasInactive = true;
+                root._suppressFocusReturnScroll = true;
+                root._allowCursorRectScroll = false;
+                windowReactivateGuardTimer.stop();
+            } else if (root._windowWasInactive) {
+                root._windowWasInactive = false;
+                root._suppressFocusReturnScroll = true;
+                root._allowCursorRectScroll = false;
+                windowReactivateGuardTimer.restart();
+            }
+        }
+    }
+
+    onMovingChanged: {
+        if (moving) {
+            root._allowCursorRectScroll = false;
+        }
+    }
+
     function scheduleEnsureCursorVisible(smooth) {
         if (!root || root._isDestroyed || root._applyingHistory || root._pointerDragActive || root.isDraggingSelection || root.hasBlockSelection) return;
+        if (root._suppressFocusReturnScroll) return;
+        var win = root.Window.window;
+        if (win && !win.active) return;
         if (_ensureCursorPending) return;
         _ensureCursorPending = true;
         var useSmooth = (smooth !== false);
@@ -213,6 +258,9 @@ Flickable {
             if (!root || root._isDestroyed) return;
             root._ensureCursorPending = false;
             if (root._applyingHistory || root._pointerDragActive || root.isDraggingSelection || root.hasBlockSelection || root.readOnly) return;
+            if (root._suppressFocusReturnScroll) return;
+            var w2 = root.Window.window;
+            if (w2 && !w2.active) return;
             var fi = root._activeCursorInput;
             if (!fi || !fi.visible) return;
             var cr = fi.cursorRectangle;
@@ -224,13 +272,29 @@ Flickable {
 
     Connections {
         target: root._activeCursorInput
-        function onCursorRectangleChanged() {
+        ignoreUnknownSignals: true
+        function onCursorPositionChanged() {
+            if (root._suppressFocusReturnScroll) return;
+            root._allowCursorRectScroll = true;
             root.scheduleEnsureCursorVisible(true);
+        }
+        function onTextChanged() {
+            root._suppressFocusReturnScroll = false;
+            root._allowCursorRectScroll = true;
+            root.scheduleEnsureCursorVisible(true);
+        }
+        function onCursorRectangleChanged() {
+            if (root._allowCursorRectScroll && !root._suppressFocusReturnScroll) {
+                root.scheduleEnsureCursorVisible(true);
+            }
         }
     }
     on_ActiveCursorInputChanged: {
-        if (root._activeCursorInput) {
-            root.scheduleEnsureCursorVisible(true);
+        if (root._activeCursorInput && root._allowCursorRectScroll && !root._suppressFocusReturnScroll) {
+            var win = root.Window.window;
+            if (!win || win.active) {
+                root.scheduleEnsureCursorVisible(true);
+            }
         }
     }
 
@@ -322,6 +386,9 @@ Flickable {
     }
 
     onContentYChanged: {
+        if (!root._programmaticScroll && !(scrollAnim && scrollAnim.running)) {
+            root._allowCursorRectScroll = false;
+        }
         if (contextMenu && contextMenu.visible && !contextMenu.isClosing) {
             contextMenu.close();
         }
@@ -4342,6 +4409,8 @@ Flickable {
                 if (typeof cb === "function") {
                     cb(loader.item);
                 }
+                root._suppressFocusReturnScroll = false;
+                root._allowCursorRectScroll = true;
                 root.scheduleEnsureCursorVisible(true);
             }
         };

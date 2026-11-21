@@ -6827,6 +6827,39 @@ runTest("F167: Imágenes HTML/Markdown dentro de tablas Markdown con soporte de 
         "TableCellView debe renderizar imágenes con escala de zoom, probe local y visor zoom/copia");
 });
 
+runTest("F168: Hotfix formato inline con [`code`](url) sin \\uE000 y supresión de autoscroll al volver a la ventana", () => {
+    const sample = '**FPS siempre en fallback `60` — [`RecordingState.qml`](file:///home/u/RecordingState.qml#L220)**: lee `DisplaysState.displays`';
+    const htmlEdit = Inline.formatForLiveEditing(sample, {
+        cursorPos: -1, selStart: -1, selEnd: -1, dimColor: '#888', linkColor: '#e56018', hideSyntax: false
+    });
+    const htmlRead = Inline.formatForLiveEditing(sample, {
+        cursorPos: -1, selStart: -1, selEnd: -1, dimColor: '#888', linkColor: '#e56018', hideSyntax: true
+    });
+    assert.ok(!htmlEdit.includes('\uE000') && !htmlRead.includes('\uE000'),
+        "formatForLiveEditing jamás debe filtrar el token interno \\uE000 en enlaces o imágenes con código");
+    assert.ok(htmlEdit.includes('RecordingState.qml') && htmlRead.includes('RecordingState.qml'),
+        "El texto legible dentro de [`code`](url) debe conservarse íntegro");
+
+    const plainBack = htmlEdit
+        .replace(/<[^>]+>/g, '')
+        .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+    assert.strictEqual(plainBack, sample, "El round-trip de texto plano debe mantenerse byte a byte al contener [`code`](url)");
+
+    const wikiSample = '[[Nota|`alias`]] y <u>`sub`</u> y <kbd>`K`</kbd>';
+    const wikiHtml = Inline.formatForLiveEditing(wikiSample, { cursorPos: -1, selStart: -1, selEnd: -1 });
+    assert.ok(!wikiHtml.includes('\uE000') && wikiHtml.includes('alias') && wikiHtml.includes('sub') && wikiHtml.includes('K'),
+        "wikilink/u/kbd tampoco deben filtrar \\uE000 de maskedSrc");
+
+    const be = fs.readFileSync(path.resolve(__dirname, '../qml/BlockEditor.qml'), 'utf8');
+    assert.ok(be.includes('_suppressFocusReturnScroll')
+        && be.includes('windowReactivateGuardTimer')
+        && be.includes('target: root.Window.window')
+        && be.includes('_allowCursorRectScroll')
+        && be.includes('onContentYChanged:'),
+        "BlockEditor debe suprimir autoscroll hacia el cursor cuando la ventana recupera el foco o tras scroll manual");
+});
+
 console.log(`\n========================================`);
 console.log(`Resultados: ${passed} OK, ${failed} FAIL`);
 console.log(`========================================`);

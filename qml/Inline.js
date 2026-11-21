@@ -944,18 +944,20 @@ function _collectInlineSpans(src) {
     var maskedSrc = maskedChars.join("").replace(/\\([*_[\]~=\\`!#$])/g, "\uE000\uE000");
     var m;
 
-    // 2. Imágenes markdown: ![alt](url)
+    // 2. Imágenes markdown: ![alt](url) (slicing desde `src` para nunca filtrar \uE000 de maskedSrc)
     var imgRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
     while ((m = imgRegex.exec(maskedSrc)) !== null) {
-        var alt = m[1];
-        var url = m[2];
+        var imgAltLen = m[1].length;
+        var imgUrlLen = m[2].length;
+        var alt = src.substr(m.index + 2, imgAltLen);
+        var url = src.substr(m.index + 2 + imgAltLen + 2, imgUrlLen);
         spans.push({ type: "image", start: m.index, end: m.index + m[0].length, openDelim: "![", closeDelim: "](" + url + ")", inner: alt, url: url });
     }
 
     // 3. Wikilinks: [[nota]] o [[nota|alias]]
     var wikiRegex = /\[\[([^\]\r\n]+)\]\]/g;
     while ((m = wikiRegex.exec(maskedSrc)) !== null) {
-        var full = m[1];
+        var full = src.substr(m.index + 2, m[1].length);
         var pipeIdx = full.indexOf("|");
         var target = pipeIdx !== -1 ? full.substring(0, pipeIdx) : full;
         var label = pipeIdx !== -1 ? full.substring(pipeIdx + 1) : full;
@@ -975,8 +977,10 @@ function _collectInlineSpans(src) {
     while ((m = linkRegex.exec(maskedSrc)) !== null) {
         var pfxLen = m[1].length;
         var s = m.index + pfxLen;
-        var label = m[2];
-        var url = m[3];
+        var labelLen = m[2].length;
+        var urlLen = m[3].length;
+        var label = src.substr(s + 1, labelLen);
+        var url = src.substr(s + 1 + labelLen + 2, urlLen);
         var matchLen = m[0].length - pfxLen;
         spans.push({ type: "link", start: s, end: s + matchLen, openDelim: "[", closeDelim: "](" + url + ")", inner: label, url: url });
     }
@@ -1033,16 +1037,20 @@ function _collectInlineSpans(src) {
     // 9. Subrayado: <u>...</u> o &lt;u&gt;...&lt;/u&gt;
     var uRegex = /<u>([\s\S]*?)<\/u>|&lt;u&gt;([\s\S]*?)&lt;\/u&gt;/gi;
     while ((m = uRegex.exec(maskedSrc)) !== null) {
-        var inner = m[1] !== undefined ? m[1] : m[2];
-        var isEsc = (m[0].indexOf("&lt;") !== -1);
+        var isEsc = (m[0].toLowerCase().indexOf("&lt;") === 0);
+        var innerULen = (m[1] !== undefined ? m[1] : m[2]).length;
+        var openULen = isEsc ? 9 : 3;
+        var inner = src.substr(m.index + openULen, innerULen);
         spans.push({ type: "underline", start: m.index, end: m.index + m[0].length, openDelim: isEsc ? "&lt;u&gt;" : "<u>", closeDelim: isEsc ? "&lt;/u&gt;" : "</u>", inner: inner });
     }
 
     // 9b. Teclas de atajo: <kbd>...</kbd> o &lt;kbd&gt;...&lt;/kbd&gt;
     var kbdRegex = /<kbd>([\s\S]*?)<\/kbd>|&lt;kbd&gt;([\s\S]*?)&lt;\/kbd&gt;/gi;
     while ((m = kbdRegex.exec(maskedSrc)) !== null) {
-        var innerKbd = m[1] !== undefined ? m[1] : m[2];
-        var isEscKbd = (m[0].indexOf("&lt;") !== -1);
+        var isEscKbd = (m[0].toLowerCase().indexOf("&lt;") === 0);
+        var innerKbdLen = (m[1] !== undefined ? m[1] : m[2]).length;
+        var openKbdLen = isEscKbd ? 11 : 5;
+        var innerKbd = src.substr(m.index + openKbdLen, innerKbdLen);
         spans.push({
             type: "kbd",
             start: m.index,
@@ -1064,7 +1072,7 @@ function _collectInlineSpans(src) {
     while ((m = mathRegex.exec(maskedSrc)) !== null) {
         var pfxLen = m[0].startsWith("$") ? 0 : 1;
         var s = m.index + pfxLen;
-        var inner = m[1];
+        var inner = src.substr(s + 1, m[1].length);
         var totalLen = inner.length + 2;
         spans.push({
             type: "math",
@@ -1175,10 +1183,10 @@ function formatForLiveEditing(src, opts) {
             : (hideSyntax ? "" : ('<span style="font-size: 1px; color: transparent;">' + escapeHtml(sp.closeDelim) + '</span>'));
 
         var innerHtml = "";
-        if (sp.type === "code" || sp.type === "kbd" || sp.type === "math" || sp.type === "link" || sp.type === "image" || sp.type === "wikilink") {
+        if (sp.type === "code" || sp.type === "kbd" || sp.type === "math" || sp.type === "image") {
             innerHtml = escapeHtml(sp.inner);
         } else {
-            // Formatear recursivamente el contenido interno (soporta formatos anidados como **negrita *cursiva***)
+            // Formatear recursivamente el contenido interno (soporta formatos anidados como **negrita *cursiva*** y [`código`](url))
             var innerOpts = {};
             for (var k in options) innerOpts[k] = options[k];
             var innerOffset = sp.start + sp.openDelim.length;
