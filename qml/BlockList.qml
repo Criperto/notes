@@ -729,15 +729,39 @@ Item {
             root.isEditing = true;
         }
         var targetIdx = 0;
+        var resolvedPos = cursorPos;
         var fromBot = (cursorPos === -1 || (typeof cursorPos === "object" && cursorPos !== null && (cursorPos.fromBottom === true || cursorPos.y > 1000)));
         if (fromBot && itemsRepeater.count > 0) {
             targetIdx = itemsRepeater.count - 1;
-        } else if (typeof cursorPos === "object" && cursorPos !== null && (cursorPos.fromTop === true || cursorPos.y === 0)) {
+        } else if (typeof cursorPos === "object" && cursorPos !== null && cursorPos.fromTop === true) {
             targetIdx = 0;
+        } else if (typeof cursorPos === "object" && cursorPos !== null && typeof cursorPos.y === "number" && itemsRepeater.count > 0) {
+            var bestIdx = -1;
+            var minDist = 999999;
+            for (var i = 0; i < itemsRepeater.count; i++) {
+                var del = itemsRepeater.itemAt(i);
+                if (!del) continue;
+                var topY = del.y;
+                var botY = del.y + del.height;
+                if (cursorPos.y >= topY && cursorPos.y <= botY) {
+                    bestIdx = i;
+                    break;
+                }
+                var dist = Math.min(Math.abs(cursorPos.y - topY), Math.abs(cursorPos.y - botY));
+                if (dist < minDist) {
+                    minDist = dist;
+                    bestIdx = i;
+                }
+            }
+            if (bestIdx !== -1) {
+                targetIdx = bestIdx;
+                var pickedDel = itemsRepeater.itemAt(targetIdx);
+                resolvedPos = { x: cursorPos.x, y: Math.max(0, cursorPos.y - (pickedDel ? pickedDel.y : 0)) };
+            }
         } else if (root.activeItemIndex >= 0 && (itemsRepeater.count === 0 || root.activeItemIndex < itemsRepeater.count)) {
             targetIdx = root.activeItemIndex;
         }
-        _focusItem(targetIdx, cursorPos);
+        _focusItem(targetIdx, resolvedPos);
     }
 
     // Confirma la coincidencia activa dentro del ítem indicado, con el cursor
@@ -841,6 +865,9 @@ Item {
         var multi = hasMultipleItemsSelected();
         if (hasMultiItemSelection !== multi) {
             hasMultiItemSelection = multi;
+        }
+        if (multi && root.editor && root.blockData) {
+            root.editor.focusedSelectionBid = root.blockData.bid;
         }
         return multi;
     }
@@ -1486,7 +1513,7 @@ Item {
                 }
 
                 function selectAllText() {
-                    if (lineEdit) lineEdit.selectAll();
+                    if (lineEdit) lineEdit.select(0, lineEdit.length);
                 }
 
                 function clearTextSelection() {
@@ -2553,7 +2580,7 @@ Item {
                         propagateComposedEvents: true
                         onClicked: (mouse) => {
                             if (mouse.button === Qt.RightButton && root.editor && root.editor.contextMenu) {
-                                if (!root.editor.hasBlockSelection) {
+                                if (!root.editor.hasBlockSelection && !root.hasMultiItemSelection && !root.hasMultipleItemsSelected()) {
                                     lineEdit.forceActiveFocus();
                                 }
                                 var pos = lineEdit.positionAt(mouse.x, mouse.y);

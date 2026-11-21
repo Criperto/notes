@@ -43,14 +43,21 @@ Window {
     }
     signal extraItemTriggered(var item)
 
+    function _hasMultiSelection() {
+        return !!(editor && (
+            (typeof editor.hasBlockSelection !== "undefined" && editor.hasBlockSelection) ||
+            (typeof editor.hasMultiItemSelectionActive === "function" && editor.hasMultiItemSelectionActive())
+        ));
+    }
+
     function _hasAnySelection() {
-        if (editor && typeof editor.hasBlockSelection !== "undefined" && editor.hasBlockSelection) return true;
+        if (_hasMultiSelection()) return true;
         if (target && typeof target.selectedText === "string" && target.selectedText !== "") return true;
         return false;
     }
 
     function _performCopy() {
-        if (editor && typeof editor.hasBlockSelection !== "undefined" && editor.hasBlockSelection) {
+        if (_hasMultiSelection()) {
             var txt = (typeof editor.getSelectedText === "function") ? editor.getSelectedText() : "";
             if (txt !== "") {
                 if (typeof editor.copyText === "function") {
@@ -67,7 +74,7 @@ Window {
     }
 
     function _performCut() {
-        if (editor && typeof editor.hasBlockSelection !== "undefined" && editor.hasBlockSelection) {
+        if (_hasMultiSelection()) {
             var txt = (typeof editor.getSelectedText === "function") ? editor.getSelectedText() : "";
             if (txt !== "") {
                 if (typeof editor.copyText === "function") {
@@ -87,7 +94,7 @@ Window {
     }
 
     function _performDelete() {
-        if (editor && typeof editor.hasBlockSelection !== "undefined" && editor.hasBlockSelection) {
+        if (_hasMultiSelection()) {
             if (typeof editor.replaceSelectedRange === "function") {
                 editor.replaceSelectedRange("");
                 return;

@@ -2619,14 +2619,35 @@ Item {
                     spacing: 8
 
                     Flickable {
+                        id: toolbarFlickable
                         Layout.fillWidth: true
                         Layout.fillHeight: true
                         contentWidth: toolbarRow.implicitWidth
-                    clip: true
-                    flickableDirection: Flickable.HorizontalFlick
-                    boundsBehavior: Flickable.StopAtBounds
-                    interactive: contentWidth > width
-                    onContentXChanged: tooltipLayer.hideTooltip()
+                        clip: true
+                        flickableDirection: Flickable.HorizontalFlick
+                        boundsBehavior: Flickable.StopAtBounds
+                        interactive: contentWidth > width
+                        onContentXChanged: tooltipLayer.hideTooltip()
+
+                        WheelHandler {
+                            id: toolbarWheelHandler
+                            target: null
+                            enabled: toolbarFlickable.contentWidth > toolbarFlickable.width
+                            acceptedDevices: PointerDevice.AllDevices
+                            grabPermissions: PointerHandler.CanTakeOverFromItems | PointerHandler.CanTakeOverFromHandlersOfDifferentType | PointerHandler.ApprovesTakeOverByAnything
+                            onWheel: (event) => {
+                                var dx = (event.pixelDelta && Math.abs(event.pixelDelta.x) > 0) ? event.pixelDelta.x : 0;
+                                var dy = (event.pixelDelta && Math.abs(event.pixelDelta.y) > 0) ? event.pixelDelta.y : 0;
+                                var delta = (dx !== 0) ? dx : (dy !== 0 ? dy : (event.angleDelta.x !== 0 ? event.angleDelta.x : event.angleDelta.y));
+                                if (delta !== 0) {
+                                    var maxX = Math.max(0, toolbarFlickable.contentWidth - toolbarFlickable.width);
+                                    toolbarFlickable.contentX = Math.max(0, Math.min(maxX, toolbarFlickable.contentX - delta * 0.65));
+                                    event.accepted = true;
+                                } else {
+                                    event.accepted = false;
+                                }
+                            }
+                        }
 
                     RowLayout {
                         id: toolbarRow

@@ -1172,6 +1172,15 @@ Flickable {
         Component.onDestruction: { running = false; }
     }
 
+    function hasMultiItemSelectionActive() {
+        if (root.hasBlockSelection) return true;
+        var bid = root.activeBlockBid !== -1 ? root.activeBlockBid : root.focusedSelectionBid;
+        if (bid === -1) return false;
+        var ldr = _getDelegateItemForBid(bid);
+        if (!ldr || !ldr.item) return false;
+        return Boolean(ldr.item.hasMultiItemSelection || (typeof ldr.item.hasMultipleItemsSelected === "function" && ldr.item.hasMultipleItemsSelected()));
+    }
+
     function getSelectedText() {
         if (!hasBlockSelection) {
             var targetBid = root.activeBlockBid !== -1 ? root.activeBlockBid : root.focusedSelectionBid;
@@ -4435,6 +4444,7 @@ Flickable {
             delegate: Loader {
                 id: blockLoader
                 width: blocksColumn.width
+                z: blockIsEditing ? 40 : 0
 
                 readonly property var blockItemData: model
                 readonly property bool blockIsEditing: root.activeBlockBid === model.bid
@@ -4584,15 +4594,57 @@ Flickable {
                         anchors.centerIn: parent
                         spacing: moveLinePill.btnSpacing
 
-                        Rectangle {
+                        ClippingRectangle {
                             id: upMoveBtn
                             width: moveLinePill.btnSize
                             height: moveLinePill.btnSize
                             radius: moveLinePill.btnRadius
                             opacity: moveLinePill.canMoveUp ? 1.0 : 0.32
-                            color: (moveLinePill.canMoveUp && upBlkMa.containsMouse)
-                                ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.22)
-                                : Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.06)
+                            color: "transparent"
+
+                            Item {
+                                id: upBlurClip
+                                anchors.fill: parent
+                                visible: !GamemodeService.gamemodeActive && blockLoader.item !== null && blockLoader.item.width > 0 && blockLoader.item.height > 0
+                                readonly property real bx: moveLinePill.x + upMoveBtn.x
+                                readonly property real by: moveLinePill.y + upMoveBtn.y
+                                readonly property real sx: Math.max(0, Math.round(bx - 18))
+                                readonly property real sy: Math.max(0, Math.round(by - 18))
+                                readonly property real sw: Math.max(1, Math.round(Math.min(blockLoader.item ? blockLoader.item.width : 1, bx + upMoveBtn.width + 18) - sx))
+                                readonly property real sh: Math.max(1, Math.round(Math.min(blockLoader.item ? blockLoader.item.height : 1, by + upMoveBtn.height + 18) - sy))
+                                ShaderEffectSource {
+                                    x: upBlurClip.sx - upBlurClip.bx
+                                    y: upBlurClip.sy - upBlurClip.by
+                                    width: upBlurClip.sw
+                                    height: upBlurClip.sh
+                                    sourceItem: blockLoader.item
+                                    sourceRect: Qt.rect(upBlurClip.sx, upBlurClip.sy, upBlurClip.sw, upBlurClip.sh)
+                                    live: moveLinePill.visible && !GamemodeService.gamemodeActive
+                                    hideSource: false
+                                    layer.enabled: upBlurClip.visible
+                                    layer.smooth: true
+                                    layer.effect: MultiEffect {
+                                        autoPaddingEnabled: false
+                                        blurEnabled: !GamemodeService.gamemodeActive
+                                        blur: 1.0
+                                        blurMax: 64
+                                        saturation: 0.15
+                                    }
+                                }
+                            }
+
+                            Rectangle {
+                                anchors.fill: parent
+                                radius: moveLinePill.btnRadius
+                                color: (moveLinePill.canMoveUp && upBlkMa.containsMouse)
+                                    ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.32)
+                                    : Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, GamemodeService.gamemodeActive ? 0.96 : 0.76)
+                                border.color: (moveLinePill.canMoveUp && upBlkMa.containsMouse)
+                                    ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.55)
+                                    : Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.10)
+                                border.width: 1
+                            }
+
                             Image {
                                 anchors.centerIn: parent
                                 width: moveLinePill.iconSize
@@ -4616,15 +4668,57 @@ Flickable {
                             }
                         }
 
-                        Rectangle {
+                        ClippingRectangle {
                             id: downMoveBtn
                             width: moveLinePill.btnSize
                             height: moveLinePill.btnSize
                             radius: moveLinePill.btnRadius
                             opacity: moveLinePill.canMoveDown ? 1.0 : 0.32
-                            color: (moveLinePill.canMoveDown && downBlkMa.containsMouse)
-                                ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.22)
-                                : Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.06)
+                            color: "transparent"
+
+                            Item {
+                                id: downBlurClip
+                                anchors.fill: parent
+                                visible: !GamemodeService.gamemodeActive && blockLoader.item !== null && blockLoader.item.width > 0 && blockLoader.item.height > 0
+                                readonly property real bx: moveLinePill.x + downMoveBtn.x
+                                readonly property real by: moveLinePill.y + downMoveBtn.y
+                                readonly property real sx: Math.max(0, Math.round(bx - 18))
+                                readonly property real sy: Math.max(0, Math.round(by - 18))
+                                readonly property real sw: Math.max(1, Math.round(Math.min(blockLoader.item ? blockLoader.item.width : 1, bx + downMoveBtn.width + 18) - sx))
+                                readonly property real sh: Math.max(1, Math.round(Math.min(blockLoader.item ? blockLoader.item.height : 1, by + downMoveBtn.height + 18) - sy))
+                                ShaderEffectSource {
+                                    x: downBlurClip.sx - downBlurClip.bx
+                                    y: downBlurClip.sy - downBlurClip.by
+                                    width: downBlurClip.sw
+                                    height: downBlurClip.sh
+                                    sourceItem: blockLoader.item
+                                    sourceRect: Qt.rect(downBlurClip.sx, downBlurClip.sy, downBlurClip.sw, downBlurClip.sh)
+                                    live: moveLinePill.visible && !GamemodeService.gamemodeActive
+                                    hideSource: false
+                                    layer.enabled: downBlurClip.visible
+                                    layer.smooth: true
+                                    layer.effect: MultiEffect {
+                                        autoPaddingEnabled: false
+                                        blurEnabled: !GamemodeService.gamemodeActive
+                                        blur: 1.0
+                                        blurMax: 64
+                                        saturation: 0.15
+                                    }
+                                }
+                            }
+
+                            Rectangle {
+                                anchors.fill: parent
+                                radius: moveLinePill.btnRadius
+                                color: (moveLinePill.canMoveDown && downBlkMa.containsMouse)
+                                    ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.32)
+                                    : Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, GamemodeService.gamemodeActive ? 0.96 : 0.76)
+                                border.color: (moveLinePill.canMoveDown && downBlkMa.containsMouse)
+                                    ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.55)
+                                    : Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.10)
+                                border.width: 1
+                            }
+
                             Image {
                                 anchors.centerIn: parent
                                 width: moveLinePill.iconSize
@@ -4701,7 +4795,7 @@ Flickable {
                                   || last.type === "hr"    || last.type === "html" || last.type === "raw"
                                   || last.type === "mermaid" || last.type === "math");
             if (needsNewParagraph) root.insertParagraphAfter(last.bid);
-            else root.requestEditBlock(last.bid);
+            else root.requestEditBlock(last.bid, -1);
             return;
         }
 
@@ -4711,7 +4805,7 @@ Flickable {
         var loader = (idx !== -1) ? blocksRepeater.itemAt(idx) : null;
         if (loader) {
             var bType = blocksModel.get(idx).type;
-            if (bType === "list" || bType === "table" || bType === "image" || bType === "hr" || bType === "mermaid" || bType === "math") {
+            if (bType === "table" || bType === "image" || bType === "hr" || bType === "mermaid" || bType === "math") {
                 root.requestEditBlock(bid);
             } else {
                 var lx = Math.max(0, Math.min(loader.width - 1, cx - blocksColumn.x));

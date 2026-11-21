@@ -6860,6 +6860,35 @@ runTest("F168: Hotfix formato inline con [`code`](url) sin \\uE000 y supresión 
         "BlockEditor debe suprimir autoscroll hacia el cursor cuando la ventana recupera el foco o tras scroll manual");
 });
 
+runTest("F169: v0.3.9 — scroll en topbar, click en margen final sin salto, copia multi-ítem con click derecho y blur fuerte en moveLinePill", () => {
+    const readQ = (f) => fs.readFileSync(path.resolve(__dirname, '../qml', f), 'utf8');
+    const modal = readQ('NoteEditorModal.qml');
+    const be = readQ('BlockEditor.qml');
+    const bl = readQ('BlockList.qml');
+    const cm = readQ('ContextMenu.qml');
+
+    assert.ok(modal.includes('id: toolbarFlickable') && modal.includes('id: toolbarWheelHandler')
+        && modal.includes('toolbarFlickable.contentX'),
+        "La barra de herramientas superior debe aceptar scroll con rueda del mouse cuando la ventana es angosta");
+
+    assert.ok(!be.includes('if (bType === "list" || bType === "table"')
+        && bl.includes('cursorPos.y >= topY && cursorPos.y <= botY'),
+        "Al hacer click en el margen derecho de un BlockList, debe enfocarse la línea correspondiente sin saltar hacia arriba");
+
+    assert.ok(be.includes('function hasMultiItemSelectionActive()')
+        && cm.includes('function _hasMultiSelection()')
+        && cm.includes('editor.hasMultiItemSelectionActive()')
+        && bl.includes('!root.hasMultiItemSelection && !root.hasMultipleItemsSelected()'),
+        "Copiar/cortar desde el menú contextual debe copiar toda la selección multi-ítem aunque se haga click derecho sobre un solo ítem");
+
+    assert.ok(be.includes('z: blockIsEditing ? 40 : 0')
+        && be.includes('id: upBlurClip')
+        && be.includes('id: downBlurClip')
+        && be.includes('blurMax: 64')
+        && be.includes('ShaderEffectSource'),
+        "moveLinePill debe elevar su z sobre bloques vecinos y usar ShaderEffectSource + MultiEffect con blur fuerte para evitar transparencia legible del texto");
+});
+
 console.log(`\n========================================`);
 console.log(`Resultados: ${passed} OK, ${failed} FAIL`);
 console.log(`========================================`);
