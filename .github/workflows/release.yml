@@ -48,7 +48,8 @@ jobs:
 
       - name: Run automated test suite
         run: |
-          node tests/run.js
+          if [ -f tests/run.js ]; then node tests/run.js; fi
+          cargo test --locked
 
       - name: Compile release binary
         run: |

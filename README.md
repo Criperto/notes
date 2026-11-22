@@ -208,17 +208,6 @@ Subcomandos headless:
 
 ---
 
-## 🧪 Pruebas Automatizadas
-
-La aplicación cuenta con pruebas unitarias en Rust (`cargo test`) y una suite de pruebas QML/JS (`tests/run.js`) que verifican serialización Markdown, diagramas Mermaid, sincronización, sanitización y regresiones de interfaz:
-
-```bash
-cargo test
-node tests/run.js
-```
-
----
-
 ## 📄 Licencia
 
 Este proyecto está licenciado bajo los términos de la **GNU General Public License v3.0 or later (GPL-3.0-or-later)**.
