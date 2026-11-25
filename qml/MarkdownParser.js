@@ -235,10 +235,11 @@ function parseNote(fileName, filePath, fileIsDir, rawContent) {
     filePath = filePath || "";
     var nameForExt = fileName || filePath;
     var isTxt = /\.txt$/i.test(nameForExt);
+    var isHtmlFile = /\.html?$/i.test(nameForExt);
     var hasExt = /\.[A-Za-z0-9_+-]+$/.test(nameForExt);
     var isMarkdownFile = !hasExt || /\.(md|markdown|mdx)$/i.test(nameForExt);
-    var isPlainText = isTxt || !isMarkdownFile;
-    var format = isTxt ? "txt" : (isMarkdownFile ? "md" : "plain");
+    var isPlainText = isTxt || isHtmlFile || !isMarkdownFile;
+    var format = isTxt ? "txt" : (isHtmlFile ? "html" : (isMarkdownFile ? "md" : "plain"));
     var meta = {
         title: "",
         subtitle: "",
@@ -268,13 +269,18 @@ function parseNote(fileName, filePath, fileIsDir, rawContent) {
         if (fm.meta.tags !== undefined) meta.tags = fm.meta.tags;
     }
 
-    body = sanitizeQtHtml(body);
+    if (!isHtmlFile || body.indexOf("<meta name=\"qrichtext\"") !== -1) {
+        body = sanitizeQtHtml(body);
+    }
 
     var rawName = fileName.replace(/\.(md|txt)$/i, "");
     var baseName = rawName.indexOf("/") !== -1 ? rawName.substring(rawName.lastIndexOf("/") + 1) : rawName;
     var slug = rawName.toLowerCase();
 
-    if (format === "plain") {
+    if (format === "html") {
+        var htmlTitleM = body.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || body.match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/i);
+        meta.title = htmlTitleM ? htmlTitleM[1].replace(/<[^>]+>/g, "").trim() : baseName;
+    } else if (format === "plain") {
         meta.title = baseName;
     } else if (!meta.title || meta.title === "") {
         var derived = _deriveTitle(body, baseName);
@@ -289,7 +295,7 @@ function parseNote(fileName, filePath, fileIsDir, rawContent) {
 
     // 2. Extraer assets e imágenes referenciadas en el Markdown (![...](...) y <img src="...">)
     var assets = [];
-    if (!isPlainText) {
+    if (!isPlainText || format === "html") {
         var imgRegex = /!\[.*?\]\((.*?)\)/g;
         var match;
         while ((match = imgRegex.exec(body)) !== null) {
@@ -308,7 +314,7 @@ function parseNote(fileName, filePath, fileIsDir, rawContent) {
 
     var baseFolder = "";
     if (filePath) {
-        var isActualFile = /\.(md|txt)$/i.test(filePath || "") || format === "plain";
+        var isActualFile = /\.(md|txt)$/i.test(filePath || "") || format === "plain" || format === "html";
         if (fileIsDir && !isActualFile) {
             baseFolder = filePath;
         } else {
@@ -387,13 +393,15 @@ function parseNote(fileName, filePath, fileIsDir, rawContent) {
 function serializeNote(meta, body) {
     meta = meta || {};
     var cleanBody = (body !== undefined && body !== null ? body : "");
-    cleanBody = sanitizeQtHtml(cleanBody);
+    if (meta.format !== "html" || cleanBody.indexOf("<meta name=\"qrichtext\"") !== -1) {
+        cleanBody = sanitizeQtHtml(cleanBody);
+    }
     cleanBody = cleanBody.replace(/[\u200B\uFEFF]/g, "");
 
     var fn0 = meta.fileName || meta.filePath || "";
     var fnHasExt = /\.[A-Za-z0-9_+-]+$/.test(fn0);
     var fnIsMd = !fn0 || !fnHasExt || /\.(md|markdown|mdx)$/i.test(fn0);
-    if (meta.format === "txt" || meta.format === "plain" || !fnIsMd) {
+    if (meta.format === "txt" || meta.format === "plain" || meta.format === "html" || !fnIsMd) {
         return cleanBody;
     }
 

@@ -16,6 +16,8 @@ import "TableParser.js" as TP
 import "QuoteParser.js" as QP
 import "MermaidTemplates.js" as MermaidTemplates
 import "MathTemplates.js" as MathTemplates
+import "HtmlTemplates.js" as HtmlTemplates
+import "HtmlStyleParser.js" as HtmlStyleParser
 import "ReferenceLogic.js" as ReferenceLogic
 import "CodeHelper.js" as CodeHelper
 
@@ -46,6 +48,7 @@ Item {
     // el lugar en varios flujos y los bindings a objetos JS mutados no avisan.
     property bool isTxt: false
     property bool isPlainCode: false
+    property bool isHtmlFile: false
     readonly property bool isPlainFormat: isTxt || isPlainCode
     // El modelo de bloques se carga al terminar el morph de apertura
     // (los ~65 delegates no pagan instanciación durante la animación).
@@ -341,6 +344,7 @@ Item {
         // Las .txt y archivos que no son Markdown (.lua, .conf, .py, etc.) abren directo en modo fuente plano
         root.isTxt = root.noteData.format === "txt";
         root.isPlainCode = root.noteData.format === "plain";
+        root.isHtmlFile = root.noteData.format === "html";
         root.isSourceMode = root.isPlainFormat;
         root.closeFind();
         if (sourceFlickable) sourceFlickable.contentY = 0;
@@ -950,12 +954,39 @@ Item {
         importToast.showText("Versión restaurada (Ctrl+Z para deshacer)");
     }
 
+    function _resolveInlineMarkerForSource(action) {
+        if (!action || typeof action !== "string") return "";
+        if (action === "bold") return "**";
+        if (action === "italic") return "*";
+        if (action === "underline") return "<u>";
+        if (action === "strike") return "~~";
+        if (action === "highlight") return "==";
+        if (action === "inline_code") return "`";
+        if (action === "sup") return "<sup>";
+        if (action === "sub") return "<sub>";
+        if (action === "kbd") return "<kbd>";
+        if (action === "mark") return "<mark>";
+        if (action === "ins") return "<ins>";
+        if (action === "small") return "<small>";
+        if (action === "text_color") return "<color:" + String(Theme.accent) + ">";
+        if (action === "bg_color") return "<bg:rgba(138, 180, 248, 0.22)>";
+        if (action.startsWith("color:")) return "<color:" + action.substring(6) + ">";
+        if (action.startsWith("bg_color:")) return "<bg:" + action.substring(9) + ">";
+        if (action.startsWith("bg:")) return "<bg:" + action.substring(3) + ">";
+        return "";
+    }
+
     function _applySourceInlineFormat(marker) {
         if (!sourceCodeEditor) return;
         var s = sourceCodeEditor.selectionStart;
         var e = sourceCodeEditor.selectionEnd;
         var txt = sourceCodeEditor.text;
-        var res = Inline.toggleWrap(txt, s, e, marker);
+        var res = (marker === "CLEAR_COLOR")
+            ? (function() {
+                var r1 = Inline.toggleWrap(txt, s, e, "<color:>");
+                return Inline.toggleWrap(r1.text, r1.newSelStart, r1.newSelEnd, "<bg:>");
+            })()
+            : Inline.toggleWrap(txt, s, e, marker);
         if (res && res.text !== txt) {
             sourceCodeEditor.text = res.text;
             sourceCodeEditor.select(res.newSelStart, res.newSelEnd);
@@ -963,6 +994,27 @@ Item {
             sourceCodeEditor.forceActiveFocus();
             root.markDirty();
         }
+    }
+
+    function _applySourceAlign(action) {
+        if (!sourceCodeEditor) return;
+        var target = action.substring(6);
+        var s = sourceCodeEditor.selectionStart;
+        var e = sourceCodeEditor.selectionEnd;
+        var txt = sourceCodeEditor.text;
+        var chunkStart = Math.min(s, e);
+        var chunkEnd = Math.max(s, e);
+        if (chunkStart === chunkEnd) {
+            while (chunkStart > 0 && txt[chunkStart - 1] !== "\n") chunkStart--;
+            while (chunkEnd < txt.length && txt[chunkEnd] !== "\n") chunkEnd++;
+        }
+        var chunk = txt.substring(chunkStart, chunkEnd);
+        var res = HtmlTemplates.applyAlignContainer(chunk, target);
+        sourceCodeEditor.remove(chunkStart, chunkEnd);
+        sourceCodeEditor.insert(chunkStart, res.raw);
+        sourceCodeEditor.select(chunkStart, chunkStart + res.raw.length);
+        sourceCodeEditor.forceActiveFocus();
+        root.markDirty();
     }
 
     function _toggleSourceLinePrefix(action) {
@@ -1059,19 +1111,29 @@ Item {
             return;
         }
         if (root.isSourceMode) {
-            if (action === "bold") _applySourceInlineFormat("**");
-            else if (action === "italic") _applySourceInlineFormat("*");
-            else if (action === "underline") _applySourceInlineFormat("<u>");
-            else if (action === "strike") _applySourceInlineFormat("~~");
-            else if (action === "highlight") _applySourceInlineFormat("==");
-            else if (action === "inline_code") _applySourceInlineFormat("`");
-            else if (action === "h1" || action === "h2" || action === "h3" ||
+            var srcMarker = root._resolveInlineMarkerForSource(action);
+            if (srcMarker !== "") {
+                _applySourceInlineFormat(srcMarker);
+            } else if (action === "clear_color") {
+                _applySourceInlineFormat("CLEAR_COLOR");
+            } else if (action === "align_left" || action === "align_center" || action === "align_right" || action === "align_justify") {
+                _applySourceAlign(action);
+            } else if (action === "h1" || action === "h2" || action === "h3" ||
                      action === "h4" || action === "h5" || action === "h6" ||
                      action === "bullet_list" || action === "ordered_list" ||
                      action === "task_list" || action === "quote") {
                 _toggleSourceLinePrefix(action);
-            }
-            else if (action === "code_block") {
+            } else if (action === "html_block" || action === "details_block" || (typeof action === "string" && action.startsWith("html:"))) {
+                var hPos = sourceCodeEditor.cursorPosition;
+                var hKey = (typeof action === "string" && action.startsWith("html:"))
+                    ? action.substring(5)
+                    : (action === "details_block" ? "details" : "card");
+                var hTpl = HtmlTemplates.getTemplate(hKey) + "\n";
+                sourceCodeEditor.insert(hPos, "\n" + hTpl);
+                sourceCodeEditor.cursorPosition = hPos + hTpl.length + 1;
+                sourceCodeEditor.forceActiveFocus();
+                root.markDirty();
+            } else if (action === "code_block") {
                 _applySourceInlineFormat("```\n");
             }
             else if (action === "hr") {
@@ -1147,7 +1209,10 @@ Item {
             var cur = sourceCodeEditor.cursorPosition;
 
             // Formatos inline (cacheados por snapshot para evitar O(N) por botón)
-            if (actionId === "bold" || actionId === "italic" || actionId === "underline" || actionId === "strike" || actionId === "highlight" || actionId === "inline_code" || actionId === "link") {
+            if (actionId === "bold" || actionId === "italic" || actionId === "underline" ||
+                actionId === "strike" || actionId === "highlight" || actionId === "inline_code" ||
+                actionId === "link" || actionId === "sup" || actionId === "sub" ||
+                actionId === "kbd" || actionId === "text_color" || actionId === "bg_color") {
                 var sc = root._sourceFormatCache;
                 var sig = root.sourceFormatSeq + ":" + txt.length + ":" + s + ":" + e + ":" + cur;
                 if (sc.seq !== root.sourceFormatSeq || sc.sig !== sig || !sc.det) {
@@ -1185,6 +1250,11 @@ Item {
                 var fenceCount = (beforeCursor.match(/^```/gm) || []).length;
                 return (fenceCount % 2) === 1;
             }
+            if (actionId === "align_center" || actionId === "align_right" || actionId === "align_justify") {
+                return HtmlTemplates.detectAlign(line) === actionId.substring(6);
+            }
+            if (actionId === "details_block") return /<details\b/i.test(line);
+            if (actionId === "html_block") return /^<(?:div|details|table|center|figure|blockquote|style)\b/i.test(line.trim());
             return false;
         }
 
@@ -1256,6 +1326,10 @@ Item {
         if (type === "raw") {
             // BlockRaw pinta texto plano (escapeHtml + highlight, como BlockCode)
             return [{ unit: 0, paintMd: raw, plainCount: true, base: 0, item: -1, row: -2, col: -2 }];
+        }
+        if (type === "html") {
+            var visHtml = HtmlStyleParser.extractVisibleText(raw, {});
+            return visHtml ? [{ unit: 0, paintMd: visHtml, plainCount: true, base: 0, item: -1, row: -2, col: -2 }] : [];
         }
         if (type === "heading") {
             // BlockHeading pinta cleanHeadingText (sin prefijo "## ")
@@ -1457,6 +1531,35 @@ Item {
         imageLightbox.open(srcUrl, srcItem, natW, natH);
     }
 
+    readonly property bool anyToolbarPopupOpen: headingMenuPopup.isOpen || imageMenuPopup.isOpen || mermaidMenuPopup.isOpen || mathMenuPopup.isOpen || colorMenuPopup.isOpen || alignMenuPopup.isOpen || htmlMenuPopup.isOpen
+
+    function _closeAllToolbarPopups(exceptPopup) {
+        var popups = [headingMenuPopup, imageMenuPopup, mermaidMenuPopup, mathMenuPopup, colorMenuPopup, alignMenuPopup, htmlMenuPopup];
+        for (var i = 0; i < popups.length; i++) {
+            if (popups[i] && popups[i] !== exceptPopup) popups[i].isOpen = false;
+        }
+    }
+
+    function _popupX(anchorBtn, popupWidth, popupParent) {
+        if (!anchorBtn || !popupParent) return Math.max(0, toolbarRect.x + toolbarRect.width - popupWidth);
+        try {
+            var pt = anchorBtn.mapToItem(popupParent, 0, 0);
+            return Math.max(16, Math.min(popupParent.width - popupWidth - 16, pt.x + (anchorBtn.width - popupWidth) / 2));
+        } catch (e) {
+            return Math.max(0, toolbarRect.x + toolbarRect.width - popupWidth);
+        }
+    }
+
+    function _popupY(anchorBtn, popupParent) {
+        if (!anchorBtn || !popupParent) return toolbarRect.y + toolbarRect.height + 4;
+        try {
+            var pt = anchorBtn.mapToItem(popupParent, 0, anchorBtn.height + 6);
+            return pt.y;
+        } catch (e) {
+            return toolbarRect.y + toolbarRect.height + 4;
+        }
+    }
+
     function handleEscapeKey() {
         if (root._isDestroyed || root.isClosing || !root.isExpanded || root.isSettingsOpen) return;
         if (typeof unsavedConfirmOverlay !== "undefined" && unsavedConfirmOverlay && unsavedConfirmOverlay.isOpen) {
@@ -1479,20 +1582,8 @@ Item {
             blockEditor.slashMenu.close();
             return;
         }
-        if (headingMenuPopup.isOpen) {
-            headingMenuPopup.isOpen = false;
-            return;
-        }
-        if (imageMenuPopup.isOpen) {
-            imageMenuPopup.isOpen = false;
-            return;
-        }
-        if (mermaidMenuPopup.isOpen) {
-            mermaidMenuPopup.isOpen = false;
-            return;
-        }
-        if (mathMenuPopup.isOpen) {
-            mathMenuPopup.isOpen = false;
+        if (root.anyToolbarPopupOpen) {
+            root._closeAllToolbarPopups(null);
             return;
         }
         if (root.tagSuggestions && root.tagSuggestions.length > 0) {
@@ -2756,6 +2847,25 @@ Item {
                             onClicked: root.applyFormatOrAction("inline_code")
                         }
 
+                        // 6b. Color de texto y fondo (HTML <span> / CSS)
+                        ToolbarButton {
+                            id: colorToolbarBtn
+                            actionId: "text_color"
+                            disabled: root.isPlainFormat
+                            tooltipLayer: tooltipLayer
+                            iconSource: Theme.iconsPath + "format-color-text.svg"
+                            active: root.isFormatActive("text_color") || root.isFormatActive("bg_color") || colorMenuPopup.isOpen
+                            onClicked: {
+                                var willOpen = !colorMenuPopup.isOpen;
+                                if (willOpen) {
+                                    root._closeAllToolbarPopups(colorMenuPopup);
+                                    colorMenuPopup.updatePosition();
+                                }
+                                colorMenuPopup.isOpen = willOpen;
+                            }
+                            onRightClicked: root.applyFormatOrAction("clear_color")
+                        }
+
                         Rectangle { width: 1; height: 18; color: Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.1) }
 
                         // Encabezados H1-H6 (menú desplegable de arriba a abajo)
@@ -2779,9 +2889,7 @@ Item {
                             onClicked: {
                                 var willOpen = !headingMenuPopup.isOpen;
                                 if (willOpen) {
-                                    imageMenuPopup.isOpen = false;
-                                    mermaidMenuPopup.isOpen = false;
-                                    mathMenuPopup.isOpen = false;
+                                    root._closeAllToolbarPopups(headingMenuPopup);
                                     headingMenuPopup.updatePosition();
                                 }
                                 headingMenuPopup.isOpen = willOpen;
@@ -2818,6 +2926,29 @@ Item {
                             iconSource: Theme.iconsPath + "checklist.svg"
                             active: root.isFormatActive("task_list")
                             onClicked: root.applyFormatOrAction("task_list")
+                        }
+
+                        // 11b. Alineación (<div align="center|right|justify">)
+                        ToolbarButton {
+                            id: alignToolbarBtn
+                            actionId: "align_menu"
+                            disabled: root.isPlainFormat
+                            tooltipLayer: tooltipLayer
+                            iconSource: Theme.iconsPath + (
+                                root.isFormatActive("align_center") ? "align-horizontal-center.svg" :
+                                (root.isFormatActive("align_right") ? "align-horizontal-right.svg" :
+                                (root.isFormatActive("align_justify") ? "format-align-justify.svg" : "align-horizontal-left.svg"))
+                            )
+                            active: root.isFormatActive("align_center") || root.isFormatActive("align_right") || root.isFormatActive("align_justify") || alignMenuPopup.isOpen
+                            onClicked: {
+                                var willOpen = !alignMenuPopup.isOpen;
+                                if (willOpen) {
+                                    root._closeAllToolbarPopups(alignMenuPopup);
+                                    alignMenuPopup.updatePosition();
+                                }
+                                alignMenuPopup.isOpen = willOpen;
+                            }
+                            onRightClicked: root.applyFormatOrAction("align_center")
                         }
 
                         Rectangle { width: 1; height: 18; color: Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.1) }
@@ -2863,9 +2994,7 @@ Item {
                             onClicked: {
                                 var willOpen = !mermaidMenuPopup.isOpen;
                                 if (willOpen) {
-                                    headingMenuPopup.isOpen = false;
-                                    imageMenuPopup.isOpen = false;
-                                    mathMenuPopup.isOpen = false;
+                                    root._closeAllToolbarPopups(mermaidMenuPopup);
                                     mermaidMenuPopup.updatePosition();
                                 }
                                 mermaidMenuPopup.isOpen = willOpen;
@@ -2883,14 +3012,31 @@ Item {
                             onClicked: {
                                 var willOpen = !mathMenuPopup.isOpen;
                                 if (willOpen) {
-                                    headingMenuPopup.isOpen = false;
-                                    imageMenuPopup.isOpen = false;
-                                    mermaidMenuPopup.isOpen = false;
+                                    root._closeAllToolbarPopups(mathMenuPopup);
                                     mathMenuPopup.updatePosition();
                                 }
                                 mathMenuPopup.isOpen = willOpen;
                             }
                             onRightClicked: mathMenuPopup.isOpen = !mathMenuPopup.isOpen
+                        }
+
+                        // 14d. HTML / CSS y desplegables
+                        ToolbarButton {
+                            id: htmlToolbarBtn
+                            actionId: "html_menu"
+                            disabled: root.isPlainFormat
+                            tooltipLayer: tooltipLayer
+                            iconSource: Theme.iconsPath + "html-block.svg"
+                            active: root.isFormatActive("html_block") || root.isFormatActive("details_block") || htmlMenuPopup.isOpen
+                            onClicked: {
+                                var willOpen = !htmlMenuPopup.isOpen;
+                                if (willOpen) {
+                                    root._closeAllToolbarPopups(htmlMenuPopup);
+                                    htmlMenuPopup.updatePosition();
+                                }
+                                htmlMenuPopup.isOpen = willOpen;
+                            }
+                            onRightClicked: root.applyFormatOrAction("html_block")
                         }
 
                         // 15. HR
@@ -2914,9 +3060,7 @@ Item {
                             onClicked: {
                                 var willOpen = !imageMenuPopup.isOpen;
                                 if (willOpen) {
-                                    headingMenuPopup.isOpen = false;
-                                    mermaidMenuPopup.isOpen = false;
-                                    mathMenuPopup.isOpen = false;
+                                    root._closeAllToolbarPopups(imageMenuPopup);
                                     imageMenuPopup.updatePosition();
                                 }
                                 imageMenuPopup.isOpen = willOpen;
@@ -3429,6 +3573,7 @@ Item {
                         var name = (root.noteData && (root.noteData.filePath || root.noteData.fileName || root.noteData.title)) || "";
                         return CodeHelper.inferLangFromFileName(name);
                     }
+                    if (root.isHtmlFile) return "html";
                     return root.isTxt ? "" : "markdown";
                 }
                 property var lineGeoms: []
@@ -3895,13 +4040,10 @@ Item {
         MouseArea {
             anchors.fill: parent
             z: 199
-            visible: headingMenuPopup.isOpen || imageMenuPopup.isOpen || mermaidMenuPopup.isOpen || mathMenuPopup.isOpen || (linkSuggestionMenu && linkSuggestionMenu.isOpen)
+            visible: root.anyToolbarPopupOpen || (linkSuggestionMenu && linkSuggestionMenu.isOpen)
             onClicked: {
                 if (linkSuggestionMenu && linkSuggestionMenu.isOpen) linkSuggestionMenu.close();
-                headingMenuPopup.isOpen = false;
-                imageMenuPopup.isOpen = false;
-                mermaidMenuPopup.isOpen = false;
-                mathMenuPopup.isOpen = false;
+                root._closeAllToolbarPopups(null);
             }
         }
 
@@ -4515,6 +4657,545 @@ Item {
                             onClicked: {
                                 mathMenuPopup.isOpen = false;
                                 root.applyFormatOrAction("math:" + modelData.id);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Menú emergente de color de texto / fondo (<span style="color|background-color:...">)
+        Rectangle {
+            id: colorMenuPopup
+            property bool isOpen: false
+            property bool applyAsBg: false
+            property int _savedBid: -1
+            property int _savedSelS: 0
+            property int _savedSelE: 0
+            property bool _savedInSource: false
+            visible: isOpen || scale > 0.02
+            z: 200
+            width: 248
+            height: colorMenuCol.implicitHeight + 16
+            radius: 8
+            color: Theme.color0
+            border.width: 0
+
+            readonly property var swatches: [
+                { hex: "" + Theme.accent, bg: "rgba(" + Math.round(Theme.accent.r * 255) + ", " + Math.round(Theme.accent.g * 255) + ", " + Math.round(Theme.accent.b * 255) + ", 0.24)" },
+                { hex: "#ef4444", bg: "rgba(239, 68, 68, 0.24)" },
+                { hex: "#f97316", bg: "rgba(249, 115, 22, 0.24)" },
+                { hex: "#eab308", bg: "rgba(234, 179, 8, 0.24)" },
+                { hex: "#22c55e", bg: "rgba(34, 197, 94, 0.24)" },
+                { hex: "#06b6d4", bg: "rgba(6, 182, 212, 0.24)" },
+                { hex: "#8b5cf6", bg: "rgba(139, 92, 246, 0.24)" },
+                { hex: "#ec4899", bg: "rgba(236, 72, 153, 0.24)" },
+                { hex: "#94a3b8", bg: "rgba(148, 163, 184, 0.24)" },
+                { hex: "#f8fafc", bg: "rgba(248, 250, 252, 0.18)" }
+            ]
+
+            function updatePosition() {
+                if (!colorToolbarBtn || !colorMenuPopup.parent) return;
+                colorMenuPopup.x = root._popupX(colorToolbarBtn, width, colorMenuPopup.parent);
+                colorMenuPopup.y = root._popupY(colorToolbarBtn, colorMenuPopup.parent);
+            }
+
+            function _captureEditorSelection() {
+                _savedInSource = root.isSourceMode;
+                if (root.isSourceMode && sourceCodeEditor) {
+                    _savedBid = -1;
+                    _savedSelS = sourceCodeEditor.selectionStart;
+                    _savedSelE = sourceCodeEditor.selectionEnd;
+                } else if (blockEditor) {
+                    _savedBid = blockEditor.activeBlockBid;
+                    var te = (_savedBid !== -1) ? blockEditor._getTextEditForBid(_savedBid) : null;
+                    _savedSelS = te ? te.selectionStart : 0;
+                    _savedSelE = te ? te.selectionEnd : 0;
+                }
+            }
+
+            function _applyPickedColor(colorVal) {
+                if (root._isDestroyed) return;
+                if (_savedInSource === root.isSourceMode) {
+                    if (root.isSourceMode && sourceCodeEditor) {
+                        if (sourceCodeEditor.selectionStart === sourceCodeEditor.selectionEnd && _savedSelS !== _savedSelE) {
+                            sourceCodeEditor.select(_savedSelS, _savedSelE);
+                        }
+                        sourceCodeEditor.forceActiveFocus();
+                    } else if (blockEditor && _savedBid !== -1) {
+                        if (blockEditor.activeBlockBid !== _savedBid) {
+                            blockEditor.activeBlockBid = _savedBid;
+                            blockEditor.safeFocusDelegate(_savedBid, _savedSelE);
+                        }
+                        var te = blockEditor._getTextEditForBid(_savedBid);
+                        if (te) {
+                            if (te.selectionStart === te.selectionEnd && _savedSelS !== _savedSelE) {
+                                te.select(_savedSelS, _savedSelE);
+                            }
+                            te.forceActiveFocus();
+                        }
+                    }
+                }
+                colorMenuPopup.isOpen = false;
+                if (colorVal === "") {
+                    root.applyFormatOrAction(applyAsBg ? "bg_color:" : "color:");
+                } else {
+                    root.applyFormatOrAction((applyAsBg ? "bg_color:" : "color:") + colorVal);
+                }
+            }
+
+            onIsOpenChanged: {
+                if (isOpen) {
+                    _captureEditorSelection();
+                    updatePosition();
+                }
+            }
+
+            transformOrigin: Item.Top
+            scale: isOpen ? 1.0 : 0.0
+            opacity: isOpen ? 1.0 : 0.0
+
+            Behavior on scale {
+                enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                SpringAnimation { spring: 5.5; damping: 0.42; epsilon: 0.01 }
+            }
+            Behavior on opacity {
+                NumberAnimation { duration: 140; easing.type: Easing.OutCubic }
+            }
+
+            layer.enabled: true
+            layer.effect: MultiEffect {
+                shadowEnabled: true
+                shadowColor: Qt.rgba(0, 0, 0, 0.45)
+                shadowBlur: 0.6
+                shadowVerticalOffset: 3
+            }
+
+            x: root._popupX(colorToolbarBtn, width, colorMenuPopup.parent)
+            y: root._popupY(colorToolbarBtn, colorMenuPopup.parent)
+
+            Column {
+                id: colorMenuCol
+                anchors.centerIn: parent
+                width: parent.width - 16
+                spacing: 8
+
+                // Selector Texto vs Fondo
+                RowLayout {
+                    width: parent.width
+                    spacing: 4
+
+                    Rectangle {
+                        Layout.fillWidth: true
+                        height: 26
+                        radius: 6
+                        color: !colorMenuPopup.applyAsBg ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.22) : Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.05)
+                        border.width: !colorMenuPopup.applyAsBg ? 1 : 0
+                        border.color: Theme.accent
+                        Text {
+                            anchors.centerIn: parent
+                            text: I18n.t("notes.html.color_text_tab", "Texto")
+                            color: !colorMenuPopup.applyAsBg ? Theme.accent : Theme.text
+                            font.family: Theme.fontFamily
+                            font.pixelSize: Theme.fontSizeCaption
+                            font.bold: !colorMenuPopup.applyAsBg
+                        }
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: colorMenuPopup.applyAsBg = false
+                        }
+                    }
+
+                    Rectangle {
+                        Layout.fillWidth: true
+                        height: 26
+                        radius: 6
+                        color: colorMenuPopup.applyAsBg ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.22) : Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.05)
+                        border.width: colorMenuPopup.applyAsBg ? 1 : 0
+                        border.color: Theme.accent
+                        Text {
+                            anchors.centerIn: parent
+                            text: I18n.t("notes.html.color_bg_tab", "Fondo")
+                            color: colorMenuPopup.applyAsBg ? Theme.accent : Theme.text
+                            font.family: Theme.fontFamily
+                            font.pixelSize: Theme.fontSizeCaption
+                            font.bold: colorMenuPopup.applyAsBg
+                        }
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: colorMenuPopup.applyAsBg = true
+                        }
+                    }
+                }
+
+                // Paleta 5x2
+                Grid {
+                    width: parent.width
+                    columns: 5
+                    rowSpacing: 8
+                    columnSpacing: (width - 5 * 34) / 4
+
+                    Repeater {
+                        model: colorMenuPopup.swatches
+                        delegate: Rectangle {
+                            width: 34
+                            height: 28
+                            radius: 6
+                            color: colorMenuPopup.applyAsBg ? Qt.rgba(Qt.color(modelData.hex).r, Qt.color(modelData.hex).g, Qt.color(modelData.hex).b, 0.35) : modelData.hex
+                            border.width: swatchMa.containsMouse ? 2 : 1
+                            border.color: swatchMa.containsMouse ? Theme.text : Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.22)
+
+                            MouseArea {
+                                id: swatchMa
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: colorMenuPopup._applyPickedColor(colorMenuPopup.applyAsBg ? modelData.bg : modelData.hex)
+                            }
+                        }
+                    }
+                }
+
+                // Entrada hex personalizada
+                RowLayout {
+                    width: parent.width
+                    spacing: 6
+
+                    Rectangle {
+                        Layout.fillWidth: true
+                        height: 28
+                        radius: 6
+                        color: Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.06)
+                        border.width: 1
+                        border.color: customHexInput.activeFocus ? Theme.accent : Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.14)
+
+                        TextInput {
+                            id: customHexInput
+                            anchors.fill: parent
+                            anchors.leftMargin: 8
+                            anchors.rightMargin: 8
+                            verticalAlignment: TextInput.AlignVCenter
+                            text: "#8ab4f8"
+                            color: Theme.text
+                            font.family: Theme.fontFamilyMonospace
+                            font.pixelSize: Theme.fontSizeSmall
+                            selectByMouse: true
+                            clip: true
+                            onAccepted: {
+                                var hex = text.trim();
+                                if (hex !== "") colorMenuPopup._applyPickedColor(hex);
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        width: 56
+                        height: 28
+                        radius: 6
+                        color: applyHexMa.containsMouse ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.28) : Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.16)
+                        Text {
+                            anchors.centerIn: parent
+                            text: I18n.t("notes.common.apply", "Aplicar")
+                            color: Theme.accent
+                            font.family: Theme.fontFamily
+                            font.pixelSize: Theme.fontSizeSmall
+                            font.bold: true
+                        }
+                        MouseArea {
+                            id: applyHexMa
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                var hex = customHexInput.text.trim();
+                                if (hex !== "") colorMenuPopup._applyPickedColor(hex);
+                            }
+                        }
+                    }
+                }
+
+                // Botón limpiar color inline
+                Rectangle {
+                    width: parent.width
+                    height: 28
+                    radius: 6
+                    color: clearColorMa.containsMouse ? Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.1) : Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.04)
+                    Text {
+                        anchors.centerIn: parent
+                        text: I18n.t("notes.html.clear_color", "Quitar color")
+                        color: Theme.muted
+                        font.family: Theme.fontFamily
+                        font.pixelSize: Theme.fontSizeCaption
+                    }
+                    MouseArea {
+                        id: clearColorMa
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            colorMenuPopup.isOpen = false;
+                            root.applyFormatOrAction("clear_color");
+                        }
+                    }
+                }
+            }
+        }
+
+        // Menú emergente de alineación HTML (<div align="...">)
+        Rectangle {
+            id: alignMenuPopup
+            property bool isOpen: false
+            visible: isOpen || scale > 0.02
+            z: 200
+            width: 232
+            height: alignMenuCol.implicitHeight + 12
+            radius: 8
+            color: Theme.color0
+            border.width: 0
+
+            readonly property var alignOptions: [
+                { action: "align_left", icon: "align-horizontal-left.svg", def: "Izquierda (normal)" },
+                { action: "align_center", icon: "align-horizontal-center.svg", def: "Centrar (<div align=\"center\">)" },
+                { action: "align_right", icon: "align-horizontal-right.svg", def: "Derecha (<div align=\"right\">)" },
+                { action: "align_justify", icon: "format-align-justify.svg", def: "Justificar (<div align=\"justify\">)" }
+            ]
+
+            function updatePosition() {
+                if (!alignToolbarBtn || !alignMenuPopup.parent) return;
+                alignMenuPopup.x = root._popupX(alignToolbarBtn, width, alignMenuPopup.parent);
+                alignMenuPopup.y = root._popupY(alignToolbarBtn, alignMenuPopup.parent);
+            }
+
+            onIsOpenChanged: {
+                if (isOpen) updatePosition();
+            }
+
+            transformOrigin: Item.Top
+            scale: isOpen ? 1.0 : 0.0
+            opacity: isOpen ? 1.0 : 0.0
+
+            Behavior on scale {
+                enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                SpringAnimation { spring: 5.5; damping: 0.42; epsilon: 0.01 }
+            }
+            Behavior on opacity {
+                NumberAnimation { duration: 140; easing.type: Easing.OutCubic }
+            }
+
+            layer.enabled: true
+            layer.effect: MultiEffect {
+                shadowEnabled: true
+                shadowColor: Qt.rgba(0, 0, 0, 0.45)
+                shadowBlur: 0.6
+                shadowVerticalOffset: 3
+            }
+
+            x: root._popupX(alignToolbarBtn, width, alignMenuPopup.parent)
+            y: root._popupY(alignToolbarBtn, alignMenuPopup.parent)
+
+            Column {
+                id: alignMenuCol
+                anchors.centerIn: parent
+                width: parent.width - 12
+                spacing: 2
+
+                Repeater {
+                    model: alignMenuPopup.alignOptions
+                    delegate: Rectangle {
+                        id: alRow
+                        readonly property bool isCur: root.isFormatActive(modelData.action)
+                        width: alignMenuCol.width
+                        height: 32
+                        radius: 6
+                        color: alMa.containsMouse
+                            ? Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.1)
+                            : (isCur ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.14) : "transparent")
+
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.leftMargin: 8
+                            anchors.rightMargin: 8
+                            spacing: 8
+
+                            Image {
+                                width: 16; height: 16
+                                source: Theme.iconsPath + modelData.icon
+                                sourceSize: Qt.size(16, 16)
+                                layer.enabled: true
+                                layer.effect: MultiEffect {
+                                    colorization: 1.0
+                                    colorizationColor: alRow.isCur ? Theme.accent : Theme.text
+                                }
+                            }
+
+                            Text {
+                                Layout.fillWidth: true
+                                text: EA.getLabel(modelData.action, I18n) || modelData.def
+                                color: alRow.isCur ? Theme.accent : Theme.text
+                                font.family: Theme.fontFamily
+                                font.pixelSize: Theme.fontSizeCaption
+                                elide: Text.ElideRight
+                            }
+                        }
+
+                        MouseArea {
+                            id: alMa
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                alignMenuPopup.isOpen = false;
+                                root.applyFormatOrAction(modelData.action);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Menú emergente de plantillas HTML/CSS y etiquetas inline (<sup>, <sub>, <kbd>)
+        Rectangle {
+            id: htmlMenuPopup
+            property bool isOpen: false
+            visible: isOpen || scale > 0.02
+            z: 200
+            width: 268
+            height: htmlMenuCol.implicitHeight + 12
+            radius: 8
+            color: Theme.color0
+            border.width: 0
+
+            function updatePosition() {
+                if (!htmlToolbarBtn || !htmlMenuPopup.parent) return;
+                htmlMenuPopup.x = root._popupX(htmlToolbarBtn, width, htmlMenuPopup.parent);
+                htmlMenuPopup.y = root._popupY(htmlToolbarBtn, htmlMenuPopup.parent);
+            }
+
+            onIsOpenChanged: {
+                if (isOpen) updatePosition();
+            }
+
+            transformOrigin: Item.Top
+            scale: isOpen ? 1.0 : 0.0
+            opacity: isOpen ? 1.0 : 0.0
+
+            Behavior on scale {
+                enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                SpringAnimation { spring: 5.5; damping: 0.42; epsilon: 0.01 }
+            }
+            Behavior on opacity {
+                NumberAnimation { duration: 140; easing.type: Easing.OutCubic }
+            }
+
+            layer.enabled: true
+            layer.effect: MultiEffect {
+                shadowEnabled: true
+                shadowColor: Qt.rgba(0, 0, 0, 0.45)
+                shadowBlur: 0.6
+                shadowVerticalOffset: 3
+            }
+
+            x: root._popupX(htmlToolbarBtn, width, htmlMenuPopup.parent)
+            y: root._popupY(htmlToolbarBtn, htmlMenuPopup.parent)
+
+            Column {
+                id: htmlMenuCol
+                anchors.centerIn: parent
+                width: parent.width - 12
+                spacing: 2
+
+                Repeater {
+                    model: HtmlTemplates.getTemplateList()
+                    delegate: Rectangle {
+                        width: htmlMenuCol.width
+                        height: 32
+                        radius: 6
+                        color: htmlTplMa.containsMouse ? Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.1) : "transparent"
+
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.leftMargin: 8
+                            anchors.rightMargin: 8
+                            spacing: 8
+
+                            Image {
+                                width: 16; height: 16
+                                source: Theme.iconsPath + (modelData.icon ? (modelData.icon + ".svg") : "html-block.svg")
+                                sourceSize: Qt.size(16, 16)
+                                layer.enabled: true
+                                layer.effect: MultiEffect {
+                                    colorization: 1.0
+                                    colorizationColor: Theme.accent
+                                }
+                            }
+
+                            Text {
+                                Layout.fillWidth: true
+                                text: I18n.t(modelData.labelKey, modelData.defaultLabel)
+                                color: Theme.text
+                                font.family: Theme.fontFamily
+                                font.pixelSize: Theme.fontSizeCaption
+                                elide: Text.ElideRight
+                            }
+                        }
+
+                        MouseArea {
+                            id: htmlTplMa
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                htmlMenuPopup.isOpen = false;
+                                root.applyFormatOrAction("html:" + modelData.id);
+                            }
+                        }
+                    }
+                }
+
+                Rectangle {
+                    width: htmlMenuCol.width
+                    height: 1
+                    color: Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.1)
+                }
+
+                RowLayout {
+                    width: htmlMenuCol.width
+                    spacing: 4
+
+                    Repeater {
+                        model: [
+                            { action: "sup", label: "x² <sup>" },
+                            { action: "sub", label: "x₂ <sub>" },
+                            { action: "kbd", label: "<kbd>" }
+                        ]
+                        delegate: Rectangle {
+                            readonly property bool isAct: root.isFormatActive(modelData.action)
+                            Layout.fillWidth: true
+                            height: 28
+                            radius: 6
+                            color: htmlInlineMa.containsMouse
+                                ? Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.1)
+                                : (isAct ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.16) : Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.04))
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: modelData.label
+                                color: isAct ? Theme.accent : Theme.text
+                                font.family: Theme.fontFamilyMonospace
+                                font.pixelSize: Theme.fontSizeSmall - 1
+                            }
+
+                            MouseArea {
+                                id: htmlInlineMa
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    htmlMenuPopup.isOpen = false;
+                                    root.applyFormatOrAction(modelData.action);
+                                }
                             }
                         }
                     }

@@ -10,6 +10,16 @@ function setLatexRenderer(fn) {
     if (typeof fn === "function" || fn === null) _latexRenderer = fn;
 }
 
+// Parser HTML/CSS inyectado desde HtmlStyleParser.js (v0.4.0)
+var _htmlParser = null;
+function setHtmlParser(mod) {
+    if (mod && typeof mod.sanitizeAndConvertInlineTags === "function") {
+        _htmlParser = mod;
+    } else if (mod === null) {
+        _htmlParser = null;
+    }
+}
+
 function renderLatexInline(formula, opts) {
     var fn = (opts && typeof opts.renderLatex === "function") ? opts.renderLatex : _latexRenderer;
     var defaultTextColor = _defaultTheme.lightMode ? "#1a1a1a" : (_defaultTheme.textColor || "#ffffff");
@@ -495,22 +505,23 @@ function inlineToHtml(src, opts) {
         return prefix + token + trailing;
     });
 
-    // 6. Proteger etiquetas HTML permitidas (<u>, </u>, <br>, <br/>, <br />) y escapar las demás
+    // 6. Proteger etiquetas HTML inline permitidas (<span>, <font>, <sup>, <sub>, <mark>, <u>, <b>, <i>, <s>, <del>, <ins>, <small>, <br>)
     var allowedTags = [];
-    text = text.replace(/<\/?u>|<br\s*\/?>/gi, function(tag) {
-        var token = "\uE000ALLOWED_" + allowedTags.length + "\uE000";
-        allowedTags.push(tag.toLowerCase());
-        return token;
-    });
+    var preservedHtml = [];
+    if (_htmlParser && typeof _htmlParser.sanitizeAndConvertInlineTags === "function") {
+        var htmlRes = _htmlParser.sanitizeAndConvertInlineTags(text, options);
+        text = htmlRes.text;
+        preservedHtml = htmlRes.preserved;
+    } else {
+        text = text.replace(/<\/?(?:u|b|i|s|sup|sub)>|<br\s*\/?>/gi, function(tag) {
+            var token = "\uE000ALLOWED_" + allowedTags.length + "\uE000";
+            allowedTags.push(tag.toLowerCase());
+            return token;
+        });
+    }
 
     // Escapar cualquier otro HTML (<script>, <div>, &, <, >, etc.)
     text = escapeHtml(text);
-
-    // Restaurar etiquetas HTML permitidas
-    for (var a = 0; a < allowedTags.length; a++) {
-        var tagHtml = allowedTags[a];
-        text = text.replace("\uE000ALLOWED_" + a + "\uE000", function() { return tagHtml; });
-    }
 
     // 7. Formato inline
 
@@ -575,6 +586,16 @@ function inlineToHtml(src, opts) {
     for (var m = 0; m < mathSpans.length; m++) {
         var mathHtml = mathSpans[m];
         text = text.replace("\uE000MATH_" + m + "\uE000", function() { return mathHtml; });
+    }
+
+    // 10d. Restaurar etiquetas HTML/CSS inline seguras después de procesar **/*/~
+    if (_htmlParser && typeof _htmlParser.restorePreservedInlineTags === "function" && preservedHtml.length > 0) {
+        text = _htmlParser.restorePreservedInlineTags(text, preservedHtml);
+    } else if (allowedTags.length > 0) {
+        for (var a = 0; a < allowedTags.length; a++) {
+            var tagHtml = allowedTags[a];
+            text = text.replace("\uE000ALLOWED_" + a + "\uE000", function() { return tagHtml; });
+        }
     }
 
     // 11. Restaurar caracteres escapados a texto plano seguro
@@ -701,9 +722,19 @@ function toggleWrap(text, selStart, selEnd, marker) {
         }
     }
 
-    // Manejo especial para HTML <u> ... </u>
+    // Manejo especial para HTML inline pareado (<u>, <sup>, <sub>, <kbd>, <mark>, <ins>, <del>)
     if (marker === "<u>" || marker === "</u>" || marker === "<u></u>") {
         return _toggleTagWrap(text, s, e, "<u>", "</u>");
+    }
+    if (marker === "<sup>" || marker === "<sub>" || marker === "<kbd>" || marker === "<mark>" || marker === "<ins>" || marker === "<del>" || marker === "<small>") {
+        var tagName = marker.slice(1, -1);
+        return _toggleTagWrap(text, s, e, "<" + tagName + ">", "</" + tagName + ">");
+    }
+    if (typeof marker === "string" && (marker.startsWith("<color:") || marker.startsWith("<bg:")) && marker.endsWith(">")) {
+        var isBg = marker.startsWith("<bg:");
+        var cssProp = isBg ? "background-color" : "color";
+        var cssVal = marker.slice(isBg ? 4 : 7, -1).trim();
+        return _toggleStyledSpanWrap(text, s, e, cssProp, cssVal);
     }
 
     // Manejo de asteriscos (* y **) y guiones bajos (_ y __)
@@ -809,6 +840,52 @@ function _toggleTagWrap(text, s, e, openTag, closeTag) {
         text: text.substring(0, s) + openTag + selected + closeTag + text.substring(e),
         newSelStart: s + oLen,
         newSelEnd: s + oLen + selected.length
+    };
+}
+
+// Aplica, reemplaza o elimina un wrapper <span style="color|background-color: ...">...</span> sobre [s, e]
+function _toggleStyledSpanWrap(text, s, e, cssProp, cssVal) {
+    var selected = text.substring(s, e);
+    var propRe = new RegExp("^<span\\b[^>]*style\\s*=\\s*[\"'][^\"']*\\b" + cssProp + "\\s*:[^\"']*[\"'][^>]*>([\\s\\S]*)<\\/span>$", "i");
+    var innerM = selected.match(propRe);
+    if (innerM) {
+        if (!cssVal) {
+            return { text: text.substring(0, s) + innerM[1] + text.substring(e), newSelStart: s, newSelEnd: s + innerM[1].length };
+        }
+        var openNew = '<span style="' + cssProp + ': ' + cssVal + ';">';
+        var wrappedNew = openNew + innerM[1] + '</span>';
+        return { text: text.substring(0, s) + wrappedNew + text.substring(e), newSelStart: s + openNew.length, newSelEnd: s + openNew.length + innerM[1].length };
+    }
+
+    var beforeTxt = text.substring(0, s);
+    var afterTxt = text.substring(e);
+    var openBeforeM = beforeTxt.match(new RegExp("<span\\b[^>]*style\\s*=\\s*[\"'][^\"']*\\b" + cssProp + "\\s*:[^\"']*[\"'][^>]*>$", "i"));
+    if (openBeforeM && /^<\/span>/i.test(afterTxt)) {
+        var oStart = s - openBeforeM[0].length;
+        if (!cssVal || openBeforeM[0].toLowerCase().indexOf(cssVal.toLowerCase()) !== -1) {
+            return {
+                text: text.substring(0, oStart) + selected + afterTxt.substring(7),
+                newSelStart: oStart,
+                newSelEnd: oStart + selected.length
+            };
+        }
+        var repOpen = '<span style="' + cssProp + ': ' + cssVal + ';">';
+        return {
+            text: text.substring(0, oStart) + repOpen + selected + afterTxt,
+            newSelStart: oStart + repOpen.length,
+            newSelEnd: oStart + repOpen.length + selected.length
+        };
+    }
+
+    if (!cssVal) {
+        return { text: text, newSelStart: s, newSelEnd: e };
+    }
+    var newOpen = '<span style="' + cssProp + ': ' + cssVal + ';">';
+    var newClose = '</span>';
+    return {
+        text: text.substring(0, s) + newOpen + selected + newClose + text.substring(e),
+        newSelStart: s + newOpen.length,
+        newSelEnd: s + newOpen.length + selected.length
     };
 }
 
@@ -1063,14 +1140,15 @@ function _collectInlineSpans(src) {
         spans.push({ type: "strike", start: m.index, end: m.index + m[0].length, openDelim: "~~", closeDelim: "~~", inner: src.substring(m.index + 2, m.index + m[0].length - 2) });
     }
 
-    // 9. Subrayado: <u>...</u> o &lt;u&gt;...&lt;/u&gt;
-    var uRegex = /<u>([\s\S]*?)<\/u>|&lt;u&gt;([\s\S]*?)&lt;\/u&gt;/gi;
+    // 9. Subrayado: <u>...</u>, <ins>...</ins> o &lt;u&gt;...&lt;/u&gt;
+    var uRegex = /<(u|ins)>([\s\S]*?)<\/\1>|&lt;u&gt;([\s\S]*?)&lt;\/u&gt;/gi;
     while ((m = uRegex.exec(maskedSrc)) !== null) {
         var isEsc = (m[0].toLowerCase().indexOf("&lt;") === 0);
-        var innerULen = (m[1] !== undefined ? m[1] : m[2]).length;
-        var openULen = isEsc ? 9 : 3;
+        var uTag = isEsc ? "u" : m[1].toLowerCase();
+        var innerULen = (m[2] !== undefined ? m[2] : m[3]).length;
+        var openULen = isEsc ? 9 : (uTag.length + 2);
         var inner = src.substr(m.index + openULen, innerULen);
-        spans.push({ type: "underline", start: m.index, end: m.index + m[0].length, openDelim: isEsc ? "&lt;u&gt;" : "<u>", closeDelim: isEsc ? "&lt;/u&gt;" : "</u>", inner: inner });
+        spans.push({ type: "underline", start: m.index, end: m.index + m[0].length, openDelim: isEsc ? "&lt;u&gt;" : ("<" + uTag + ">"), closeDelim: isEsc ? "&lt;/u&gt;" : ("</" + uTag + ">"), inner: inner });
     }
 
     // 9b. Teclas de atajo: <kbd>...</kbd> o &lt;kbd&gt;...&lt;/kbd&gt;
@@ -1088,6 +1166,37 @@ function _collectInlineSpans(src) {
             closeDelim: isEscKbd ? "&lt;/kbd&gt;" : "</kbd>",
             inner: innerKbd
         });
+    }
+
+    // 9c. Etiquetas HTML inline estilizadas: <span ...>...</span>, <font ...>...</font>, <sup>, <sub>, <mark>, <del>, <small>
+    var styledSpanRe = /<(span|font)\b([^>]*)>((?:(?!<\1\b)[\s\S])*?)<\/\1>/gi;
+    while ((m = styledSpanRe.exec(maskedSrc)) !== null) {
+        var sTag = m[1].toLowerCase();
+        var openFullLen = sTag.length + 1 + m[2].length + 1;
+        var openRaw = src.substr(m.index, openFullLen);
+        var closeRaw = src.substr(m.index + m[0].length - (sTag.length + 3), sTag.length + 3);
+        var innerSpan = src.substr(m.index + openFullLen, m[3].length);
+        spans.push({
+            type: "html_span",
+            tag: sTag,
+            rawAttrs: src.substr(m.index + sTag.length + 1, m[2].length),
+            start: m.index,
+            end: m.index + m[0].length,
+            openDelim: openRaw,
+            closeDelim: closeRaw,
+            inner: innerSpan
+        });
+    }
+
+    var supSubRe = /<(sup|sub|mark|del|small)\b([^>]*)>([\s\S]*?)<\/\1>/gi;
+    while ((m = supSubRe.exec(maskedSrc)) !== null) {
+        var tagN = m[1].toLowerCase();
+        var openL = 1 + m[1].length + m[2].length + 1;
+        var openStr = src.substr(m.index, openL);
+        var closeStr = src.substr(m.index + m[0].length - (m[1].length + 3), m[1].length + 3);
+        var innerTxt = src.substr(m.index + openL, m[3].length);
+        var spType = tagN === "mark" ? "highlight" : (tagN === "del" ? "strike" : tagN);
+        spans.push({ type: spType, start: m.index, end: m.index + m[0].length, openDelim: openStr, closeDelim: closeStr, inner: innerTxt });
     }
 
     // 10. Resaltado: ==...==
@@ -1254,6 +1363,30 @@ function formatForLiveEditing(src, opts) {
             case "math":
                 out += '<span style="font-family: monospace; font-style: italic; background-color: ' + (options.mathBg || codeBg) + '; color: ' + (options.mathColor || codeColor) + '; border-radius: 4px; padding: 1px 4px;">' + openHtml + innerHtml + closeHtml + '</span>';
                 break;
+            case "html_span": {
+                var cssInline = "";
+                if (_htmlParser && typeof _htmlParser.sanitizeAndConvertInlineTags === "function") {
+                    var convTag = _htmlParser.sanitizeAndConvertInlineTags(sp.openDelim + "x" + sp.closeDelim, options);
+                    var openRestored = _htmlParser.restorePreservedInlineTags(convTag.text, convTag.preserved);
+                    var mStyle = openRestored.match(/^<span\s+style="([^"]*)"/i);
+                    if (mStyle) cssInline = mStyle[1];
+                }
+                if (cssInline) {
+                    out += '<span style="' + cssInline + '">' + openHtml + innerHtml + closeHtml + '</span>';
+                } else {
+                    out += openHtml + innerHtml + closeHtml;
+                }
+                break;
+            }
+            case "sup":
+                out += '<sup>' + openHtml + innerHtml + closeHtml + '</sup>';
+                break;
+            case "sub":
+                out += '<sub>' + openHtml + innerHtml + closeHtml + '</sub>';
+                break;
+            case "small":
+                out += '<span style="font-size: small;">' + openHtml + innerHtml + closeHtml + '</span>';
+                break;
             case "link":
                 out += '<span style="color: ' + linkColor + '; text-decoration: underline;">' + openHtml + innerHtml + closeHtml + '</span>';
                 break;
@@ -1288,7 +1421,12 @@ function detectFormats(src, selStart, selEnd, cursorPos) {
         strike: false,
         highlight: false,
         inline_code: false,
-        link: false
+        link: false,
+        sup: false,
+        sub: false,
+        kbd: false,
+        text_color: false,
+        bg_color: false
     };
     if (!src || typeof src !== "string") return res;
 
@@ -1375,15 +1513,42 @@ function detectFormats(src, selStart, selEnd, cursorPos) {
         }
     }
 
+    // 8. HTML inline (sup, sub, color, background-color)
+    var supRe = /<sup>[\s\S]*?<\/sup>/gi;
+    while ((m = supRe.exec(src)) !== null) {
+        if (isSpanActive(m.index, m.index + m[0].length)) { res.sup = true; break; }
+    }
+    var subRe = /<sub>[\s\S]*?<\/sub>/gi;
+    while ((m = subRe.exec(src)) !== null) {
+        if (isSpanActive(m.index, m.index + m[0].length)) { res.sub = true; break; }
+    }
+    var kbdRe = /<kbd>[\s\S]*?<\/kbd>/gi;
+    while ((m = kbdRe.exec(src)) !== null) {
+        if (isSpanActive(m.index, m.index + m[0].length)) { res.kbd = true; break; }
+    }
+    var colorRe = /<(?:span|font)\b[^>]*(?:\bcolor\s*[:=])[^>]*>[\s\S]*?<\/(?:span|font)>/gi;
+    while ((m = colorRe.exec(src)) !== null) {
+        if (isSpanActive(m.index, m.index + m[0].length)) {
+            if (/\bbackground(?:-color)?\s*:/i.test(m[0])) res.bg_color = true;
+            if (/(?:^|[\s;"'])\bcolor\s*[:=]/i.test(m[0])) res.text_color = true;
+            break;
+        }
+    }
+
     // Si solo se pasó un string seleccionado directamente (sin offsets s y e)
     if (s < 0 && e < 0 && src.length > 0) {
         if (/\*\*[\s\S]*?\*\*|__[\s\S]*?__/.test(src)) res.bold = true;
         if (/(?:^|[^\*])\*[\s\S]*?\*(?=[^\*]|$)|(?:^|[^_])_[\s\S]*?_(?=[^_]|$)/.test(src)) res.italic = true;
-        if (/<u>[\s\S]*?<\/u>/i.test(src)) res.underline = true;
-        if (/~~[\s\S]*?~~/.test(src)) res.strike = true;
-        if (/==[\s\S]*?==/.test(src)) res.highlight = true;
+        if (/<(?:u|ins)>[\s\S]*?<\/(?:u|ins)>/i.test(src)) res.underline = true;
+        if (/~~[\s\S]*?~~|<del>[\s\S]*?<\/del>/i.test(src)) res.strike = true;
+        if (/==[\s\S]*?==|<mark\b[^>]*>[\s\S]*?<\/mark>/i.test(src)) res.highlight = true;
         if (/`[^`\r\n]+`/.test(src)) res.inline_code = true;
         if (/\[[^\]]+\]\([^)]+\)|\[\[[^\]]+\]\]/.test(src)) res.link = true;
+        if (/<sup>[\s\S]*?<\/sup>/i.test(src)) res.sup = true;
+        if (/<sub>[\s\S]*?<\/sub>/i.test(src)) res.sub = true;
+        if (/<kbd>[\s\S]*?<\/kbd>/i.test(src)) res.kbd = true;
+        if (/(?:^|[\s;"'])\bcolor\s*[:=]/i.test(src)) res.text_color = true;
+        if (/\bbackground(?:-color)?\s*:/i.test(src)) res.bg_color = true;
     }
 
     return res;

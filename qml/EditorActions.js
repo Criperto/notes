@@ -20,6 +20,84 @@ var ACTIONS = {
         fallbackLabel: "Subrayado",
         shortcut: "Ctrl+U"
     },
+    "text_color": {
+        id: "text_color",
+        labelKey: "notes.editor.action.text_color",
+        fallbackLabel: "Color (HTML/CSS)",
+        shortcut: ""
+    },
+    "bg_color": {
+        id: "bg_color",
+        labelKey: "notes.editor.action.bg_color",
+        fallbackLabel: "Fondo (CSS)",
+        shortcut: ""
+    },
+    "align_menu": {
+        id: "align_menu",
+        labelKey: "notes.editor.action.align_menu",
+        fallbackLabel: "Alineación HTML",
+        shortcut: ""
+    },
+    "align_left": {
+        id: "align_left",
+        labelKey: "notes.editor.action.align_left",
+        fallbackLabel: "Alinear a la izquierda",
+        shortcut: ""
+    },
+    "align_center": {
+        id: "align_center",
+        labelKey: "notes.editor.action.align_center",
+        fallbackLabel: "Centrar (<div align=\"center\">)",
+        shortcut: ""
+    },
+    "align_right": {
+        id: "align_right",
+        labelKey: "notes.editor.action.align_right",
+        fallbackLabel: "Alinear a la derecha",
+        shortcut: ""
+    },
+    "align_justify": {
+        id: "align_justify",
+        labelKey: "notes.editor.action.align_justify",
+        fallbackLabel: "Justificar",
+        shortcut: ""
+    },
+    "html_menu": {
+        id: "html_menu",
+        labelKey: "notes.editor.action.html_menu",
+        fallbackLabel: "Bloques y estilos HTML/CSS",
+        shortcut: ""
+    },
+    "html_block": {
+        id: "html_block",
+        labelKey: "notes.editor.action.html_block",
+        fallbackLabel: "Bloque HTML / CSS",
+        shortcut: ""
+    },
+    "details_block": {
+        id: "details_block",
+        labelKey: "notes.editor.action.details_block",
+        fallbackLabel: "Desplegable (<details>)",
+        shortcut: ""
+    },
+    "sup": {
+        id: "sup",
+        labelKey: "notes.editor.action.sup",
+        fallbackLabel: "Superíndice (<sup>)",
+        shortcut: ""
+    },
+    "sub": {
+        id: "sub",
+        labelKey: "notes.editor.action.sub",
+        fallbackLabel: "Subíndice (<sub>)",
+        shortcut: ""
+    },
+    "kbd": {
+        id: "kbd",
+        labelKey: "notes.editor.action.kbd",
+        fallbackLabel: "Tecla (<kbd>)",
+        shortcut: ""
+    },
     "strike": {
         id: "strike",
         labelKey: "notes.editor.action.strike",

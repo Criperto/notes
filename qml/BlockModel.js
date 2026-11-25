@@ -585,9 +585,100 @@ function _consumeListBlock(lines, startIdx) {
 }
 
 function _consumeHtmlBlock(lines, startIdx) {
-    var rawLines = [];
+    var firstLine = lines[startIdx].content;
     var i = startIdx;
 
+    // Caso 1: Comentario HTML <!-- ... -->
+    if (/^[ \t]*<!--/.test(firstLine)) {
+        var commentEndIdx = -1;
+        if (firstLine.indexOf("-->") !== -1) {
+            commentEndIdx = startIdx;
+        } else {
+            for (var ci = startIdx + 1; ci < lines.length; ci++) {
+                if (lines[ci].content.indexOf("-->") !== -1) {
+                    commentEndIdx = ci;
+                    break;
+                }
+            }
+        }
+        if (commentEndIdx !== -1) {
+            var cRaw = [];
+            for (var k = startIdx; k <= commentEndIdx; k++) cRaw.push(lines[k].content);
+            var cNext = commentEndIdx + 1;
+            var cSep = lines[commentEndIdx].eol;
+            while (cNext < lines.length && lines[cNext].content.trim() === "") {
+                cSep += lines[cNext].content + lines[cNext].eol;
+                cNext++;
+            }
+            return {
+                nextIndex: cNext,
+                block: { bid: getNextBid(), type: "html", raw: _joinLinesPreservingEols(lines, startIdx, commentEndIdx, cRaw), sep: cSep }
+            };
+        }
+    }
+
+    // Caso 2: Etiqueta de bloque HTML pareada (ej. <div align="center"> ... </div> o <details> ... </details>)
+    // Balancea apertura y cierre cruzando líneas en blanco internas (como en READMEs de GitHub).
+    // Si la etiqueta no se cierra en el resto del archivo, retrocede al corte seguro por línea en blanco.
+    var openTagMatch = firstLine.match(/^[ \t]*<(div|center|details|table|section|article|header|footer|nav|aside|main|figure|picture|blockquote|ul|ol|pre|style|p|h[1-6]|html)\b([^>]*)>/i);
+    if (openTagMatch && !/\/\s*>$/.test(openTagMatch[0])) {
+        var rootTag = openTagMatch[1].toLowerCase();
+        var tagRe = new RegExp("<(\\/?)" + rootTag + "\\b[^>]*>", "gi");
+        var depth = 0;
+        var balancedEndIdx = -1;
+        var inFence = false;
+        var fenceChar = "";
+
+        for (var scanIdx = startIdx; scanIdx < lines.length; scanIdx++) {
+            var scanLine = lines[scanIdx].content;
+            var fM = scanLine.match(/^[ \t]*(`{3,}|~{3,})/);
+            if (fM) {
+                if (!inFence) {
+                    inFence = true;
+                    fenceChar = fM[1][0];
+                    continue;
+                } else if (scanLine.trim().charAt(0) === fenceChar) {
+                    inFence = false;
+                    fenceChar = "";
+                    continue;
+                }
+            }
+            if (inFence) continue;
+
+            tagRe.lastIndex = 0;
+            var tm;
+            while ((tm = tagRe.exec(scanLine)) !== null) {
+                if (tm[1] === "/") {
+                    depth--;
+                    if (depth === 0) {
+                        balancedEndIdx = scanIdx;
+                        break;
+                    }
+                } else if (!/\/\s*>$/.test(tm[0])) {
+                    depth++;
+                }
+            }
+            if (balancedEndIdx !== -1) break;
+        }
+
+        if (balancedEndIdx > startIdx) {
+            var bRaw = [];
+            for (var bi = startIdx; bi <= balancedEndIdx; bi++) bRaw.push(lines[bi].content);
+            var bNext = balancedEndIdx + 1;
+            var bSep = lines[balancedEndIdx].eol;
+            while (bNext < lines.length && lines[bNext].content.trim() === "") {
+                bSep += lines[bNext].content + lines[bNext].eol;
+                bNext++;
+            }
+            return {
+                nextIndex: bNext,
+                block: { bid: getNextBid(), type: "html", raw: _joinLinesPreservingEols(lines, startIdx, balancedEndIdx, bRaw), sep: bSep }
+            };
+        }
+    }
+
+    // Fallback: consumo contiguo hasta la primera línea en blanco
+    var rawLines = [];
     while (i < lines.length) {
         var cur = lines[i];
         if (cur.content.trim() === "") {
@@ -714,7 +805,7 @@ function _isImageLine(str) {
 }
 
 function _isHtmlBlockStart(str) {
-    return /^[ \t]*<(?:div|p|table|tbody|tr|td|th|ul|ol|li|blockquote|pre|details|summary|section|article|header|footer|nav|aside|h[1-6]|hr|iframe|script|style|figure|figcaption|!--)[ \t>/\n]/i.test(str);
+    return /^[ \t]*(?:<!(?:DOCTYPE|--)|<(?:div|center|details|summary|p|table|thead|tbody|tr|td|th|ul|ol|li|blockquote|pre|section|article|header|footer|nav|aside|main|html|h[1-6]|hr|iframe|script|style|figure|figcaption|picture)[ \t>/\r\n]|<(?:a\b[^>]*>\s*<img\b|img\b)[^>]*\/?\s*>[ \t]*(?:<\/a>[ \t]*)?$)/i.test(str);
 }
 
 function isMergeableBlockType(type) {
@@ -805,6 +896,13 @@ function estimateBlockHeight(type, raw, pageW) {
         }
         case "hr": {
             return 24;
+        }
+        case "html": {
+            if (!str) return 40;
+            var hClean = str.replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, "").replace(/<[^>]+>/g, " ").trim();
+            var hLines = Math.max(1, str.split(/\r?\n/).filter(function(l) { return l.trim() !== "" && !/^\s*<\/?[a-z]/i.test(l.trim()); }).length);
+            var hasMedia = /<(?:img|picture|table)\b|!\[/i.test(str);
+            return Math.max(hasMedia ? 140 : 40, hLines * 24 + (hClean.length > 160 ? 48 : 20));
         }
         default: {
             var rLines = str ? str.split(/\r?\n/).length : 1;

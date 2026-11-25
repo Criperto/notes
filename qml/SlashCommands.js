@@ -172,6 +172,96 @@ var COMMANDS = [
         keywords: ["referencia", "nota", "wikilink", "enlace", "link", "vinculo", "[["]
     },
 
+    // ── HTML y CSS estilo GitHub ──────────────────────────────────────────────
+    {
+        id: "center_block",
+        category: "html",
+        icon: "align-horizontal-center.svg",
+        titleKey: "notes.slash.center_block",
+        fallbackTitle: "Centrar bloque (HTML)",
+        descKey: "notes.slash.center_block_desc",
+        fallbackDesc: "Contenedor <div align=\"center\"> compatible con GitHub",
+        badge: "/centrar",
+        keywords: ["centrar", "center", "align", "div", "medio", "titulo", "html"]
+    },
+    {
+        id: "right_block",
+        category: "html",
+        icon: "align-horizontal-right.svg",
+        titleKey: "notes.slash.right_block",
+        fallbackTitle: "Alinear a la derecha (HTML)",
+        descKey: "notes.slash.right_block_desc",
+        fallbackDesc: "Contenedor <div align=\"right\">",
+        badge: "/derecha",
+        keywords: ["derecha", "right", "align", "div", "html"]
+    },
+    {
+        id: "details_block",
+        category: "html",
+        icon: "details-collapse.svg",
+        titleKey: "notes.slash.details_block",
+        fallbackTitle: "Desplegable (<details>)",
+        descKey: "notes.slash.details_block_desc",
+        fallbackDesc: "Sección colapsable estilo GitHub con <summary>",
+        badge: "/details",
+        keywords: ["details", "desplegable", "colapsable", "spoiler", "accordion", "summary", "ocultar", "html"]
+    },
+    {
+        id: "html_block",
+        category: "html",
+        icon: "html-block.svg",
+        titleKey: "notes.slash.html_block",
+        fallbackTitle: "Bloque HTML / CSS",
+        descKey: "notes.slash.html_block_desc",
+        fallbackDesc: "Contenedor HTML editable con estilos CSS y vista previa",
+        badge: "/html",
+        keywords: ["html", "css", "style", "div", "bloque", "tarjeta", "card"]
+    },
+    {
+        id: "text_color",
+        category: "html",
+        icon: "format-color-text.svg",
+        titleKey: "notes.slash.text_color",
+        fallbackTitle: "Texto con color (<span>)",
+        descKey: "notes.slash.text_color_desc",
+        fallbackDesc: "Aplicar color CSS inline mediante <span style=\"color:...\">",
+        badge: "/color",
+        keywords: ["color", "texto", "span", "css", "estilo", "fuente"]
+    },
+    {
+        id: "kbd",
+        category: "html",
+        icon: "keyboard.svg",
+        titleKey: "notes.slash.kbd",
+        fallbackTitle: "Atajo de teclado (<kbd>)",
+        descKey: "notes.slash.kbd_desc",
+        fallbackDesc: "Renderizar tecla visual con <kbd>Tecla</kbd>",
+        badge: "/kbd",
+        keywords: ["kbd", "tecla", "key", "shortcut", "atajo", "html"]
+    },
+    {
+        id: "sup",
+        category: "html",
+        icon: "code.svg",
+        titleKey: "notes.slash.sup",
+        fallbackTitle: "Superíndice (<sup>)",
+        descKey: "notes.slash.sup_desc",
+        fallbackDesc: "Insertar texto elevado como exponentes o notas",
+        badge: "/sup",
+        keywords: ["sup", "superindice", "exponente", "potencia", "html"]
+    },
+    {
+        id: "sub",
+        category: "html",
+        icon: "code.svg",
+        titleKey: "notes.slash.sub",
+        fallbackTitle: "Subíndice (<sub>)",
+        descKey: "notes.slash.sub_desc",
+        fallbackDesc: "Insertar texto inferior como fórmulas químicas",
+        badge: "/sub",
+        keywords: ["sub", "subindice", "formula", "html"]
+    },
+
     // ── Callouts estilo GitHub ───────────────────────────────────────────────
     {
         id: "callout_note",

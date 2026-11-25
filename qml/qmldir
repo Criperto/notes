@@ -48,6 +48,7 @@ BlockMermaid       1.0 BlockMermaid.qml
 MermaidView        1.0 MermaidView.qml
 BlockMath          1.0 BlockMath.qml
 MathView           1.0 MathView.qml
+BlockHtml          1.0 BlockHtml.qml
 BlockRaw           1.0 BlockRaw.qml
 SpellOverlay       1.0 SpellOverlay.qml
 FocusRing          1.0 FocusRing.qml

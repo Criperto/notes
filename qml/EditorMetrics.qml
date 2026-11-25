@@ -2,6 +2,7 @@ pragma Singleton
 import QtQuick
 import Notas
 import "Inline.js" as Inline
+import "HtmlStyleParser.js" as HtmlStyleParser
 
 Item {
     id: root
@@ -35,6 +36,7 @@ Item {
     }
 
     Component.onCompleted: {
+        Inline.setHtmlParser(HtmlStyleParser);
         Inline.setHighlightBg(highlightBg);
         Inline.setZoom(root.zoom);
         root.syncThemeToInline();

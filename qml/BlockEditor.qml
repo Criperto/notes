@@ -16,6 +16,8 @@ import "MathTemplates.js" as MathTemplates
 import "ReferenceLogic.js" as ReferenceLogic
 import "TableParser.js" as TP
 import "ImageProbe.js" as ImageProbe
+import "HtmlStyleParser.js" as HtmlStyleParser
+import "HtmlTemplates.js" as HtmlTemplates
 
 Flickable {
     id: root
@@ -1592,6 +1594,26 @@ Flickable {
             return true;
         }
 
+        // Autocierre de etiqueta HTML al presionar '>' sin selección (ej: <div align="center"> -> </div>)
+        if (ch === ">") {
+            var tailHtml = targetEdit.getText(Math.max(0, s - 160), s);
+            var openHtmlM = tailHtml.match(/<([A-Za-z][A-Za-z0-9]*)([^<>]*)$/);
+            if (openHtmlM && !/\/\s*$/.test(openHtmlM[2])) {
+                var hTag = openHtmlM[1];
+                var hTagLow = hTag.toLowerCase();
+                var closableHtmlTags = /^(?:span|font|sup|sub|mark|kbd|u|ins|del|s|small|big|b|strong|i|em|code|div|center|p|details|summary|figure|figcaption|table|thead|tbody|tr|td|th|blockquote|abbr|a)$/;
+                if (closableHtmlTags.test(hTagLow)) {
+                    var afterClose = targetEdit.getText(s, Math.min(targetEdit.length, s + hTag.length + 3)).toLowerCase();
+                    if (afterClose !== "</" + hTagLow + ">") {
+                        targetEdit.insert(s, "></" + hTag + ">");
+                        targetEdit.cursorPosition = s + 1;
+                        event.accepted = true;
+                        return true;
+                    }
+                }
+            }
+        }
+
         // Autocierre de pares solo si el siguiente carácter es espacio o fin de texto
         if (nextChar === "" || /\s/.test(nextChar)) {
             var pairClose = "";
@@ -1656,15 +1678,15 @@ Flickable {
             return true;
         }
 
-        // Par HTML: <u>|</u>
-        if (p >= 3 && p + 4 <= targetEdit.length) {
-            var prevU = targetEdit.getText(p - 3, p);
-            var nextU = targetEdit.getText(p, p + 4);
-            if (prevU.toLowerCase() === "<u>" && nextU.toLowerCase() === "</u>") {
-                targetEdit.remove(p - 3, p + 4);
-                targetEdit.cursorPosition = p - 3;
-                return true;
-            }
+        // Par HTML corto: <u>|</u>, <sup>|</sup>, <sub>|</sub>, <kbd>|</kbd>, <mark>|</mark>, etc.
+        var beforeTagSlice = targetEdit.getText(Math.max(0, p - 16), p);
+        var afterTagSlice = targetEdit.getText(p, Math.min(targetEdit.length, p + 18));
+        var openPairM = beforeTagSlice.match(/<(u|sup|sub|kbd|mark|ins|del|small|b|i|s|em|strong|code)>$/i);
+        var closePairM = afterTagSlice.match(/^<\/(u|sup|sub|kbd|mark|ins|del|small|b|i|s|em|strong|code)>/i);
+        if (openPairM && closePairM && openPairM[1].toLowerCase() === closePairM[1].toLowerCase()) {
+            targetEdit.remove(p - openPairM[0].length, p + closePairM[0].length);
+            targetEdit.cursorPosition = p - openPairM[0].length;
+            return true;
         }
         return false;
     }
@@ -3158,6 +3180,163 @@ Flickable {
             }
             return;
         }
+
+        // 12. HTML & CSS (centrar, alinear, desplegable, bloque HTML, color, kbd, sup/sub)
+        if (cmdId === "center_block" || cmdId === "right_block") {
+            var targetAl = (cmdId === "center_block") ? "center" : "right";
+            if (consume && curItem) {
+                var tplAl = (targetAl === "center")
+                    ? HtmlTemplates.getTemplate("center")
+                    : "<div align=\"right\">\n\nTexto alineado a la derecha\n\n</div>";
+                root._insertHtmlBlock(tplAl, true, idx, curItem);
+            } else {
+                var liveTxtAl = (curItem && curItem.type === "paragraph") ? _getPlainTextIfPresent(curItem.bid) : undefined;
+                root._applyBlockAlignSingle(idx, curItem, targetAl, liveTxtAl);
+            }
+            return;
+        }
+        if (cmdId === "details_block" || cmdId === "html_block" || (typeof cmdId === "string" && cmdId.startsWith("html:"))) {
+            if (!consume) root.confirmActiveBlock();
+            var curIdxHtml = consume ? idx : _findBlockIndex(root.activeBlockBid);
+            var curItemHtml = (curIdxHtml !== -1) ? blocksModel.get(curIdxHtml) : null;
+            var hKey = (typeof cmdId === "string" && cmdId.startsWith("html:"))
+                ? cmdId.substring(5)
+                : (cmdId === "details_block" ? "details" : "card");
+            root._insertHtmlBlock(HtmlTemplates.getTemplate(hKey), consume, curIdxHtml, curItemHtml);
+            return;
+        }
+        if (cmdId === "text_color" || cmdId === "kbd" || cmdId === "sup" || cmdId === "sub") {
+            root.applyAction(cmdId);
+            return;
+        }
+    }
+
+    function _getPlainTextIfPresent(bid) {
+        var te = _getTextEditForBid(bid);
+        return te ? Inline.plainText(te) : undefined;
+    }
+
+    function _resolveInlineMarker(actionId) {
+        if (!actionId || typeof actionId !== "string") return "";
+        if (actionId === "bold") return "**";
+        if (actionId === "italic") return "*";
+        if (actionId === "underline") return "<u>";
+        if (actionId === "strike") return "~~";
+        if (actionId === "inline_code") return "`";
+        if (actionId === "highlight") return "==";
+        if (actionId === "sup") return "<sup>";
+        if (actionId === "sub") return "<sub>";
+        if (actionId === "kbd") return "<kbd>";
+        if (actionId === "mark") return "<mark>";
+        if (actionId === "ins") return "<ins>";
+        if (actionId === "small") return "<small>";
+        if (actionId === "text_color") {
+            var accentHex = (typeof Theme !== "undefined" && Theme.accent) ? String(Theme.accent) : "#8ab4f8";
+            return "<color:" + accentHex + ">";
+        }
+        if (actionId === "bg_color") return "<bg:rgba(138, 180, 248, 0.22)>";
+        if (actionId.startsWith("color:")) return "<color:" + actionId.substring(6) + ">";
+        if (actionId.startsWith("bg_color:")) return "<bg:" + actionId.substring(9) + ">";
+        if (actionId.startsWith("bg:")) return "<bg:" + actionId.substring(3) + ">";
+        return "";
+    }
+
+    function _toggleInlineAction(text, s, e, actionId) {
+        if (actionId === "clear_color") {
+            var r1 = Inline.toggleWrap(text, s, e, "<color:>");
+            return Inline.toggleWrap(r1.text, r1.newSelStart, r1.newSelEnd, "<bg:>");
+        }
+        var marker = root._resolveInlineMarker(actionId);
+        if (marker === "") return null;
+        return Inline.toggleWrap(text, s, e, marker);
+    }
+
+    function _targetAlignFromAction(actionId) {
+        if (actionId === "align_left") return "left";
+        if (actionId === "align_center") return "center";
+        if (actionId === "align_right") return "right";
+        if (actionId === "align_justify") return "justify";
+        return "";
+    }
+
+    function _replaceBlocksAtRange(startIdx, removeCount, replacementList, focusBid, focusPos) {
+        if (startIdx < 0 || startIdx >= blocksModel.count) return;
+        for (var r = 0; r < removeCount; r++) {
+            if (startIdx < blocksModel.count) blocksModel.remove(startIdx);
+        }
+        for (var i = 0; i < replacementList.length; i++) {
+            blocksModel.insert(startIdx + i, replacementList[i]);
+        }
+        if (blocksModel.count === 0) {
+            var emptyBid = BlockModel.getNextBid();
+            blocksModel.append({ bid: emptyBid, type: "paragraph", raw: "", sep: "\n\n" });
+            focusBid = emptyBid;
+            focusPos = 0;
+        }
+        if (focusBid !== undefined && focusBid !== -1) {
+            root.activeBlockBid = focusBid;
+            root.safeFocusDelegate(focusBid, focusPos !== undefined ? focusPos : 0);
+        }
+        debouncedMarkdownTimer.restart();
+        _saveSnapshot();
+        root.updateFormatState();
+    }
+
+    function _insertHtmlBlock(tplRaw, consume, idx, curItem) {
+        if (consume && curItem && idx >= 0) {
+            blocksModel.setProperty(idx, "type", "html");
+            blocksModel.setProperty(idx, "raw", tplRaw);
+            root.onBlockRawChanged(curItem.bid, tplRaw);
+            root.activeBlockBid = curItem.bid;
+            root.safeFocusDelegate(curItem.bid, 0);
+        } else {
+            var hBid = BlockModel.getNextBid();
+            var insertPos = (idx !== -1 && idx !== undefined) ? idx + 1 : blocksModel.count;
+            blocksModel.insert(insertPos, { bid: hBid, type: "html", raw: tplRaw, sep: "\n\n" });
+            root.activeBlockBid = hBid;
+            root.safeFocusDelegate(hBid, 0);
+            debouncedMarkdownTimer.restart();
+        }
+        _saveSnapshot();
+        root.updateFormatState();
+    }
+
+    function _applyBlockAlignSingle(idx, curItem, targetAlign, plainTextOverride) {
+        if (!curItem || idx < 0 || idx >= blocksModel.count) return;
+        var baseRaw = (typeof plainTextOverride === "string") ? plainTextOverride : (curItem.raw || "");
+        var res = HtmlTemplates.applyAlignContainer(baseRaw, targetAlign);
+        var origSep = curItem.sep || "\n\n";
+
+        if (res.unwrapped) {
+            var rep = BlockModel.reparseBlock(res.raw, BlockModel.getNextBid());
+            if (rep.length > 0) {
+                rep[rep.length - 1].sep = origSep;
+                root._replaceBlocksAtRange(idx, 1, rep, rep[0].bid, 0);
+            } else {
+                var pBid = BlockModel.getNextBid();
+                root._replaceBlocksAtRange(idx, 1, [{ bid: pBid, type: "paragraph", raw: "", sep: origSep }], pBid, 0);
+            }
+            return;
+        }
+
+        if (res.raw === baseRaw) {
+            root.updateFormatState();
+            return;
+        }
+
+        if (curItem.type === "html") {
+            blocksModel.setProperty(idx, "raw", res.raw);
+            root.onBlockRawChanged(curItem.bid, res.raw);
+            var hLdr = _getDelegateItemForBid(curItem.bid);
+            if (hLdr && hLdr.item && typeof hLdr.item._syncTextFromModel === "function") {
+                hLdr.item._syncTextFromModel();
+            }
+            _saveSnapshot();
+            root.updateFormatState();
+        } else {
+            root.convertBlockType(curItem.bid, "html", res.raw, 0);
+            root.updateFormatState();
+        }
     }
 
     function applyAction(actionId) {
@@ -3184,14 +3363,7 @@ Flickable {
             }
             if (selBidsList.length > 0) {
                 // Formatos inline sobre todos los bloques seleccionados
-                if (actionId === "bold" || actionId === "italic" || actionId === "underline" || actionId === "strike" || actionId === "inline_code" || actionId === "highlight") {
-                    var marker = "**";
-                    if (actionId === "italic") marker = "*";
-                    else if (actionId === "underline") marker = "<u>";
-                    else if (actionId === "strike") marker = "~~";
-                    else if (actionId === "inline_code") marker = "`";
-                    else if (actionId === "highlight") marker = "==";
-
+                if (root._resolveInlineMarker(actionId) !== "" || actionId === "clear_color") {
                     for (var sIdx = 0; sIdx < selBidsList.length; sIdx++) {
                         var selB = selBidsList[sIdx];
                         var bType = selB.item.type;
@@ -3207,7 +3379,7 @@ Flickable {
                             var sPos = te ? te.selectionStart : 0;
                             var ePos = te ? te.selectionEnd : pTxt.length;
                             if (sPos === ePos) { sPos = 0; ePos = pTxt.length; }
-                            var wrapRes = Inline.toggleWrap(pTxt, sPos, ePos, marker);
+                            var wrapRes = root._toggleInlineAction(pTxt, sPos, ePos, actionId);
                             newRaw = wrapRes.text;
                             if (te) {
                                 if (te.textFormat === TextEdit.RichText) te.text = Inline.formatForLiveEditing(wrapRes.text, { cursorPos: te.cursorPosition, selStart: wrapRes.newSelStart, selEnd: wrapRes.newSelEnd });
@@ -3225,7 +3397,7 @@ Flickable {
                                 ePos = te.selectionEnd;
                                 if (sPos === ePos) { sPos = 0; ePos = hBody.length; }
                             }
-                            var wrapRes = Inline.toggleWrap(hBody, sPos, ePos, marker);
+                            var wrapRes = root._toggleInlineAction(hBody, sPos, ePos, actionId);
                             newRaw = hPrefix + wrapRes.text;
                             if (te) {
                                 if (te.textFormat === TextEdit.RichText) te.text = Inline.formatForLiveEditing(wrapRes.text, { cursorPos: te.cursorPosition, selStart: wrapRes.newSelStart, selEnd: wrapRes.newSelEnd });
@@ -3237,10 +3409,10 @@ Flickable {
                             var wrappedLines = qLines.map(function(qLine) {
                                 var qm = qLine.match(/^([ \t]*>[ \t]?)(.*)$/);
                                 if (qm) {
-                                    var w = Inline.toggleWrap(qm[2], 0, qm[2].length, marker);
+                                    var w = root._toggleInlineAction(qm[2], 0, qm[2].length, actionId);
                                     return qm[1] + w.text;
                                 } else {
-                                    var w = Inline.toggleWrap(qLine, 0, qLine.length, marker);
+                                    var w = root._toggleInlineAction(qLine, 0, qLine.length, actionId);
                                     return w.text;
                                 }
                             });
@@ -3254,7 +3426,7 @@ Flickable {
                             var parsedItems = LP.parseList(bRaw);
                             for (var pi = 0; pi < parsedItems.length; pi++) {
                                 var it = parsedItems[pi];
-                                var w = Inline.toggleWrap(it.text, 0, it.text.length, marker);
+                                var w = root._toggleInlineAction(it.text, 0, it.text.length, actionId);
                                 it.text = w.text;
                             }
                             newRaw = LP.serializeList(parsedItems);
@@ -3355,6 +3527,45 @@ Flickable {
                     return;
                 }
 
+                // Alineación HTML (<div align="...">) sobre múltiples bloques seleccionados
+                var multiAlign = root._targetAlignFromAction(actionId);
+                if (multiAlign !== "") {
+                    var isContiguous = true;
+                    for (var cIdx = 1; cIdx < selBidsList.length; cIdx++) {
+                        if (selBidsList[cIdx].idx !== selBidsList[cIdx - 1].idx + 1) {
+                            isContiguous = false;
+                            break;
+                        }
+                    }
+                    var allMatchAlign = selBidsList.every(function(sb) {
+                        if (sb.item.type !== "html") return false;
+                        var curAl = HtmlTemplates.detectAlign(sb.item.raw || "");
+                        return (multiAlign === "left") ? (curAl !== "") : (curAl === multiAlign);
+                    });
+                    root.clearAllSelections();
+                    if (allMatchAlign || multiAlign === "left" || !isContiguous || selBidsList.length === 1) {
+                        for (var rIdx = selBidsList.length - 1; rIdx >= 0; rIdx--) {
+                            root._applyBlockAlignSingle(selBidsList[rIdx].idx, selBidsList[rIdx].item, multiAlign);
+                        }
+                    } else {
+                        var parts = [];
+                        for (var pIdx = 0; pIdx < selBidsList.length; pIdx++) {
+                            parts.push(selBidsList[pIdx].item.raw || "");
+                        }
+                        var combined = HtmlTemplates.applyAlignContainer(parts.join("\n\n"), multiAlign);
+                        var lastSep = selBidsList[selBidsList.length - 1].item.sep || "\n\n";
+                        var newHtmlBid = BlockModel.getNextBid();
+                        root._replaceBlocksAtRange(
+                            selBidsList[0].idx,
+                            selBidsList.length,
+                            [{ bid: newHtmlBid, type: "html", raw: combined.raw, sep: lastSep }],
+                            newHtmlBid,
+                            0
+                        );
+                    }
+                    return;
+                }
+
                 // Encabezados (h1..h6) sobre múltiples bloques
                 // F22: coherente con isFormatActive — vale para heading y para ítems de lista.
                 if (actionId.startsWith("h") && actionId.length === 2) {
@@ -3426,32 +3637,34 @@ Flickable {
             return Inline.plainText(te);
         }
 
-        if (actionId === "bold" || actionId === "italic" || actionId === "underline" || actionId === "strike" || actionId === "inline_code" || actionId === "highlight") {
-            var marker = "**";
-            if (actionId === "italic") marker = "*";
-            else if (actionId === "underline") marker = "<u>";
-            else if (actionId === "strike") marker = "~~";
-            else if (actionId === "inline_code") marker = "`";
-            else if (actionId === "highlight") marker = "==";
-
+        if (root._resolveInlineMarker(actionId) !== "" || actionId === "clear_color") {
             if (textEdit) {
                 var s = textEdit.selectionStart;
                 var e = textEdit.selectionEnd;
                 var plainTxt = _getPlainText(textEdit);
-                var res = Inline.toggleWrap(plainTxt, s, e, marker);
-                if (textEdit.textFormat === TextEdit.RichText) {
-                    textEdit.text = Inline.formatForLiveEditing(res.text, {
-                        cursorPos: textEdit.cursorPosition,
-                        selStart: res.newSelStart,
-                        selEnd: res.newSelEnd
-                    });
-                } else {
-                    textEdit.text = res.text;
+                var res = root._toggleInlineAction(plainTxt, s, e, actionId);
+                if (res) {
+                    if (textEdit.textFormat === TextEdit.RichText) {
+                        textEdit.text = Inline.formatForLiveEditing(res.text, {
+                            cursorPos: textEdit.cursorPosition,
+                            selStart: res.newSelStart,
+                            selEnd: res.newSelEnd
+                        });
+                    } else {
+                        textEdit.text = res.text;
+                    }
+                    textEdit.select(res.newSelStart, res.newSelEnd);
+                    root._commitInlineFormattedSubEdit(root.activeBlockBid, textEdit, res.text, res.newSelStart, res.newSelEnd);
                 }
-                textEdit.select(res.newSelStart, res.newSelEnd);
-                root._commitInlineFormattedSubEdit(root.activeBlockBid, textEdit, res.text, res.newSelStart, res.newSelEnd);
             }
             root.updateFormatState();
+        } else if (actionId === "align_left" || actionId === "align_center" || actionId === "align_right" || actionId === "align_justify") {
+            var singleAlign = root._targetAlignFromAction(actionId);
+            var alItem = (idx !== -1) ? blocksModel.get(idx) : null;
+            if (alItem && singleAlign !== "") {
+                var liveTxtSingle = (alItem.type === "paragraph" && textEdit) ? _getPlainText(textEdit) : undefined;
+                root._applyBlockAlignSingle(idx, alItem, singleAlign, liveTxtSingle);
+            }
         } else if (actionId === "h1" || actionId === "h2" || actionId === "h3" || actionId === "h4" || actionId === "h5" || actionId === "h6") {
             var targetLevel = 1;
             if (actionId === "h2") targetLevel = 2;
@@ -3728,6 +3941,14 @@ Flickable {
                 root._commitInlineFormattedSubEdit(root.activeBlockBid, textEdit, updatedRaw, textEdit.selectionStart, textEdit.selectionEnd);
             }
             root.updateFormatState();
+        } else if (actionId === "html_block" || actionId === "details_block" || (typeof actionId === "string" && actionId.startsWith("html:"))) {
+            root.confirmActiveBlock();
+            var htmlIdxAfterConfirm = _findBlockIndex(root.activeBlockBid);
+            var htmlTplKey = (typeof actionId === "string" && actionId.startsWith("html:"))
+                ? actionId.substring(5)
+                : (actionId === "details_block" ? "details" : "card");
+            var targetInsertIdx = (idx !== -1 && idx < blocksModel.count) ? idx : htmlIdxAfterConfirm;
+            root._insertHtmlBlock(HtmlTemplates.getTemplate(htmlTplKey), false, targetInsertIdx, null);
         }
     }
 
@@ -3762,7 +3983,9 @@ Flickable {
                     actionId === "h4" || actionId === "h5" || actionId === "h6" ||
                     actionId === "bullet_list" || actionId === "ordered_list" || actionId === "task_list" ||
                     actionId === "quote" || actionId === "code_block" || actionId === "table" ||
-                    actionId === "mermaid" || actionId === "math") {
+                    actionId === "mermaid" || actionId === "math" ||
+                    actionId === "html_block" || actionId === "details_block" ||
+                    actionId === "align_center" || actionId === "align_right" || actionId === "align_justify") {
                     var allMatch = true;
                     for (var i = 0; i < bids.length; i++) {
                         var bidNum = parseInt(bids[i], 10);
@@ -3803,6 +4026,10 @@ Flickable {
                         if (actionId === "mermaid" && bItem.type !== "mermaid") { allMatch = false; break; }
                         if (actionId === "math" && bItem.type !== "math") { allMatch = false; break; }
                         if (actionId === "table" && bItem.type !== "table") { allMatch = false; break; }
+                        if (actionId === "html_block" && bItem.type !== "html") { allMatch = false; break; }
+                        if (actionId === "details_block" && (bItem.type !== "html" || !/<details\b/i.test(bItem.raw || ""))) { allMatch = false; break; }
+                        if ((actionId === "align_center" || actionId === "align_right" || actionId === "align_justify") &&
+                            (bItem.type !== "html" || HtmlTemplates.detectAlign(bItem.raw || "") !== actionId.substring(6))) { allMatch = false; break; }
                         if (actionId === "task_list" || actionId === "bullet_list" || actionId === "ordered_list") {
                             if (bItem.type !== "list") { allMatch = false; break; }
                             var sItems = cache.selListMap[bidNum];
@@ -3849,6 +4076,8 @@ Flickable {
                 actionId === "h4" || actionId === "h5" || actionId === "h6" ||
                 actionId === "quote" || actionId === "code_block" || actionId === "mermaid" ||
                 actionId === "math" || actionId === "table" ||
+                actionId === "html_block" || actionId === "details_block" ||
+                actionId === "align_center" || actionId === "align_right" || actionId === "align_justify" ||
                 actionId === "task_list" || actionId === "bullet_list" || actionId === "ordered_list");
 
             if (isBlockAction && cache.actions[actionId] !== undefined) {
@@ -3908,6 +4137,12 @@ Flickable {
             if (actionId === "mermaid") { cache.actions[actionId] = (b.type === "mermaid"); return cache.actions[actionId]; }
             if (actionId === "math") { cache.actions[actionId] = (b.type === "math"); return cache.actions[actionId]; }
             if (actionId === "table") { cache.actions[actionId] = (b.type === "table"); return cache.actions[actionId]; }
+            if (actionId === "html_block") { cache.actions[actionId] = (b.type === "html"); return cache.actions[actionId]; }
+            if (actionId === "details_block") { cache.actions[actionId] = (b.type === "html" && /<details\b/i.test(b.raw || "")); return cache.actions[actionId]; }
+            if (actionId === "align_center" || actionId === "align_right" || actionId === "align_justify") {
+                cache.actions[actionId] = (b.type === "html" && HtmlTemplates.detectAlign(b.raw || "") === actionId.substring(6));
+                return cache.actions[actionId];
+            }
 
             if (actionId === "task_list" || actionId === "bullet_list" || actionId === "ordered_list") {
                 var resL = false;
@@ -4535,6 +4770,7 @@ Flickable {
                         case "code": return codeComp;
                         case "mermaid": return mermaidComp;
                         case "math": return mathComp;
+                        case "html": return htmlComp;
                         default: return rawComp;
                     }
                 }
@@ -4575,7 +4811,25 @@ Flickable {
                     restoreMode: Binding.RestoreNone
                 }
 
+                // Zona de proximidad derecha para mostrar moveLinePill solo cuando el cursor del mouse se acerca
+                Item {
+                    id: moveLineProximityZone
+                    visible: !root.readOnly && blockLoader.blockIsEditing && !blockLoader.isFoldedHidden && (moveLinePill.canMoveUp || moveLinePill.canMoveDown)
+                    anchors.right: parent.right
+                    y: Math.max(0, Math.min(Math.max(0, parent.height - height), moveLinePill.y - 24))
+                    width: Math.max(88, moveLinePill.btnSize * 4.5)
+                    height: Math.max(80, moveLinePill.height + 48)
+                    z: 79
+
+                    HoverHandler {
+                        id: moveLineProximityHover
+                        acceptedDevices: PointerDevice.Mouse
+                        enabled: moveLineProximityZone.visible
+                    }
+                }
+
                 // Botones flotantes ↑/↓ transparentes sobre el extremo derecho de la línea/bloque activo (escalables con zoom)
+                // Se ocultan suavemente cuando el cursor está lejos para no tapar la lectura del texto.
                 Item {
                     id: moveLinePill
                     readonly property bool itemCanMoveUp: (blockLoader.item && blockLoader.item.canMoveLineUp === true)
@@ -4589,14 +4843,21 @@ Flickable {
                     readonly property int iconSize: Math.max(10, Math.min(26, Math.round(13 * zScale)))
                     readonly property int btnRadius: Math.max(4, Math.round(5 * zScale))
                     readonly property int btnSpacing: Math.max(2, Math.round(2 * zScale))
+                    readonly property bool isNearCursor: moveLineProximityHover.hovered || upBlkMa.containsMouse || downBlkMa.containsMouse
 
-                    visible: !root.readOnly && blockLoader.blockIsEditing && !blockLoader.isFoldedHidden && (canMoveUp || canMoveDown)
+                    opacity: isNearCursor ? 1.0 : 0.0
+                    visible: !root.readOnly && blockLoader.blockIsEditing && !blockLoader.isFoldedHidden && (canMoveUp || canMoveDown) && opacity > 0.01
                     anchors.right: parent.right
                     anchors.rightMargin: 4
                     y: Math.max(0, Math.min(Math.max(0, parent.height - height), activeLineOffsetY))
                     width: btnSize
                     height: btnSize * 2 + btnSpacing
                     z: 80
+
+                    Behavior on opacity {
+                        enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                        NumberAnimation { duration: 150; easing.type: Easing.OutCubic }
+                    }
 
                     Column {
                         anchors.centerIn: parent
@@ -4764,6 +5025,7 @@ Flickable {
     Component { id: codeComp; BlockCode {} }
     Component { id: mermaidComp; BlockMermaid {} }
     Component { id: mathComp; BlockMath {} }
+    Component { id: htmlComp; BlockHtml {} }
     Component { id: rawComp; BlockRaw {} }
 
     function _findBlockNearY(y) {

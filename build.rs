@@ -70,6 +70,7 @@ fn main() {
         "qml/MermaidView.qml",
         "qml/BlockMath.qml",
         "qml/MathView.qml",
+        "qml/BlockHtml.qml",
         "qml/BlockRaw.qml",
         "qml/SpellOverlay.qml",
         "qml/FocusRing.qml",
