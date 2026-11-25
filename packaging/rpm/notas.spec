@@ -2,7 +2,7 @@
 %define debug_package %{nil}
 
 Name:           criperto-notes
-Version:        0.3.10
+Version:        0.4.0
 Release:        1%{?dist}
 Summary:        Editor moderno y nativo de notas en Markdown para Wayland
 License:        GPL-3.0-or-later
