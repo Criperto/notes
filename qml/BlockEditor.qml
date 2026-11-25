@@ -15,6 +15,7 @@ import "MermaidTemplates.js" as MermaidTemplates
 import "MathTemplates.js" as MathTemplates
 import "ReferenceLogic.js" as ReferenceLogic
 import "TableParser.js" as TP
+import "ImageProbe.js" as ImageProbe
 
 Flickable {
     id: root
@@ -4132,11 +4133,18 @@ Flickable {
             return;
         }
 
-        if (link.startsWith("./") || link.startsWith("../") || /\.(pdf|png|jpe?g|webp|gif|svg|txt|md)$/i.test(link)) {
+        if (!link.startsWith("#")) {
+            var cleanLink = link.replace(/[?#].*$/, "");
             var baseDir = (NotesService.activeNote && NotesService.activeNote.baseFolder) ? NotesService.activeNote.baseFolder : NotesService.notesDir;
-            var resolvedFile = link.startsWith("/") ? link : (baseDir + "/" + link);
-            Quickshell.execDetached(["xdg-open", resolvedFile]);
-            return;
+            var resolvedFile = ImageProbe.resolveLocal(baseDir, link);
+            var hasExplicitFilePattern = link.startsWith("./") || link.startsWith("../") || link.startsWith("/")
+                || /\.(pdf|png|jpe?g|webp|gif|svg|txt|md|sh|py|js|ts|rs|qml|json|toml|ya?ml|ini|conf|lock|log|csv|html?|css|xml|zip|tar|gz)$/i.test(cleanLink);
+            var existsOnDisk = resolvedFile !== "" && typeof Sys !== "undefined" && typeof Sys.fileExists === "function" && Sys.fileExists(resolvedFile);
+            if (hasExplicitFilePattern || existsOnDisk) {
+                var targetFile = resolvedFile !== "" ? resolvedFile : (link.startsWith("/") ? cleanLink : (baseDir + "/" + cleanLink));
+                Quickshell.execDetached(["xdg-open", targetFile]);
+                return;
+            }
         }
 
         var curSlug = NotesService.activeNote ? (NotesService.activeNote.slug || NotesService.activeNote.id || "") : "";

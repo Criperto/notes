@@ -557,8 +557,10 @@ Rectangle {
                 anchors.fill: parent
                 acceptedButtons: Qt.LeftButton | Qt.RightButton
                 cursorShape: Qt.IBeamCursor
+                preventStealing: dragging
 
                 property bool dragging: false
+                property bool didDragSelect: false
                 property bool isCrossDragging: false
                 property bool _doubleClickedRecently: false
                 property int anchorPos: -1
@@ -580,6 +582,7 @@ Rectangle {
                         root.editor.clearSelectionExcept(root.blockData.bid);
                     }
                     dragging = true;
+                    didDragSelect = false;
                     isCrossDragging = false;
                     startX = mouse.x;
                     startY = mouse.y;
@@ -601,6 +604,7 @@ Rectangle {
                 onPositionChanged: (mouse) => {
                     if (!dragging || anchorPos < 0) return;
                     if (!isCrossDragging && !(root.editor && root.editor.isDraggingSelection) && Math.abs(mouse.x - startX) < 3 && Math.abs(mouse.y - startY) < 3) return;
+                    didDragSelect = true;
 
                     if (isCrossDragging || (root.editor && root.editor.isDraggingSelection)) {
                         if (!isCrossDragging) {
@@ -613,39 +617,37 @@ Rectangle {
                         }
                     }
 
-                    if (root.inPreviewMode) {
-                        var maxX = Math.max(0, codeFlickable.contentWidth - codeFlickable.width);
-                        if (maxX > 0) {
-                            var fx = mouse.x - codeFlickable.contentX;
-                            if (fx > codeFlickable.width - 20) {
-                                codeFlickable.contentX = Math.min(maxX, codeFlickable.contentX + 16);
-                            } else if (fx < 20) {
-                                codeFlickable.contentX = Math.max(0, codeFlickable.contentX - 16);
-                            }
-                        }
-                        if (root.editor && typeof root.editor.handleLocalOrCrossDrag === "function") {
-                            var ptView = root.editor.mapFromItem(previewMa, mouse.x, mouse.y);
-                            if (root.editor.handleLocalOrCrossDrag(previewMa, root.blockData.bid, previewInput, anchorPos, ptView.x, ptView.y, 4, root)) {
-                                isCrossDragging = true;
-                            }
-                            return;
-                        }
-                        previewInput.select(anchorPos, previewInput.positionAt(mouse.x, mouse.y));
-                    } else {
-                        var ptRoot = mapToItem(root, mouse.x, mouse.y);
-                        if (ptRoot.y < -4 || ptRoot.y > root.height + 4) {
-                            isCrossDragging = true;
-                            if (root.editor && typeof root.editor.handleCrossBlockDrag === "function") {
-                                var ptC = mapToItem(root.editor.contentItem, mouse.x, mouse.y);
-                                root.editor.handleCrossBlockDrag(root.blockData.bid, ptC.y, ptC.x);
-                            }
+                    var maxX = Math.max(0, codeFlickable.contentWidth - codeFlickable.width);
+                    if (maxX > 0) {
+                        var fx = mouse.x - codeFlickable.contentX;
+                        if (fx > codeFlickable.width - 20) {
+                            codeFlickable.contentX = Math.min(maxX, codeFlickable.contentX + 16);
+                        } else if (fx < 20) {
+                            codeFlickable.contentX = Math.max(0, codeFlickable.contentX - 16);
                         }
                     }
+                    if (root.editor && typeof root.editor.handleLocalOrCrossDrag === "function") {
+                        var ptView = root.editor.mapFromItem(previewMa, mouse.x, mouse.y);
+                        if (root.editor.handleLocalOrCrossDrag(previewMa, root.blockData.bid, previewInput, anchorPos, ptView.x, ptView.y, 4, root)) {
+                            isCrossDragging = true;
+                        }
+                        return;
+                    }
+                    var ptRoot = mapToItem(root, mouse.x, mouse.y);
+                    if (ptRoot.y < -4 || ptRoot.y > root.height + 4) {
+                        isCrossDragging = true;
+                        if (root.editor && typeof root.editor.handleCrossBlockDrag === "function") {
+                            var ptC = mapToItem(root.editor.contentItem, mouse.x, mouse.y);
+                            root.editor.handleCrossBlockDrag(root.blockData.bid, ptC.y, ptC.x);
+                        }
+                        return;
+                    }
+                    previewInput.select(anchorPos, previewInput.positionAt(mouse.x, mouse.y));
                 }
 
                 onReleased: (mouse) => {
                     if (mouse.button === Qt.RightButton) return;
-                    var wasShortClick = !isCrossDragging && Math.abs(mouse.x - startX) < 4 && Math.abs(mouse.y - startY) < 4;
+                    var wasShortClick = !didDragSelect && !isCrossDragging && Math.abs(mouse.x - startX) < 4 && Math.abs(mouse.y - startY) < 4;
                     if (wasShortClick && !_doubleClickedRecently && !root.inPreviewMode) {
                         if (root.editor && root.blockData) {
                             root.editor.requestEditBlock(root.blockData.bid, { x: mouse.x, y: mouse.y });
@@ -653,6 +655,7 @@ Rectangle {
                     }
                     _doubleClickedRecently = false;
                     dragging = false;
+                    didDragSelect = false;
                     anchorPos = -1;
                     if (isCrossDragging || (root.editor && root.editor.isDraggingSelection)) {
                         isCrossDragging = false;
@@ -667,6 +670,7 @@ Rectangle {
 
                 onCanceled: {
                     dragging = false;
+                    didDragSelect = false;
                     anchorPos = -1;
                     isCrossDragging = false;
                     if (root.editor && typeof root.editor.endCrossBlockDrag === "function") {

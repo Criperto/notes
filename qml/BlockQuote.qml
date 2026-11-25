@@ -20,14 +20,26 @@ Item {
 
     implicitWidth: parent ? parent.width : 400
     // F24 / F77: misma altura en vista y edición con escalado proporcional a zoom
-    implicitHeight: ((isEditing || isSelected) && editInput.length > 0)
-        ? (editInput.paintedHeight + Math.round(14 * EditorMetrics.zoom))
-        : (viewCol.implicitHeight + Math.round(14 * EditorMetrics.zoom))
+    implicitHeight: {
+        if (root.isPreviewCallout && root.isSelected && editInput.length > 0) {
+            return calloutHeader.height + Math.round(6 * EditorMetrics.zoom) + editInput.paintedHeight + Math.round(24 * EditorMetrics.zoom);
+        }
+        if ((isEditing || isSelected) && editInput.length > 0) {
+            return editInput.paintedHeight + Math.round(14 * EditorMetrics.zoom);
+        }
+        return viewCol.implicitHeight + Math.round(14 * EditorMetrics.zoom);
+    }
 
     readonly property string cleanQuoteText: {
         if (!blockData || !blockData.raw) return "";
         return blockData.raw.replace(/^[ \t]*>[ \t]?/gm, "");
     }
+    readonly property bool isPreviewCallout: root.isCallout && !root.isEditing && !!(root.editor && root.editor.readOnly)
+    readonly property string calloutBodyCleanText: {
+        if (!isCallout || !calloutInfo || !calloutInfo.bodyRaw) return "";
+        return calloutInfo.bodyRaw.replace(/^[ \t]*>[ \t]?/gm, "");
+    }
+    readonly property string _editSourceText: (root.isPreviewCallout && root.calloutBodyCleanText !== "") ? root.calloutBodyCleanText : root.cleanQuoteText
 
     property bool _isDestroyed: false
 
@@ -287,10 +299,17 @@ Item {
     property bool _syncingModel: false
     property string _lastAppliedHtml: ""
 
+    onIsPreviewCalloutChanged: {
+        if (root.isEditing || root.isSelected || (editInput && editInput.text !== "")) {
+            _syncTextFromModel();
+        }
+    }
+
     function _syncTextFromModel() {
         if (!root.blockData) return;
+        var sourceText = root._editSourceText;
         var curPos = editInput ? editInput.cursorPosition : -1;
-        var formatted = Inline.formatForLiveEditing(root.cleanQuoteText, {
+        var formatted = Inline.formatForLiveEditing(sourceText, {
             cursorPos: curPos,
             selStart: editInput ? editInput.selectionStart : -1,
             selEnd: editInput ? editInput.selectionEnd : -1,
@@ -299,7 +318,7 @@ Item {
             hideSyntax: Boolean(root.editor && root.editor.readOnly)
         });
         var curRaw = Inline.plainText(editInput);
-        if (curRaw !== root.cleanQuoteText || editInput.text === "") {
+        if (curRaw !== sourceText || editInput.text === "" || formatted !== root._lastAppliedHtml) {
             var oldPos = editInput.cursorPosition;
             var oldSelStart = editInput.selectionStart;
             var oldSelEnd = editInput.selectionEnd;
@@ -516,7 +535,7 @@ Item {
     // Fondo sutil del callout (F77)
     Rectangle {
         id: calloutBg
-        visible: root.isCallout && !root.isEditing && !root.isSelected
+        visible: root.isCallout && !root.isEditing && (!root.isSelected || root.isPreviewCallout)
         anchors.fill: parent
         radius: Math.max(4, Math.round(6 * EditorMetrics.zoom))
         color: root.calloutColor
@@ -537,7 +556,7 @@ Item {
     // Solo lectura; edición sin cambios y .md intacto (ver getRaw).
     Item {
         id: viewCol
-        visible: !root.isEditing && !root.isSelected
+        visible: (!root.isEditing && !root.isSelected) || (root.isPreviewCallout && root.isSelected)
         anchors.left: quoteBar.right
         anchors.right: parent.right
         anchors.leftMargin: root.isCallout ? Math.round(14 * EditorMetrics.zoom) : Math.round(12 * EditorMetrics.zoom)
@@ -650,7 +669,7 @@ Item {
                 id: segmentsCol
                 width: parent.width
                 spacing: 4
-                visible: !(root.isCallout && root.effectiveFolded)
+                visible: !(root.isCallout && root.effectiveFolded) && !(root.isPreviewCallout && root.isSelected)
 
                 Repeater {
                     id: segmentsRepeater
@@ -1048,8 +1067,11 @@ Item {
         anchors.left: quoteBar.right
         anchors.right: parent.right
         anchors.leftMargin: root.isCallout ? Math.round(14 * EditorMetrics.zoom) : Math.round(12 * EditorMetrics.zoom)
+        anchors.rightMargin: root.isCallout ? Math.round(12 * EditorMetrics.zoom) : 0
         anchors.top: parent.top
-        anchors.topMargin: root.isCallout ? Math.round(8 * EditorMetrics.zoom) : 0
+        anchors.topMargin: root.isPreviewCallout
+            ? (Math.round(8 * EditorMetrics.zoom) + calloutHeader.height + Math.round(6 * EditorMetrics.zoom))
+            : (root.isCallout ? Math.round(8 * EditorMetrics.zoom) : 0)
         textFormat: TextEdit.RichText
         text: ""
         color: Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.92)

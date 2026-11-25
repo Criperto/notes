@@ -451,19 +451,48 @@ function inlineToHtml(src, opts) {
     });
 
     // 5c. Linkificar URLs peladas (bare URLs): https?://[^\s<>)"]+
-    var bareRegex = /\b(https?:\/\/[^\s<>)"]+)/g;
-    text = text.replace(bareRegex, function(match, url) {
+    // Usa (^|[^A-Za-z0-9:/=]) para aceptar delimitadores previos como _https://..._ sin confundir URLs pegadas a texto/atributos,
+    // y preserva delimitadores de énfasis/formato de cierre (** __ ~~ == * _) si fueron abiertos antes en el párrafo.
+    var bareRegex = /(^|[^A-Za-z0-9:/=])(https?:\/\/[^\s<>)"]+)/g;
+    text = text.replace(bareRegex, function(match, prefix, url, offset, fullStr) {
+        var urlOffset = offset + prefix.length;
+        var paraStart = fullStr.lastIndexOf("\n\n", urlOffset);
+        paraStart = (paraStart === -1) ? 0 : paraStart + 2;
+        var before = fullStr.slice(paraStart, urlOffset);
         var trailing = "";
-        var m = url.match(/[.,:;!?]+$/);
-        if (m) {
-            trailing = m[0];
-            url = url.slice(0, -trailing.length);
+        var trimmed = true;
+        while (trimmed && url.length > 0) {
+            trimmed = false;
+            var pm = url.match(/[.,:;!?]+$/);
+            if (pm) {
+                trailing = pm[0] + trailing;
+                url = url.slice(0, -pm[0].length);
+                trimmed = true;
+                continue;
+            }
+            var dm = url.match(/(\*{3}|\*{2}|__|~~|==|\*|_)$/);
+            if (dm) {
+                var tok = dm[1];
+                var isUnclosed = false;
+                if (tok === "*" || tok === "_") {
+                    var doubleTok = (tok === "*") ? /\*\*/g : /__/g;
+                    var stripped = before.replace(doubleTok, "");
+                    isUnclosed = (stripped.split(tok).length - 1) % 2 === 1;
+                } else {
+                    isUnclosed = (before.split(tok).length - 1) % 2 === 1;
+                }
+                if (isUnclosed) {
+                    trailing = tok + trailing;
+                    url = url.slice(0, -tok.length);
+                    trimmed = true;
+                }
+            }
         }
         var token = "\uE000LINK_" + links.length + "\uE000";
         var safeUrl = escapeHtml(url);
         var html = '<a href="' + safeUrl + '" style="color: ' + linkColor + '; text-decoration: none;">' + safeUrl + '</a>';
         links.push(html);
-        return token + trailing;
+        return prefix + token + trailing;
     });
 
     // 6. Proteger etiquetas HTML permitidas (<u>, </u>, <br>, <br/>, <br />) y escapar las demás

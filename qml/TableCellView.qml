@@ -21,6 +21,8 @@ Item {
     signal linkClicked(string url)
     signal editRequested()
     signal contextMenuRequested(real mouseX, real mouseY)
+    signal cellSelectionActivated(var textEditItem)
+    signal previewContextMenuRequested(var textEditItem, real mouseX, real mouseY)
 
     readonly property string baseFolder: root.editor ? root.editor.imgBaseFolder : ""
     readonly property var segments: Inline.extractTableCellSegments(root.rawText)
@@ -28,6 +30,96 @@ Item {
     readonly property real contentHeight: root.hasMedia ? mediaCol.implicitHeight : plainText.paintedHeight
 
     implicitHeight: contentHeight
+
+    function _cellPressed(ma, textEdit, mouse) {
+        if (!root.isReadOnly) {
+            if (mouse.button === Qt.RightButton) {
+                root.contextMenuRequested(mouse.x, mouse.y);
+            }
+            return;
+        }
+        if (mouse.button === Qt.RightButton) {
+            if (textEdit.selectionStart === textEdit.selectionEnd) {
+                var rPos = textEdit.positionAt(mouse.x, mouse.y);
+                if (rPos >= 0 && rPos <= textEdit.length) {
+                    textEdit.cursorPosition = rPos;
+                }
+            }
+            root.cellSelectionActivated(textEdit);
+            root.previewContextMenuRequested(textEdit, mouse.x, mouse.y);
+            mouse.accepted = true;
+            return;
+        }
+        ma.pressedLink = textEdit.linkAt(mouse.x, mouse.y) || "";
+        ma.startX = mouse.x;
+        ma.startY = mouse.y;
+        ma.didDrag = false;
+        ma.dragging = true;
+        ma.anchorPos = Math.max(0, Math.min(textEdit.length, textEdit.positionAt(mouse.x, mouse.y)));
+        if (textEdit.selectionStart !== textEdit.selectionEnd) {
+            textEdit.deselect();
+        }
+        textEdit.cursorPosition = ma.anchorPos;
+        root.cellSelectionActivated(textEdit);
+    }
+
+    function _cellMoved(ma, textEdit, mouse) {
+        if (!root.isReadOnly || !ma.dragging || ma.anchorPos < 0) return;
+        if (!ma.didDrag && Math.abs(mouse.x - ma.startX) < 3 && Math.abs(mouse.y - ma.startY) < 3) return;
+        ma.didDrag = true;
+        var pos = Math.max(0, Math.min(textEdit.length, textEdit.positionAt(mouse.x, mouse.y)));
+        textEdit.select(ma.anchorPos, pos);
+        root.cellSelectionActivated(textEdit);
+    }
+
+    function _cellReleased(ma, textEdit, mouse) {
+        if (mouse.button === Qt.RightButton) return;
+        if (!root.isReadOnly) {
+            var link = textEdit.linkAt(mouse.x, mouse.y);
+            if (link && link !== "") {
+                root.linkClicked(link);
+                return;
+            }
+            root.editRequested();
+            return;
+        }
+        var wasDrag = ma.didDrag;
+        var pLink = ma.pressedLink;
+        ma.dragging = false;
+        ma.didDrag = false;
+        ma.anchorPos = -1;
+        ma.pressedLink = "";
+        if (!wasDrag) {
+            if (pLink !== "") {
+                root.linkClicked(pLink);
+            } else if (textEdit.selectionStart !== textEdit.selectionEnd) {
+                textEdit.deselect();
+            }
+        } else if (textEdit.selectionStart !== textEdit.selectionEnd) {
+            textEdit.forceActiveFocus();
+            root.cellSelectionActivated(textEdit);
+        }
+    }
+
+    function _cellDoubleClicked(ma, textEdit, mouse) {
+        if (!root.isReadOnly || mouse.button !== Qt.LeftButton) return;
+        ma.dragging = false;
+        ma.didDrag = false;
+        ma.anchorPos = -1;
+        ma.pressedLink = "";
+        textEdit.forceActiveFocus();
+        var pos = Math.max(0, Math.min(textEdit.length, textEdit.positionAt(mouse.x, mouse.y)));
+        textEdit.cursorPosition = pos;
+        textEdit.selectWord();
+        root.cellSelectionActivated(textEdit);
+    }
+
+    function _cellCanceled(ma) {
+        ma.dragging = false;
+        ma.didDrag = false;
+        ma.anchorPos = -1;
+        ma.pressedLink = "";
+    }
 
     function _inlineOpts() {
         return {
@@ -59,19 +151,27 @@ Item {
     }
 
     // ── Vía rápida: celda de solo texto / LaTeX / kbd / enlaces ──────────────
-    Text {
+    TextEdit {
         id: plainText
         visible: !root.hasMedia
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
+        readOnly: true
+        cursorVisible: false
+        cursorDelegate: Item { width: 0; height: 0 }
+        persistentSelection: true
+        activeFocusOnTab: false
+        selectByMouse: false
         text: !root.hasMedia ? Inline.inlineToHtml(root.rawText, root._inlineOpts()) : ""
-        textFormat: Text.RichText
+        textFormat: TextEdit.RichText
         font.family: Theme.fontFamily
         font.pixelSize: root.fontPixelSize
         font.bold: root.fontBold
         color: Theme.text
-        wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+        selectionColor: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.35)
+        selectedTextColor: Theme.text
+        wrapMode: TextEdit.WrapAtWordBoundaryOrAnywhere
         horizontalAlignment: root.cellAlignment
 
         HoverHandler {
@@ -80,22 +180,23 @@ Item {
         }
 
         MouseArea {
+            id: plainMa
             anchors.fill: parent
             enabled: plainText.visible
             acceptedButtons: Qt.LeftButton | Qt.RightButton
             cursorShape: plainText.hoveredLink !== "" ? Qt.PointingHandCursor : Qt.IBeamCursor
-            onClicked: (mouse) => {
-                if (mouse.button === Qt.RightButton) {
-                    root.contextMenuRequested(mouse.x, mouse.y);
-                    return;
-                }
-                var link = plainText.linkAt(mouse.x, mouse.y);
-                if (link && link !== "") {
-                    root.linkClicked(link);
-                    return;
-                }
-                root.editRequested();
-            }
+            preventStealing: root.isReadOnly && dragging
+            property bool dragging: false
+            property bool didDrag: false
+            property int anchorPos: -1
+            property real startX: 0
+            property real startY: 0
+            property string pressedLink: ""
+            onPressed: (mouse) => root._cellPressed(plainMa, plainText, mouse)
+            onPositionChanged: (mouse) => root._cellMoved(plainMa, plainText, mouse)
+            onReleased: (mouse) => root._cellReleased(plainMa, plainText, mouse)
+            onDoubleClicked: (mouse) => root._cellDoubleClicked(plainMa, plainText, mouse)
+            onCanceled: root._cellCanceled(plainMa)
         }
     }
 
@@ -124,17 +225,25 @@ Item {
                 readonly property int reqWidth: (isImageSeg && modelData.width > 0) ? modelData.width : 0
                 readonly property int reqHeight: (isImageSeg && modelData.height > 0) ? modelData.height : 0
 
-                Text {
+                TextEdit {
                     id: segText
                     visible: !segDelegate.isImageSeg
                     width: parent.width
+                    readOnly: true
+                    cursorVisible: false
+                    cursorDelegate: Item { width: 0; height: 0 }
+                    persistentSelection: true
+                    activeFocusOnTab: false
+                    selectByMouse: false
                     text: !segDelegate.isImageSeg && modelData ? Inline.inlineToHtml(modelData.text || "", root._inlineOpts()) : ""
-                    textFormat: Text.RichText
+                    textFormat: TextEdit.RichText
                     font.family: Theme.fontFamily
                     font.pixelSize: root.fontPixelSize
                     font.bold: root.fontBold
                     color: Theme.text
-                    wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+                    selectionColor: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.35)
+                    selectedTextColor: Theme.text
+                    wrapMode: TextEdit.WrapAtWordBoundaryOrAnywhere
                     horizontalAlignment: root.cellAlignment
 
                     HoverHandler {
@@ -143,22 +252,23 @@ Item {
                     }
 
                     MouseArea {
+                        id: segMa
                         anchors.fill: parent
                         enabled: segText.visible
                         acceptedButtons: Qt.LeftButton | Qt.RightButton
                         cursorShape: segText.hoveredLink !== "" ? Qt.PointingHandCursor : Qt.IBeamCursor
-                        onClicked: (mouse) => {
-                            if (mouse.button === Qt.RightButton) {
-                                root.contextMenuRequested(mouse.x, mouse.y);
-                                return;
-                            }
-                            var link = segText.linkAt(mouse.x, mouse.y);
-                            if (link && link !== "") {
-                                root.linkClicked(link);
-                                return;
-                            }
-                            root.editRequested();
-                        }
+                        preventStealing: root.isReadOnly && dragging
+                        property bool dragging: false
+                        property bool didDrag: false
+                        property int anchorPos: -1
+                        property real startX: 0
+                        property real startY: 0
+                        property string pressedLink: ""
+                        onPressed: (mouse) => root._cellPressed(segMa, segText, mouse)
+                        onPositionChanged: (mouse) => root._cellMoved(segMa, segText, mouse)
+                        onReleased: (mouse) => root._cellReleased(segMa, segText, mouse)
+                        onDoubleClicked: (mouse) => root._cellDoubleClicked(segMa, segText, mouse)
+                        onCanceled: root._cellCanceled(segMa)
                     }
                 }
 

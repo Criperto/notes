@@ -28,6 +28,8 @@ Item {
 
     Component.onDestruction: {
         _isDestroyed = true;
+        _activePreviewEdit = null;
+        _activePreviewCellUnit = -1;
         if (typeof SpellService !== "undefined") {
             SpellService.cancelOwner(root);
         }
@@ -67,12 +69,61 @@ Item {
         }
     }
 
+    property var _activePreviewEdit: null
+    property int _activePreviewCellUnit: -1
+
+    function _setPreviewCellSelection(cellUnit, editItem) {
+        if (_activePreviewEdit && _activePreviewEdit !== editItem && typeof _activePreviewEdit.deselect === "function") {
+            _activePreviewEdit.deselect();
+        }
+        _activePreviewEdit = editItem || null;
+        _activePreviewCellUnit = (editItem && typeof cellUnit === "number") ? cellUnit : -1;
+        if (editItem && root.editor && root.blockData && typeof root.editor.notifySingleInputSelection === "function") {
+            root.editor.notifySingleInputSelection(root.blockData.bid, _activePreviewCellUnit);
+        }
+    }
+
     function selectRange(start, end) {}
     function selectAllText() {}
-    function clearTextSelection() {}
+    function clearOtherItemsSelection(exceptSubIdx) {
+        if (_activePreviewEdit && _activePreviewCellUnit !== exceptSubIdx) {
+            if (typeof _activePreviewEdit.deselect === "function") {
+                _activePreviewEdit.deselect();
+            }
+            _activePreviewEdit = null;
+            _activePreviewCellUnit = -1;
+        }
+    }
+    function clearTextSelection() {
+        if (_activePreviewEdit) {
+            if (typeof _activePreviewEdit.deselect === "function") {
+                _activePreviewEdit.deselect();
+            }
+            _activePreviewEdit = null;
+            _activePreviewCellUnit = -1;
+        }
+        if (root._activeTable && root.isEditing) {
+            var ci = root._getCellInput(root.focusedRow, root.focusedCol);
+            if (ci && typeof ci.deselect === "function") ci.deselect();
+        }
+    }
     function getCharPosAt(lx, ly) { return 0; }
     function getTextLength() { return root.blockData ? (root.blockData.raw || "").length : 0; }
-    function getSelectedText() { return root.blockData ? (root.blockData.raw || "") : ""; }
+    function getSelectedText() {
+        if (_activePreviewEdit && typeof _activePreviewEdit.selectedText === "string" && _activePreviewEdit.selectedText !== "") {
+            return _activePreviewEdit.selectedText;
+        }
+        if (root._activeTable && root.isEditing) {
+            var ci = root._getCellInput(root.focusedRow, root.focusedCol);
+            if (ci && typeof ci.selectedText === "string" && ci.selectedText !== "") {
+                return ci.selectedText;
+            }
+        }
+        if (root.editor && root.editor.hasBlockSelection) {
+            return root.blockData ? (root.blockData.raw || "") : "";
+        }
+        return "";
+    }
     function getTextContent() { return root.blockData ? (root.blockData.raw || "") : ""; }
     function deleteSelectedText() {}
 
@@ -147,6 +198,11 @@ Item {
     Component.onCompleted: _syncFromRaw()
 
     onIsEditingChanged: {
+        if (isEditing && _activePreviewEdit) {
+            if (typeof _activePreviewEdit.deselect === "function") _activePreviewEdit.deselect();
+            _activePreviewEdit = null;
+            _activePreviewCellUnit = -1;
+        }
         if (!isEditing && _activeTable) {
             var r = TP.serializeTable(_activeTable);
             _lastSyncedRaw = r;
@@ -165,6 +221,9 @@ Item {
     }
 
     function getTextEdit() {
+        if (root.isReadOnly && _activePreviewEdit) {
+            return _activePreviewEdit;
+        }
         if (root._activeTable && root.isEditing) {
             var cellInput = root._getCellInput(root.focusedRow, root.focusedCol);
             if (cellInput) return cellInput;
@@ -1199,8 +1258,17 @@ Item {
                                                 root.focusCell(-1, colIndex);
                                             }
                                         }
+                                        onCellSelectionActivated: (editItem) => {
+                                            root._setPreviewCellSelection(colIndex, editItem);
+                                        }
+                                        onPreviewContextMenuRequested: (editItem, mx, my) => {
+                                            root._setPreviewCellSelection(colIndex, editItem);
+                                            if (root.editor && root.editor.contextMenu && editItem) {
+                                                root.editor.contextMenu.open(editItem);
+                                            }
+                                        }
                                         onContextMenuRequested: (mx, my) => {
-                                            if (root.editor) {
+                                            if (root.editor && !root.isReadOnly) {
                                                 root.editor.requestEditBlock(root.blockData.bid);
                                                 root.focusCell(-1, colIndex);
                                                 Qt.callLater(() => {
@@ -1606,8 +1674,17 @@ Item {
                                             root.focusCell(rowRect.rowIndex, colIndex);
                                         }
                                     }
+                                    onCellSelectionActivated: (editItem) => {
+                                        root._setPreviewCellSelection(dataCellView.cellUnitIndex, editItem);
+                                    }
+                                    onPreviewContextMenuRequested: (editItem, mx, my) => {
+                                        root._setPreviewCellSelection(dataCellView.cellUnitIndex, editItem);
+                                        if (root.editor && root.editor.contextMenu && editItem) {
+                                            root.editor.contextMenu.open(editItem);
+                                        }
+                                    }
                                     onContextMenuRequested: (mx, my) => {
-                                        if (root.editor) {
+                                        if (root.editor && !root.isReadOnly) {
                                             root.editor.requestEditBlock(root.blockData.bid);
                                             root.focusCell(rowRect.rowIndex, colIndex);
                                             Qt.callLater(() => {
