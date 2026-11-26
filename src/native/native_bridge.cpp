@@ -2062,7 +2062,7 @@ void Sys::printStartupDiagnostics() const {
 
     fprintf(stdout, "\n");
     fprintf(stdout, "╭─────────────────────────────────────────────────────────────────────────────╮\n");
-    QString appVer = qEnvironmentVariable("NOTAS_APP_VERSION", "0.4.1");
+    QString appVer = qEnvironmentVariable("NOTAS_APP_VERSION", "0.4.2");
     QString titleLine = QStringLiteral("│ 📝 io.github.criperto.notes v") + appVer + QStringLiteral(" (criperto-notes)");
     titleLine = titleLine.leftJustified(77, ' ') + QStringLiteral("│\n");
     fprintf(stdout, "%s", titleLine.toUtf8().constData());

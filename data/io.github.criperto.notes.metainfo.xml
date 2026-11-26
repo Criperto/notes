@@ -27,6 +27,11 @@
   </screenshots>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.4.2" date="2026-11-26">
+      <description>
+        <p>v0.4.2: Multiline undo and selection fixes, heading backspace, Enter navigation, list conversion, title Enter-save and fast close preview</p>
+      </description>
+    </release>
     <release version="0.4.1" date="2026-11-25">
       <description>
         <p>v0.4.1: HTML block/table render fixes, persistent image resize, table zoom fit, code contrast and GitGraph spacing</p>
