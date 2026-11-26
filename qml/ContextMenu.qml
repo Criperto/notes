@@ -15,9 +15,21 @@ Window {
     property var extraItems: []
     property var editor: null
     property bool showStandardItems: true
+    function _isDescendantOf(item, anc) {
+        if (!item || !anc) return false;
+        var p = item;
+        for (var hop = 0; hop < 32 && p; hop++) {
+            if (p === anc) return true;
+            p = p.parent;
+        }
+        return false;
+    }
+
     readonly property bool isTextInputTarget: !!(target && (typeof target.cursorPosition === "number" || typeof target.selectedText === "string" || typeof target.canUndo !== "undefined" || (editor && typeof editor.hasBlockSelection !== "undefined" && editor.hasBlockSelection)))
-    readonly property bool _useDocHistory: !!(editor && typeof editor.undo === "function" && typeof editor.redo === "function")
-    readonly property bool _canEditMenuTarget: !!(_useDocHistory ? !editor.readOnly : (target && !target.readOnly))
+    readonly property bool _useBlockEditor: !!(editor && target && _isDescendantOf(target, editor))
+    readonly property bool _useDocHistory: !!(editor && typeof editor.undo === "function" && typeof editor.redo === "function" && (!target || _useBlockEditor))
+    readonly property bool _canEditMenuTarget: !!(_useBlockEditor ? (!editor.readOnly && !(target && target.menuPreviewOnly === true)) : (target && !target.readOnly))
+    readonly property bool _canPasteMenuTarget: !!(_canEditMenuTarget && ((target && Boolean(target.canPaste)) || (_useBlockEditor && typeof Quickshell !== "undefined" && typeof Quickshell.clipboardText === "string" && Quickshell.clipboardText !== "")))
     readonly property bool _canUndoEffective: _useDocHistory ? Boolean(editor.canUndo) : Boolean(target && target.canUndo)
     readonly property bool _canRedoEffective: _useDocHistory ? Boolean(editor.canRedo) : Boolean(target && target.canRedo)
     function _performUndo() {
@@ -35,7 +47,17 @@ Window {
         }
     }
     function _performPaste() {
-        if (editor && typeof editor.handlePaste === "function" && target) {
+        if (_useBlockEditor && _hasMultiSelection()) {
+            var clipTxt = (typeof Quickshell !== "undefined" && typeof Quickshell.clipboardText === "string") ? Quickshell.clipboardText : "";
+            if (typeof editor.replaceSelectedRange === "function") {
+                editor.replaceSelectedRange(clipTxt);
+            }
+            return;
+        }
+        if (_useBlockEditor && target && target.readOnly && typeof editor.activateTargetForEdit === "function") {
+            editor.activateTargetForEdit(target);
+        }
+        if (_useBlockEditor && typeof editor.handlePaste === "function" && target) {
             editor.handlePaste(target);
         } else if (target && typeof target.paste === "function") {
             target.paste();
@@ -44,6 +66,7 @@ Window {
     signal extraItemTriggered(var item)
 
     function _hasMultiSelection() {
+        if (!_useBlockEditor) return false;
         return !!(editor && (
             (typeof editor.hasBlockSelection !== "undefined" && editor.hasBlockSelection) ||
             (typeof editor.hasMultiItemSelectionActive === "function" && editor.hasMultiItemSelectionActive())
@@ -88,7 +111,10 @@ Window {
                 return;
             }
         }
-        if (target && typeof target.cut === "function") {
+        if (_useBlockEditor && target && target.readOnly && typeof editor.commitTargetSelectionEdit === "function") {
+            if (editor.commitTargetSelectionEdit(target, true)) return;
+        }
+        if (target && !target.readOnly && typeof target.cut === "function") {
             target.cut();
         }
     }
@@ -100,7 +126,10 @@ Window {
                 return;
             }
         }
-        if (target && typeof target.remove === "function") {
+        if (_useBlockEditor && target && target.readOnly && typeof editor.commitTargetSelectionEdit === "function") {
+            if (editor.commitTargetSelectionEdit(target, false)) return;
+        }
+        if (target && !target.readOnly && typeof target.remove === "function") {
             target.remove(target.selectionStart, target.selectionEnd);
         }
     }
@@ -198,16 +227,16 @@ Window {
             if (_canEditMenuTarget && _canRedoEffective) {
                 list.push({ type: "standard", id: "redo", trigger: function() { menuWindow._performRedo(); menuWindow.close(); } });
             }
-            if (target && !target.readOnly && _hasAnySelection()) {
+            if (_canEditMenuTarget && _hasAnySelection()) {
                 list.push({ type: "standard", id: "cut", trigger: function() { _performCut(); menuWindow.close(); } });
             }
             if (target && _hasAnySelection()) {
                 list.push({ type: "standard", id: "copy", trigger: function() { _performCopy(); menuWindow.close(); } });
             }
-            if (target && !target.readOnly && target.canPaste) {
+            if (_canPasteMenuTarget) {
                 list.push({ type: "standard", id: "paste", trigger: function() { menuWindow._performPaste(); menuWindow.close(); } });
             }
-            if (target && !target.readOnly && _hasAnySelection()) {
+            if (_canEditMenuTarget && _hasAnySelection()) {
                 list.push({ type: "standard", id: "delete", trigger: function() { _performDelete(); menuWindow.close(); } });
             }
             if (target && target.text !== "") {
@@ -882,7 +911,7 @@ Window {
                     // Cortar
                     Item {
                         id: cutItem
-                        visible: showStandardItems && isTextInputTarget && (target ? !target.readOnly : false)
+                        visible: showStandardItems && isTextInputTarget && menuWindow._canEditMenuTarget
                         enabled: target ? menuWindow._hasAnySelection() : false
                         readonly property bool isItemActive: (cutMA.containsMouse || menuWindow.isItemHighlighted("standard", "cut")) && cutItem.enabled
                         opacity: enabled ? 1.0 : 0.4
@@ -1098,8 +1127,8 @@ Window {
                     // Pegar
                     Item {
                         id: pasteItem
-                        visible: showStandardItems && isTextInputTarget && (target ? !target.readOnly : false)
-                        enabled: target ? Boolean(target.canPaste) : false
+                        visible: showStandardItems && isTextInputTarget && menuWindow._canEditMenuTarget
+                        enabled: menuWindow._canPasteMenuTarget
                         readonly property bool isItemActive: (pasteMA.containsMouse || menuWindow.isItemHighlighted("standard", "paste")) && pasteItem.enabled
                         opacity: enabled ? 1.0 : 0.4
                         Layout.fillWidth: true
@@ -1206,8 +1235,8 @@ Window {
                     // Borrar (Delete)
                     Item {
                         id: deleteItem
-                        visible: showStandardItems && isTextInputTarget && (target ? !target.readOnly : false)
-                        enabled: target ? menuWindow._hasAnySelection() : false
+                        visible: showStandardItems && isTextInputTarget && menuWindow._canEditMenuTarget
+                        enabled: menuWindow._canEditMenuTarget && menuWindow._hasAnySelection()
                         readonly property bool isItemActive: (deleteMA.containsMouse || menuWindow.isItemHighlighted("standard", "delete")) && deleteItem.enabled
                         opacity: enabled ? 1.0 : 0.4
                         Layout.fillWidth: true

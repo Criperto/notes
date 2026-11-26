@@ -118,6 +118,16 @@ Rectangle {
         }
     }
 
+    function syncFromModel() {
+        _syncTextFromModel();
+    }
+    readonly property string _modelRaw: root.blockData ? (root.blockData.raw || "") : ""
+    on_ModelRawChanged: {
+        if (!root._syncingModel && editInput && Inline.plainText(editInput) !== _modelRaw) {
+            _syncTextFromModel();
+        }
+    }
+
     onBlockDataChanged: {
         if (!root.isEditing) _syncTextFromModel();
     }
@@ -468,6 +478,7 @@ Rectangle {
 
             TextEdit {
                 id: editInput
+                Keys.onShortcutOverride: (event) => { if ((!root.editor || !root.editor.readOnly) && (event.matches(StandardKey.Undo) || event.matches(StandardKey.Redo))) event.accepted = true; }
                 anchors.fill: parent
                 anchors.margins: 10
                 font.family: "monospace"
@@ -480,6 +491,18 @@ Rectangle {
                 cursorDelegate: CustomTextCursor {}
 
                 Keys.onPressed: event => {
+                    if ((event.modifiers & Qt.ControlModifier) && !(event.modifiers & Qt.AltModifier)) {
+                        if (event.key === Qt.Key_Z && !(event.modifiers & Qt.ShiftModifier)) {
+                            if (root.editor && !root.editor.readOnly && typeof root.editor.undo === "function") { root.editor.undo(); }
+                            event.accepted = true;
+                            return;
+                        }
+                        if (event.key === Qt.Key_Y || (event.key === Qt.Key_Z && (event.modifiers & Qt.ShiftModifier))) {
+                            if (root.editor && !root.editor.readOnly && typeof root.editor.redo === "function") { root.editor.redo(); }
+                            event.accepted = true;
+                            return;
+                        }
+                    }
                     // Ctrl+Enter o Shift+Enter confirma el bloque
                     if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter) && (event.modifiers & Qt.ControlModifier || event.modifiers & Qt.ShiftModifier)) {
                         event.accepted = true;

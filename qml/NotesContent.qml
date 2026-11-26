@@ -3454,8 +3454,11 @@ Item {
                 editorModal.blockEditor.confirmActiveBlock();
             }
             if (!NotesService.isPendingDelete(curSlug) && !editorModal.isManualSaveOnly && !editorModal._discardUnsavedOnClose) {
-                editorModal.performSave();
+                editorModal.performSave(null, true);
                 NotesService.flushPendingSave();
+            }
+            if (typeof NotesService.rebuildForClose === "function") {
+                NotesService.rebuildForClose();
             }
         }
 
@@ -3502,6 +3505,18 @@ Item {
         }
 
         morphContainer.isExpanded = false;
+        Qt.callLater(() => {
+            if (!root || root._isDestroyed || !morphContainer.isVisible || morphContainer.isExpanded) return;
+            if (root.activeMorphSlug !== "") {
+                var refreshedPos = _findCurrentCardPosition(root.activeMorphSlug, true);
+                if (refreshedPos) {
+                    morphContainer.startX = refreshedPos.x;
+                    morphContainer.startY = refreshedPos.y;
+                    morphContainer.startW = refreshedPos.width;
+                    morphContainer.startH = refreshedPos.height;
+                }
+            }
+        });
         settleCloseTimer.restart();
     }
 
@@ -3784,7 +3799,7 @@ Item {
 
     Timer {
         id: settleCloseTimer
-        interval: (Theme.animationsEnabled && !GamemodeService.gamemodeActive) ? 340 : 10
+        interval: (Theme.animationsEnabled && !GamemodeService.gamemodeActive) ? 240 : 10
         repeat: false
         onTriggered: {
             if (NotesService.debug) console.log("[NotesContent - morph] Contracción completada, restaurando vista de tarjetas");

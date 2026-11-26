@@ -292,6 +292,21 @@ Item {
         }
     }
 
+    function syncFromModel() {
+        _syncTextFromModel();
+    }
+
+    readonly property string _modelRaw: root.blockData ? (root.blockData.raw || "") : ""
+    on_ModelRawChanged: {
+        if (!editInput) return;
+        var curPlain = Inline.plainText(editInput);
+        if (root.editor && root.editor._applyingHistory) {
+            _syncTextFromModel();
+        } else if ((root.isEditing || root.isSelected) && curPlain !== root._modelRaw) {
+            _syncTextFromModel();
+        }
+    }
+
     onBlockDataChanged: {
         if (root.isEditing || root.isSelected) {
             _syncTextFromModel();
@@ -418,7 +433,7 @@ Item {
                 });
             }
             if (editInput.selectionStart !== editInput.selectionEnd) return;
-            if (root.editor && (root.editor.isDraggingSelection || root.editor.hasBlockSelection || root.editor._syncingSelection)) return;
+            if (root.editor && (root.editor.isDraggingSelection || root.editor.hasBlockSelection || root.editor._syncingSelection || root.editor._pointerDragActive)) return;
             if (typeof cursorPos === "object" && cursorPos !== null && typeof cursorPos.x === "number") {
                 if (cursorPos.fromBottom === true || (typeof cursorPos.y === "number" && cursorPos.y > 1000)) {
                     var lastRect = editInput.positionToRectangle(editInput.length);
@@ -469,6 +484,16 @@ Item {
                 root.editor.resetPreferredCursorX();
             }
             if (mouse.button === Qt.RightButton) {
+                if (editInput.text === "" && root.blockData && (root.blockData.raw || "") !== "") {
+                    _syncTextFromModel();
+                }
+                if (root.editor && !root.editor.readOnly && !root.editor.hasBlockSelection && !root.isEditing && editInput.selectionStart !== editInput.selectionEnd) {
+                    var sOld = editInput.selectionStart;
+                    var eOld = editInput.selectionEnd;
+                    root.editor.activeBlockBid = root.blockData.bid;
+                    editInput.forceActiveFocus();
+                    editInput.select(sOld, eOld);
+                }
                 var ptEditR = mapToItem(editInput, mouse.x, mouse.y);
                 var posR = editInput.positionAt(ptEditR.x, ptEditR.y);
                 _openContextMenuAt(editInput, posR);
@@ -751,6 +776,7 @@ Item {
     TextEdit {
         id: editInput
         persistentSelection: true
+        Keys.onShortcutOverride: (event) => { if ((!root.editor || !root.editor.readOnly) && (event.matches(StandardKey.Undo) || event.matches(StandardKey.Redo))) event.accepted = true; }
         overwriteMode: root.editor ? root.editor.overwriteMode : false
         visible: root.isEditing || root.isSelected || (root.editor && root.blockData && root.editor.activeBlockBid === root.blockData.bid)
         readOnly: !root.isEditing || (root.editor && root.editor.readOnly)
@@ -778,7 +804,7 @@ Item {
         }
 
         onSelectionStartChanged: {
-            if (root.editor && !root.editor._syncingSelection && !root.editor.hasBlockSelection && !root.editor.isDraggingSelection) {
+            if (root.editor && !root.editor._syncingSelection && !root.editor.hasBlockSelection && !root.editor.isDraggingSelection && !root.editor._pointerDragActive) {
                 if (editInput.selectionStart !== editInput.selectionEnd && root.blockData && typeof root.editor.notifySingleInputSelection === "function") {
                     root.editor.notifySingleInputSelection(root.blockData.bid);
                 }
@@ -789,7 +815,7 @@ Item {
             }
         }
         onSelectionEndChanged: {
-            if (root.editor && !root.editor._syncingSelection && !root.editor.hasBlockSelection && !root.editor.isDraggingSelection) {
+            if (root.editor && !root.editor._syncingSelection && !root.editor.hasBlockSelection && !root.editor.isDraggingSelection && !root.editor._pointerDragActive) {
                 if (editInput.selectionStart !== editInput.selectionEnd && root.blockData && typeof root.editor.notifySingleInputSelection === "function") {
                     root.editor.notifySingleInputSelection(root.blockData.bid);
                 }
@@ -800,7 +826,7 @@ Item {
             }
         }
         onCursorPositionChanged: {
-            if (root.editor && !root.editor._syncingSelection && !root.editor.hasBlockSelection && !root.editor.isDraggingSelection) {
+            if (root.editor && !root.editor._syncingSelection && !root.editor.hasBlockSelection && !root.editor.isDraggingSelection && !root.editor._pointerDragActive) {
                 if (editInput.activeFocus && editInput.selectionStart === editInput.selectionEnd && root.blockData && typeof root.editor.notifySingleInputSelection === "function") {
                     root.editor.notifySingleInputSelection(root.blockData.bid);
                 }

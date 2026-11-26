@@ -257,6 +257,17 @@ Item {
         }
     }
 
+    function syncFromModel() {
+        _reloadFromRaw();
+    }
+    readonly property string _modelRaw: root.blockData ? (root.blockData.raw || "") : ""
+    on_ModelRawChanged: {
+        if (!root._internalSync && root.blockData) {
+            var curSer = LP.serializeList(root._itemsRawArray);
+            if (root.blockData.raw !== curSer) _reloadFromRaw();
+        }
+    }
+
     onBlockDataChanged: {
         if (!root._internalSync) {
             var curSerialized = LP.serializeList(root._itemsRawArray);
@@ -731,7 +742,10 @@ Item {
         var targetIdx = 0;
         var resolvedPos = cursorPos;
         var fromBot = (cursorPos === -1 || (typeof cursorPos === "object" && cursorPos !== null && (cursorPos.fromBottom === true || cursorPos.y > 1000)));
-        if (fromBot && itemsRepeater.count > 0) {
+        if (typeof cursorPos === "object" && cursorPos !== null && typeof cursorPos.itemIdx === "number" && cursorPos.itemIdx >= 0 && cursorPos.itemIdx < itemsRepeater.count) {
+            targetIdx = cursorPos.itemIdx;
+            resolvedPos = { x: (typeof cursorPos.x === "number") ? cursorPos.x : 0, y: (typeof cursorPos.y === "number") ? cursorPos.y : 0 };
+        } else if (fromBot && itemsRepeater.count > 0) {
             targetIdx = itemsRepeater.count - 1;
         } else if (typeof cursorPos === "object" && cursorPos !== null && cursorPos.fromTop === true) {
             targetIdx = 0;
@@ -887,7 +901,8 @@ Item {
     function deleteMultiItemSelection(replacementText) {
         var rg = selectedItemRange();
         if (rg.from === -1 || rg.to === -1) return;
-        if (rg.from === rg.to) {
+        var hasNewlineRep = (typeof replacementText === "string" && replacementText.indexOf("\n") !== -1);
+        if (rg.from === rg.to && !hasNewlineRep) {
             var sDel = itemsRepeater.itemAt(rg.from);
             if (sDel) {
                 var sTe = sDel.getTextEdit();
@@ -912,6 +927,46 @@ Item {
         var prefixTxt = firstTe.getText(0, firstTe.selectionStart);
         var suffixTxt = lastTe.getText(lastTe.selectionEnd, lastTe.length);
         var inserted = (typeof replacementText === "string") ? replacementText : "";
+        if (hasNewlineRep) {
+            var splitLines = inserted.replace(/\r\n?/g, "\n").split("\n");
+            var tplItem = root._itemsRawArray[rg.from];
+            root._loadingModel = true;
+            var removeCountMl = rg.to - rg.from;
+            if (removeCountMl > 0) {
+                root._itemsRawArray.splice(rg.from + 1, removeCountMl);
+                for (var rMl = 0; rMl < removeCountMl; rMl++) itemsModel.remove(rg.from + 1);
+            }
+            var firstItemDisp = prefixTxt + splitLines[0];
+            root._itemsRawArray[rg.from].text = firstDel.displayToRaw(firstItemDisp);
+            itemsModel.setProperty(rg.from, "text", root._itemsRawArray[rg.from].text);
+            if (typeof firstDel.forceSyncText === "function") {
+                firstDel.forceSyncText(firstItemDisp.length);
+            }
+            for (var sl = 1; sl < splitLines.length; sl++) {
+                var lineContent = splitLines[sl] + ((sl === splitLines.length - 1) ? suffixTxt : "");
+                var newIt = {
+                    indent: tplItem ? (tplItem.indent || "") : "",
+                    marker: tplItem ? (tplItem.marker || "-") : "-",
+                    spacing: (tplItem && tplItem.spacing) ? tplItem.spacing : " ",
+                    isTask: tplItem ? !!tplItem.isTask : false,
+                    checked: false,
+                    text: lineContent
+                };
+                root._itemsRawArray.splice(rg.from + sl, 0, newIt);
+                itemsModel.insert(rg.from + sl, newIt);
+            }
+            _renumberAllOrdered();
+            root._loadingModel = false;
+            _notifyRawChanged();
+            clearTextSelection();
+            var focusIdxMl = rg.from + splitLines.length - 1;
+            var focusPosMl = splitLines[splitLines.length - 1].length;
+            Qt.callLater(() => {
+                if (!root || root._isDestroyed) return;
+                root._focusItem(focusIdxMl, focusPosMl);
+            });
+            return;
+        }
         var mergedDisp = prefixTxt + inserted + suffixTxt;
 
         root._loadingModel = true;
@@ -1329,9 +1384,9 @@ Item {
                     }
                     var applyFocus = () => {
                         if (itemRow._isDestroyed || (r && r._isDestroyed) || !lineEdit) return;
+                        if (r && r.editor && (r.editor.isDraggingSelection || r.editor.hasBlockSelection || r.editor._syncingSelection || r.editor._pointerDragActive)) return;
                         lineEdit.forceActiveFocus();
                         if (lineEdit.selectionStart !== lineEdit.selectionEnd) return;
-                        if (r && r.editor && (r.editor.isDraggingSelection || r.editor.hasBlockSelection || r.editor._syncingSelection)) return;
                         if (pos === -1) {
                             lineEdit.cursorPosition = lineEdit.length;
                         } else if (typeof pos === "object" && pos !== null && typeof pos.x === "number") {
@@ -1680,6 +1735,7 @@ Item {
                         id: lineEdit
                         property string _lastAppliedHtml: itemRow.baseDisplayText(itemRow.text)
                         persistentSelection: true
+                        Keys.onShortcutOverride: (event) => { if ((!root.editor || !root.editor.readOnly) && (event.matches(StandardKey.Undo) || event.matches(StandardKey.Redo))) event.accepted = true; }
                         overwriteMode: root.editor ? root.editor.overwriteMode : false
                         visible: root.isEditing || itemRow.isSelected || (root.spellActive && itemRow.spellRanges && itemRow.spellRanges.length > 0 && lineEdit.length > 0) || (root.editor && root.blockData && root.editor.activeBlockBid === root.blockData.bid)
                         readOnly: !root.isEditing || (root.editor && root.editor.readOnly)
@@ -1722,7 +1778,7 @@ Item {
 
                     onSelectionStartChanged: {
                         root.updateMultiItemSelectionState();
-                        if (root.editor && !root.editor._syncingSelection && !root.editor.hasBlockSelection && !root.editor.isDraggingSelection && !root.hasMultiItemSelection && !root.hasMultipleItemsSelected()) {
+                        if (root.editor && !root.editor._syncingSelection && !root.editor.hasBlockSelection && !root.editor.isDraggingSelection && !root.editor._pointerDragActive && !root.hasMultiItemSelection && !root.hasMultipleItemsSelected()) {
                             if (lineEdit.selectionStart !== lineEdit.selectionEnd) {
                                 root.clearOtherItemsSelection(itemRow.index);
                                 if (root.blockData && typeof root.editor.notifySingleInputSelection === "function") {
@@ -1737,7 +1793,7 @@ Item {
                     }
                     onSelectionEndChanged: {
                         root.updateMultiItemSelectionState();
-                        if (root.editor && !root.editor._syncingSelection && !root.editor.hasBlockSelection && !root.editor.isDraggingSelection && !root.hasMultiItemSelection && !root.hasMultipleItemsSelected()) {
+                        if (root.editor && !root.editor._syncingSelection && !root.editor.hasBlockSelection && !root.editor.isDraggingSelection && !root.editor._pointerDragActive && !root.hasMultiItemSelection && !root.hasMultipleItemsSelected()) {
                             if (lineEdit.selectionStart !== lineEdit.selectionEnd) {
                                 root.clearOtherItemsSelection(itemRow.index);
                                 if (root.blockData && typeof root.editor.notifySingleInputSelection === "function") {
@@ -1751,7 +1807,7 @@ Item {
                         }
                     }
                     onCursorPositionChanged: {
-                        if (root.editor && !root.editor._syncingSelection && !root.editor.hasBlockSelection && !root.editor.isDraggingSelection && !root.hasMultiItemSelection && !root.hasMultipleItemsSelected()) {
+                        if (root.editor && !root.editor._syncingSelection && !root.editor.hasBlockSelection && !root.editor.isDraggingSelection && !root.editor._pointerDragActive && !root.hasMultiItemSelection && !root.hasMultipleItemsSelected()) {
                             if (lineEdit.activeFocus && lineEdit.selectionStart === lineEdit.selectionEnd) {
                                 root.clearOtherItemsSelection(itemRow.index);
                                 if (root.blockData && typeof root.editor.notifySingleInputSelection === "function") {
@@ -2370,14 +2426,6 @@ Item {
                             }
                         }
 
-                        if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
-                            var pos = lineEdit.cursorPosition;
-                            var fullTxt = Inline.plainText(lineEdit);
-                            event.accepted = true;
-                            root.handleItemReturn(itemRow.index, pos, fullTxt);
-                            return;
-                        }
-
                         if (event.modifiers & Qt.ControlModifier) {
                             if (event.key === Qt.Key_Z) {
                                 if (root.editor) {
@@ -2775,6 +2823,15 @@ Item {
                         }
                         if (mouse.button === Qt.RightButton) {
                             if (!lineEdit) return;
+                            var rR = itemRow.rootBlock || (typeof root !== "undefined" ? root : null);
+                            if (rR && rR.editor && !rR.editor.readOnly && !rR.editor.hasBlockSelection && !rR.isEditing && lineEdit.selectionStart !== lineEdit.selectionEnd) {
+                                var sOld = lineEdit.selectionStart;
+                                var eOld = lineEdit.selectionEnd;
+                                rR.activeItemIndex = itemRow.index;
+                                rR.editor.activeBlockBid = rR.blockData.bid;
+                                lineEdit.forceActiveFocus();
+                                lineEdit.select(sOld, eOld);
+                            }
                             var ptEditR = mapToItem(lineEdit, mouse.x, mouse.y);
                             var posR = lineEdit.positionAt(ptEditR.x, ptEditR.y);
                             itemRow._openContextMenuAt(lineEdit, posR);
@@ -2812,10 +2869,12 @@ Item {
                                 lineEdit.deselect();
                             }
                         }
+                        r.activeItemIndex = itemRow.index;
                         if (r.editor && r.blockData && r.editor.activeBlockBid !== r.blockData.bid) {
-                            r.editor.requestEditBlock(r.blockData.bid, { x: ptEdit.x, y: ptEdit.y });
+                            r.editor.requestEditBlock(r.blockData.bid, { itemIdx: itemRow.index, x: ptEdit.x, y: ptEdit.y });
+                        } else {
+                            itemRow.focusInput({ x: ptEdit.x, y: ptEdit.y });
                         }
-                        itemRow.focusInput({ x: ptEdit.x, y: ptEdit.y });
                         var globalAnchor = r.getItemStartOffset(itemRow.index) + itemRow.rawPrefixLen() + (anchorPos >= 0 ? anchorPos : 0);
                         if (r.editor && r.blockData && typeof r.editor.startCrossBlockDrag === "function") {
                             r.editor.startCrossBlockDrag(r.blockData.bid, globalAnchor);

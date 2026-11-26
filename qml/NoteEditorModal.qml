@@ -177,7 +177,7 @@ Item {
             }
             var newTitle = titleInput.text.trim() || I18n.t("notes.card.untitled", "Sin título");
             if (root.dirty || root._currentBody !== root._originalBody || newTitle !== root._originalTitle) {
-                root.performSave();
+                root.performSave(null, true);
             } else {
                 NotesService.flushPendingSave();
             }
@@ -204,7 +204,7 @@ Item {
                 return;
             }
             if (root.dirty || root._currentBody !== root._originalBody || newTitle !== root._originalTitle) {
-                root.performSave();
+                root.performSave(null, true);
             }
         }
     }
@@ -262,13 +262,16 @@ Item {
                     ? (sourceCodeEditor ? sourceCodeEditor.text : root._currentBody)
                     : (blockEditor ? blockEditor.getMarkdown() : root._currentBody);
 
-                // Si el texto entrante coincide con lo que el usuario ya tiene en pantalla,
-                // solo sincronizamos metadata sin resetear el editor ni perder foco/cursor
+                var titleEditingOrEdited = !!(titleInput && (titleInput.activeFocus || titleInput.text.trim() !== root._originalTitle));
+
+                // Si es la misma nota ya cargada en este editor y el texto coincide con pantalla
                 if (incomingClean === currentEditorMd) {
                     if (NotesService.debug) console.log("[StateDebug:Editor] incomingClean coincide con el editor actual, sincronizando sin recargar bloques:", incomingSlug);
                     root._originalBody = incomingClean;
-                    root._originalTitle = root.noteData.title || "";
-                    if (titleInput.text !== root._originalTitle) titleInput.text = root._originalTitle;
+                    if (!titleEditingOrEdited) {
+                        root._originalTitle = root.noteData.title || "";
+                        if (titleInput.text !== root._originalTitle) titleInput.text = root._originalTitle;
+                    }
                     root.isPinned = !!root.noteData.pinned;
                     return;
                 }
@@ -280,8 +283,10 @@ Item {
                     var savedBid = blockEditor ? blockEditor.activeBlockBid : -1;
                     root._originalBody = incomingClean;
                     root._currentBody = incomingClean;
-                    root._originalTitle = root.noteData.title || "";
-                    titleInput.text = root._originalTitle;
+                    if (!titleEditingOrEdited) {
+                        root._originalTitle = root.noteData.title || "";
+                        titleInput.text = root._originalTitle;
+                    }
                     root.isPinned = !!root.noteData.pinned;
                     if (root.isSourceMode && sourceCodeEditor) {
                         sourceCodeEditor.text = incomingClean;
@@ -300,8 +305,9 @@ Item {
                     NotesService.saveState = "conflict";
                 }
             } else {
+                var titleEditingOrEdited2 = !!(titleInput && (titleInput.activeFocus || titleInput.text.trim() !== root._originalTitle));
                 var newT = root.noteData.title || "";
-                if (newT !== root._originalTitle) {
+                if (newT !== root._originalTitle && !titleEditingOrEdited2) {
                     root._originalTitle = newT;
                     if (titleInput.text !== newT) titleInput.text = newT;
                 }
@@ -318,7 +324,7 @@ Item {
 
         if (root.loadedSlug && root.dirty && !root.isManualSaveOnly && !root._discardUnsavedOnClose) {
             if (NotesService.debug) console.log("[StateDebug:Editor] Persistiendo nota previa antes de abrir nueva:", root.loadedSlug);
-            root.performSave();
+            root.performSave(null, true);
         }
 
         if (NotesService.debug) console.log("[StateDebug:Editor] Abriendo nueva nota:", incomingSlug, "Título:", root.noteData.title);
@@ -423,10 +429,14 @@ Item {
             return;
         }
 
-        var newTitle = titleInput.text.trim() || I18n.t("notes.card.untitled", "Sin título");
+        var rawEditedTitle = titleInput.text.trim() || I18n.t("notes.card.untitled", "Sin título");
+        var allowTitleCommit = !!force || !!root.isClosing;
+        var newTitle = (!root.isExternalNote && rawEditedTitle !== root._originalTitle && !allowTitleCommit)
+            ? (root._originalTitle || rawEditedTitle)
+            : rawEditedTitle;
         var tagsNow = (root.editTags || []).join("\n");
         var tagsOrig = (root._originalTags || []).join("\n");
-        var metaChanged = !root.isPlainFormat && (tagsNow !== tagsOrig || root.isPinned !== root._originalPinned || (!root.isExternalNote && newTitle !== root._originalTitle));
+        var metaChanged = !root.isPlainFormat && (tagsNow !== tagsOrig || root.isPinned !== root._originalPinned || (!root.isExternalNote && allowTitleCommit && rawEditedTitle !== root._originalTitle));
 
         // Si no hay cambios forzados ni pendientes y los metadatos son iguales, salir en O(1)
         if (!force && !root.dirty && !metaChanged && (!blockEditor || !blockEditor.hasPendingChanges)) {
@@ -443,7 +453,7 @@ Item {
         var bodyText = root._currentBody;
         var hasChanges = (bodyText !== root._originalBody || metaChanged);
         if (!force && !hasChanges) {
-            root.dirty = false;
+            root.dirty = (!root.isPlainFormat && !root.isExternalNote && rawEditedTitle !== root._originalTitle);
             if (typeof callback === "function") callback();
             return;
         }
@@ -457,7 +467,7 @@ Item {
             tags: (root.editTags || []).slice()
         };
 
-        if (!root.isExternalNote && newTitle !== root._originalTitle && root.loadedSlug && !root.isLoading) {
+        if (!root.isExternalNote && allowTitleCommit && newTitle !== root._originalTitle && root.loadedSlug && !root.isLoading) {
             NotesService.renameNote(root.loadedSlug, newTitle, function(newSlug, success) {
                 if (success) {
                     var oldKey = root.loadedSlug;
@@ -492,11 +502,13 @@ Item {
             NotesService.checkAutoSnapshot(noteFilePath, bodyText, "save");
         }
 
-        root._originalTitle = newTitle;
+        if (allowTitleCommit) {
+            root._originalTitle = newTitle;
+        }
         root._originalBody = bodyText;
         root._originalPinned = root.isPinned;
         root._originalTags = (root.editTags || []).slice();
-        root.dirty = false;
+        root.dirty = (!root.isPlainFormat && !root.isExternalNote && rawEditedTitle !== root._originalTitle);
         root.isSaving = false;
         if (typeof callback === "function") callback();
     }
@@ -2004,6 +2016,7 @@ Item {
                         font.family: Theme.fontFamilyDisplay
                         font.pixelSize: Theme.fontSizeTitleLarge
                         font.bold: true
+                        persistentSelection: true
                         selectByMouse: true
                         readOnly: root.isPreviewMode || root.isPlainCode
                         CustomTextCursor {}
@@ -2020,13 +2033,12 @@ Item {
                         onTextChanged: {
                             if (!root.isLoading && root.loadedSlug !== "") {
                                 if (titleInput.text.trim() !== root._originalTitle) {
-                                    root.markDirty();
+                                    root.dirty = true;
                                 }
                             }
                         }
 
                         onAccepted: root._confirmTitleRename()
-                        onActiveFocusChanged: if (!activeFocus) root._confirmTitleRename()
 
                         Keys.onDownPressed: (event) => {
                             root._confirmTitleRename();
@@ -2070,7 +2082,12 @@ Item {
                             acceptedButtons: Qt.RightButton
                             onClicked: (mouse) => {
                                 if (mouse.button === Qt.RightButton) {
+                                    var sOld = titleInput.selectionStart;
+                                    var eOld = titleInput.selectionEnd;
                                     titleInput.forceActiveFocus();
+                                    if (sOld !== eOld) {
+                                        titleInput.select(sOld, eOld);
+                                    }
                                     editorContextMenu.open(parent);
                                 }
                             }

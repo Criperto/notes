@@ -531,6 +531,7 @@ Item {
     // Modo de edición cruda de imagen (solo visible con confirmación o si no hay imagen válida)
     TextEdit {
         id: rawEditor
+        Keys.onShortcutOverride: (event) => { if ((!root.editor || !root.editor.readOnly) && (event.matches(StandardKey.Undo) || event.matches(StandardKey.Redo))) event.accepted = true; }
         visible: root.isRawActive
         readOnly: !root.isEditing || (root.editor && root.editor.readOnly)
         cursorVisible: activeFocus && root.isEditing && (!root.editor || !root.editor.readOnly)
@@ -657,6 +658,18 @@ Item {
 
         // F23: Ctrl+V / Shift+Insert con imagen → misma vía que el botón.
         Keys.onPressed: (event) => {
+            if ((event.modifiers & Qt.ControlModifier) && !(event.modifiers & Qt.AltModifier)) {
+                if (event.key === Qt.Key_Z && !(event.modifiers & Qt.ShiftModifier)) {
+                    if (root.editor && !root.editor.readOnly && typeof root.editor.undo === "function") { root.editor.undo(); }
+                    event.accepted = true;
+                    return;
+                }
+                if (event.key === Qt.Key_Y || (event.key === Qt.Key_Z && (event.modifiers & Qt.ShiftModifier))) {
+                    if (root.editor && !root.editor.readOnly && typeof root.editor.redo === "function") { root.editor.redo(); }
+                    event.accepted = true;
+                    return;
+                }
+            }
             if ((event.modifiers & Qt.ControlModifier) && (event.modifiers & Qt.ShiftModifier) && event.key === Qt.Key_V) {
                 if (root.editor && root.editor.editorModal && typeof root.editor.editorModal.pasteClipboardImage === "function") {
                     root.editor.editorModal.pasteClipboardImage();

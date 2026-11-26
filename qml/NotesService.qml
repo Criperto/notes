@@ -23,12 +23,24 @@ Item {
     property var  activeNote: null
     property bool isEditing: false
     property bool _rebuildPending: false
+    property bool _closedPreRebuilt: false
+    property int notesRevision: 0
     property bool debug: false
 
     onIsEditingChanged: {
         if (!isEditing && _rebuildPending) {
             _rebuildPending = false;
             _rebuildNotes();
+        }
+    }
+
+    function rebuildForClose() {
+        var wasExternal = root.activeNote && root.activeNote.isExternal;
+        rebuildDebounce.stop();
+        root._rebuildPending = false;
+        if (!wasExternal) {
+            root._closedPreRebuilt = true;
+            root._rebuildNotes();
         }
     }
 
@@ -1062,6 +1074,7 @@ Item {
         // F26: avisar ANTES de que los bindings reaccionen (First del FLIP).
         root.notesAboutToChange();
         root.notes = arr;
+        root.notesRevision++;
         root.loading = false;
         root.log("[NotesService] Notas en memoria:", arr.length, "dir:", root.notesDir);
         if (root.debug) console.log("[StateDebug:Grid] Lista de notas reconstruida en memoria (total:", arr.length, ")");
@@ -1404,6 +1417,8 @@ Item {
         root._lastContentHash[key] = _contentHash(serialized);
 
         root._notesDict[key] = parsed;
+        root._closedPreRebuilt = false;
+        root.notesRevision++;
 
         if (root._activeIsKey(key, slug)) {
             Object.assign(root.activeNote, parsed);
@@ -1503,6 +1518,8 @@ Item {
         }
 
         root._notesDict[key] = updated;
+        root._closedPreRebuilt = false;
+        root.notesRevision++;
 
         if (root._activeIsKey(key, canon)) {
             Object.assign(root.activeNote, updated);
@@ -1763,6 +1780,8 @@ Item {
     // Acepta clave compuesta (directo), slug plano o título de nota (.md primero, luego .txt).
     // Se mantiene por compatibilidad (wikilinks); el resto usa claves.
     function getNote(slug) {
+        var _rev = root.notesRevision;
+        var _fv = root.filesVersion;
         if (!slug) return null;
         if ((slug || "").indexOf(root._keySep()) !== -1) return root._notesDict[slug] || null;
         var cs = root._canonSlug(slug);
@@ -3317,6 +3336,7 @@ Item {
                 }
             });
         }
+        root._closedPreRebuilt = false;
         root.activeNote = note;
         root.isEditing = true;
     }
@@ -3325,9 +3345,12 @@ Item {
         root.log("[NotesService - closeNote] Cerrando editor de notas");
         root.flushPendingSave();
         var wasExternal = root.activeNote && root.activeNote.isExternal;
+        var alreadyRebuilt = root._closedPreRebuilt;
+        root._closedPreRebuilt = false;
         root.activeNote = null;
         root.isEditing = false;
-        if (!wasExternal) {
+        if (!wasExternal && (!alreadyRebuilt || root._rebuildPending)) {
+            root._rebuildPending = false;
             root._rebuildNotes();
         }
     }

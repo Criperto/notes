@@ -115,6 +115,16 @@ Rectangle {
         }
     }
 
+    function syncFromModel() {
+        _syncTextFromModel();
+    }
+    readonly property string _modelRaw: root.blockData ? (root.blockData.raw || "") : ""
+    on_ModelRawChanged: {
+        if (!root._syncingModel && editInput && Inline.plainText(editInput) !== _modelRaw) {
+            _syncTextFromModel();
+        }
+    }
+
     onBlockDataChanged: {
         if (!root.isEditing) _syncTextFromModel();
     }
@@ -490,6 +500,7 @@ Rectangle {
         // Vista de edición de código crudo (visible en modo edición)
         TextEdit {
             id: editInput
+            Keys.onShortcutOverride: (event) => { if ((!root.editor || !root.editor.readOnly) && (event.matches(StandardKey.Undo) || event.matches(StandardKey.Redo))) event.accepted = true; }
             visible: root.isEditing
             readOnly: !root.isEditing || (root.editor && root.editor.readOnly)
             cursorVisible: activeFocus && root.isEditing && (!root.editor || !root.editor.readOnly)

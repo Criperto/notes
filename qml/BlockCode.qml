@@ -164,6 +164,17 @@ Rectangle {
         }
     }
 
+    function syncFromModel() {
+        _syncTextFromModel();
+    }
+
+    readonly property string _modelRaw: root.blockData ? (root.blockData.raw || "") : ""
+    on_ModelRawChanged: {
+        if (!_syncingModel && editInput && ((root.editor && root.editor._applyingHistory) || ((root.isEditing || root.isSelected) && editInput.text !== root._modelRaw))) {
+            _syncTextFromModel();
+        }
+    }
+
     onBlockDataChanged: {
         if (!_syncingModel) {
             _syncTextFromModel();
@@ -416,6 +427,7 @@ Rectangle {
 
         TextEdit {
             id: previewInput
+            readonly property bool menuPreviewOnly: true
             width: Math.max(codeFlickable.width, paintedWidth + 20)
             height: Math.max(codeFlickable.height, paintedHeight)
             readOnly: true
@@ -827,6 +839,7 @@ Rectangle {
             id: editInput
             z: 1
             persistentSelection: true
+            Keys.onShortcutOverride: (event) => { if ((!root.editor || !root.editor.readOnly) && (event.matches(StandardKey.Undo) || event.matches(StandardKey.Redo))) event.accepted = true; }
             overwriteMode: root.editor ? root.editor.overwriteMode : false
             width: Math.max(editFlickable.width, paintedWidth + 20)
             readOnly: !root.isEditing || (root.editor && root.editor.readOnly)

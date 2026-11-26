@@ -147,6 +147,16 @@ Rectangle {
         _activePreviewTextEdit = null;
     }
 
+    function syncFromModel() {
+        _syncTextFromModel();
+    }
+    readonly property string _modelRaw: root.blockData ? (root.blockData.raw || "") : ""
+    on_ModelRawChanged: {
+        if (!root._syncingModel && editInput && Inline.plainText(editInput) !== _modelRaw) {
+            _syncTextFromModel();
+        }
+    }
+
     function _syncTextFromModel() {
         if (!editInput || !root.blockData) return;
         _syncingModel = true;
@@ -295,6 +305,7 @@ Rectangle {
             property real explicitFontPx: 0
             property bool explicitBold: false
             property string prefixHtml: ""
+            readonly property bool menuPreviewOnly: true
 
             width: parent ? parent.width : root.width
             readOnly: true
@@ -1075,6 +1086,7 @@ Rectangle {
 
                     TextEdit {
                         id: codeTxt
+                        readonly property bool menuPreviewOnly: true
                         anchors.left: parent.left; anchors.right: parent.right
                         anchors.top: parent.top; anchors.margins: 8
                         readOnly: true
@@ -1323,6 +1335,7 @@ Rectangle {
                 anchors.left: parent.left; anchors.right: parent.right
                 anchors.top: parent.top; anchors.margins: 10
                 persistentSelection: true
+                Keys.onShortcutOverride: (event) => { if ((!root.editor || !root.editor.readOnly) && (event.matches(StandardKey.Undo) || event.matches(StandardKey.Redo))) event.accepted = true; }
                 overwriteMode: root.editor ? root.editor.overwriteMode : false
                 readOnly: root.isReadOnly
                 cursorVisible: activeFocus && root.isEditing && !root.isReadOnly

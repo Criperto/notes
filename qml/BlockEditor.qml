@@ -529,6 +529,7 @@ Flickable {
     property var docHistory: null
     property int _historyRevision: 0
     property bool _applyingHistory: false
+    property bool _batchEditing: false
     readonly property bool canUndo: (_historyRevision >= 0) && History.canUndo(root.docHistory)
     readonly property bool canRedo: (_historyRevision >= 0) && History.canRedo(root.docHistory)
     property bool _internalChange: false
@@ -1303,30 +1304,49 @@ Flickable {
         var startPos = (anchorIdx <= curIdx) ? root.selAnchorPos : root.selCurrentPos;
         var endPos = (anchorIdx <= curIdx) ? root.selCurrentPos : root.selAnchorPos;
 
+        var startLdr = blocksRepeater.itemAt(startIdx);
+        var endLdr = blocksRepeater.itemAt(endIdx);
+        var rawStartPos = (startLdr && startLdr.item && typeof startLdr.item.rawPosFromDisplay === "function")
+            ? startLdr.item.rawPosFromDisplay(startPos) : startPos;
+        var rawEndPos = (endLdr && endLdr.item && typeof endLdr.item.rawPosFromDisplay === "function")
+            ? endLdr.item.rawPosFromDisplay(endPos) : endPos;
+
         if (startIdx === endIdx) {
             var bSame = blocksModel.get(startIdx);
-            var ldrSame = blocksRepeater.itemAt(startIdx);
-            var isMultiSame = (ldrSame && ldrSame.item && typeof ldrSame.item.hasMultipleItemsSelected === "function")
-                ? ldrSame.item.hasMultipleItemsSelected()
-                : (ldrSame && ldrSame.item && ldrSame.item.hasMultiItemSelection);
+            var isMultiSame = (startLdr && startLdr.item && typeof startLdr.item.hasMultipleItemsSelected === "function")
+                ? startLdr.item.hasMultipleItemsSelected()
+                : (startLdr && startLdr.item && startLdr.item.hasMultiItemSelection);
             if (isMultiSame) {
-                ldrSame.item.deleteMultiItemSelection(replacementText);
+                startLdr.item.deleteMultiItemSelection(replacementText);
                 clearBlockSelection();
+                root._activeBlockDirty = false;
                 _saveSnapshot();
                 contentModified();
                 debouncedMarkdownTimer.restart();
                 return;
             }
             var rawSame = bSame ? (bSame.raw || "") : "";
-            var p1 = Math.max(0, Math.min(rawSame.length, Math.min(startPos, endPos)));
-            var p2 = Math.max(0, Math.min(rawSame.length, Math.max(startPos, endPos)));
-            var newRawSame = rawSame.substring(0, p1) + (replacementText || "") + rawSame.substring(p2);
-            onBlockRawChanged(bSame.bid, newRawSame);
+            var p1 = Math.max(0, Math.min(rawSame.length, Math.min(rawStartPos, rawEndPos)));
+            var p2 = Math.max(0, Math.min(rawSame.length, Math.max(rawStartPos, rawEndPos)));
+            var repSame = (typeof replacementText === "string") ? replacementText : "";
+            var newRawSame = rawSame.substring(0, p1) + repSame + rawSame.substring(p2);
+            root._batchEditing = true;
+            try {
+                onBlockRawChanged(bSame.bid, newRawSame);
+            } finally {
+                root._batchEditing = false;
+            }
             clearBlockSelection();
+            root.activeBlockBid = bSame.bid;
+            root._activeBlockDirty = false;
+            _syncLoadedDelegates();
             _saveSnapshot();
             contentModified();
             debouncedMarkdownTimer.restart();
-            safeFocusDelegate(bSame.bid, p1 + (replacementText ? replacementText.length : 0));
+            var curDispOffsetSame = (startLdr && startLdr.item && typeof startLdr.item.rawPrefixLength === "function")
+                ? Math.max(0, (p1 + repSame.length) - startLdr.item.rawPrefixLength())
+                : (p1 + repSame.length);
+            safeFocusDelegate(bSame.bid, curDispOffsetSame);
             return;
         }
 
@@ -1334,55 +1354,86 @@ Flickable {
         var endB = blocksModel.get(endIdx);
         var startRaw = startB ? (startB.raw || "") : "";
         var endRaw = endB ? (endB.raw || "") : "";
+        var origEndSep = (endB && endB.sep) ? endB.sep : "\n\n";
 
-        var prefix = startRaw.substring(0, Math.max(0, Math.min(startRaw.length, startPos)));
-        var suffix = endRaw.substring(Math.max(0, Math.min(endRaw.length, endPos)));
-        var merged = prefix + (replacementText || "") + suffix;
+        var clStart = Math.max(0, Math.min(startRaw.length, rawStartPos));
+        var clEnd = Math.max(0, Math.min(endRaw.length, rawEndPos));
+        var prefix = startRaw.substring(0, clStart);
+        var suffix = endRaw.substring(clEnd);
+        var repStr = (typeof replacementText === "string") ? replacementText : "";
+        var merged = prefix + repStr + suffix;
 
-        var newBlocks = [];
-        if (merged.indexOf("\n\n") !== -1 || /^(#{1,6}\s|```|>\s|[-*+]\s|\d+\.\s|\|)/m.test(merged)) {
-            var splitRes = BlockModel.splitBlocks(merged);
-            newBlocks = (splitRes && splitRes.blocks) ? splitRes.blocks : [];
+        var splitRes = BlockModel.splitBlocks(merged);
+        var newBlocks = (splitRes && splitRes.blocks) ? splitRes.blocks : [];
+        if (newBlocks.length === 0) {
+            newBlocks = [{
+                bid: startB.bid,
+                type: "paragraph",
+                raw: "",
+                sep: origEndSep
+            }];
         }
 
-        if (newBlocks.length > 1) {
-            for (var rm = endIdx; rm >= startIdx; rm--) {
+        var targetBid = startB.bid;
+        var targetCursorOffset = 0;
+
+        root._batchEditing = true;
+        try {
+            for (var rm = endIdx; rm > startIdx; rm--) {
                 blocksModel.remove(rm);
             }
-            var firstNewBid = -1;
-            for (var ins = 0; ins < newBlocks.length; ins++) {
+            var firstNb = newBlocks[0];
+            var firstSep = (newBlocks.length === 1) ? origEndSep : (firstNb.sep || "\n\n");
+            blocksModel.setProperty(startIdx, "sep", firstSep);
+            blocksModel.setProperty(startIdx, "raw", firstNb.raw || "");
+            if (blocksModel.get(startIdx).type !== firstNb.type) {
+                blocksModel.setProperty(startIdx, "type", firstNb.type);
+            }
+            var createdBids = [startB.bid];
+            for (var ins = 1; ins < newBlocks.length; ins++) {
                 var nb = newBlocks[ins];
-                var bidToUse = (ins === 0) ? startB.bid : BlockModel.getNextBid();
-                if (ins === 0) firstNewBid = bidToUse;
+                var nextBid = BlockModel.getNextBid();
+                createdBids.push(nextBid);
                 blocksModel.insert(startIdx + ins, {
-                    bid: bidToUse,
+                    bid: nextBid,
                     type: nb.type,
                     raw: nb.raw || "",
-                    sep: nb.sep || "\n\n"
+                    sep: (ins === newBlocks.length - 1) ? origEndSep : (nb.sep || "\n\n")
                 });
             }
-            clearBlockSelection();
-            root.activeBlockBid = firstNewBid;
-            _saveSnapshot();
-            contentModified();
-            debouncedMarkdownTimer.restart();
-            if (firstNewBid !== -1) {
-                safeFocusDelegate(firstNewBid, prefix.length + (replacementText ? replacementText.length : 0));
-            }
-            return;
-        }
 
-        for (var d = endIdx; d > startIdx; d--) {
-            blocksModel.remove(d);
+            var wantedGlobal = prefix.length + repStr.length;
+            var walked = (splitRes && splitRes.lead) ? splitRes.lead.length : 0;
+            for (var bi = 0; bi < newBlocks.length; bi++) {
+                var blkRaw = newBlocks[bi].raw || "";
+                var blkLen = blkRaw.length;
+                if (wantedGlobal <= walked + blkLen || bi === newBlocks.length - 1) {
+                    targetBid = createdBids[bi];
+                    var relOff = Math.max(0, Math.min(blkLen, wantedGlobal - walked));
+                    if (newBlocks[bi].type === "heading") {
+                        var hm = blkRaw.match(/^[ \t]*#{1,6}[ \t]+/);
+                        relOff = hm ? Math.max(0, relOff - hm[0].length) : relOff;
+                    } else if (newBlocks[bi].type === "quote") {
+                        var qm = blkRaw.match(/^[ \t]*>[ \t]?/);
+                        relOff = qm ? Math.max(0, relOff - qm[0].length) : relOff;
+                    }
+                    targetCursorOffset = relOff;
+                    break;
+                }
+                walked += blkLen + ((newBlocks[bi].sep || "\n\n").length);
+            }
+        } finally {
+            root._batchEditing = false;
         }
-        onBlockRawChanged(startB.bid, merged);
 
         clearBlockSelection();
-        root.activeBlockBid = startB.bid;
+        root.activeBlockBid = targetBid;
+        root._activeBlockDirty = false;
+        _syncLoadedDelegates();
         _saveSnapshot();
         contentModified();
         debouncedMarkdownTimer.restart();
-        safeFocusDelegate(startB.bid, prefix.length + (replacementText ? replacementText.length : 0));
+        safeFocusDelegate(targetBid, targetCursorOffset);
     }
 
     function copySelectedText() {
@@ -1472,44 +1523,128 @@ Flickable {
                 }
 
                 // Multi-block paste: si el texto pegado contiene múltiples párrafos o bloques compuestos
-                if (clipText.indexOf("\n\n") !== -1 || /^(?:```|~~~|\||[-*+]\s|\d+\.\s|>)/m.test(clipText)) {
-                    var curBid = root.activeBlockBid;
-                    var blockIdx = root._findBlockIndex(curBid);
-                    if (blockIdx !== -1) {
-                        var curBlock = root.blocksModel.get(blockIdx);
-                        if (curBlock && curBlock.type === "paragraph") {
-                            var fullCurrent = Inline.plainText(targetEdit);
-                            var selMin = (s !== e) ? Math.min(s, e) : targetEdit.cursorPosition;
-                            var selMax = (s !== e) ? Math.max(s, e) : targetEdit.cursorPosition;
-                            var preText = fullCurrent.substring(0, selMin);
-                            var postText = fullCurrent.substring(selMax);
-                            var combined = (preText ? preText + (preText.endsWith("\n") ? "\n" : "\n\n") : "")
-                                         + clipText
-                                         + (postText ? (postText.startsWith("\n") ? "\n" : "\n\n") + postText : "");
-                            var resBlocks = BlockModel.splitBlocks(combined);
-                            if (resBlocks.blocks && resBlocks.blocks.length > 1) {
+                var hasMultiLine = clipText.indexOf("\n") !== -1;
+                var isCompositePaste = (clipText.indexOf("\n\n") !== -1 || /^(?:```|~~~|\$\$|\||#{1,6}\s|[-*+]\s|\d+[.)]\s|>[ \t]?|(?:---|\*\*\*|___)\s*$|<[a-zA-Z])/m.test(clipText));
+                var curBidP = root.activeBlockBid;
+                var blockIdxP = root._findBlockIndex(curBidP);
+                if (blockIdxP !== -1) {
+                    var curBlockP = root.blocksModel.get(blockIdxP);
+                    if (curBlockP && curBlockP.type === "list" && hasMultiLine) {
+                        var listLdr = root._getDelegateItemForBid(curBidP);
+                        if (listLdr && listLdr.item) {
+                            var listIsMulti = (typeof listLdr.item.hasMultipleItemsSelected === "function")
+                                ? listLdr.item.hasMultipleItemsSelected()
+                                : !!listLdr.item.hasMultiItemSelection;
+                            if (listIsMulti && typeof listLdr.item.deleteMultiItemSelection === "function") {
                                 root._saveSnapshot();
-                                root.blocksModel.remove(blockIdx);
-                                for (var b = 0; b < resBlocks.blocks.length; b++) {
-                                    root.blocksModel.insert(blockIdx + b, resBlocks.blocks[b]);
-                                }
-                                var lastInserted = resBlocks.blocks[resBlocks.blocks.length - 1];
-                                root.activeBlockBid = lastInserted.bid;
+                                listLdr.item.deleteMultiItemSelection(clipText);
                                 root._saveSnapshot();
-                                root.safeFocusDelegate(lastInserted.bid);
                                 root.contentModified();
                                 root.debouncedMarkdownTimer.restart();
                                 return;
                             }
+                            var aItemIdx = (typeof listLdr.item.activeItemIndex === "number") ? listLdr.item.activeItemIndex : 0;
+                            var parsedL = LP.parseList(curBlockP.raw || "");
+                            if (parsedL && aItemIdx >= 0 && aItemIdx < parsedL.length) {
+                                var fullItemDisp = Inline.plainText(targetEdit);
+                                var sMinL = (s !== e) ? Math.min(s, e) : targetEdit.cursorPosition;
+                                var sMaxL = (s !== e) ? Math.max(s, e) : targetEdit.cursorPosition;
+                                var preItem = fullItemDisp.substring(0, sMinL);
+                                var postItem = fullItemDisp.substring(sMaxL);
+                                var pastedListLines = clipText.replace(/\r\n?/g, "\n").split("\n").map(function(pl) {
+                                    return pl.replace(/^\s*(?:[-*+]\s+(?:\[[ xX]\]\s+)?|\d+[.)]\s+)/, "");
+                                });
+                                var baseIt = parsedL[aItemIdx];
+                                root._saveSnapshot();
+                                var newListItems = [];
+                                for (var plIdx = 0; plIdx < pastedListLines.length; plIdx++) {
+                                    var itemTxt = pastedListLines[plIdx];
+                                    if (plIdx === 0) itemTxt = preItem + itemTxt;
+                                    if (plIdx === pastedListLines.length - 1) itemTxt = itemTxt + postItem;
+                                    newListItems.push({
+                                        indent: baseIt.indent || "",
+                                        marker: baseIt.marker || "-",
+                                        spacing: baseIt.spacing || " ",
+                                        isTask: !!baseIt.isTask,
+                                        checked: (plIdx === 0) ? !!baseIt.checked : false,
+                                        text: itemTxt
+                                    });
+                                }
+                                Array.prototype.splice.apply(parsedL, [aItemIdx, 1].concat(newListItems));
+                                var serializedPaste = LP.serializeList(parsedL);
+                                root._batchEditing = true;
+                                try {
+                                    root.blocksModel.setProperty(blockIdxP, "raw", serializedPaste);
+                                    if (typeof listLdr.item._reloadFromRaw === "function") listLdr.item._reloadFromRaw();
+                                } finally {
+                                    root._batchEditing = false;
+                                }
+                                root._activeBlockDirty = false;
+                                root._saveSnapshot();
+                                root.contentModified();
+                                root.debouncedMarkdownTimer.restart();
+                                var endListIdx = aItemIdx + newListItems.length - 1;
+                                var endListPos = (pastedListLines.length === 1 ? preItem.length : 0) + pastedListLines[pastedListLines.length - 1].length;
+                                Qt.callLater(function() {
+                                    if (listLdr && listLdr.item && typeof listLdr.item.focusItemAt === "function") {
+                                        listLdr.item.focusItemAt(endListIdx, endListPos);
+                                    }
+                                });
+                                return;
+                            }
+                        }
+                    }
+                    if (isCompositePaste && curBlockP && curBlockP.type === "paragraph") {
+                        var fullCurrent = Inline.plainText(targetEdit);
+                        var selMin = (s !== e) ? Math.min(s, e) : targetEdit.cursorPosition;
+                        var selMax = (s !== e) ? Math.max(s, e) : targetEdit.cursorPosition;
+                        var preText = fullCurrent.substring(0, selMin);
+                        var postText = fullCurrent.substring(selMax);
+                        var combined = (preText ? preText + (preText.endsWith("\n") ? "\n" : "\n\n") : "")
+                                     + clipText
+                                     + (postText ? (postText.startsWith("\n") ? "\n" : "\n\n") + postText : "");
+                        var resBlocks = BlockModel.splitBlocks(combined);
+                        if (resBlocks.blocks && (resBlocks.blocks.length > 1 || (resBlocks.blocks.length === 1 && resBlocks.blocks[0].type !== curBlockP.type))) {
+                            root._saveSnapshot();
+                            var origPasteSep = curBlockP.sep || "\n\n";
+                            root._batchEditing = true;
+                            try {
+                                root.blocksModel.remove(blockIdxP);
+                                for (var b = 0; b < resBlocks.blocks.length; b++) {
+                                    var rbP = resBlocks.blocks[b];
+                                    root.blocksModel.insert(blockIdxP + b, {
+                                        bid: rbP.bid,
+                                        type: rbP.type,
+                                        raw: rbP.raw || "",
+                                        sep: (b === resBlocks.blocks.length - 1) ? origPasteSep : (rbP.sep || "\n\n")
+                                    });
+                                }
+                            } finally {
+                                root._batchEditing = false;
+                            }
+                            var lastInserted = resBlocks.blocks[resBlocks.blocks.length - 1];
+                            root.activeBlockBid = lastInserted.bid;
+                            root._activeBlockDirty = false;
+                            root._syncLoadedDelegates();
+                            root._saveSnapshot();
+                            root.safeFocusDelegate(lastInserted.bid, postText === "" ? -1 : 0);
+                            root.contentModified();
+                            root.debouncedMarkdownTimer.restart();
+                            return;
                         }
                     }
                 }
 
                 root._saveSnapshot();
-                if (s !== e) {
-                    targetEdit.remove(s, e);
+                root._batchEditing = true;
+                try {
+                    if (s !== e) {
+                        targetEdit.remove(s, e);
+                    }
+                    targetEdit.insert(targetEdit.cursorPosition, clipText);
+                } finally {
+                    root._batchEditing = false;
                 }
-                targetEdit.insert(targetEdit.cursorPosition, clipText);
                 root._saveSnapshot();
             }
         );
@@ -1701,20 +1836,28 @@ Flickable {
             }
             return;
         }
+        _saveSnapshot();
         var list = _getBlockListSnapshot();
         var res = Sel.removeSelected(list, selectedBids, function() {
             return { bid: BlockModel.getNextBid(), type: "paragraph", raw: (typeof replacementText === "string" ? replacementText : ""), sep: "\n\n" };
         });
-        blocksModel.clear();
-        for (var k = 0; k < res.blocks.length; k++) {
-            blocksModel.append({
-                bid: res.blocks[k].bid,
-                type: res.blocks[k].type,
-                raw: res.blocks[k].raw || "",
-                sep: (res.blocks[k].sep !== undefined) ? res.blocks[k].sep : "\n\n"
-            });
+        root._batchEditing = true;
+        try {
+            blocksModel.clear();
+            for (var k = 0; k < res.blocks.length; k++) {
+                blocksModel.append({
+                    bid: res.blocks[k].bid,
+                    type: res.blocks[k].type,
+                    raw: res.blocks[k].raw || "",
+                    sep: (res.blocks[k].sep !== undefined) ? res.blocks[k].sep : "\n\n"
+                });
+            }
+        } finally {
+            root._batchEditing = false;
         }
         clearBlockSelection();
+        root._activeBlockDirty = false;
+        _syncLoadedDelegates();
         _saveSnapshot();
         contentModified();
         debouncedMarkdownTimer.restart();
@@ -1981,6 +2124,14 @@ Flickable {
             return;
         }
 
+        if (!isCtrl && !isAlt && (event.key === Qt.Key_Return || event.key === Qt.Key_Enter)) {
+            if (!root.readOnly && typeof root.replaceSelectedRange === "function") {
+                root.replaceSelectedRange("\n\n");
+            }
+            event.accepted = true;
+            return;
+        }
+
         if (!isCtrl && !isAlt && event.text && event.text.length > 0 && event.key !== Qt.Key_Return && event.key !== Qt.Key_Enter) {
             if (!root.readOnly && typeof root.replaceSelectedRange === "function") {
                 root.replaceSelectedRange(event.text);
@@ -2018,20 +2169,6 @@ Flickable {
             root.clearBlockSelection();
             if (lastBid !== -1) {
                 root.requestEditBlock(lastBid);
-            }
-            event.accepted = true;
-            return;
-        }
-
-        if (!isCtrl && !isAlt && event.text && event.text.length > 0 && event.text >= " ") {
-            root.deleteSelectedBlocks();
-            if (root.activeBlockBid !== -1) {
-                var teInput = root._getTextEditForBid(root.activeBlockBid);
-                if (teInput) {
-                    teInput.text = event.text;
-                    teInput.cursorPosition = event.text.length;
-                    root.onBlockRawChanged(root.activeBlockBid, event.text);
-                }
             }
             event.accepted = true;
             return;
@@ -2166,7 +2303,7 @@ Flickable {
     }
 
     function getMarkdown() {
-        if (!root.hasPendingChanges && typeof root.markdown === "string" && root.markdown !== "") {
+        if (blocksModel.count === 0 && !root.hasPendingChanges && typeof root.markdown === "string" && root.markdown !== "") {
             return root.markdown;
         }
         var activeRaw = null;
@@ -2367,13 +2504,23 @@ Flickable {
     function convertBlockType(bid, newType, newRaw, cursorPos) {
         var idx = _findBlockIndex(bid);
         if (idx === -1) return;
-        var newBid = BlockModel.getNextBid();
-        root.activeBlockBid = newBid;
-        blocksModel.setProperty(idx, "bid", newBid);
-        blocksModel.setProperty(idx, "raw", newRaw);
-        blocksModel.setProperty(idx, "type", newType);
-        root.onBlockRawChanged(newBid, newRaw);
         _saveSnapshot();
+        var newBid = BlockModel.getNextBid();
+        root._batchEditing = true;
+        try {
+            root.activeBlockBid = newBid;
+            blocksModel.setProperty(idx, "bid", newBid);
+            blocksModel.setProperty(idx, "raw", newRaw);
+            blocksModel.setProperty(idx, "type", newType);
+        } finally {
+            root._batchEditing = false;
+        }
+        root.onBlockRawChanged(newBid, newRaw);
+        root._activeBlockDirty = false;
+        _syncLoadedDelegates();
+        _saveSnapshot();
+        root.contentModified();
+        debouncedMarkdownTimer.restart();
         root.safeFocusDelegate(newBid, (cursorPos === undefined) ? 0 : cursorPos);
     }
 
@@ -2383,7 +2530,9 @@ Flickable {
         if (idx !== -1) {
             root._activeBlockDirty = true;
             if (!typingSnapshotTimer.running) {
-                root._saveSnapshot();
+                if (!root._batchEditing) {
+                    root._saveSnapshot();
+                }
             }
             blocksModel.setProperty(idx, "raw", newRaw);
 
@@ -2424,26 +2573,37 @@ Flickable {
             // Notificar cambio inmediato y diferir unión completa de markdown (P2-8)
             root.contentModified();
             debouncedMarkdownTimer.restart();
-            typingSnapshotTimer.restart();
+            if (!root._batchEditing) {
+                typingSnapshotTimer.restart();
+            }
         }
     }
 
     function handleBlockEnter(bid, cursorPos) {
         var idx = _findBlockIndex(bid);
         if (idx === -1) return;
-        if (typingSnapshotTimer.running) {
-            _saveSnapshot();
-        }
+        _saveSnapshot();
 
         var item = blocksModel.get(idx);
         var raw = item.raw || "";
 
-        // Si el bloque de lista o cita está vacío, salir de la lista/cita
-        if (item.type !== "paragraph" && (raw.trim() === "" || (item.type === "quote" && raw.replace(/^[ \t]*>[ \t]?/gm, "").trim() === ""))) {
-            blocksModel.setProperty(idx, "type", "paragraph");
-            blocksModel.setProperty(idx, "raw", "");
+        // Si el bloque de lista, cita o encabezado está vacío, convertir a párrafo vacío
+        var isEmptyHeading = (item.type === "heading" && raw.replace(/^[ \t]*#{1,6}[ \t]*/, "").trim() === "");
+        var isEmptyQuote = (item.type === "quote" && raw.replace(/^[ \t]*>[ \t]?/gm, "").trim() === "");
+        if (item.type !== "paragraph" && (raw.trim() === "" || isEmptyQuote || isEmptyHeading)) {
+            root._batchEditing = true;
+            try {
+                blocksModel.setProperty(idx, "raw", "");
+                blocksModel.setProperty(idx, "type", "paragraph");
+            } finally {
+                root._batchEditing = false;
+            }
             root.activeBlockBid = item.bid;
+            root._activeBlockDirty = false;
+            _syncLoadedDelegates();
             _saveSnapshot();
+            root.contentModified();
+            debouncedMarkdownTimer.restart();
             root.safeFocusDelegate(item.bid, 0);
             return;
         }
@@ -2452,10 +2612,18 @@ Flickable {
 
         // Si el párrafo sólo contiene una viñeta vacía (- , * , 1. , - [ ] ), vaciarlo en vez de crear nuevos bloques
         if (item.type === "paragraph" && /^\s*([-*+](\s*\[[ xX]\])?|\d+[.)])\s*$/.test(trimmedLine)) {
-            blocksModel.setProperty(idx, "raw", "");
-            root.onBlockRawChanged(bid, "");
+            root._batchEditing = true;
+            try {
+                blocksModel.setProperty(idx, "raw", "");
+            } finally {
+                root._batchEditing = false;
+            }
             root.activeBlockBid = item.bid;
+            root._activeBlockDirty = false;
+            _syncLoadedDelegates();
             _saveSnapshot();
+            root.contentModified();
+            debouncedMarkdownTimer.restart();
             root.safeFocusDelegate(item.bid, 0);
             return;
         }
@@ -2472,10 +2640,17 @@ Flickable {
                         prevListItems[lastPIdx].text = raw;
                         var mergedRaw = LP.serializeList(prevListItems);
                         var newBid = BlockModel.getNextBid();
-                        root.activeBlockBid = newBid;
-                        blocksModel.setProperty(idx - 1, "bid", newBid);
-                        blocksModel.setProperty(idx - 1, "raw", mergedRaw);
-                        blocksModel.remove(idx);
+                        root._batchEditing = true;
+                        try {
+                            root.activeBlockBid = newBid;
+                            blocksModel.setProperty(idx - 1, "bid", newBid);
+                            blocksModel.setProperty(idx - 1, "raw", mergedRaw);
+                            blocksModel.remove(idx);
+                        } finally {
+                            root._batchEditing = false;
+                        }
+                        root._activeBlockDirty = false;
+                        _syncLoadedDelegates();
                         _saveSnapshot();
                         root.contentModified();
                         debouncedMarkdownTimer.restart();
@@ -2495,10 +2670,19 @@ Flickable {
             var isMath = lang.toLowerCase() === "math" || lang.toLowerCase() === "latex";
             var codeRaw = isMermaid ? (fence + "mermaid\nflowchart TD\n    A[Inicio] --> B[Fin]\n" + fence)
                         : (isMath ? (fence + lang + "\n\\frac{a}{b}\n" + fence) : (fence + lang + "\n\n" + fence));
-            blocksModel.setProperty(idx, "type", isMermaid ? "mermaid" : (isMath ? "math" : "code"));
-            blocksModel.setProperty(idx, "raw", codeRaw);
+            root._batchEditing = true;
+            try {
+                blocksModel.setProperty(idx, "raw", codeRaw);
+                blocksModel.setProperty(idx, "type", isMermaid ? "mermaid" : (isMath ? "math" : "code"));
+            } finally {
+                root._batchEditing = false;
+            }
             root.activeBlockBid = item.bid;
+            root._activeBlockDirty = false;
+            _syncLoadedDelegates();
             _saveSnapshot();
+            root.contentModified();
+            debouncedMarkdownTimer.restart();
             var innerPos = (isMermaid || isMath) ? 0 : (fence + lang + "\n").length;
             root.safeFocusDelegate(item.bid, innerPos);
             return;
@@ -2506,10 +2690,19 @@ Flickable {
 
         if (item.type === "paragraph" && codeAuto.matched && codeAuto.type === "math") {
             var mathRaw = "$$\n\\frac{a}{b}\n$$";
-            blocksModel.setProperty(idx, "type", "math");
-            blocksModel.setProperty(idx, "raw", mathRaw);
+            root._batchEditing = true;
+            try {
+                blocksModel.setProperty(idx, "raw", mathRaw);
+                blocksModel.setProperty(idx, "type", "math");
+            } finally {
+                root._batchEditing = false;
+            }
             root.activeBlockBid = item.bid;
+            root._activeBlockDirty = false;
+            _syncLoadedDelegates();
             _saveSnapshot();
+            root.contentModified();
+            debouncedMarkdownTimer.restart();
             root.safeFocusDelegate(item.bid, 0);
             return;
         }
@@ -2529,23 +2722,20 @@ Flickable {
                 blocksModel.setProperty(idx, "type", "table");
                 root.activeBlockBid = item.bid;
                 root.onBlockRawChanged(item.bid, tableRaw);
+                root._activeBlockDirty = false;
                 _saveSnapshot();
                 root.safeFocusDelegate(item.bid, 0);
                 return;
             }
         }
 
-        var firstPart = raw.substring(0, cursorPos);
-        var secondPart = raw.substring(cursorPos);
+        var safePos = (typeof cursorPos === "number" && cursorPos >= 0) ? Math.min(raw.length, cursorPos) : raw.length;
+        var firstPart = raw.substring(0, safePos);
+        var secondPart = raw.substring(safePos);
 
-        // Actualizar el primer bloque
-        blocksModel.setProperty(idx, "raw", firstPart);
+        // Actualizar el primer bloque (raw antes de type)
         var repFirst = BlockModel.reparseBlock(firstPart, item.bid);
-        if (repFirst.length > 0) {
-            blocksModel.setProperty(idx, "type", repFirst[0].type);
-        } else {
-            blocksModel.setProperty(idx, "type", "paragraph");
-        }
+        var firstType = (repFirst.length > 0) ? repFirst[0].type : "paragraph";
 
         // Crear el bloque siguiente con el resto del contenido
         var nextBid = BlockModel.getNextBid();
@@ -2556,17 +2746,60 @@ Flickable {
         }
 
         var origSep = item.sep || "\n\n";
-        blocksModel.setProperty(idx, "sep", "\n\n");
-        blocksModel.insert(idx + 1, {
-            bid: nextBid,
-            type: nextType,
-            raw: secondPart,
-            sep: origSep
-        });
+        root._batchEditing = true;
+        try {
+            blocksModel.setProperty(idx, "sep", "\n\n");
+            blocksModel.setProperty(idx, "raw", firstPart);
+            if (blocksModel.get(idx).type !== firstType) {
+                blocksModel.setProperty(idx, "type", firstType);
+            }
+            blocksModel.insert(idx + 1, {
+                bid: nextBid,
+                type: nextType,
+                raw: secondPart,
+                sep: origSep
+            });
+        } finally {
+            root._batchEditing = false;
+        }
 
         root.activeBlockBid = nextBid;
+        root._activeBlockDirty = false;
+        _syncLoadedDelegates();
         _saveSnapshot();
+        root.contentModified();
+        debouncedMarkdownTimer.restart();
         root.safeFocusDelegate(nextBid, 0);
+    }
+
+    function insertParagraphBefore(bid, keepCurrentFocus) {
+        var curActive = root.activeBlockBid;
+        if (curActive !== -1 && curActive !== bid) {
+            root.confirmActiveBlock();
+        }
+        var idx = _findBlockIndex(bid);
+        if (idx === -1) return;
+        _saveSnapshot();
+        var pBid = BlockModel.getNextBid();
+        root._batchEditing = true;
+        try {
+            blocksModel.insert(idx, {
+                bid: pBid,
+                type: "paragraph",
+                raw: "",
+                sep: "\n\n"
+            });
+        } finally {
+            root._batchEditing = false;
+        }
+        var targetBid = keepCurrentFocus ? bid : pBid;
+        root.activeBlockBid = targetBid;
+        root._activeBlockDirty = false;
+        _syncLoadedDelegates();
+        _saveSnapshot();
+        root.contentModified();
+        debouncedMarkdownTimer.restart();
+        root.safeFocusDelegate(targetBid, 0);
     }
 
     function insertParagraphAfter(bid) {
@@ -2574,18 +2807,29 @@ Flickable {
         if (idx === -1) return;
 
         root.confirmActiveBlock();
+        idx = _findBlockIndex(bid);
+        if (idx === -1) return;
         var nextBid = BlockModel.getNextBid();
         var origSep = blocksModel.get(idx).sep || "\n\n";
-        blocksModel.setProperty(idx, "sep", "\n\n");
-        blocksModel.insert(idx + 1, {
-            bid: nextBid,
-            type: "paragraph",
-            raw: "",
-            sep: origSep
-        });
+        root._batchEditing = true;
+        try {
+            blocksModel.setProperty(idx, "sep", "\n\n");
+            blocksModel.insert(idx + 1, {
+                bid: nextBid,
+                type: "paragraph",
+                raw: "",
+                sep: origSep
+            });
+        } finally {
+            root._batchEditing = false;
+        }
 
         root.activeBlockBid = nextBid;
+        root._activeBlockDirty = false;
+        _syncLoadedDelegates();
         _saveSnapshot();
+        root.contentModified();
+        debouncedMarkdownTimer.restart();
         root.safeFocusDelegate(nextBid, 0);
     }
 
@@ -3448,6 +3692,7 @@ Flickable {
 
                 // Acciones de listas / tareas sobre múltiples bloques
                 if (actionId === "task_list" || actionId === "bullet_list" || actionId === "ordered_list") {
+                    _saveSnapshot();
                     var allAlreadyTarget = true;
                     for (var t = 0; t < selBidsList.length; t++) {
                         var bi = selBidsList[t].item;
@@ -3459,70 +3704,131 @@ Flickable {
                         if (actionId === "ordered_list" && !pList.every(function(it) { return !it.isTask && (it.marker.indexOf(".") !== -1 || it.marker.indexOf(")") !== -1); })) { allAlreadyTarget = false; break; }
                     }
 
-                    if (allAlreadyTarget) {
-                        // TOGGLE OFF: Quitar lista y convertir todos a párrafos
-                        for (var u = 0; u < selBidsList.length; u++) {
-                            var uItem = selBidsList[u].item;
-                            var uIdx = selBidsList[u].idx;
-                            var uParsed = LP.parseList(uItem.raw || "");
-                            var uText = (uParsed && uParsed.length > 0) ? uParsed.map(function(it) { return it.text; }).join("\n") : (uItem.raw || "");
-                            uText = uText.replace(/^(\s*[-*+]\s*(\[[ xX]\])?\s*|\s*\d+[\.\)]\s*)/gm, "");
-                            blocksModel.setProperty(uIdx, "type", "paragraph");
-                            blocksModel.setProperty(uIdx, "raw", uText);
-                            root.onBlockRawChanged(uItem.bid, uText);
-                        }
-                    } else {
-                        // APLICAR A TODOS: Convertir a la lista seleccionada limpiando prefijos previos
-                        var ordNum = 1;
-                        for (var a = 0; a < selBidsList.length; a++) {
-                            var aItem = selBidsList[a].item;
-                            var aIdx = selBidsList[a].idx;
-                            var aParsed = (aItem.type === "list") ? LP.parseList(aItem.raw || "") : null;
-                            var aLines = [];
-                            if (aParsed && aParsed.length > 0) {
-                                aLines = aParsed.map(function(it) { return it.text; });
-                            } else {
-                                aLines = (aItem.raw || "").split("\n").map(function(l) {
-                                    return l.replace(/^(\s*[-*+]\s*(\[[ xX]\])?\s*|\s*\d+[\.\)]\s*|\s*>[ \t]?|\s*#{1,6}[ \t]+)/, "");
-                                });
+                    root._batchEditing = true;
+                    try {
+                        if (allAlreadyTarget) {
+                            // TOGGLE OFF: Quitar lista y convertir todos a párrafos
+                            for (var u = 0; u < selBidsList.length; u++) {
+                                var uItem = selBidsList[u].item;
+                                var uIdx = selBidsList[u].idx;
+                                var uParsed = LP.parseList(uItem.raw || "");
+                                var uText = (uParsed && uParsed.length > 0) ? uParsed.map(function(it) { return it.text; }).join("\n") : (uItem.raw || "");
+                                uText = uText.replace(/^(\s*[-*+]\s*(\[[ xX]\])?\s*|\s*\d+[\.\)]\s*)/gm, "");
+                                blocksModel.setProperty(uIdx, "raw", uText);
+                                if (blocksModel.get(uIdx).type !== "paragraph") {
+                                    blocksModel.setProperty(uIdx, "type", "paragraph");
+                                }
                             }
-                            var formattedLines = aLines.map(function(l) {
-                                if (actionId === "task_list") return "- [ ] " + l;
-                                if (actionId === "bullet_list") return "- " + l;
-                                if (actionId === "ordered_list") return (ordNum++) + ". " + l;
-                                return l;
-                            });
-                            var aRaw = formattedLines.join("\n");
-                            blocksModel.setProperty(aIdx, "type", "list");
-                            blocksModel.setProperty(aIdx, "raw", aRaw);
-                            root.onBlockRawChanged(aItem.bid, aRaw);
+                        } else {
+                            // APLICAR A TODOS: Preservar sangría, estado checked y numeración por nivel
+                            var ordCounters = {};
+                            for (var a = 0; a < selBidsList.length; a++) {
+                                var aItem = selBidsList[a].item;
+                                var aIdx = selBidsList[a].idx;
+                                var aParsed = (aItem.type === "list") ? LP.parseList(aItem.raw || "") : null;
+                                var nextItems = [];
+                                if (aParsed && aParsed.length > 0) {
+                                    for (var ai = 0; ai < aParsed.length; ai++) {
+                                        var ait = aParsed[ai];
+                                        var ind = ait.indent || "";
+                                        if (actionId === "ordered_list") {
+                                            for (var ck in ordCounters) {
+                                                if (ck.length > ind.length) delete ordCounters[ck];
+                                            }
+                                            ordCounters[ind] = (ordCounters[ind] || 0) + 1;
+                                            nextItems.push({
+                                                indent: ind,
+                                                marker: ordCounters[ind] + ".",
+                                                spacing: ait.spacing || " ",
+                                                isTask: false,
+                                                checked: false,
+                                                text: ait.text
+                                            });
+                                        } else if (actionId === "task_list") {
+                                            nextItems.push({
+                                                indent: ind,
+                                                marker: "-",
+                                                spacing: ait.spacing || " ",
+                                                isTask: true,
+                                                checked: !!ait.checked,
+                                                text: ait.text
+                                            });
+                                        } else {
+                                            nextItems.push({
+                                                indent: ind,
+                                                marker: "-",
+                                                spacing: ait.spacing || " ",
+                                                isTask: false,
+                                                checked: false,
+                                                text: ait.text
+                                            });
+                                        }
+                                    }
+                                } else {
+                                    var rawSrcLines = (aItem.raw || "").split("\n");
+                                    for (var al = 0; al < rawSrcLines.length; al++) {
+                                        var cleanLine = rawSrcLines[al].replace(/^(\s*[-*+]\s*(\[[ xX]\])?\s*|\s*\d+[\.\)]\s*|\s*>[ \t]?|\s*#{1,6}[ \t]+)/, "");
+                                        if (actionId === "ordered_list") {
+                                            ordCounters[""] = (ordCounters[""] || 0) + 1;
+                                            nextItems.push({ indent: "", marker: ordCounters[""] + ".", spacing: " ", isTask: false, checked: false, text: cleanLine });
+                                        } else if (actionId === "task_list") {
+                                            nextItems.push({ indent: "", marker: "-", spacing: " ", isTask: true, checked: false, text: cleanLine });
+                                        } else {
+                                            nextItems.push({ indent: "", marker: "-", spacing: " ", isTask: false, checked: false, text: cleanLine });
+                                        }
+                                    }
+                                }
+                                var aRaw = LP.serializeList(nextItems);
+                                blocksModel.setProperty(aIdx, "raw", aRaw);
+                                if (blocksModel.get(aIdx).type !== "list") {
+                                    blocksModel.setProperty(aIdx, "type", "list");
+                                }
+                            }
                         }
+                    } finally {
+                        root._batchEditing = false;
                     }
+                    root._activeBlockDirty = false;
+                    _syncLoadedDelegates();
                     _saveSnapshot();
+                    root.contentModified();
+                    debouncedMarkdownTimer.restart();
                     root.updateFormatState();
                     return;
                 }
 
                 // Cita (quote) sobre múltiples bloques
                 if (actionId === "quote") {
-                    var allQuotes = selBidsList.every(function(s) { return s.item.type === "quote"; });
-                    for (var q = 0; q < selBidsList.length; q++) {
-                        var qItem = selBidsList[q].item;
-                        var qIdx = selBidsList[q].idx;
-                        if (allQuotes) {
-                            var unq = (qItem.raw || "").replace(/^[ \t]*>[ \t]?/gm, "");
-                            blocksModel.setProperty(qIdx, "type", "paragraph");
-                            blocksModel.setProperty(qIdx, "raw", unq);
-                            root.onBlockRawChanged(qItem.bid, unq);
-                        } else {
-                            var cleanQ = (qItem.raw || "").replace(/^[ \t]*>[ \t]?/gm, "");
-                            var newQ = "> " + cleanQ;
-                            blocksModel.setProperty(qIdx, "type", "quote");
-                            blocksModel.setProperty(qIdx, "raw", newQ);
-                            root.onBlockRawChanged(qItem.bid, newQ);
-                        }
-                    }
                     _saveSnapshot();
+                    var allQuotes = selBidsList.every(function(s) { return s.item.type === "quote"; });
+                    root._batchEditing = true;
+                    try {
+                        for (var q = 0; q < selBidsList.length; q++) {
+                            var qItem = selBidsList[q].item;
+                            var qIdx = selBidsList[q].idx;
+                            if (allQuotes) {
+                                var unq = (qItem.raw || "").replace(/^[ \t]*>[ \t]?/gm, "");
+                                blocksModel.setProperty(qIdx, "raw", unq);
+                                if (blocksModel.get(qIdx).type !== "paragraph") {
+                                    blocksModel.setProperty(qIdx, "type", "paragraph");
+                                }
+                            } else {
+                                var cleanQ = (qItem.raw || "").replace(/^[ \t]*>[ \t]?/gm, "");
+                                var newQ = "> " + cleanQ;
+                                blocksModel.setProperty(qIdx, "raw", newQ);
+                                if (blocksModel.get(qIdx).type !== "quote") {
+                                    blocksModel.setProperty(qIdx, "type", "quote");
+                                }
+                            }
+                        }
+                    } finally {
+                        root._batchEditing = false;
+                    }
+                    root._activeBlockDirty = false;
+                    _syncLoadedDelegates();
+                    _saveSnapshot();
+                    root.contentModified();
+                    debouncedMarkdownTimer.restart();
                     root.updateFormatState();
                     return;
                 }
@@ -3755,8 +4061,11 @@ Flickable {
                     var unlisted = curParsed.map(function(it) { return it.text; }).join("\n");
                     root.convertBlockType(curItem.bid, "paragraph", unlisted, 0);
                 } else {
-                    // Cambiar tipo de lista (ej: de viñeta a checklist, o viceversa)
+                    // Cambiar tipo de lista (ej: de viñeta a checklist, o viceversa) preservando indent y numeración
+                    _saveSnapshot();
+                    var singleOrdCounters = {};
                     for (var li = 0; li < curParsed.length; li++) {
+                        var slInd = curParsed[li].indent || "";
                         if (actionId === "task_list") {
                             curParsed[li].isTask = true;
                             curParsed[li].marker = "-";
@@ -3764,17 +4073,26 @@ Flickable {
                             curParsed[li].isTask = false;
                             curParsed[li].marker = "-";
                         } else if (actionId === "ordered_list") {
+                            for (var sck in singleOrdCounters) {
+                                if (sck.length > slInd.length) delete singleOrdCounters[sck];
+                            }
+                            singleOrdCounters[slInd] = (singleOrdCounters[slInd] || 0) + 1;
                             curParsed[li].isTask = false;
-                            curParsed[li].marker = (li + 1) + ".";
+                            curParsed[li].marker = singleOrdCounters[slInd] + ".";
                         }
                     }
                     var newSerialized = LP.serializeList(curParsed);
-                    blocksModel.setProperty(idx, "raw", newSerialized);
-                    root.onBlockRawChanged(curItem.bid, newSerialized);
-                    var ldr = _getDelegateItemForBid(curItem.bid);
-                    if (ldr && ldr.item && typeof ldr.item._reloadFromRaw === "function") {
-                        ldr.item._reloadFromRaw();
+                    root._batchEditing = true;
+                    try {
+                        blocksModel.setProperty(idx, "raw", newSerialized);
+                    } finally {
+                        root._batchEditing = false;
                     }
+                    root._activeBlockDirty = false;
+                    _syncLoadedDelegates();
+                    _saveSnapshot();
+                    root.contentModified();
+                    debouncedMarkdownTimer.restart();
                     root.safeFocusDelegate(curItem.bid, 0);
                 }
             } else {
@@ -4335,7 +4653,7 @@ Flickable {
     }
 
     function undo() {
-        if (typingSnapshotTimer.running || debouncedMarkdownTimer.running) {
+        if (typingSnapshotTimer.running) {
             root._saveSnapshot();
         }
         typingSnapshotTimer.stop();
@@ -4532,6 +4850,98 @@ Flickable {
         root._internalChange = false;
     }
 
+    function _syncLoadedDelegates() {
+        for (var i = 0; i < blocksRepeater.count; i++) {
+            var ldr = blocksRepeater.itemAt(i);
+            if (!ldr || !ldr.item) continue;
+            if (typeof ldr.item.syncFromModel === "function") {
+                ldr.item.syncFromModel();
+            } else if (typeof ldr.item._reloadFromRaw === "function") {
+                ldr.item._reloadFromRaw();
+            } else if (typeof ldr.item._syncFromRaw === "function") {
+                ldr.item._syncFromRaw();
+            } else if (typeof ldr.item._syncTextFromModel === "function") {
+                ldr.item._syncTextFromModel();
+            }
+        }
+    }
+
+    function _findOwnerForTextEdit(targetEdit) {
+        if (!targetEdit) return null;
+        var ownerBlock = null;
+        var ownerItemIdx = -1;
+        var p = targetEdit;
+        for (var hop = 0; hop < 14 && p; hop++) {
+            if (ownerItemIdx === -1 && typeof p.index === "number" && typeof p.rawPrefixLen === "function") {
+                ownerItemIdx = p.index;
+            }
+            if (p.blockData && typeof p.blockData.bid === "number") {
+                ownerBlock = p;
+                break;
+            }
+            p = p.parent;
+        }
+        if (!ownerBlock || !ownerBlock.blockData) return null;
+        return { block: ownerBlock, itemIdx: ownerItemIdx, bid: ownerBlock.blockData.bid };
+    }
+
+    function activateTargetForEdit(targetEdit) {
+        if (!targetEdit || root.readOnly) return false;
+        if (!targetEdit.readOnly) return true;
+        var owner = _findOwnerForTextEdit(targetEdit);
+        if (!owner) return false;
+        var cPos = (typeof targetEdit.cursorPosition === "number") ? targetEdit.cursorPosition : 0;
+        var sStart = targetEdit.selectionStart;
+        var sEnd = targetEdit.selectionEnd;
+        if (owner.block.blockData.type === "list" && owner.itemIdx >= 0 && typeof owner.block.activeItemIndex === "number") {
+            owner.block.activeItemIndex = owner.itemIdx;
+        }
+        root.activeBlockBid = owner.bid;
+        if (!targetEdit.readOnly) {
+            targetEdit.forceActiveFocus();
+            if (sStart !== sEnd) {
+                targetEdit.select(sStart, sEnd);
+            } else {
+                targetEdit.cursorPosition = Math.max(0, Math.min(targetEdit.length, cPos));
+            }
+            return true;
+        }
+        return false;
+    }
+
+    function commitTargetSelectionEdit(targetEdit, isCut) {
+        if (!targetEdit || root.readOnly) return false;
+        var s = targetEdit.selectionStart;
+        var e = targetEdit.selectionEnd;
+        if (s === e) return false;
+        var sMin = Math.min(s, e);
+        var sMax = Math.max(s, e);
+        if (isCut) {
+            var txt = (typeof targetEdit.selectedText === "string" && targetEdit.selectedText !== "")
+                ? targetEdit.selectedText
+                : (typeof targetEdit.getText === "function" ? targetEdit.getText(sMin, sMax) : "");
+            if (txt !== "") root.copyText(txt);
+        }
+        if (!targetEdit.readOnly) {
+            targetEdit.remove(sMin, sMax);
+            return true;
+        }
+        var owner = _findOwnerForTextEdit(targetEdit);
+        if (!owner) return false;
+        _saveSnapshot();
+        if (owner.block.blockData.type === "list" && owner.itemIdx >= 0 && typeof owner.block.activeItemIndex === "number") {
+            owner.block.activeItemIndex = owner.itemIdx;
+        }
+        root.activeBlockBid = owner.bid;
+        if (!targetEdit.readOnly) {
+            targetEdit.forceActiveFocus();
+            targetEdit.select(sMin, sMax);
+            targetEdit.remove(sMin, sMax);
+            return true;
+        }
+        return false;
+    }
+
     function _applySnapshot(snapshot) {
         if (!snapshot) return;
         typingSnapshotTimer.stop();
@@ -4558,9 +4968,9 @@ Flickable {
             for (var i = 0; i < commonLen; i++) {
                 var cur = blocksModel.get(i);
                 var nb = newBlocks[i];
-                if (cur.type !== nb.type) blocksModel.setProperty(i, "type", nb.type);
                 if (cur.raw !== nb.raw) blocksModel.setProperty(i, "raw", nb.raw);
                 if (cur.sep !== nb.sep) blocksModel.setProperty(i, "sep", nb.sep);
+                if (cur.type !== nb.type) blocksModel.setProperty(i, "type", nb.type);
                 nb.bid = cur.bid;
             }
 
@@ -4573,6 +4983,8 @@ Flickable {
                     blocksModel.append(newBlocks[j]);
                 }
             }
+
+            root._syncLoadedDelegates();
 
             if (typeof snapshot === "object" && snapshot !== null) {
                 if (snapshot.contentY !== undefined) {

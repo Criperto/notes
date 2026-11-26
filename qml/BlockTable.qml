@@ -211,6 +211,12 @@ Item {
         _activeTable = TP.parseTable(raw);
     }
 
+    function syncFromModel() {
+        _syncFromRaw();
+    }
+    readonly property string _modelRaw: root.blockData ? (root.blockData.raw || "") : ""
+    on_ModelRawChanged: _syncFromRaw()
+
     onBlockDataChanged: _syncFromRaw()
     Component.onCompleted: _syncFromRaw()
 
@@ -1310,6 +1316,7 @@ Item {
                                         TextEdit {
                                             id: hInput
                                             persistentSelection: true
+                                            Keys.onShortcutOverride: (event) => { if ((!root.editor || !root.editor.readOnly) && (event.matches(StandardKey.Undo) || event.matches(StandardKey.Redo))) event.accepted = true; }
                                             overwriteMode: root.editor ? root.editor.overwriteMode : false
                                             Layout.fillWidth: true
                                             Layout.alignment: Qt.AlignVCenter
@@ -1719,6 +1726,7 @@ Item {
                                 TextEdit {
                                     id: cellInput
                                     persistentSelection: true
+                                    Keys.onShortcutOverride: (event) => { if ((!root.editor || !root.editor.readOnly) && (event.matches(StandardKey.Undo) || event.matches(StandardKey.Redo))) event.accepted = true; }
                                     overwriteMode: root.editor ? root.editor.overwriteMode : false
                                     visible: dataCell.isCurrentCell
                                     anchors.left: parent.left
@@ -1958,6 +1966,7 @@ Item {
     TextEdit {
         id: rawEditor
         persistentSelection: true
+        Keys.onShortcutOverride: (event) => { if ((!root.editor || !root.editor.readOnly) && (event.matches(StandardKey.Undo) || event.matches(StandardKey.Redo))) event.accepted = true; }
         overwriteMode: root.editor ? root.editor.overwriteMode : false
         visible: root.parsedTable === null
         width: parent.width

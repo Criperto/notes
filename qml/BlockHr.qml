@@ -79,6 +79,7 @@ Item {
     // Vista de edición cruda (---)
     TextEdit {
         id: editInput
+        Keys.onShortcutOverride: (event) => { if ((!root.editor || !root.editor.readOnly) && (event.matches(StandardKey.Undo) || event.matches(StandardKey.Redo))) event.accepted = true; }
         visible: root.isEditing && (!root.editor || !root.editor.readOnly)
         anchors.verticalCenter: parent.verticalCenter
         width: parent.width

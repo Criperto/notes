@@ -12,6 +12,22 @@ Item {
     property bool isSelected: false
     property bool inViewportChunk: true
 
+    property bool _syncingModel: false
+    readonly property string _modelRaw: root.blockData ? (root.blockData.raw || "") : ""
+    on_ModelRawChanged: syncFromModel()
+
+    function syncFromModel() {
+        if (!editInput || !root.blockData) return;
+        var target = root.blockData.raw || "";
+        if (editInput.text !== target) {
+            var oldPos = editInput.cursorPosition;
+            _syncingModel = true;
+            editInput.text = target;
+            editInput.cursorPosition = Math.min(editInput.length, Math.max(0, oldPos));
+            _syncingModel = false;
+        }
+    }
+
     implicitWidth: parent ? parent.width : 400
     // F24: misma altura en vista y edición.
     implicitHeight: (isEditing || isSelected) ? (editInput.paintedHeight + 10) : (viewText.paintedHeight + 10)
@@ -137,6 +153,7 @@ Item {
     TextEdit {
         id: editInput
         persistentSelection: true
+        Keys.onShortcutOverride: (event) => { if ((!root.editor || !root.editor.readOnly) && (event.matches(StandardKey.Undo) || event.matches(StandardKey.Redo))) event.accepted = true; }
         visible: root.isEditing || root.isSelected
         readOnly: !root.isEditing || (root.editor && root.editor.readOnly)
         cursorVisible: activeFocus && root.isEditing && (!root.editor || !root.editor.readOnly)
@@ -154,7 +171,7 @@ Item {
         CustomTextCursor {}
 
         onTextChanged: {
-            if (root.editor && root.editor.readOnly) return;
+            if (root._syncingModel || (root.editor && (root.editor.readOnly || root.editor._applyingHistory))) return;
             if (root.isEditing && root.editor && root.blockData) {
                 root.editor.onBlockRawChanged(root.blockData.bid, editInput.text);
             }
