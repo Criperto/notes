@@ -2036,15 +2036,16 @@ function _layoutGitGraph(ast, measure, opts) {
 
     for (var ci = 0; ci < commits.length; ci++) {
         var c = commits[ci];
-        var idW = measure(c.id, 10).width;
-        var tagW = c.tag ? measure(c.tag, 9).width : 0;
-        var reqW = Math.max(idW, tagW, 20);
+        // Etiqueta de commit se renderiza en monoespaciado (ligeramente más ancha que proportional metric)
+        var idW = Math.ceil(measure(c.id, 10).width * 1.26);
+        var tagW = c.tag ? Math.ceil(measure(c.tag, 9).width * 1.15) : 0;
+        var reqW = Math.max(idW, tagW, 24);
 
         if (ci === 0) {
-            curX = startX;
+            curX = Math.max(startX, Math.ceil(reqW / 2) + 84);
         } else {
-            // Espaciado adaptativo para evitar cualquier solapamiento de textos entre commits adyacentes
-            var deltaX = Math.max(72, Math.ceil((prevReqW + reqW) / 2 + 20));
+            // Espaciado adaptativo holgado para evitar solapamiento entre etiquetas monoespaciadas consecutivas
+            var deltaX = Math.max(84, Math.ceil((prevReqW + reqW) / 2 + 28));
             curX += deltaX;
         }
         prevReqW = reqW;
@@ -2117,7 +2118,7 @@ function _layoutGitGraph(ast, measure, opts) {
         }
     }
 
-    var totalW = Math.max(340, lastCommitX + 60);
+    var totalW = Math.max(340, lastCommitX + Math.max(72, Math.ceil(prevReqW / 2) + 28));
     var totalH = topMargin + branches.length * 52 + 40;
 
     return {

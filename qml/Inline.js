@@ -520,6 +520,14 @@ function inlineToHtml(src, opts) {
         });
     }
 
+    // Preservar entidades HTML válidas ya escritas fuera de backticks (ej: &lt;font&gt; o dentro de <code>&lt;details&gt;</code>)
+    var htmlEntities = [];
+    text = text.replace(/&(amp|lt|gt|quot|apos|nbsp|#\d+|#x[0-9a-fA-F]+);/g, function(ent) {
+        var eTok = "\uE000ENT_" + htmlEntities.length + "\uE000";
+        htmlEntities.push(ent);
+        return eTok;
+    });
+
     // Escapar cualquier otro HTML (<script>, <div>, &, <, >, etc.)
     text = escapeHtml(text);
 
@@ -602,6 +610,11 @@ function inlineToHtml(src, opts) {
     for (var e = 0; e < escapes.length; e++) {
         var escText = escapeHtml(escapes[e]);
         text = text.replace("\uE000ESC_" + e + "\uE000", function() { return escText; });
+    }
+
+    // 11a. Restaurar entidades HTML válidas preservadas fuera de backticks
+    for (var he = 0; he < htmlEntities.length; he++) {
+        text = text.replace("\uE000ENT_" + he + "\uE000", function() { return htmlEntities[he]; });
     }
 
     // 11b. Restaurar dólares escapados a texto plano ($)

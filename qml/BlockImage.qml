@@ -27,6 +27,8 @@ Item {
     function deleteSelectedText() {}
 
     property int _cardsReadySeq: 0
+    property int _dragImgIndex: -1
+    property real _dragImgWidth: -1
     function notifyCardReady() {
         _cardsReadySeq++;
     }
@@ -244,6 +246,7 @@ Item {
 
             delegate: Item {
                 id: imgCard
+                readonly property int imgIndex: index
                 // No se setea source hasta saber que existe (o remota).
                 // imageStateFor lee imageProbeReady/_imageExists: re-evalúa solo.
                 readonly property string imgState: NotesService.imageStateFor(modelData.src, root.imgBaseDir)
@@ -275,7 +278,9 @@ Item {
                 readonly property real zoomFactor: (typeof EditorMetrics !== "undefined" && EditorMetrics.zoom) ? EditorMetrics.zoom : 1.0
                 readonly property real maxH: Math.round(560 * zoomFactor)
                 readonly property int obsidianWidth: modelData ? Inline.parseImageAlt(modelData.alt).width : 0
-                property real _dragWidth: -1
+                readonly property bool isActivelyDragging: root._dragImgIndex === imgCard.imgIndex && root._dragImgWidth > 0
+                readonly property real activeDragWidth: isActivelyDragging ? root._dragImgWidth : -1
+                readonly property real effectiveMaxH: (isActivelyDragging || obsidianWidth > 0) ? Math.max(maxH, Math.round(availW * 1.85)) : maxH
                 readonly property real naturalW: {
                     if (imgItem.implicitWidth > 0) return imgItem.implicitWidth;
                     if (_headerDim && _headerDim.w > 0) return _headerDim.w;
@@ -288,11 +293,19 @@ Item {
                 }
 
                 readonly property real targetW: {
-                    if (_dragWidth > 0) {
-                        return Math.min(availW, Math.max(48, Math.round(_dragWidth)));
+                    if (activeDragWidth > 0) {
+                        var dw = Math.min(availW, Math.max(48, Math.round(activeDragWidth)));
+                        if (naturalW > 0 && naturalH > 0 && dw * (naturalH / naturalW) > effectiveMaxH) {
+                            dw = Math.max(48, Math.round(effectiveMaxH * (naturalW / naturalH)));
+                        }
+                        return dw;
                     }
                     if (obsidianWidth > 0) {
-                        return Math.min(availW, Math.max(48, Math.round(obsidianWidth * zoomFactor)));
+                        var ow = Math.min(availW, Math.max(48, Math.round(obsidianWidth * zoomFactor)));
+                        if (naturalW > 0 && naturalH > 0 && ow * (naturalH / naturalW) > effectiveMaxH) {
+                            ow = Math.max(48, Math.round(effectiveMaxH * (naturalW / naturalH)));
+                        }
+                        return ow;
                     }
                     if (isBadge) {
                         return naturalW > 0 ? Math.min(availW, Math.round(naturalW * zoomFactor)) : 120;
@@ -314,7 +327,7 @@ Item {
                     if (isBadge) return naturalH > 0 ? Math.round(naturalH * zoomFactor) : 24;
                     if (naturalW > 0 && naturalH > 0) {
                         var h = Math.round(targetW * (naturalH / naturalW));
-                        return Math.max(24, Math.min(maxH, h));
+                        return Math.max(24, Math.min(effectiveMaxH, h));
                     }
                     return 180;
                 }
@@ -442,37 +455,50 @@ Item {
                     MouseArea {
                         id: resizeMa
                         anchors.fill: parent
-                        anchors.margins: -4
+                        anchors.margins: -6
                         hoverEnabled: true
+                        preventStealing: true
                         cursorShape: Qt.SizeHorCursor
                         property real startGlobalX: 0
                         property real startWidth: 0
+                        readonly property real dragFactor: (root.imagesList.length === 1 && !imgCard.isBadge) ? 2.0 : 1.0
                         onPressed: (mouse) => {
                             mouse.accepted = true;
                             startGlobalX = mapToGlobal(mouse.x, mouse.y).x;
                             startWidth = imgCard.width;
-                            imgCard._dragWidth = startWidth;
+                            root._dragImgIndex = imgCard.imgIndex;
+                            root._dragImgWidth = startWidth;
                         }
                         onPositionChanged: (mouse) => {
                             if (!pressed) return;
                             var gx = mapToGlobal(mouse.x, mouse.y).x;
-                            var nextW = Math.max(60, Math.min(imgCard.availW, startWidth + (gx - startGlobalX)));
-                            imgCard._dragWidth = nextW;
+                            var nextW = Math.max(60, Math.min(imgCard.availW, startWidth + (gx - startGlobalX) * dragFactor));
+                            root._dragImgWidth = nextW;
                         }
                         onReleased: {
-                            if (imgCard._dragWidth > 0 && root.editor && root.blockData) {
-                                var logicalW = Math.max(48, Math.round(imgCard._dragWidth / Math.max(0.25, imgCard.zoomFactor)));
-                                var updated = Inline.setImageWidthInRaw(root.blockData.raw, index, logicalW);
-                                if (updated !== root.blockData.raw) {
-                                    if (typeof root.editor._saveSnapshot === "function") root.editor._saveSnapshot();
-                                    root.editor.onBlockRawChanged(root.blockData.bid, updated);
-                                    if (typeof root.editor._saveSnapshot === "function") root.editor._saveSnapshot();
+                            var targetIdx = imgCard.imgIndex;
+                            var finalW = imgCard.width > 0 ? imgCard.width : root._dragImgWidth;
+                            var zoomZ = Math.max(0.25, imgCard.zoomFactor);
+                            var ed = root.editor;
+                            var bData = root.blockData;
+                            if (root._dragImgWidth > 0 && ed && bData) {
+                                var logicalW = Math.max(48, Math.round(finalW / zoomZ));
+                                var updated = Inline.setImageWidthInRaw(bData.raw, targetIdx, logicalW);
+                                root._dragImgIndex = -1;
+                                root._dragImgWidth = -1;
+                                if (updated !== bData.raw) {
+                                    if (typeof ed._saveSnapshot === "function") ed._saveSnapshot();
+                                    ed.onBlockRawChanged(bData.bid, updated);
+                                    if (typeof ed._saveSnapshot === "function") ed._saveSnapshot();
                                 }
+                            } else {
+                                root._dragImgIndex = -1;
+                                root._dragImgWidth = -1;
                             }
-                            imgCard._dragWidth = -1;
                         }
                         onCanceled: {
-                            imgCard._dragWidth = -1;
+                            root._dragImgIndex = -1;
+                            root._dragImgWidth = -1;
                         }
                     }
                 }
@@ -480,7 +506,7 @@ Item {
                 // Indicador flotante de ancho durante el arrastre
                 Rectangle {
                     z: 13
-                    visible: imgCard._dragWidth > 0
+                    visible: imgCard.isActivelyDragging
                     anchors.bottom: parent.bottom
                     anchors.right: parent.right
                     anchors.margins: 8
@@ -491,7 +517,7 @@ Item {
                     Text {
                         id: widthBadgeTxt
                         anchors.centerIn: parent
-                        text: Math.max(48, Math.round(imgCard._dragWidth / Math.max(0.25, imgCard.zoomFactor))) + "px"
+                        text: Math.max(48, Math.round(imgCard.width / Math.max(0.25, imgCard.zoomFactor))) + "px"
                         color: "#ffffff"
                         font.family: Theme.fontFamilyMonospace || "monospace"
                         font.pixelSize: 10

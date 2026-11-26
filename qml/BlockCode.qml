@@ -441,13 +441,13 @@ Rectangle {
                 textDocument: previewInput.textDocument
                 language: root.lang || ""
                 enabled: !(root.editor && root.editor.searchQuery)
-                keywordColor: Theme.color5
-                stringColor: Theme.color2
+                keywordColor: Theme.ensureSyntaxColor(Theme.color5)
+                stringColor: Theme.ensureSyntaxColor(Theme.color2)
                 commentColor: Theme.muted
-                numberColor: Theme.color3
-                typeColor: Theme.color4
-                functionColor: Theme.color6
-                operatorColor: Theme.accent
+                numberColor: Theme.ensureSyntaxColor(Theme.color3)
+                typeColor: Theme.ensureSyntaxColor(Theme.color4)
+                functionColor: Theme.ensureSyntaxColor(Theme.color6)
+                operatorColor: Theme.ensureSyntaxColor(Theme.accent)
             }
 
             CustomTextCursor {
@@ -846,13 +846,13 @@ Rectangle {
                 textDocument: editInput.textDocument
                 language: root.lang || ""
                 enabled: root.showEditView && !(root.editor && root.editor.searchQuery)
-                keywordColor: Theme.color5
-                stringColor: Theme.color2
+                keywordColor: Theme.ensureSyntaxColor(Theme.color5)
+                stringColor: Theme.ensureSyntaxColor(Theme.color2)
                 commentColor: Theme.muted
-                numberColor: Theme.color3
-                typeColor: Theme.color4
-                functionColor: Theme.color6
-                operatorColor: Theme.accent
+                numberColor: Theme.ensureSyntaxColor(Theme.color3)
+                typeColor: Theme.ensureSyntaxColor(Theme.color4)
+                functionColor: Theme.ensureSyntaxColor(Theme.color6)
+                operatorColor: Theme.ensureSyntaxColor(Theme.accent)
             }
 
         CustomTextCursor {

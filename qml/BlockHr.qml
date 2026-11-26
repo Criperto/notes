@@ -61,7 +61,7 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
         width: parent.width
         height: 1
-        color: Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.15)
+        color: Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.24)
 
         MouseArea {
             anchors.fill: parent

@@ -645,9 +645,11 @@ function _consumeHtmlBlock(lines, startIdx) {
             }
             if (inFence) continue;
 
+            // Enmascarar spans inline con backticks (`...`) para no contar etiquetas literales como `<details>` o `<div ...>`
+            var scanMasked = scanLine.replace(/`+[^`\r\n]*`+/g, " ");
             tagRe.lastIndex = 0;
             var tm;
-            while ((tm = tagRe.exec(scanLine)) !== null) {
+            while ((tm = tagRe.exec(scanMasked)) !== null) {
                 if (tm[1] === "/") {
                     depth--;
                     if (depth === 0) {

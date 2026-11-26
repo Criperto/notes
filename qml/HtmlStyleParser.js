@@ -702,6 +702,7 @@ function _parseTableNode(innerHtml, parentStyle, opts, sheetRules) {
         var cm;
         var cells = [];
         var cellAligns = [];
+        var cellWidths = [];
         var allTh = true;
         while ((cm = cellRe.exec(rowHtml)) !== null) {
             var cTag = cm[1].toLowerCase();
@@ -710,6 +711,7 @@ function _parseTableNode(innerHtml, parentStyle, opts, sheetRules) {
             var cSt = parseStyleDeclaration((_lookupSheetStyle(sheetRules, cTag, cAttrs) + "; " + (cAttrs.style || "")), cAttrs, opts);
             var cAlign = cSt.textAlign || (cTag === "th" ? "left" : (parentStyle.textAlign || "left"));
             cellAligns.push(cAlign);
+            cellWidths.push(cSt.widthPct > 0 ? cSt.widthPct : 0);
             var cellBody = cm[3].trim();
             cells.push(cellBody);
         }
@@ -725,13 +727,20 @@ function _parseTableNode(innerHtml, parentStyle, opts, sheetRules) {
                 rows.push(cells);
             }
         }
+        if (rowIndex === 0 && cellWidths.length > 0) {
+            var hasExplicitW = cellWidths.some(function(w) { return w > 0; });
+            if (hasExplicitW) parentStyle._colWidths = cellWidths;
+        }
         rowIndex++;
     }
+    var colWidths = parentStyle._colWidths || [];
+    if (parentStyle._colWidths !== undefined) delete parentStyle._colWidths;
     return {
         kind: "table",
         headers: headers,
         rows: rows,
         alignments: alignments,
+        colWidths: colWidths,
         style: parentStyle
     };
 }
@@ -922,6 +931,10 @@ function parseHtmlFragment(raw, opts, _inheritedStyle, _sheetRules) {
     }
 
     var parentStyle = _inheritedStyle || parseStyleDeclaration("", {}, options);
+    // Máscara de longitud idéntica sobre fences y spans inline `...` para ignorar `<tag>` literales dentro de código
+    var maskedWork = work.replace(/```[\s\S]*?```|~~~[\s\S]*?~~~|`[^`\r\n]*`/g, function(m) {
+        return m.replace(/[^\r\n]/g, " ");
+    });
     var nodes = [];
     var i = 0;
     var n = work.length;
@@ -940,7 +953,7 @@ function parseHtmlFragment(raw, opts, _inheritedStyle, _sheetRules) {
         var re = new RegExp("<(\\/?)" + tagName + "\\b[^>]*>", "gi");
         re.lastIndex = searchStart;
         var m;
-        while ((m = re.exec(work)) !== null) {
+        while ((m = re.exec(maskedWork)) !== null) {
             if (m[1] === "/") {
                 depth--;
                 if (depth === 0) {
@@ -954,17 +967,17 @@ function parseHtmlFragment(raw, opts, _inheritedStyle, _sheetRules) {
     }
 
     while (i < n) {
-        var lt = work.indexOf("<", i);
+        var lt = maskedWork.indexOf("<", i);
         if (lt === -1) {
             textBuf += work.substring(i);
             break;
         }
         textBuf += work.substring(i, lt);
 
-        var tagMatch = work.substring(lt).match(/^<([a-zA-Z][a-zA-Z0-9]*)\b([^>]*)>/);
+        var tagMatch = maskedWork.substring(lt).match(/^<([a-zA-Z][a-zA-Z0-9]*)\b([^>]*)>/);
         if (!tagMatch) {
             // Puede ser tag de cierre suelto </tag> o '<' literal
-            var closeTagMatch = work.substring(lt).match(/^<\/[a-zA-Z][a-zA-Z0-9]*\s*>/);
+            var closeTagMatch = maskedWork.substring(lt).match(/^<\/[a-zA-Z][a-zA-Z0-9]*\s*>/);
             if (closeTagMatch) {
                 i = lt + closeTagMatch[0].length;
             } else {
@@ -974,9 +987,10 @@ function parseHtmlFragment(raw, opts, _inheritedStyle, _sheetRules) {
             continue;
         }
 
-        var fullOpen = tagMatch[0];
+        var rawTagMatch = work.substring(lt, lt + tagMatch[0].length);
+        var fullOpen = rawTagMatch;
         var tag = tagMatch[1].toLowerCase();
-        var attrsStr = tagMatch[2] || "";
+        var attrsStr = rawTagMatch.replace(/^<[a-zA-Z][a-zA-Z0-9]*\b/, "").replace(/>$/, "");
         var selfClosing = /\/\s*>$/.test(fullOpen) || VOID_TAGS[tag] === true;
         var afterOpen = lt + fullOpen.length;
 
@@ -1121,7 +1135,21 @@ function parseHtmlFragment(raw, opts, _inheritedStyle, _sheetRules) {
     }
 
     flushText();
-    return nodes;
+
+    // Unificar filas consecutivas de imágenes/badges en un mismo bloque horizontal (como badges multilínea en GitHub)
+    var mergedNodes = [];
+    for (var ni = 0; ni < nodes.length; ni++) {
+        var curNd = nodes[ni];
+        if (curNd && curNd.kind === "image_row" && mergedNodes.length > 0 &&
+            mergedNodes[mergedNodes.length - 1].kind === "image_row" &&
+            (mergedNodes[mergedNodes.length - 1].align || "left") === (curNd.align || "left")) {
+            var prevImages = mergedNodes[mergedNodes.length - 1].images || [];
+            mergedNodes[mergedNodes.length - 1].images = prevImages.concat(curNd.images || []);
+        } else {
+            mergedNodes.push(curNd);
+        }
+    }
+    return mergedNodes;
 }
 
 // Extrae texto plano visible de un bloque HTML para índice/conteo de Ctrl+F

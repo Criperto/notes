@@ -3724,13 +3724,13 @@ Item {
                         textDocument: sourceCodeEditor.textDocument
                         language: sourceFlickable.sourceHighlightLang
                         enabled: root.isSourceMode && sourceFlickable.sourceHighlightLang !== ""
-                        keywordColor: Theme.color5
-                        stringColor: Theme.color2
+                        keywordColor: Theme.ensureSyntaxColor(Theme.color5)
+                        stringColor: Theme.ensureSyntaxColor(Theme.color2)
                         commentColor: Theme.muted
-                        numberColor: Theme.color3
-                        typeColor: Theme.color4
-                        functionColor: Theme.color6
-                        operatorColor: Theme.accent
+                        numberColor: Theme.ensureSyntaxColor(Theme.color3)
+                        typeColor: Theme.ensureSyntaxColor(Theme.color4)
+                        functionColor: Theme.ensureSyntaxColor(Theme.color6)
+                        operatorColor: Theme.ensureSyntaxColor(Theme.accent)
                     }
 
                     onWidthChanged: if (root.isSourceMode) sourceGeomTimer.restart()

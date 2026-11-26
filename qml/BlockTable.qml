@@ -135,36 +135,53 @@ Item {
     property int focusedCol: 0
 
     // ── Dimensiones dinámicas de columnas y tabla ─────────────────────────
-    readonly property bool hasCellImages: {
+    readonly property var _cellImgStats: {
         var tbl = root.parsedTable;
-        if (!tbl) return false;
-        var hasImgToken = function(s) {
-            return typeof s === "string" && (s.indexOf("![") !== -1 || /<img\b/i.test(s));
+        var res = { hasImages: false, maxExplicitW: 0, hasUnsized: false };
+        if (!tbl) return res;
+        var scanCell = function(cellStr) {
+            if (typeof cellStr !== "string") return;
+            if (cellStr.indexOf("![") === -1 && cellStr.indexOf("<img") === -1 && cellStr.indexOf("<IMG") === -1) return;
+            var segs = Inline.extractTableCellSegments(cellStr);
+            for (var k = 0; k < segs.length; k++) {
+                if (segs[k].type === "image") {
+                    res.hasImages = true;
+                    if (segs[k].width > 0) {
+                        if (segs[k].width > res.maxExplicitW) res.maxExplicitW = segs[k].width;
+                    } else {
+                        res.hasUnsized = true;
+                    }
+                }
+            }
         };
         if (tbl.headers) {
-            for (var c = 0; c < tbl.headers.length; c++) {
-                if (hasImgToken(tbl.headers[c])) return true;
-            }
+            for (var c = 0; c < tbl.headers.length; c++) scanCell(tbl.headers[c]);
         }
         if (tbl.rows) {
             for (var r = 0; r < tbl.rows.length; r++) {
                 var row = tbl.rows[r];
                 if (!row) continue;
-                for (var j = 0; j < row.length; j++) {
-                    if (hasImgToken(row[j])) return true;
-                }
+                for (var j = 0; j < row.length; j++) scanCell(row[j]);
             }
         }
-        return false;
+        return res;
     }
-    readonly property real minColWidth: Math.max(96, Math.round(96 * (EditorMetrics.zoom || 1.0)))
+    readonly property bool hasCellImages: _cellImgStats.hasImages
+    readonly property real minColWidth: Math.max(96, Math.round((hasCellImages ? 120 : 96) * (EditorMetrics.zoom || 1.0)))
     readonly property int colCount: (root.parsedTable && root.parsedTable.headers) ? Math.max(1, root.parsedTable.headers.length) : 1
     readonly property real availableTableWidth: Math.max(100, (tableFlickable ? tableFlickable.width : 400) - ((addColDot && addColDot.visible) ? (addColDot.width + 12) : 0))
-    readonly property real _baseColWidth: Math.max(minColWidth, Math.floor(availableTableWidth / colCount))
-    readonly property real _zoomedImgColWidth: (hasCellImages && (EditorMetrics.zoom || 1.0) > 1.0)
-        ? Math.floor((availableTableWidth / colCount) * EditorMetrics.zoom)
-        : 0
-    readonly property real colWidth: Math.max(_baseColWidth, _zoomedImgColWidth)
+    readonly property real _zoomedImgColWidth: {
+        var z = EditorMetrics.zoom || 1.0;
+        var base = Math.max(minColWidth, Math.floor(availableTableWidth / colCount));
+        if (!hasCellImages || z <= 1.01) return base;
+        if (_cellImgStats.hasUnsized) return Math.floor(base * z);
+        if (_cellImgStats.maxExplicitW > 0) {
+            var needed = Math.ceil(_cellImgStats.maxExplicitW * z) + 24;
+            return Math.max(base, Math.min(Math.floor(base * z), needed));
+        }
+        return base;
+    }
+    readonly property real colWidth: Math.max(minColWidth, _zoomedImgColWidth)
     readonly property real tableColWidth: colCount * colWidth
 
     function ensureCellVisible(colIndex) {

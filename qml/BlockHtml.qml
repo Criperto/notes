@@ -427,6 +427,7 @@ Rectangle {
 
             Loader {
                 id: nodeLoader
+                active: nodeHost.nodeData !== null
                 width: parent.width
                 sourceComponent: {
                     switch (nodeHost.kind) {
@@ -448,14 +449,38 @@ Rectangle {
             Component {
                 id: compHeading
                 Loader {
+                    id: headingRichLoader
                     width: nodeLoader.width
                     sourceComponent: richTextComponent
-                    onLoaded: {
-                        item.nodeStyle = nodeHost.st;
-                        item.rawMd = nodeHost.nodeData.raw || "";
-                        item.unitId = nodeHost.nodePath;
-                        item.explicitFontPx = EditorMetrics.headingSize(nodeHost.nodeData.level || 1);
-                        item.explicitBold = true;
+                    Binding {
+                        target: headingRichLoader.item
+                        property: "nodeStyle"
+                        value: nodeHost.st
+                        when: headingRichLoader.status === Loader.Ready && headingRichLoader.item !== null
+                    }
+                    Binding {
+                        target: headingRichLoader.item
+                        property: "rawMd"
+                        value: (nodeHost.nodeData && nodeHost.nodeData.raw) ? nodeHost.nodeData.raw : ""
+                        when: headingRichLoader.status === Loader.Ready && headingRichLoader.item !== null
+                    }
+                    Binding {
+                        target: headingRichLoader.item
+                        property: "unitId"
+                        value: nodeHost.nodePath
+                        when: headingRichLoader.status === Loader.Ready && headingRichLoader.item !== null
+                    }
+                    Binding {
+                        target: headingRichLoader.item
+                        property: "explicitFontPx"
+                        value: EditorMetrics.headingSize((nodeHost.nodeData && nodeHost.nodeData.level) ? nodeHost.nodeData.level : 1)
+                        when: headingRichLoader.status === Loader.Ready && headingRichLoader.item !== null
+                    }
+                    Binding {
+                        target: headingRichLoader.item
+                        property: "explicitBold"
+                        value: true
+                        when: headingRichLoader.status === Loader.Ready && headingRichLoader.item !== null
                     }
                 }
             }
@@ -463,12 +488,26 @@ Rectangle {
             Component {
                 id: compMarkdown
                 Loader {
+                    id: mdRichLoader
                     width: nodeLoader.width
                     sourceComponent: richTextComponent
-                    onLoaded: {
-                        item.nodeStyle = nodeHost.st;
-                        item.rawMd = nodeHost.nodeData.raw || "";
-                        item.unitId = nodeHost.nodePath;
+                    Binding {
+                        target: mdRichLoader.item
+                        property: "nodeStyle"
+                        value: nodeHost.st
+                        when: mdRichLoader.status === Loader.Ready && mdRichLoader.item !== null
+                    }
+                    Binding {
+                        target: mdRichLoader.item
+                        property: "rawMd"
+                        value: (nodeHost.nodeData && nodeHost.nodeData.raw) ? nodeHost.nodeData.raw : ""
+                        when: mdRichLoader.status === Loader.Ready && mdRichLoader.item !== null
+                    }
+                    Binding {
+                        target: mdRichLoader.item
+                        property: "unitId"
+                        value: nodeHost.nodePath
+                        when: mdRichLoader.status === Loader.Ready && mdRichLoader.item !== null
                     }
                 }
             }
@@ -478,6 +517,7 @@ Rectangle {
                 Item {
                     width: nodeLoader.width
                     implicitHeight: Math.max(10, Math.round(12 * EditorMetrics.zoom))
+                    height: implicitHeight
                     Rectangle {
                         anchors.verticalCenter: parent.verticalCenter
                         width: parent.width
@@ -493,6 +533,7 @@ Rectangle {
                     id: boxWrap
                     width: nodeLoader.width
                     implicitHeight: boxRect.implicitHeight + topM + botM
+                    height: implicitHeight
                     readonly property real topM: nodeHost.st.marginTop > 0 ? Math.round(nodeHost.st.marginTop * EditorMetrics.zoom) : 0
                     readonly property real botM: nodeHost.st.marginBottom > 0 ? Math.round(nodeHost.st.marginBottom * EditorMetrics.zoom) : 0
                     readonly property real padT: Math.round((nodeHost.st.paddingTop || 0) * EditorMetrics.zoom)
@@ -515,6 +556,7 @@ Rectangle {
                             ? Math.round((boxWrap.width - width) / 2)
                             : ((nodeHost.st.textAlign === "right") ? Math.max(0, boxWrap.width - width) : 0)
                         implicitHeight: boxCol.implicitHeight + boxWrap.padT + boxWrap.padB
+                        height: implicitHeight
                         radius: Math.round((nodeHost.st.borderRadius || 0) * EditorMetrics.zoom)
                         color: root._qmlColor(nodeHost.st.backgroundColor, "transparent")
                         border.width: nodeHost.st.borderWidth || 0
@@ -539,13 +581,22 @@ Rectangle {
                             spacing: Math.max(4, Math.round(6 * EditorMetrics.zoom))
 
                             Repeater {
-                                model: nodeHost.nodeData.children || []
+                                model: (nodeHost.nodeData && nodeHost.nodeData.children) ? nodeHost.nodeData.children : []
                                 delegate: Loader {
+                                    id: boxChildLoader
                                     width: boxCol.width
                                     sourceComponent: htmlNodeDelegate
-                                    onLoaded: {
-                                        item.nodeData = modelData;
-                                        item.nodePath = nodeHost.nodePath + "." + index;
+                                    Binding {
+                                        target: boxChildLoader.item
+                                        property: "nodeData"
+                                        value: modelData
+                                        when: boxChildLoader.status === Loader.Ready && boxChildLoader.item !== null
+                                    }
+                                    Binding {
+                                        target: boxChildLoader.item
+                                        property: "nodePath"
+                                        value: nodeHost.nodePath + "." + index
+                                        when: boxChildLoader.status === Loader.Ready && boxChildLoader.item !== null
                                     }
                                 }
                             }
@@ -558,9 +609,10 @@ Rectangle {
                 id: compDetails
                 Rectangle {
                     id: detailsCard
-                    readonly property bool isOpen: root.isDetailsOpen(nodeHost.nodePath, nodeHost.nodeData.open)
+                    readonly property bool isOpen: root.isDetailsOpen(nodeHost.nodePath, (nodeHost.nodeData && nodeHost.nodeData.open) ? nodeHost.nodeData.open : false)
                     width: nodeLoader.width
                     implicitHeight: detailsCol.implicitHeight + 16
+                    height: implicitHeight
                     radius: 8
                     color: Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.03)
                     border.color: Theme.border
@@ -613,7 +665,7 @@ Rectangle {
                                     font.pixelSize: EditorMetrics.body
                                     font.bold: true
                                     color: root._qmlColor(nodeHost.st && nodeHost.st.color, Theme.text)
-                                    text: Inline.inlineToHtml(nodeHost.nodeData.summaryRaw || "Detalles", root._inlineOpts(nodeHost.st, 0))
+                                    text: Inline.inlineToHtml((nodeHost.nodeData && nodeHost.nodeData.summaryRaw) ? nodeHost.nodeData.summaryRaw : "Detalles", root._inlineOpts(nodeHost.st, 0))
                                 }
                             }
 
@@ -622,7 +674,7 @@ Rectangle {
                                 anchors.fill: parent
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
-                                onClicked: root.toggleDetails(nodeHost.nodePath, nodeHost.nodeData.open)
+                                onClicked: root.toggleDetails(nodeHost.nodePath, (nodeHost.nodeData && nodeHost.nodeData.open) ? nodeHost.nodeData.open : false)
                             }
                         }
 
@@ -634,13 +686,22 @@ Rectangle {
                             spacing: Math.max(4, Math.round(6 * EditorMetrics.zoom))
 
                             Repeater {
-                                model: detailsCard.isOpen ? (nodeHost.nodeData.children || []) : []
+                                model: detailsCard.isOpen ? ((nodeHost.nodeData && nodeHost.nodeData.children) ? nodeHost.nodeData.children : []) : []
                                 delegate: Loader {
+                                    id: detailsChildLoader
                                     width: detailsBodyCol.width
                                     sourceComponent: htmlNodeDelegate
-                                    onLoaded: {
-                                        item.nodeData = modelData;
-                                        item.nodePath = nodeHost.nodePath + ".d" + index;
+                                    Binding {
+                                        target: detailsChildLoader.item
+                                        property: "nodeData"
+                                        value: modelData
+                                        when: detailsChildLoader.status === Loader.Ready && detailsChildLoader.item !== null
+                                    }
+                                    Binding {
+                                        target: detailsChildLoader.item
+                                        property: "nodePath"
+                                        value: nodeHost.nodePath + ".d" + index
+                                        when: detailsChildLoader.status === Loader.Ready && detailsChildLoader.item !== null
                                     }
                                 }
                             }
@@ -653,22 +714,38 @@ Rectangle {
                 id: compImageRow
                 Item {
                     id: imgRowBox
-                    readonly property string rowAlign: nodeHost.nodeData.align || (nodeHost.st ? nodeHost.st.textAlign : "left") || "left"
+                    readonly property string rowAlign: (nodeHost.nodeData && nodeHost.nodeData.align) ? nodeHost.nodeData.align : ((nodeHost.st && nodeHost.st.textAlign) ? nodeHost.st.textAlign : "left")
                     width: nodeLoader.width
                     implicitHeight: flowLayout.implicitHeight + 4
+                    height: implicitHeight
 
                     Flow {
                         id: flowLayout
+                        property real contentRowW: imgRowBox.width
+                        function syncFlowWidth() {
+                            var total = 0;
+                            var count = hImgRep.count;
+                            for (var i = 0; i < count; i++) {
+                                var it = hImgRep.itemAt(i);
+                                if (it) total += it.width;
+                            }
+                            if (count > 1) total += spacing * (count - 1);
+                            contentRowW = Math.max(1, total);
+                        }
                         width: (rowAlign === "center" || rowAlign === "right")
-                            ? Math.min(imgRowBox.width, implicitWidth)
+                            ? Math.min(imgRowBox.width, contentRowW)
                             : imgRowBox.width
                         x: (rowAlign === "center")
                             ? Math.max(0, Math.round((imgRowBox.width - width) / 2))
                             : ((rowAlign === "right") ? Math.max(0, imgRowBox.width - width) : 0)
                         spacing: Math.max(6, Math.round(8 * EditorMetrics.zoom))
+                        onSpacingChanged: syncFlowWidth()
+                        Component.onCompleted: syncFlowWidth()
 
                         Repeater {
-                            model: nodeHost.nodeData.images || []
+                            id: hImgRep
+                            model: (nodeHost.nodeData && nodeHost.nodeData.images) ? nodeHost.nodeData.images : []
+                            onCountChanged: flowLayout.syncFlowWidth()
                             delegate: Item {
                                 id: hImgItem
                                 readonly property string imgSrc: modelData.src || ""
@@ -702,6 +779,8 @@ Rectangle {
 
                                 width: targetW
                                 height: targetH
+                                onWidthChanged: flowLayout.syncFlowWidth()
+                                Component.onCompleted: flowLayout.syncFlowWidth()
 
                                 AnimatedImage {
                                     id: animImg
@@ -762,14 +841,51 @@ Rectangle {
                 id: compHtmlTable
                 Rectangle {
                     id: tblRect
-                    readonly property var headers: nodeHost.nodeData.headers || []
-                    readonly property var rows: nodeHost.nodeData.rows || []
-                    readonly property var aligns: nodeHost.nodeData.alignments || []
-                    readonly property int colsCount: Math.max(1, headers.length)
-                    readonly property real colW: Math.floor(Math.max(80, nodeLoader.width) / colsCount)
+                    readonly property var headers: (nodeHost.nodeData && nodeHost.nodeData.headers) ? nodeHost.nodeData.headers : []
+                    readonly property var rows: (nodeHost.nodeData && nodeHost.nodeData.rows) ? nodeHost.nodeData.rows : []
+                    readonly property var aligns: (nodeHost.nodeData && nodeHost.nodeData.alignments) ? nodeHost.nodeData.alignments : []
+                    readonly property var colWidths: (nodeHost.nodeData && nodeHost.nodeData.colWidths) ? nodeHost.nodeData.colWidths : []
+                    readonly property int colsCount: Math.max(1, headers.length, (rows.length > 0 && rows[0]) ? rows[0].length : 0)
+                    readonly property real availW: Math.max(80, tblCol.width)
+                    function colWidthFor(c) {
+                        var n = colsCount;
+                        var totalW = availW;
+                        if (n <= 1) return totalW;
+                        var specSum = 0.0;
+                        var unspecCount = 0;
+                        for (var i = 0; i < n; i++) {
+                            var v = (colWidths && i < colWidths.length) ? Number(colWidths[i] || 0) : 0;
+                            if (v > 0) specSum += v;
+                            else unspecCount += 1;
+                        }
+                        var used = 0;
+                        for (var j = 0; j < n; j++) {
+                            var w;
+                            if (j === n - 1) {
+                                w = Math.max(1, totalW - used);
+                            } else if (specSum > 0) {
+                                var rawV = (colWidths && j < colWidths.length) ? Number(colWidths[j] || 0) : 0;
+                                var frac = 0;
+                                if (specSum <= 1.0 && unspecCount > 0) {
+                                    frac = rawV > 0 ? rawV : (1.0 - specSum) / unspecCount;
+                                } else {
+                                    var eff = rawV > 0 ? rawV : (specSum / Math.max(1, n - unspecCount));
+                                    var denom = specSum + (unspecCount > 0 ? (specSum / Math.max(1, n - unspecCount)) * unspecCount : 0);
+                                    frac = denom > 0 ? (eff / denom) : (1.0 / n);
+                                }
+                                w = Math.max(40, Math.floor(totalW * frac));
+                            } else {
+                                w = Math.floor(totalW / n);
+                            }
+                            if (j === c) return w;
+                            used += w;
+                        }
+                        return Math.floor(totalW / n);
+                    }
 
                     width: nodeLoader.width
                     implicitHeight: tblCol.implicitHeight + 2
+                    height: implicitHeight
                     radius: 8
                     color: Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.02)
                     border.color: Theme.border
@@ -784,20 +900,36 @@ Rectangle {
 
                         // Cabecera HTML <th>
                         Rectangle {
+                            id: hWrap
                             visible: tblRect.headers.length > 0
                             width: parent.width
-                            implicitHeight: Math.max(30, hRow.implicitHeight)
+                            property real maxH: 30
+                            function updateRowHeight() {
+                                var m = 30;
+                                for (var i = 0; i < hRep.count; i++) {
+                                    var it = hRep.itemAt(i);
+                                    if (it && it.cellH > m) m = it.cellH;
+                                }
+                                if (Math.abs(maxH - m) > 0.5) maxH = m;
+                            }
+                            implicitHeight: maxH
+                            height: maxH
                             color: Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.06)
 
                             Row {
                                 id: hRow
                                 width: parent.width
+                                height: hWrap.maxH
                                 Repeater {
+                                    id: hRep
                                     model: tblRect.headers
+                                    onCountChanged: hWrap.updateRowHeight()
                                     delegate: Item {
-                                        width: tblRect.colW
-                                        implicitHeight: Math.max(30, hCellView.implicitHeight + 12)
-                                        height: hRow.implicitHeight
+                                        readonly property real cellH: Math.max(30, hCellView.implicitHeight + 12)
+                                        width: tblRect.colWidthFor(index)
+                                        height: hWrap.maxH
+                                        onCellHChanged: hWrap.updateRowHeight()
+                                        Component.onCompleted: hWrap.updateRowHeight()
                                         TableCellView {
                                             id: hCellView
                                             anchors.left: parent.left; anchors.right: parent.right
@@ -827,10 +959,21 @@ Rectangle {
                         Repeater {
                             model: tblRect.rows
                             delegate: Rectangle {
+                                id: dRowWrap
                                 readonly property int rIdx: index
                                 readonly property var rowData: modelData || []
+                                property real maxH: 28
+                                function updateRowHeight() {
+                                    var m = 28;
+                                    for (var i = 0; i < dRep.count; i++) {
+                                        var it = dRep.itemAt(i);
+                                        if (it && it.cellH > m) m = it.cellH;
+                                    }
+                                    if (Math.abs(maxH - m) > 0.5) maxH = m;
+                                }
                                 width: tblCol.width
-                                implicitHeight: Math.max(28, dRow.implicitHeight)
+                                implicitHeight: maxH
+                                height: maxH
                                 color: (rIdx % 2 === 1) ? Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.02) : "transparent"
 
                                 Rectangle { anchors.top: parent.top; width: parent.width; height: 1; color: Theme.border }
@@ -838,12 +981,17 @@ Rectangle {
                                 Row {
                                     id: dRow
                                     width: parent.width
+                                    height: dRowWrap.maxH
                                     Repeater {
+                                        id: dRep
                                         model: rowData
+                                        onCountChanged: dRowWrap.updateRowHeight()
                                         delegate: Item {
-                                            width: tblRect.colW
-                                            implicitHeight: Math.max(28, dCellView.implicitHeight + 10)
-                                            height: dRow.implicitHeight
+                                            readonly property real cellH: Math.max(28, dCellView.implicitHeight + 10)
+                                            width: tblRect.colWidthFor(index)
+                                            height: dRowWrap.maxH
+                                            onCellHChanged: dRowWrap.updateRowHeight()
+                                            Component.onCompleted: dRowWrap.updateRowHeight()
                                             TableCellView {
                                                 id: dCellView
                                                 anchors.left: parent.left; anchors.right: parent.right
@@ -879,15 +1027,34 @@ Rectangle {
                     width: nodeLoader.width
                     spacing: 4
                     Repeater {
-                        model: nodeHost.nodeData.items || []
+                        model: (nodeHost.nodeData && nodeHost.nodeData.items) ? nodeHost.nodeData.items : []
                         delegate: Loader {
+                            id: listRichLoader
                             width: parent.width
                             sourceComponent: richTextComponent
-                            onLoaded: {
-                                item.nodeStyle = nodeHost.st;
-                                item.prefixHtml = nodeHost.nodeData.ordered ? ("<b>" + (index + 1) + ".</b> ") : "• ";
-                                item.rawMd = modelData || "";
-                                item.unitId = nodeHost.nodePath + ".li" + index;
+                            Binding {
+                                target: listRichLoader.item
+                                property: "nodeStyle"
+                                value: nodeHost.st
+                                when: listRichLoader.status === Loader.Ready && listRichLoader.item !== null
+                            }
+                            Binding {
+                                target: listRichLoader.item
+                                property: "prefixHtml"
+                                value: (nodeHost.nodeData && nodeHost.nodeData.ordered) ? ("<b>" + (index + 1) + ".</b> ") : "• "
+                                when: listRichLoader.status === Loader.Ready && listRichLoader.item !== null
+                            }
+                            Binding {
+                                target: listRichLoader.item
+                                property: "rawMd"
+                                value: modelData || ""
+                                when: listRichLoader.status === Loader.Ready && listRichLoader.item !== null
+                            }
+                            Binding {
+                                target: listRichLoader.item
+                                property: "unitId"
+                                value: nodeHost.nodePath + ".li" + index
+                                when: listRichLoader.status === Loader.Ready && listRichLoader.item !== null
                             }
                         }
                     }
@@ -897,8 +1064,10 @@ Rectangle {
             Component {
                 id: compCode
                 Rectangle {
+                    id: htmlCodeRect
                     width: nodeLoader.width
                     implicitHeight: codeTxt.paintedHeight + 16
+                    height: implicitHeight
                     radius: 8
                     color: Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.06)
                     border.color: Theme.border
@@ -918,7 +1087,7 @@ Rectangle {
                         color: Theme.text
                         selectionColor: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.35)
                         selectedTextColor: Theme.text
-                        text: nodeHost.nodeData.text || ""
+                        text: (nodeHost.nodeData && nodeHost.nodeData.text) ? nodeHost.nodeData.text : ""
                     }
                 }
             }
@@ -928,6 +1097,7 @@ Rectangle {
                 Item {
                     width: nodeLoader.width
                     implicitHeight: bqCol.implicitHeight + 6
+                    height: implicitHeight
                     Rectangle {
                         width: 3
                         height: parent.height - 4
@@ -941,15 +1111,24 @@ Rectangle {
                         width: Math.max(40, parent.width - 12)
                         spacing: 4
                         Repeater {
-                            model: (nodeHost.nodeData.children && nodeHost.nodeData.children.length > 0)
+                            model: (nodeHost.nodeData && nodeHost.nodeData.children && nodeHost.nodeData.children.length > 0)
                                 ? nodeHost.nodeData.children
-                                : [{ kind: "markdown", raw: nodeHost.nodeData.raw || "", style: nodeHost.st }]
+                                : [{ kind: "markdown", raw: (nodeHost.nodeData && nodeHost.nodeData.raw) ? nodeHost.nodeData.raw : "", style: nodeHost.st }]
                             delegate: Loader {
+                                id: bqChildLoader
                                 width: bqCol.width
                                 sourceComponent: htmlNodeDelegate
-                                onLoaded: {
-                                    item.nodeData = modelData;
-                                    item.nodePath = nodeHost.nodePath + ".bq" + index;
+                                Binding {
+                                    target: bqChildLoader.item
+                                    property: "nodeData"
+                                    value: modelData
+                                    when: bqChildLoader.status === Loader.Ready && bqChildLoader.item !== null
+                                }
+                                Binding {
+                                    target: bqChildLoader.item
+                                    property: "nodePath"
+                                    value: nodeHost.nodePath + ".bq" + index
+                                    when: bqChildLoader.status === Loader.Ready && bqChildLoader.item !== null
                                 }
                             }
                         }
@@ -1109,11 +1288,20 @@ Rectangle {
             Repeater {
                 model: root.parsedNodes
                 delegate: Loader {
+                    id: topNodeLoader
                     width: previewCol.width
                     sourceComponent: htmlNodeDelegate
-                    onLoaded: {
-                        item.nodeData = modelData;
-                        item.nodePath = String(index);
+                    Binding {
+                        target: topNodeLoader.item
+                        property: "nodeData"
+                        value: modelData
+                        when: topNodeLoader.status === Loader.Ready && topNodeLoader.item !== null
+                    }
+                    Binding {
+                        target: topNodeLoader.item
+                        property: "nodePath"
+                        value: String(index)
+                        when: topNodeLoader.status === Loader.Ready && topNodeLoader.item !== null
                     }
                 }
             }
@@ -1153,13 +1341,13 @@ Rectangle {
                     textDocument: editInput.textDocument
                     language: "html"
                     enabled: root.isEditing
-                    keywordColor: Theme.color5
-                    stringColor: Theme.color2
+                    keywordColor: Theme.ensureSyntaxColor(Theme.color5)
+                    stringColor: Theme.ensureSyntaxColor(Theme.color2)
                     commentColor: Theme.muted
-                    numberColor: Theme.color3
-                    typeColor: Theme.color4
-                    functionColor: Theme.color6
-                    operatorColor: Theme.accent
+                    numberColor: Theme.ensureSyntaxColor(Theme.color3)
+                    typeColor: Theme.ensureSyntaxColor(Theme.color4)
+                    functionColor: Theme.ensureSyntaxColor(Theme.color6)
+                    operatorColor: Theme.ensureSyntaxColor(Theme.accent)
                 }
 
                 onTextChanged: {

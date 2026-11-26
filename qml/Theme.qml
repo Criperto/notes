@@ -396,4 +396,25 @@ QtObject {
     function textOn(bg) {
         return contrastRatio(bg, color15) > contrastRatio(bg, color0) ? color15 : color0;
     }
+
+    // Garantiza contraste legible en tokens de resaltado de sintaxis sobre fondo claro u oscuro (Pywal/Qt)
+    function ensureSyntaxColor(c) {
+        var col = c;
+        if (!col) return text;
+        var bg = surface;
+        var targetRatio = 4.6;
+        if (contrastRatio(col, bg) >= targetRatio) return col;
+        var anchor = isDark ? Qt.color("#ffffff") : Qt.color("#18181b");
+        for (var step = 1; step <= 8; step++) {
+            var t = step * 0.11;
+            var mixed = Qt.rgba(
+                col.r + (anchor.r - col.r) * t,
+                col.g + (anchor.g - col.g) * t,
+                col.b + (anchor.b - col.b) * t,
+                1.0
+            );
+            if (contrastRatio(mixed, bg) >= targetRatio) return mixed;
+        }
+        return anchor;
+    }
 }

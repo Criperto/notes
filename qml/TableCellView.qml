@@ -30,6 +30,7 @@ Item {
     readonly property real contentHeight: root.hasMedia ? mediaCol.implicitHeight : plainText.paintedHeight
 
     implicitHeight: contentHeight
+    height: implicitHeight
 
     function _cellPressed(ma, textEdit, mouse) {
         if (!root.isReadOnly) {
