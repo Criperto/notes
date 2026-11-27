@@ -178,7 +178,7 @@ function renderKeycapSvg(label, opts) {
     var rx = Math.round(5.0 * z * 10) / 10;
     var plateRx = Math.round(2.6 * z * 10) / 10;
     var fontSize = Math.round(10.0 * z * 10) / 10;
-    var textY = Math.round((plateY + plateH / 2.0) * 10) / 10;
+    var textY = Math.round((plateY + plateH / 2.0 + fontSize * 0.36) * 10) / 10;
 
     var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '">' +
         '<!-- Capa 3D inferior / Profundidad (keycap_base.svg) -->' +
@@ -190,7 +190,7 @@ function renderKeycapSvg(label, opts) {
         '<!-- Placa central interna recesada (Theme.surface) -->' +
         '<rect x="' + plateX + '" y="' + plateY + '" width="' + plateW + '" height="' + plateH + '" rx="' + plateRx + '" fill="' + plateColor + '"/>' +
         '<!-- Leyenda centrada en la placa interna -->' +
-        '<text x="' + (w / 2.0) + '" y="' + textY + '" fill="' + textColor + '" font-family="' + fontFamily + '" font-size="' + fontSize + '" font-weight="bold" text-anchor="middle" dominant-baseline="central">' + safeText + '</text>' +
+        '<text x="' + (w / 2.0) + '" y="' + textY + '" fill="' + textColor + '" font-family="' + fontFamily + '" font-size="' + fontSize + '" font-weight="bold" text-anchor="middle">' + safeText + '</text>' +
         '</svg>';
 
     return "data:image/svg+xml;utf8," + encodeURIComponent(svg);

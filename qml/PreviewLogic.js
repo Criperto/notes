@@ -219,15 +219,60 @@ function formatRelative(dateVal, nowMs) {
  */
 
 /**
+ * Extrae texto y Markdown legible desde bloques HTML (p. ej. <div align="center">,
+ * <details>, <style>, <img>) para mostrarlo normalmente en las tarjetas de notas
+ * sin contenedores HTML ni estilos CSS crudos. Respeta fences y backticks inline.
+ */
+function stripHtmlForPreview(md) {
+    if (!md || typeof md !== "string") return "";
+    if (md.indexOf("<") === -1) return md;
+
+    var preservedCode = [];
+    var masked = md.replace(/(`{3,}|~{3,})[\s\S]*?\1|`[^`\r\n]+`/g, function(m) {
+        var tok = "\uE001CODE_" + preservedCode.length + "\uE001";
+        preservedCode.push(m);
+        return tok;
+    });
+
+    masked = masked
+        .replace(/<!--[\s\S]*?-->/g, "")
+        .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, "")
+        .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "")
+        .replace(/<img\b[^>]*\/?>/gi, "")
+        .replace(/<a\b[^>]*?\bhref\s*=\s*(?:"([^"]*)"|'([^']*)')[^>]*>([\s\S]*?)<\/a>/gi, function(_, u1, u2, label) {
+            var url = (u1 !== undefined ? u1 : (u2 || "")).trim();
+            var inner = (label || "").replace(/<[^>]+>/g, "").trim();
+            if (!inner) return "";
+            return url ? ("[" + inner + "](" + url + ")") : inner;
+        })
+        .replace(/<br\s*\/?>/gi, "\n")
+        .replace(/<\/?(?:td|th)\b[^>]*>/gi, " ")
+        .replace(/<\/?(?:div|p|section|article|aside|header|footer|details|summary|blockquote|center|figure|figcaption|table|thead|tbody|tr|ul|ol|li|picture|source|hr|h[1-6])\b[^>]*>/gi, "\n")
+        .replace(/<\/?[a-zA-Z][a-zA-Z0-9:-]*(?:\s+[^>]*)?\/?>/g, "");
+
+    for (var i = 0; i < preservedCode.length; i++) {
+        var codeSeg = preservedCode[i];
+        masked = masked.replace("\uE001CODE_" + i + "\uE001", function() { return codeSeg; });
+    }
+
+    return masked
+        .replace(/[ \t]+\n/g, "\n")
+        .replace(/\n{3,}/g, "\n\n")
+        .trim();
+}
+
+/**
  * Limpia solo la sintaxis propia de la app que Qt MarkdownText no conoce.
  * El markdown estándar se conserva para que la tarjeta lo renderice.
+ * - bloques/etiquetas HTML → texto/markdown limpio sin contenedores
  * - imágenes ![alt](url) → "" (evita intentos de carga en la preview)
  * - [[destino|alias]] → alias, [[destino]] → destino
  * - ==resaltado== → resaltado
  */
 function cleanCardText(md) {
     if (!md || typeof md !== "string") return "";
-    return md
+    var cleaned = stripHtmlForPreview(md);
+    return cleaned
         .replace(/^[ \t]*(`{3,}|~{3,})[ \t]*(?:mermaid|math|latex)[\s\S]*?\1[ \t]*$/gmi, "📊 Diagrama")
         .replace(/^[ \t]*\$\$[\s\S]*?\$\$[ \t]*$/gm, "∑ Fórmula")
         .replace(/!\[([^\]]*)\]\((?:[^()\s]+|\([^()\s]*\))(?:\s+"[^"]*")?\)/g, "")
@@ -242,7 +287,7 @@ function cleanCardText(md) {
  */
 function cleanSubtitle(s) {
     if (!s || typeof s !== "string") return "";
-    var t = s;
+    var t = stripHtmlForPreview(s);
     t = t.replace(/^[ \t]*(`{3,}|~{3,})[ \t]*mermaid[\s\S]*?\1[ \t]*$/gmi, "📊 Diagrama");
     t = t.replace(/!\[([^\]]*)\]\([^)]+\)/g, "$1");
     t = t.replace(/\[\[([^\]|]+)\|([^\]]+)\]\]/g, "$2");

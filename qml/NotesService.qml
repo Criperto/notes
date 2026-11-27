@@ -11,6 +11,7 @@ import "SortLogic.js" as SortLogic
 import "VersionPolicy.js" as VersionPolicy
 import "SearchLogic.js" as SearchLogic
 import "TagsLogic.js" as TagsLogic
+import "PreviewLogic.js" as PreviewLogic
 
 Item {
     id: root
@@ -4309,6 +4310,7 @@ Item {
     }
 
     Component.onCompleted: {
+        MD.setPreviewStripper(PreviewLogic.stripHtmlForPreview);
         if (typeof Sys !== "undefined" && typeof Sys.ensureDir === "function") {
             Sys.ensureDir(root.notesDir);
             var stateFolder = root.statePath.substring(0, root.statePath.lastIndexOf("/"));

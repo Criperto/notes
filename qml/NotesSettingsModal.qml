@@ -3,6 +3,7 @@ import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import QtQuick.Effects
 import Notas
+import "Inline.js" as Inline
 
 Item {
     id: root
@@ -3003,6 +3004,74 @@ Item {
                         width: parent.width
                         spacing: 16
 
+                        function _shortcutKeyHtml(keysStr) {
+                            var str = String(keysStr || "").trim();
+                            if (!str) return "";
+                            var opts = {
+                                zoom: 0.94,
+                                lightMode: Theme.lightMode,
+                                accent: "" + Theme.accent,
+                                surface: "" + Theme.surface,
+                                color15: "" + Theme.color15,
+                                textColor: "" + Theme.text,
+                                fontFamilyMonospace: Theme.fontFamilyMonospace || "JetBrains Mono",
+                                kbdBezel: Theme.lightMode ? "#dcdcdc" : ("" + Theme.accent),
+                                kbdShadow1: Theme.lightMode ? "#9f9f9f" : ("" + Qt.darker(Theme.accent, 1.55)),
+                                kbdShadow2: Theme.lightMode ? "#b0b0b0" : ("" + Qt.darker(Theme.accent, 1.25)),
+                                kbdPlate: Theme.lightMode ? "#ffffff" : ("" + Theme.surface),
+                                kbdText: Theme.lightMode ? "#1c1c1c" : ("" + Theme.color15)
+                            };
+                            var parts = str.split(" / ");
+                            var renderedParts = [];
+                            for (var p = 0; p < parts.length; p++) {
+                                var part = parts[p].trim();
+                                if (part === "") continue;
+                                if (part.indexOf("+") !== -1 && part.length > 1) {
+                                    var segs = part.split("+");
+                                    var segHtml = [];
+                                    for (var s = 0; s < segs.length; s++) {
+                                        var tok = segs[s].trim();
+                                        if (tok !== "") segHtml.push("<kbd>" + tok + "</kbd>");
+                                    }
+                                    renderedParts.push(segHtml.join(" + "));
+                                } else {
+                                    renderedParts.push("<kbd>" + part + "</kbd>");
+                                }
+                            }
+                            return Inline.inlineToHtml(renderedParts.join(" / "), opts);
+                        }
+
+                        Component {
+                            id: shortcutRowDelegate
+                            RowLayout {
+                                required property var modelData
+                                Layout.fillWidth: true
+                                spacing: 12
+
+                                Text {
+                                    Layout.minimumWidth: 162
+                                    Layout.alignment: Qt.AlignVCenter
+                                    textFormat: Text.RichText
+                                    color: Theme.textSecondary ? Theme.textSecondary : Theme.text
+                                    font.family: Theme.fontFamily
+                                    font.pixelSize: Theme.fontSizeSmall
+                                    text: tabShortcuts._shortcutKeyHtml(modelData ? modelData.keys : "")
+                                }
+
+                                Text {
+                                    Layout.fillWidth: true
+                                    Layout.alignment: Qt.AlignVCenter
+                                    text: modelData ? modelData.desc : ""
+                                    color: Theme.text
+                                    wrapMode: Text.WordWrap
+                                    font {
+                                        family: Theme.fontFamily
+                                        pixelSize: Theme.fontSizeBody
+                                    }
+                                }
+                            }
+                        }
+
                         SectionHeader {
                             iconName: "keyboard.svg"
                             title: I18n.t("shortcuts.title", "Atajos de Teclado")
@@ -3039,43 +3108,7 @@ Item {
                                         { keys: "Ctrl+/ / F1", desc: I18n.t("shortcuts.nav_help", "Ver esta hoja de atajos de teclado") },
                                         { keys: "Esc", desc: I18n.t("shortcuts.nav_esc", "Cerrar modal o volver a la vista principal") }
                                     ]
-
-                                    delegate: RowLayout {
-                                        Layout.fillWidth: true
-                                        spacing: 12
-
-                                        Rectangle {
-                                            implicitWidth: keyTxt.implicitWidth + 16
-                                            implicitHeight: 26
-                                            radius: 6
-                                            color: Qt.rgba(0, 0, 0, 0.3)
-                                            border.width: 1
-                                            border.color: Qt.rgba(1, 1, 1, 0.12)
-
-                                            Text {
-                                                id: keyTxt
-                                                anchors.centerIn: parent
-                                                text: modelData.keys
-                                                color: Theme.textSecondary ? Theme.textSecondary : Theme.text
-                                                font {
-                                                    family: Theme.fontFamilyMonospace
-                                                    pixelSize: Theme.fontSizeSmall
-                                                    bold: true
-                                                }
-                                            }
-                                        }
-
-                                        Text {
-                                            Layout.fillWidth: true
-                                            text: modelData.desc
-                                            color: Theme.text
-                                            wrapMode: Text.WordWrap
-                                            font {
-                                                family: Theme.fontFamily
-                                                pixelSize: Theme.fontSizeBody
-                                            }
-                                        }
-                                    }
+                                    delegate: shortcutRowDelegate
                                 }
                             }
                         }
@@ -3109,43 +3142,7 @@ Item {
                                         { keys: "Ctrl+Z / Ctrl+Y", desc: I18n.t("shortcuts.edit_undo", "Deshacer y rehacer persistente") },
                                         { keys: "Ctrl+S", desc: I18n.t("shortcuts.edit_save", "Guardar nota de inmediato") }
                                     ]
-
-                                    delegate: RowLayout {
-                                        Layout.fillWidth: true
-                                        spacing: 12
-
-                                        Rectangle {
-                                            implicitWidth: keyTxt2.implicitWidth + 16
-                                            implicitHeight: 26
-                                            radius: 6
-                                            color: Qt.rgba(0, 0, 0, 0.3)
-                                            border.width: 1
-                                            border.color: Qt.rgba(1, 1, 1, 0.12)
-
-                                            Text {
-                                                id: keyTxt2
-                                                anchors.centerIn: parent
-                                                text: modelData.keys
-                                                color: Theme.textSecondary ? Theme.textSecondary : Theme.text
-                                                font {
-                                                    family: Theme.fontFamilyMonospace
-                                                    pixelSize: Theme.fontSizeSmall
-                                                    bold: true
-                                                }
-                                            }
-                                        }
-
-                                        Text {
-                                            Layout.fillWidth: true
-                                            text: modelData.desc
-                                            color: Theme.text
-                                            wrapMode: Text.WordWrap
-                                            font {
-                                                family: Theme.fontFamily
-                                                pixelSize: Theme.fontSizeBody
-                                            }
-                                        }
-                                    }
+                                    delegate: shortcutRowDelegate
                                 }
                             }
                         }
@@ -3177,43 +3174,7 @@ Item {
                                         { keys: "Ctrl+Alt+W", desc: I18n.t("shortcuts.tool_clip", "Clipper web (recortar URL a Markdown)") },
                                         { keys: "Ctrl+Alt+V", desc: I18n.t("shortcuts.tool_paste", "Capturar nueva nota desde portapapeles") }
                                     ]
-
-                                    delegate: RowLayout {
-                                        Layout.fillWidth: true
-                                        spacing: 12
-
-                                        Rectangle {
-                                            implicitWidth: keyTxt3.implicitWidth + 16
-                                            implicitHeight: 26
-                                            radius: 6
-                                            color: Qt.rgba(0, 0, 0, 0.3)
-                                            border.width: 1
-                                            border.color: Qt.rgba(1, 1, 1, 0.12)
-
-                                            Text {
-                                                id: keyTxt3
-                                                anchors.centerIn: parent
-                                                text: modelData.keys
-                                                color: Theme.textSecondary ? Theme.textSecondary : Theme.text
-                                                font {
-                                                    family: Theme.fontFamilyMonospace
-                                                    pixelSize: Theme.fontSizeSmall
-                                                    bold: true
-                                                }
-                                            }
-                                        }
-
-                                        Text {
-                                            Layout.fillWidth: true
-                                            text: modelData.desc
-                                            color: Theme.text
-                                            wrapMode: Text.WordWrap
-                                            font {
-                                                family: Theme.fontFamily
-                                                pixelSize: Theme.fontSizeBody
-                                            }
-                                        }
-                                    }
+                                    delegate: shortcutRowDelegate
                                 }
                             }
                         }

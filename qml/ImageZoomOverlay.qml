@@ -359,45 +359,59 @@ Item {
         }
     }
 
-    // Botón X superior derecho por fuera de la imagen (blanco -> Theme.color1 al hacer hover)
-    Rectangle {
+    function stepZoom(direction) {
+        if (!root.isExpanded || root.isClosing) return;
+        root._springActive = false;
+        var factor = Math.pow(1.25, direction);
+        var oldScale = root.currentScale;
+        var newScale = Math.max(root.minScale, Math.min(root.maxScale, oldScale * factor));
+        if (Math.abs(newScale - oldScale) < 0.0001) return;
+        var ratio = newScale / oldScale;
+        var newW = Math.max(24, root.effectiveNatW * newScale);
+        var newH = Math.max(24, root.effectiveNatH * newScale);
+        var clamped = root._clampPan(root.panX * ratio, root.panY * ratio, newW, newH);
+        root.currentScale = newScale;
+        root.panX = clamped.x;
+        root.panY = clamped.y;
+    }
+
+    function resetZoom() {
+        if (!root.isExpanded || root.isClosing) return;
+        root._springActive = false;
+        var target = (Math.abs(root.currentScale - 1.0) < 0.02) ? root.fitScale : 1.0;
+        root.currentScale = Math.max(root.minScale, Math.min(root.maxScale, target));
+        root.panX = 0.0;
+        root.panY = 0.0;
+    }
+
+    // Botón X grande flotante arriba a la derecha (sin círculo de fondo; blanco -> Theme.color1 en hover)
+    Item {
         id: closeBtn
         z: 20
         anchors.top: parent.top
         anchors.right: parent.right
-        anchors.margins: 24
-        width: 38
-        height: 38
-        radius: 19
-        color: closeMa.containsMouse
-            ? Qt.rgba(Theme.color1.r, Theme.color1.g, Theme.color1.b, 0.18)
-            : Qt.rgba(0, 0, 0, 0.48)
-        border.width: 1
-        border.color: closeMa.containsMouse
-            ? Qt.rgba(Theme.color1.r, Theme.color1.g, Theme.color1.b, 0.55)
-            : Qt.rgba(1, 1, 1, 0.18)
+        anchors.margins: 22
+        width: 48
+        height: 48
         opacity: (root.isExpanded && !root.isClosing) ? 1.0 : 0.0
         visible: opacity > 0.0
+        scale: closeMa.pressed ? 0.92 : (closeMa.containsMouse ? 1.08 : 1.0)
 
         Behavior on opacity {
             enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
             NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
         }
-        Behavior on color {
+        Behavior on scale {
             enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
-            ColorAnimation { duration: 150 }
-        }
-        Behavior on border.color {
-            enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
-            ColorAnimation { duration: 150 }
+            NumberAnimation { duration: 140; easing.type: Easing.OutCubic }
         }
 
         Image {
             anchors.centerIn: parent
-            width: 20
-            height: 20
+            width: 34
+            height: 34
             source: Theme.iconsPath + "x.svg"
-            sourceSize: Qt.size(20, 20)
+            sourceSize: Qt.size(34, 34)
             layer.enabled: closeBtn.visible
             layer.effect: MultiEffect {
                 colorization: 1.0
@@ -417,6 +431,159 @@ Item {
             onClicked: (mouse) => {
                 mouse.accepted = true;
                 root.close();
+            }
+        }
+    }
+
+    // Indicador y controles flotantes de zoom inferiores (- 100% +) con iconos Material You
+    Rectangle {
+        id: zoomControlPill
+        z: 20
+        anchors.bottom: parent.bottom
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottomMargin: 24
+        height: 40
+        width: zoomPillRow.implicitWidth + 14
+        radius: height / 2
+        color: Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, 0.88)
+        border.width: 1
+        border.color: Qt.rgba(1, 1, 1, 0.14)
+        opacity: (root.isExpanded && !root.isClosing) ? 1.0 : 0.0
+        visible: opacity > 0.0
+
+        Behavior on opacity {
+            enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+            NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
+        }
+
+        // Evitar que clics en la píldora cierren el lightbox vía overlayMa
+        MouseArea {
+            anchors.fill: parent
+            acceptedButtons: Qt.AllButtons
+            onPressed: (mouse) => { mouse.accepted = true; }
+        }
+
+        Row {
+            id: zoomPillRow
+            anchors.centerIn: parent
+            spacing: 4
+
+            // Botón alejar (-)
+            Rectangle {
+                id: zoomOutBtn
+                readonly property bool canStepOut: root.currentScale > root.minScale + 0.001
+                width: 32
+                height: 32
+                radius: 16
+                color: (canStepOut && zoomOutMa.containsMouse) ? Qt.rgba(Theme.color1.r, Theme.color1.g, Theme.color1.b, 0.20) : "transparent"
+                opacity: canStepOut ? 1.0 : 0.35
+
+                Behavior on color {
+                    enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                    ColorAnimation { duration: 130 }
+                }
+
+                Image {
+                    anchors.centerIn: parent
+                    width: 18
+                    height: 18
+                    source: Theme.iconsPath + "remove.svg"
+                    sourceSize: Qt.size(18, 18)
+                    layer.enabled: zoomControlPill.visible
+                    layer.effect: MultiEffect {
+                        colorization: 1.0
+                        colorizationColor: (zoomOutBtn.canStepOut && zoomOutMa.containsMouse) ? Theme.color1 : Theme.text
+                    }
+                }
+
+                MouseArea {
+                    id: zoomOutMa
+                    anchors.fill: parent
+                    enabled: zoomOutBtn.canStepOut
+                    hoverEnabled: true
+                    cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                    onClicked: (mouse) => {
+                        mouse.accepted = true;
+                        root.stepZoom(-1);
+                    }
+                }
+            }
+
+            // Indicador porcentual de zoom (clic alterna 100% / ajustar)
+            Rectangle {
+                id: zoomPctBtn
+                width: Math.max(54, zoomPctText.implicitWidth + 14)
+                height: 30
+                radius: 15
+                anchors.verticalCenter: parent.verticalCenter
+                color: zoomPctMa.containsMouse ? Qt.rgba(Theme.color1.r, Theme.color1.g, Theme.color1.b, 0.16) : "transparent"
+
+                Behavior on color {
+                    enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                    ColorAnimation { duration: 130 }
+                }
+
+                Text {
+                    id: zoomPctText
+                    anchors.centerIn: parent
+                    text: Math.round(root.currentScale * 100) + "%"
+                    color: zoomPctMa.containsMouse ? Theme.color1 : Theme.text
+                    font.family: Theme.fontFamilyMonospace || "monospace"
+                    font.pixelSize: Theme.fontSizeSmall
+                    font.weight: Font.DemiBold
+                }
+
+                MouseArea {
+                    id: zoomPctMa
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: (mouse) => {
+                        mouse.accepted = true;
+                        root.resetZoom();
+                    }
+                }
+            }
+
+            // Botón acercar (+)
+            Rectangle {
+                id: zoomInBtn
+                readonly property bool canStepIn: root.currentScale < root.maxScale - 0.001
+                width: 32
+                height: 32
+                radius: 16
+                color: (canStepIn && zoomInMa.containsMouse) ? Qt.rgba(Theme.color1.r, Theme.color1.g, Theme.color1.b, 0.20) : "transparent"
+                opacity: canStepIn ? 1.0 : 0.35
+
+                Behavior on color {
+                    enabled: Theme.animationsEnabled && !GamemodeService.gamemodeActive
+                    ColorAnimation { duration: 130 }
+                }
+
+                Image {
+                    anchors.centerIn: parent
+                    width: 18
+                    height: 18
+                    source: Theme.iconsPath + "add.svg"
+                    sourceSize: Qt.size(18, 18)
+                    layer.enabled: zoomControlPill.visible
+                    layer.effect: MultiEffect {
+                        colorization: 1.0
+                        colorizationColor: (zoomInBtn.canStepIn && zoomInMa.containsMouse) ? Theme.color1 : Theme.text
+                    }
+                }
+
+                MouseArea {
+                    id: zoomInMa
+                    anchors.fill: parent
+                    enabled: zoomInBtn.canStepIn
+                    hoverEnabled: true
+                    cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                    onClicked: (mouse) => {
+                        mouse.accepted = true;
+                        root.stepZoom(1);
+                    }
+                }
             }
         }
     }

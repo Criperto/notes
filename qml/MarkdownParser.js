@@ -1,6 +1,18 @@
 // MarkdownParser.js — Parser y serializador de notas Markdown con YAML frontmatter
 .pragma library
 
+var _previewStripper = null;
+function setPreviewStripper(fn) {
+    _previewStripper = (typeof fn === "function") ? fn : null;
+}
+
+function _stripHtmlForCard(text, isPlain) {
+    if (!text || typeof text !== "string") return "";
+    if (isPlain) return text.trim();
+    var cleaned = _previewStripper ? _previewStripper(text) : text.replace(/<style\b[^>]*>[\s\S]*?<\/style>|<script\b[^>]*>[\s\S]*?<\/script>|<img\b[^>]*\/?>|<\/?(?:div|p|section|article|aside|header|footer|details|summary|blockquote|center|figure|figcaption|table|thead|tbody|tr|td|th|ul|ol|li|picture|source|span|font|br|hr)\b[^>]*>/gi, "\n");
+    return cleaned.replace(/!\[.*?\]\(.*?\)/g, "").replace(/\n{3,}/g, "\n\n").trim();
+}
+
 function _parseTags(entry) {
     var tags = [];
     var v = entry.inlineValue ? entry.inlineValue.trim() : "";
@@ -326,7 +338,7 @@ function parseNote(fileName, filePath, fileIsDir, rawContent) {
     // Previsualización limpia para la tarjeta (sin etiquetas de imagen para evitar advertencias de carga)
     // Acotamos a los primeros 2000 caracteres para no correr regex pesados sobre archivos enormes
     var bodySlice = (body.length > 2000) ? body.substring(0, 2000) : body;
-    var cleanBodyForPreview = isPlainText ? bodySlice.trim() : bodySlice.replace(/!\[.*?\]\(.*?\)/g, "").trim();
+    var cleanBodyForPreview = _stripHtmlForCard(bodySlice, isPlainText);
     var firstH1Match = isPlainText ? null : cleanBodyForPreview.match(/^#+\s*(.+)\r?\n+/);
     if (firstH1Match) {
         var h1Text = firstH1Match[1].trim().toLowerCase();
@@ -604,7 +616,8 @@ function getCleanPreview(rawContent) {
     if (fm) {
         body = body.substring(fm.matchedLength);
     }
-    return body.replace(/!\[.*?\]\(.*?\)/g, "").substring(0, 350).trim();
+    var slice = (body.length > 2000) ? body.substring(0, 2000) : body;
+    return _stripHtmlForCard(slice, false).substring(0, 350).trim();
 }
 
 /**

@@ -151,6 +151,16 @@ Item {
         };
     }
 
+    function _renderCellHtml(raw) {
+        var html = Inline.inlineToHtml(raw, root._inlineOpts());
+        if (root.cellAlignment !== Text.AlignLeft && html.indexOf("<img") !== -1) {
+            html = html
+                .replace(/^(\s*)(<img\b)/i, '$1<span style="font-size:1px;">&#160;</span>$2')
+                .replace(/(<br\s*\/?>)(\s*)(<img\b)/gi, '$1$2<span style="font-size:1px;">&#160;</span>$3');
+        }
+        return html;
+    }
+
     // ── Vía rápida: celda de solo texto / LaTeX / kbd / enlaces ──────────────
     TextEdit {
         id: plainText
@@ -164,7 +174,7 @@ Item {
         persistentSelection: true
         activeFocusOnTab: false
         selectByMouse: false
-        text: !root.hasMedia ? Inline.inlineToHtml(root.rawText, root._inlineOpts()) : ""
+        text: !root.hasMedia ? root._renderCellHtml(root.rawText) : ""
         textFormat: TextEdit.RichText
         font.family: Theme.fontFamily
         font.pixelSize: root.fontPixelSize
@@ -236,7 +246,7 @@ Item {
                     persistentSelection: true
                     activeFocusOnTab: false
                     selectByMouse: false
-                    text: !segDelegate.isImageSeg && modelData ? Inline.inlineToHtml(modelData.text || "", root._inlineOpts()) : ""
+                    text: !segDelegate.isImageSeg && modelData ? root._renderCellHtml(modelData.text || "") : ""
                     textFormat: TextEdit.RichText
                     font.family: Theme.fontFamily
                     font.pixelSize: root.fontPixelSize
