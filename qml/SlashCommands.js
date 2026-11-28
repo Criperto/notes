@@ -12,6 +12,7 @@ var COMMANDS = [
         fallbackTitle: "Título 1",
         descKey: "notes.slash.h1_desc",
         fallbackDesc: "Encabezado principal grande",
+        badgeKey: "notes.slash.h1_cmd",
         badge: "/h1",
         keywords: ["h1", "titulo1", "encabezado1", "heading1", "h", "titulo", "header"]
     },
@@ -23,6 +24,7 @@ var COMMANDS = [
         fallbackTitle: "Título 2",
         descKey: "notes.slash.h2_desc",
         fallbackDesc: "Subtítulo de sección mediano",
+        badgeKey: "notes.slash.h2_cmd",
         badge: "/h2",
         keywords: ["h2", "titulo2", "encabezado2", "heading2", "subtitulo", "section"]
     },
@@ -34,6 +36,7 @@ var COMMANDS = [
         fallbackTitle: "Título 3",
         descKey: "notes.slash.h3_desc",
         fallbackDesc: "Encabezado pequeño",
+        badgeKey: "notes.slash.h3_cmd",
         badge: "/h3",
         keywords: ["h3", "titulo3", "encabezado3", "heading3", "seccion"]
     },
@@ -45,8 +48,9 @@ var COMMANDS = [
         fallbackTitle: "Lista con viñetas",
         descKey: "notes.slash.bullet_list_desc",
         fallbackDesc: "Viñetas simples no ordenadas",
+        badgeKey: "notes.slash.bullet_list_cmd",
         badge: "/lista",
-        keywords: ["lista", "vineta", "bullet", "puntos", "items", "ul"]
+        keywords: ["lista", "list", "vineta", "bullet", "puntos", "items", "ul"]
     },
     {
         id: "numbered_list",
@@ -56,8 +60,9 @@ var COMMANDS = [
         fallbackTitle: "Lista numerada",
         descKey: "notes.slash.numbered_list_desc",
         fallbackDesc: "Secuencia ordenada con números",
+        badgeKey: "notes.slash.numbered_list_cmd",
         badge: "/numero",
-        keywords: ["numero", "ordenada", "secuencia", "numbered", "123", "ol"]
+        keywords: ["numero", "number", "numbered", "ordenada", "secuencia", "123", "ol"]
     },
     {
         id: "task_list",
@@ -67,6 +72,7 @@ var COMMANDS = [
         fallbackTitle: "Lista de tareas",
         descKey: "notes.slash.task_list_desc",
         fallbackDesc: "Casillas de verificación interactivas",
+        badgeKey: "notes.slash.task_list_cmd",
         badge: "/tarea",
         keywords: ["tarea", "checklist", "task", "todo", "casilla", "check"]
     },
@@ -80,6 +86,7 @@ var COMMANDS = [
         fallbackTitle: "Tabla",
         descKey: "notes.slash.table_desc",
         fallbackDesc: "Insertar cuadrícula con filas y columnas",
+        badgeKey: "notes.slash.table_cmd",
         badge: "/tabla",
         keywords: ["tabla", "table", "grid", "cuadricula", "filas", "columnas"]
     },
@@ -91,8 +98,9 @@ var COMMANDS = [
         fallbackTitle: "Diagrama Mermaid",
         descKey: "notes.slash.mermaid_desc",
         fallbackDesc: "Flujos, secuencias, gráficos y arquitectura",
+        badgeKey: "notes.slash.mermaid_cmd",
         badge: "/mermaid",
-        keywords: ["mermaid", "diagrama", "flujo", "flowchart", "grafico", "chart", "secuencia"]
+        keywords: ["mermaid", "diagrama", "diagram", "flujo", "flowchart", "grafico", "chart", "secuencia"]
     },
     {
         id: "math",
@@ -102,8 +110,9 @@ var COMMANDS = [
         fallbackTitle: "Fórmula LaTeX",
         descKey: "notes.slash.math_desc",
         fallbackDesc: "Ecuación matemática con renderizado TeX",
+        badgeKey: "notes.slash.math_cmd",
         badge: "/math",
-        keywords: ["math", "latex", "formula", "ecuacion", "tex", "integral", "fraccion", "matematica", "calcular"]
+        keywords: ["math", "latex", "formula", "ecuacion", "equation", "tex", "integral", "fraccion", "matematica", "calcular"]
     },
     {
         id: "code_block",
@@ -113,6 +122,7 @@ var COMMANDS = [
         fallbackTitle: "Bloque de código",
         descKey: "notes.slash.code_block_desc",
         fallbackDesc: "Código con resaltado de sintaxis",
+        badgeKey: "notes.slash.code_block_cmd",
         badge: "/codigo",
         keywords: ["codigo", "code", "snippet", "syntax", "fence", "bloque"]
     },
@@ -124,6 +134,7 @@ var COMMANDS = [
         fallbackTitle: "Cita",
         descKey: "notes.slash.quote_desc",
         fallbackDesc: "Cita de texto con barra lateral",
+        badgeKey: "notes.slash.quote_cmd",
         badge: "/cita",
         keywords: ["cita", "quote", "blockquote", "frase"]
     },
@@ -135,8 +146,9 @@ var COMMANDS = [
         fallbackTitle: "Línea divisoria",
         descKey: "notes.slash.hr_desc",
         fallbackDesc: "Separador horizontal visual",
+        badgeKey: "notes.slash.hr_cmd",
         badge: "/separador",
-        keywords: ["separador", "hr", "linea", "divider", "regla"]
+        keywords: ["separador", "hr", "linea", "divider", "line", "rule", "regla"]
     },
     {
         id: "link",
@@ -146,6 +158,7 @@ var COMMANDS = [
         fallbackTitle: "Enlace web o externo",
         descKey: "notes.slash.link_desc",
         fallbackDesc: "Insertar un enlace markdown [texto](url)",
+        badgeKey: "notes.slash.link_cmd",
         badge: "/link",
         keywords: ["link", "enlace", "url", "web", "http", "vinculo"]
     },
@@ -157,8 +170,9 @@ var COMMANDS = [
         fallbackTitle: "Enlace a sección",
         descKey: "notes.slash.anchor_desc",
         fallbackDesc: "Saltar a un encabezado de esta nota",
+        badgeKey: "notes.slash.anchor_cmd",
         badge: "/ancla",
-        keywords: ["ancla", "anchor", "seccion", "salto", "heading", "indice", "#"]
+        keywords: ["ancla", "anchor", "seccion", "section", "salto", "heading", "indice", "#"]
     },
     {
         id: "wikilink",
@@ -168,8 +182,9 @@ var COMMANDS = [
         fallbackTitle: "Referencia a otra nota",
         descKey: "notes.slash.wikilink_desc",
         fallbackDesc: "Vincular a una nota existente o crear una nueva",
+        badgeKey: "notes.slash.wikilink_cmd",
         badge: "/referencia",
-        keywords: ["referencia", "nota", "wikilink", "enlace", "link", "vinculo", "[["]
+        keywords: ["referencia", "reference", "nota", "note", "wikilink", "enlace", "link", "vinculo", "[["]
     },
 
     // ── HTML y CSS estilo GitHub ──────────────────────────────────────────────
@@ -181,6 +196,7 @@ var COMMANDS = [
         fallbackTitle: "Centrar bloque (HTML)",
         descKey: "notes.slash.center_block_desc",
         fallbackDesc: "Contenedor <div align=\"center\"> compatible con GitHub",
+        badgeKey: "notes.slash.center_block_cmd",
         badge: "/centrar",
         keywords: ["centrar", "center", "align", "div", "medio", "titulo", "html"]
     },
@@ -192,6 +208,7 @@ var COMMANDS = [
         fallbackTitle: "Alinear a la derecha (HTML)",
         descKey: "notes.slash.right_block_desc",
         fallbackDesc: "Contenedor <div align=\"right\">",
+        badgeKey: "notes.slash.right_block_cmd",
         badge: "/derecha",
         keywords: ["derecha", "right", "align", "div", "html"]
     },
@@ -203,6 +220,7 @@ var COMMANDS = [
         fallbackTitle: "Desplegable (<details>)",
         descKey: "notes.slash.details_block_desc",
         fallbackDesc: "Sección colapsable estilo GitHub con <summary>",
+        badgeKey: "notes.slash.details_block_cmd",
         badge: "/details",
         keywords: ["details", "desplegable", "colapsable", "spoiler", "accordion", "summary", "ocultar", "html"]
     },
@@ -214,6 +232,7 @@ var COMMANDS = [
         fallbackTitle: "Bloque HTML / CSS",
         descKey: "notes.slash.html_block_desc",
         fallbackDesc: "Contenedor HTML editable con estilos CSS y vista previa",
+        badgeKey: "notes.slash.html_block_cmd",
         badge: "/html",
         keywords: ["html", "css", "style", "div", "bloque", "tarjeta", "card"]
     },
@@ -225,8 +244,9 @@ var COMMANDS = [
         fallbackTitle: "Texto con color (<span>)",
         descKey: "notes.slash.text_color_desc",
         fallbackDesc: "Aplicar color CSS inline mediante <span style=\"color:...\">",
+        badgeKey: "notes.slash.text_color_cmd",
         badge: "/color",
-        keywords: ["color", "texto", "span", "css", "estilo", "fuente"]
+        keywords: ["color", "texto", "text", "span", "css", "estilo", "fuente"]
     },
     {
         id: "kbd",
@@ -236,6 +256,7 @@ var COMMANDS = [
         fallbackTitle: "Atajo de teclado (<kbd>)",
         descKey: "notes.slash.kbd_desc",
         fallbackDesc: "Renderizar tecla visual con <kbd>Tecla</kbd>",
+        badgeKey: "notes.slash.kbd_cmd",
         badge: "/kbd",
         keywords: ["kbd", "tecla", "key", "shortcut", "atajo", "html"]
     },
@@ -247,8 +268,9 @@ var COMMANDS = [
         fallbackTitle: "Superíndice (<sup>)",
         descKey: "notes.slash.sup_desc",
         fallbackDesc: "Insertar texto elevado como exponentes o notas",
+        badgeKey: "notes.slash.sup_cmd",
         badge: "/sup",
-        keywords: ["sup", "superindice", "exponente", "potencia", "html"]
+        keywords: ["sup", "superindice", "superscript", "exponente", "potencia", "html"]
     },
     {
         id: "sub",
@@ -258,8 +280,9 @@ var COMMANDS = [
         fallbackTitle: "Subíndice (<sub>)",
         descKey: "notes.slash.sub_desc",
         fallbackDesc: "Insertar texto inferior como fórmulas químicas",
+        badgeKey: "notes.slash.sub_cmd",
         badge: "/sub",
-        keywords: ["sub", "subindice", "formula", "html"]
+        keywords: ["sub", "subindice", "subscript", "formula", "html"]
     },
 
     // ── Callouts estilo GitHub ───────────────────────────────────────────────
@@ -272,6 +295,7 @@ var COMMANDS = [
         fallbackTitle: "Nota (Callout)",
         descKey: "notes.slash.callout_note_desc",
         fallbackDesc: "Caja informativa azul con contexto adicional",
+        badgeKey: "notes.slash.callout_note_cmd",
         badge: "/note",
         keywords: ["note", "nota", "callout", "info", "admonition", "azul"]
     },
@@ -284,6 +308,7 @@ var COMMANDS = [
         fallbackTitle: "Consejo (Callout)",
         descKey: "notes.slash.callout_tip_desc",
         fallbackDesc: "Caja verde para sugerencias y atajos",
+        badgeKey: "notes.slash.callout_tip_cmd",
         badge: "/tip",
         keywords: ["tip", "consejo", "callout", "atajo", "verde", "truco"]
     },
@@ -296,6 +321,7 @@ var COMMANDS = [
         fallbackTitle: "Importante (Callout)",
         descKey: "notes.slash.callout_important_desc",
         fallbackDesc: "Caja violeta para directivas críticas",
+        badgeKey: "notes.slash.callout_important_cmd",
         badge: "/important",
         keywords: ["important", "importante", "callout", "violeta", "critico"]
     },
@@ -308,6 +334,7 @@ var COMMANDS = [
         fallbackTitle: "Advertencia (Callout)",
         descKey: "notes.slash.callout_warning_desc",
         fallbackDesc: "Caja amarilla para alertar sobre riesgos",
+        badgeKey: "notes.slash.callout_warning_cmd",
         badge: "/warning",
         keywords: ["warning", "advertencia", "alerta", "callout", "amarillo", "riesgo"]
     },
@@ -320,6 +347,7 @@ var COMMANDS = [
         fallbackTitle: "Precaución (Callout)",
         descKey: "notes.slash.callout_caution_desc",
         fallbackDesc: "Caja roja para acciones irreversibles",
+        badgeKey: "notes.slash.callout_caution_cmd",
         badge: "/caution",
         keywords: ["caution", "precaucion", "peligro", "callout", "rojo", "destructivo"]
     }

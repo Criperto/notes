@@ -414,16 +414,16 @@ Rectangle {
                 spacing: 6
 
                 readonly property var mathTemplates: [
-                    { label: "Fracción", snippet: "\\frac{a}{b}" },
-                    { label: "Raíz", snippet: "\\sqrt{x}" },
-                    { label: "Sumatoria", snippet: "\\sum_{i=1}^{n}" },
-                    { label: "Integral", snippet: "\\int_{a}^{b} f(x) \\, dx" },
-                    { label: "Límite", snippet: "\\lim_{x \\to \\infty}" },
-                    { label: "Matriz", snippet: "\\begin{pmatrix} a & b \\\\ c & d \\end{pmatrix}" },
-                    { label: "Casos", snippet: "\\begin{cases} x & \\text{si } x \\ge 0 \\\\ -x & \\text{si } x < 0 \\end{cases}" },
-                    { label: "Potencia", snippet: "x^{2}" },
-                    { label: "Subíndice", snippet: "x_{i}" },
-                    { label: "Griegas", snippet: "\\alpha, \\beta, \\gamma, \\pi, \\theta" }
+                    { label: I18n.t("notes.math.tpl_fraction", "Fracción"), snippet: "\\frac{a}{b}" },
+                    { label: I18n.t("notes.math.tpl_root", "Raíz"), snippet: "\\sqrt{x}" },
+                    { label: I18n.t("notes.math.tpl_sum", "Sumatoria"), snippet: "\\sum_{i=1}^{n}" },
+                    { label: I18n.t("notes.math.tpl_integral", "Integral"), snippet: "\\int_{a}^{b} f(x) \\, dx" },
+                    { label: I18n.t("notes.math.tpl_limit", "Límite"), snippet: "\\lim_{x \\to \\infty}" },
+                    { label: I18n.t("notes.math.tpl_matrix", "Matriz"), snippet: "\\begin{pmatrix} a & b \\\\ c & d \\end{pmatrix}" },
+                    { label: I18n.t("notes.math.tpl_cases", "Casos"), snippet: "\\begin{cases} x & \\text{si } x \\ge 0 \\\\ -x & \\text{si } x < 0 \\end{cases}" },
+                    { label: I18n.t("notes.math.tpl_power", "Potencia"), snippet: "x^{2}" },
+                    { label: I18n.t("notes.math.tpl_sub", "Subíndice"), snippet: "x_{i}" },
+                    { label: I18n.t("notes.math.tpl_greek", "Griegas"), snippet: "\\alpha, \\beta, \\gamma, \\pi, \\theta" }
                 ]
 
                 Repeater {

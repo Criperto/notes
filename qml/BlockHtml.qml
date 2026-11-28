@@ -676,7 +676,7 @@ Rectangle {
                                     font.pixelSize: EditorMetrics.body
                                     font.bold: true
                                     color: root._qmlColor(nodeHost.st && nodeHost.st.color, Theme.text)
-                                    text: Inline.inlineToHtml((nodeHost.nodeData && nodeHost.nodeData.summaryRaw) ? nodeHost.nodeData.summaryRaw : "Detalles", root._inlineOpts(nodeHost.st, 0))
+                                    text: Inline.inlineToHtml((nodeHost.nodeData && nodeHost.nodeData.summaryRaw) ? nodeHost.nodeData.summaryRaw : I18n.t("notes.html.details_default", "Detalles"), root._inlineOpts(nodeHost.st, 0))
                                 }
                             }
 

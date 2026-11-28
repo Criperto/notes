@@ -149,6 +149,26 @@ Item {
         }
     }
 
+    Connections {
+        target: (typeof titleInput !== "undefined") ? titleInput : null
+        function onActiveFocusChanged() {
+            if (!titleInput) return;
+            if (titleInput.activeFocus) {
+                root._clearAuxiliarySelections(titleInput);
+                if (blockEditor && typeof blockEditor.clearAllSelections === "function") {
+                    blockEditor.clearAllSelections(-1);
+                }
+                if (sourceCodeEditor && !root.isFindActive && sourceCodeEditor.selectionStart !== sourceCodeEditor.selectionEnd) {
+                    sourceCodeEditor.deselect();
+                }
+            } else {
+                if (!(editorContextMenu && editorContextMenu.visible && editorContextMenu.target === titleInput)) {
+                    titleInput.deselect();
+                }
+            }
+        }
+    }
+
     function markDirty() {
         if (root.isLoading || !root.loadedSlug || root.isRenaming || root._isDeleting || root.isPreviewMode) return;
         root.dirty = true;
@@ -163,6 +183,7 @@ Item {
         root._isDestroyed = true;
         if (root._isDeleting || root.isPreviewMode || root.isManualSaveOnly || root._discardUnsavedOnClose) return;
         if (root.loadedSlug && !(typeof NotesService !== "undefined" && NotesService.isDeletingKey && NotesService.isDeletingKey(root.loadedSlug))) {
+            if (typeof NotesService !== "undefined" && NotesService.isUntouchedDraft && NotesService.isUntouchedDraft(root.loadedSlug)) return;
             if (root.isSourceMode) {
                 root._currentBody = sourceCodeEditor ? sourceCodeEditor.text : root._currentBody;
             } else if (blockEditor) {
@@ -175,7 +196,7 @@ Item {
                 root.resolveConflictKeepBoth();
                 return;
             }
-            var newTitle = titleInput.text.trim() || I18n.t("notes.card.untitled", "Sin título");
+            var newTitle = root._resolveSaveTitle(root._currentBody, true);
             if (root.dirty || root._currentBody !== root._originalBody || newTitle !== root._originalTitle) {
                 root.performSave(null, true);
             } else {
@@ -187,10 +208,7 @@ Item {
     onVisibleChanged: {
         if (!visible && root.loadedSlug && !root._isDeleting && !root.isPreviewMode && !root.isManualSaveOnly && !root._discardUnsavedOnClose) {
             if (typeof NotesService !== "undefined" && NotesService.isDeletingKey && NotesService.isDeletingKey(root.loadedSlug)) return;
-            var newTitle = titleInput.text.trim() || I18n.t("notes.card.untitled", "Sin título");
-            var hasPending = root.dirty || (blockEditor && blockEditor.hasPendingChanges) || (newTitle !== root._originalTitle);
-            if (!hasPending) return;
-
+            if (typeof NotesService !== "undefined" && NotesService.isUntouchedDraft && NotesService.isUntouchedDraft(root.loadedSlug)) return;
             if (root.isSourceMode) {
                 root._currentBody = sourceCodeEditor ? sourceCodeEditor.text : root._currentBody;
             } else {
@@ -199,6 +217,10 @@ Item {
                 }
                 root._currentBody = blockEditor ? blockEditor.getMarkdown() : root._currentBody;
             }
+            var newTitle = root._resolveSaveTitle(root._currentBody, true);
+            var hasPending = root.dirty || (blockEditor && blockEditor.hasPendingChanges) || (newTitle !== root._originalTitle);
+            if (!hasPending) return;
+
             if (root.hasConflict) {
                 root.resolveConflictKeepBoth();
                 return;
@@ -411,6 +433,32 @@ Item {
         });
     }
 
+    function _resolveSaveTitle(bodyText, allowTitleCommit) {
+        var typed = titleInput ? titleInput.text.trim() : "";
+        if (typed !== "") return typed;
+        if (allowTitleCommit && !root.isExternalNote) {
+            var derived = MD.deriveTitleFromFirstLine(bodyText || "");
+            if (derived !== "") return derived;
+        }
+        if (root._originalTitle !== "") return root._originalTitle;
+        return "";
+    }
+
+    function _clearAuxiliarySelections(exceptItem) {
+        if (titleInput && exceptItem !== titleInput && titleInput.selectionStart !== titleInput.selectionEnd) {
+            titleInput.deselect();
+        }
+        if (tagInput && exceptItem !== tagInput && tagInput.selectionStart !== tagInput.selectionEnd) {
+            tagInput.deselect();
+        }
+        if (typeof webUrlInput !== "undefined" && webUrlInput && exceptItem !== webUrlInput && webUrlInput.selectionStart !== webUrlInput.selectionEnd) {
+            webUrlInput.deselect();
+        }
+        if (typeof findInput !== "undefined" && findInput && exceptItem !== findInput && findInput.selectionStart !== findInput.selectionEnd) {
+            findInput.deselect();
+        }
+    }
+
     function performSave(callback, force) {
         if (!root.loadedSlug || root.isRenaming || root._isDeleting || root.isPreviewMode) {
             if (typeof callback === "function") callback();
@@ -429,10 +477,22 @@ Item {
             return;
         }
 
-        var rawEditedTitle = titleInput.text.trim() || I18n.t("notes.card.untitled", "Sin título");
+        var bodyText = root._currentBody;
+        if (root.isSourceMode) {
+            bodyText = sourceCodeEditor ? sourceCodeEditor.text : root._currentBody;
+        } else if (blockEditor) {
+            bodyText = blockEditor.getMarkdown();
+        }
+        root._currentBody = bodyText;
+
         var allowTitleCommit = !!force || !!root.isClosing;
+        var rawEditedTitle = root._resolveSaveTitle(bodyText, allowTitleCommit);
+        var autoDerived = allowTitleCommit && !root.isExternalNote && titleInput && titleInput.text.trim() === "" && rawEditedTitle !== "" && bodyText.trim() !== "";
+        if (autoDerived && titleInput.text !== rawEditedTitle) {
+            titleInput.text = rawEditedTitle;
+        }
         var newTitle = (!root.isExternalNote && rawEditedTitle !== root._originalTitle && !allowTitleCommit)
-            ? (root._originalTitle || rawEditedTitle)
+            ? (root._originalTitle !== "" ? root._originalTitle : rawEditedTitle)
             : rawEditedTitle;
         var tagsNow = (root.editTags || []).join("\n");
         var tagsOrig = (root._originalTags || []).join("\n");
@@ -444,13 +504,6 @@ Item {
             return;
         }
 
-        if (root.isSourceMode) {
-            root._currentBody = sourceCodeEditor ? sourceCodeEditor.text : root._currentBody;
-        } else {
-            root._currentBody = blockEditor ? blockEditor.getMarkdown() : root._currentBody;
-        }
-
-        var bodyText = root._currentBody;
         var hasChanges = (bodyText !== root._originalBody || metaChanged);
         if (!force && !hasChanges) {
             root.dirty = (!root.isPlainFormat && !root.isExternalNote && rawEditedTitle !== root._originalTitle);
@@ -549,7 +602,7 @@ Item {
             var tagsOrig = (root._originalTags || []).join("\n");
             if (tagsNow !== tagsOrig || root.isPinned !== root._originalPinned) return true;
             if (!root.isExternalNote) {
-                var newTitle = (titleInput ? titleInput.text.trim() : "") || I18n.t("notes.card.untitled", "Sin título");
+                var newTitle = root._resolveSaveTitle(bodyNow, true);
                 if (newTitle !== root._originalTitle) return true;
             }
         }
@@ -1196,8 +1249,9 @@ Item {
                     sourceCodeEditor.cursorPosition = s + sel.length + 3;
                 } else {
                     var p = sourceCodeEditor.cursorPosition;
-                    sourceCodeEditor.insert(p, "[texto](url)");
-                    sourceCodeEditor.select(p + 1, p + 6);
+                    var linkLbl = I18n.t("notes.editor.link_text", "texto");
+                    sourceCodeEditor.insert(p, "[" + linkLbl + "](url)");
+                    sourceCodeEditor.select(p + 1, p + 1 + linkLbl.length);
                 }
                 sourceCodeEditor.forceActiveFocus();
                 root.markDirty();
@@ -2027,7 +2081,7 @@ Item {
                             text: I18n.t("notes.editor.title_placeholder", "Título de la nota...")
                             color: Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.3)
                             font: parent.font
-                            visible: !parent.text && !parent.activeFocus
+                            visible: !parent.text
                         }
 
                         onTextChanged: {
@@ -2446,7 +2500,17 @@ Item {
                             }
                         }
                         onActiveFocusChanged: {
-                            if (!activeFocus) root.hideTagSuggestions();
+                            if (!activeFocus) {
+                                root.hideTagSuggestions();
+                                if (!(editorContextMenu && editorContextMenu.visible && editorContextMenu.target === tagInput)) {
+                                    deselect();
+                                }
+                            } else {
+                                root._clearAuxiliarySelections(tagInput);
+                                if (blockEditor && typeof blockEditor.clearAllSelections === "function") {
+                                    blockEditor.clearAllSelections(-1);
+                                }
+                            }
                         }
 
                         MouseArea {
@@ -3421,6 +3485,14 @@ Item {
                         clip: true
                         CustomTextCursor {}
 
+                        onActiveFocusChanged: {
+                            if (activeFocus) {
+                                root._clearAuxiliarySelections(findInput);
+                            } else if (!(editorContextMenu && editorContextMenu.visible && editorContextMenu.target === findInput)) {
+                                deselect();
+                            }
+                        }
+
                         Text {
                             anchors.fill: parent
                             text: I18n.t("notes.editor.find_placeholder", "Buscar en la nota...")
@@ -3750,6 +3822,16 @@ Item {
                         operatorColor: Theme.ensureSyntaxColor(Theme.accent)
                     }
 
+                    onActiveFocusChanged: {
+                        if (activeFocus) {
+                            root._clearAuxiliarySelections(sourceCodeEditor);
+                        } else {
+                            if (!root.isFindActive && !(editorContextMenu && editorContextMenu.visible && editorContextMenu.target === sourceCodeEditor)) {
+                                deselect();
+                            }
+                        }
+                    }
+
                     onWidthChanged: if (root.isSourceMode) sourceGeomTimer.restart()
                     onImplicitHeightChanged: if (root.isSourceMode) sourceGeomTimer.restart()
                     Component.onCompleted: if (root.isSourceMode) sourceGeomTimer.restart()
@@ -3975,6 +4057,7 @@ Item {
                 Layout.fillHeight: true
                 readOnly: root.isPreviewMode
                 interactive: !root.isSettingsOpen
+                onEditorInputActivated: root._clearAuxiliarySelections(null)
 
                 Connections {
                     target: root

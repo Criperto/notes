@@ -566,6 +566,38 @@ function serializeNote(meta, body) {
 }
 
 /**
+ * Deriva un título legible a partir de la primera línea no vacía del cuerpo
+ * (ignorando fences, separadores y etiquetas HTML), quitando caracteres
+ * incompatibles con nombres de archivo y prefijos Markdown de bloque.
+ */
+function deriveTitleFromFirstLine(body) {
+    if (!body || typeof body !== "string") return "";
+    var lines = body.split(/\r?\n/);
+    for (var i = 0; i < lines.length; i++) {
+        var raw = lines[i].trim();
+        if (!raw) continue;
+        if (/^(`{3,}|~{3,})/.test(raw)) continue;
+        if (/^---+$/.test(raw)) continue;
+        var line = raw.replace(/<[^>]+>/g, " ").trim();
+        if (!line) continue;
+        line = line
+            .replace(/^#+\s+/, "")
+            .replace(/^(?:>\s*)+/, "")
+            .replace(/^[-*+]\s+(?:\[[ xX]\]\s+)?/, "")
+            .replace(/^\d+[.)]\s+/, "");
+        line = line.replace(/!\[([^\]]*)\]\([^)]*\)/g, "$1")
+                   .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1");
+        line = line.replace(/[\/\\:*?"<>|\x00-\x1f\x7f]/g, " ")
+                   .replace(/\s+/g, " ")
+                   .trim();
+        if (!line) continue;
+        if (line.length > 80) line = line.substring(0, 80).trim();
+        return line;
+    }
+    return "";
+}
+
+/**
  * Sanitiza un título a slug para nombre de archivo en Linux.
  */
 function slugify(text) {

@@ -2819,7 +2819,7 @@ Item {
 
                                                         Text {
                                                             anchors.centerIn: parent
-                                                            text: root.spellInstallProgress + "%" + (root.spellInstallStage === "aff" ? " (reglas)" : " (vocabulario)")
+                                                            text: root.spellInstallProgress + "%" + (root.spellInstallStage === "aff" ? (" (" + I18n.t("config.language.spell_stage_rules", "reglas") + ")") : (" (" + I18n.t("config.language.spell_stage_vocab", "vocabulario") + ")"))
                                                             color: Theme.text
                                                             font {
                                                                 pixelSize: Theme.fontSizeSmall
@@ -3212,7 +3212,7 @@ Item {
 
                                 Text {
                                     Layout.alignment: Qt.AlignHCenter
-                                    text: "Notas"
+                                    text: I18n.t("notes.header.title", "Notas")
                                     font.family: Theme.fontFamilyDisplay
                                     font.pixelSize: 24
                                     font.bold: true
@@ -3221,7 +3221,7 @@ Item {
 
                                 Text {
                                     Layout.alignment: Qt.AlignHCenter
-                                    text: "io.github.criperto.notes • Versión " + NotesConfig.appVersion
+                                    text: "io.github.criperto.notes • " + I18n.t("config.about.version", "Versión") + " " + NotesConfig.appVersion
                                     font.family: Theme.fontFamily
                                     font.pixelSize: Theme.fontSizeSmall
                                     color: Theme.muted
@@ -3339,7 +3339,7 @@ Item {
 
                                 Text {
                                     Layout.alignment: Qt.AlignHCenter
-                                    text: "Licencia: GNU General Public License v3.0 or later (GPL-3.0-or-later)"
+                                    text: I18n.t("config.about.license", "Licencia") + ": GNU General Public License v3.0 or later (GPL-3.0-or-later)"
                                     font.family: Theme.fontFamily
                                     font.pixelSize: Theme.fontSizeSmall
                                     font.bold: true
@@ -3349,7 +3349,7 @@ Item {
                                 Text {
                                     Layout.alignment: Qt.AlignHCenter
                                     Layout.preferredWidth: Math.min(parent.width - 32, 600)
-                                    text: "Aplicación nativa de notas en Markdown con editor tipográfico de bloques, previsualización interactiva en vivo, diagramas Mermaid interactivos, corrección ortográfica multilingüe integrada con Spellbook y persistencia atómica en disco."
+                                    text: I18n.t("config.about.description", "Aplicación nativa de notas en Markdown con editor tipográfico de bloques, previsualización interactiva en vivo, diagramas Mermaid interactivos, corrección ortográfica multilingüe integrada con Spellbook y persistencia atómica en disco.")
                                     font.family: Theme.fontFamily
                                     font.pixelSize: Theme.fontSizeBody
                                     color: Theme.text
@@ -3489,7 +3489,7 @@ Item {
                                         }
                                     }
                                     Text {
-                                        text: "Rutas y Archivos del Sistema"
+                                        text: I18n.t("config.about.paths_title", "Rutas y Archivos del Sistema")
                                         font.family: Theme.fontFamily
                                         font.pixelSize: Theme.fontSizeSubheading
                                         font.bold: true
@@ -3503,19 +3503,19 @@ Item {
                                     rowSpacing: 6
                                     Layout.fillWidth: true
 
-                                    Text { text: "Configuración:"; color: Theme.muted; font.family: Theme.fontFamily; font.pixelSize: Theme.fontSizeBodySecondary }
+                                    Text { text: I18n.t("config.about.path_config", "Configuración") + ":"; color: Theme.muted; font.family: Theme.fontFamily; font.pixelSize: Theme.fontSizeBodySecondary }
                                     Text { text: "~/.config/criperto-notes/config.json"; color: Theme.text; font.family: Theme.fontFamilyMonospace; font.pixelSize: Theme.fontSizeBodySecondary }
 
-                                    Text { text: "Diccionarios ortográficos:"; color: Theme.muted; font.family: Theme.fontFamily; font.pixelSize: Theme.fontSizeBodySecondary }
+                                    Text { text: I18n.t("config.about.path_dicts", "Diccionarios ortográficos") + ":"; color: Theme.muted; font.family: Theme.fontFamily; font.pixelSize: Theme.fontSizeBodySecondary }
                                     Text { text: "~/.local/share/criperto-notes/dictionaries/"; color: Theme.text; font.family: Theme.fontFamilyMonospace; font.pixelSize: Theme.fontSizeBodySecondary }
 
-                                    Text { text: "Diccionario personal:"; color: Theme.muted; font.family: Theme.fontFamily; font.pixelSize: Theme.fontSizeBodySecondary }
+                                    Text { text: I18n.t("config.about.path_personal_dict", "Diccionario personal") + ":"; color: Theme.muted; font.family: Theme.fontFamily; font.pixelSize: Theme.fontSizeBodySecondary }
                                     Text { text: "~/.config/criperto-notes/personal.dic"; color: Theme.text; font.family: Theme.fontFamilyMonospace; font.pixelSize: Theme.fontSizeBodySecondary }
 
-                                    Text { text: "Socket IPC:"; color: Theme.muted; font.family: Theme.fontFamily; font.pixelSize: Theme.fontSizeBodySecondary }
+                                    Text { text: I18n.t("config.about.path_ipc", "Socket IPC") + ":"; color: Theme.muted; font.family: Theme.fontFamily; font.pixelSize: Theme.fontSizeBodySecondary }
                                     Text { text: "$XDG_RUNTIME_DIR/criperto-notes.sock"; color: Theme.text; font.family: Theme.fontFamilyMonospace; font.pixelSize: Theme.fontSizeBodySecondary }
 
-                                    Text { text: "Perfil GitHub:"; color: Theme.muted; font.family: Theme.fontFamily; font.pixelSize: Theme.fontSizeBodySecondary }
+                                    Text { text: I18n.t("config.about.path_github", "Perfil GitHub") + ":"; color: Theme.muted; font.family: Theme.fontFamily; font.pixelSize: Theme.fontSizeBodySecondary }
                                     Text {
                                         text: "https://github.com/Criperto"
                                         color: linkAuthorMouse.containsMouse ? Theme.accent : Theme.text
@@ -3531,7 +3531,7 @@ Item {
                                         }
                                     }
 
-                                    Text { text: "Repositorio:"; color: Theme.muted; font.family: Theme.fontFamily; font.pixelSize: Theme.fontSizeBodySecondary }
+                                    Text { text: I18n.t("config.about.path_repo", "Repositorio") + ":"; color: Theme.muted; font.family: Theme.fontFamily; font.pixelSize: Theme.fontSizeBodySecondary }
                                     Text {
                                         text: "https://github.com/Criperto/notes"
                                         color: linkRepoMouse.containsMouse ? Theme.accent : Theme.text

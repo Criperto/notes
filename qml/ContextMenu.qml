@@ -1319,7 +1319,7 @@ Window {
                             }
 
                             Text {
-                                text: "Supr"
+                                text: I18n.t("common.keys.delete", "Supr")
                                 color: deleteItem.isItemActive ? (Theme.danger || Theme.red) : Theme.muted
                                 font { family: Theme.fontFamily; pixelSize: 11 }
                             }

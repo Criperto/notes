@@ -1404,6 +1404,9 @@ Item {
 
         // targetPath es siempre un archivo (.md/.txt), nunca un directorio -> pasar false
         var parsed = MD.parseNote(fileName, targetPath, false, serialized);
+        if (noteData.title === "") {
+            parsed.title = "";
+        }
         parsed.slug = slug;
         parsed.id = slug;
         parsed.key = key;
@@ -1818,12 +1821,12 @@ Item {
 
     function createNote(type, initialTitle, initialBody, onCreated) {
         var t = type || "text";
-        var defaultTextTitle = root._t("notes.new_note", "Nueva nota");
-        var title = initialTitle || defaultTextTitle;
+        var hasExplicitTitle = (typeof initialTitle === "string" && initialTitle.trim() !== "");
+        var title = hasExplicitTitle ? initialTitle.trim() : "";
         var subtitle = "";
         var content = (typeof initialBody === "string") ? initialBody : "";
 
-        var baseSlug = MD.slugify(title);
+        var baseSlug = MD.slugify(hasExplicitTitle ? title : "");
         var slug = _uniqueSlug(baseSlug, null, "md");
         var key = root._dictKey(root._canonSlug(slug), "md");
         if (root._deletingKeys[key]) delete root._deletingKeys[key];

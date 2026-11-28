@@ -58,15 +58,20 @@ function filterCommands(commands, query, I18n) {
         var title = (I18n && typeof I18n.t === "function") ? I18n.t(cmd.titleKey, cmd.fallbackTitle) : cmd.fallbackTitle;
         var desc = (I18n && typeof I18n.t === "function") ? I18n.t(cmd.descKey, cmd.fallbackDesc) : cmd.fallbackDesc;
 
+        var rawBadge = (cmd.badgeKey && I18n && typeof I18n.t === "function")
+            ? I18n.t(cmd.badgeKey, cmd.badge || "")
+            : (cmd.badge || "");
+        if (rawBadge && rawBadge.charAt(0) !== "/") rawBadge = "/" + rawBadge;
         var normId = normalizeText(cmd.id);
         var normTitle = normalizeText(title);
         var normDesc = normalizeText(desc);
-        var normBadge = normalizeText(cmd.badge);
+        var normBadge = normalizeText(rawBadge);
+        var normFallbackBadge = normalizeText(cmd.badge || "");
 
         var score = 0;
-        if (normBadge === "/" + q || normId === q) {
+        if (normBadge === "/" + q || normFallbackBadge === "/" + q || normId === q) {
             score += 100;
-        } else if (normBadge.startsWith("/" + q)) {
+        } else if (normBadge.startsWith("/" + q) || normFallbackBadge.startsWith("/" + q)) {
             score += 85;
         } else if (normTitle.startsWith(q)) {
             score += 70;
@@ -102,6 +107,10 @@ function filterCommands(commands, query, I18n) {
 function _formatCommandItem(cmd, I18n) {
     var title = (I18n && typeof I18n.t === "function") ? I18n.t(cmd.titleKey, cmd.fallbackTitle) : cmd.fallbackTitle;
     var desc = (I18n && typeof I18n.t === "function") ? I18n.t(cmd.descKey, cmd.fallbackDesc) : cmd.fallbackDesc;
+    var badge = (cmd.badgeKey && I18n && typeof I18n.t === "function")
+        ? I18n.t(cmd.badgeKey, cmd.badge || "")
+        : (cmd.badge || "");
+    if (badge && badge.charAt(0) !== "/") badge = "/" + badge;
     return {
         id: cmd.id,
         category: cmd.category,
@@ -109,7 +118,8 @@ function _formatCommandItem(cmd, I18n) {
         calloutType: cmd.calloutType || "",
         title: title,
         description: desc,
-        badge: cmd.badge,
+        badge: badge,
+        badgeKey: cmd.badgeKey || "",
         titleKey: cmd.titleKey,
         descKey: cmd.descKey,
         fallbackTitle: cmd.fallbackTitle,

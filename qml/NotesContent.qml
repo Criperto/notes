@@ -581,8 +581,8 @@ Item {
                             readonly property int total: NotesService.notes.length
                             readonly property int filtered: NotesService.filteredNotes.length
                             text: (NotesService.searchQuery.trim() !== "" || NotesService.activeTagFilter !== "")
-                                ? (filtered + " de " + total)
-                                : (total === 1 ? "1 nota" : (total + " notas"))
+                                ? (filtered + " " + I18n.t("notes.header.count_of", "de") + " " + total)
+                                : (total === 1 ? I18n.t("notes.header.count_one", "1 nota") : (total + " " + I18n.t("notes.header.count_many", "notas")))
                             color: Theme.muted
                             font.family: Theme.fontFamily
                             font.pixelSize: Theme.fontSizeCaption
@@ -1306,8 +1306,8 @@ Item {
                             text: (NotesService.searchQuery === "" && NotesService.activeTagFilter === "")
                                 ? I18n.t("notes.empty.subtitle", "Tocá el botón '+' para crear tu primera nota")
                                 : (NotesService.activeTagFilter !== ""
-                                    ? ("No hay notas con la etiqueta #" + NotesService.activeTagFilter)
-                                    : ("Sin resultados para «" + NotesService.searchQuery + "»"))
+                                    ? (I18n.t("notes.empty.tag_prefix", "No hay notas con la etiqueta") + " #" + NotesService.activeTagFilter)
+                                    : (I18n.t("notes.empty.no_results_for", "Sin resultados para") + " «" + NotesService.searchQuery + "»"))
                             color: Qt.hsva(Theme.muted.hsvHue, Theme.muted.hsvSaturation, Theme.muted.hsvValue, 0.7)
                             font.family: Theme.fontFamily
                             font.pixelSize: Theme.fontSizeSmall
@@ -1330,7 +1330,7 @@ Item {
                                 id: emptyBtnText
                                 anchors.centerIn: parent
                                 text: (NotesService.searchQuery.trim() !== "")
-                                    ? ("Crear nota «" + NotesService.searchQuery.trim() + "»")
+                                    ? (I18n.t("notes.empty.create", "Crear nota") + " «" + NotesService.searchQuery.trim() + "»")
                                     : I18n.t("notes.empty.create", "Crear nota")
                                 color: Theme.textOn(Theme.primary)
                                 font.family: Theme.fontFamily
@@ -1858,7 +1858,7 @@ Item {
                             anchors.fill: parent
                             verticalAlignment: Text.AlignVCenter
                             visible: parent.text === ""
-                            text: batchActionBar.promptMode === "tag" ? "tag..." : "carpeta (vacío=raíz)"
+                            text: batchActionBar.promptMode === "tag" ? I18n.t("notes.batch.tag_placeholder", "tag...") : I18n.t("notes.batch.folder_placeholder", "carpeta (vacío=raíz)")
                             color: Theme.muted
                             font.family: Theme.fontFamily
                             font.pixelSize: Theme.fontSizeSmall

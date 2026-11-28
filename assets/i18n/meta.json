@@ -14,9 +14,15 @@
     },
     {
       "code": "en",
-      "name": "English",
-      "nameEn": "English",
+      "name": "English (US)",
+      "nameEn": "English (United States)",
       "author": "Criperto"
+    },
+    {
+      "code": "en_ca",
+      "name": "English (Canada)",
+      "nameEn": "English (Canada)",
+      "author": "Antigravity"
     },
     {
       "code": "pt",
@@ -53,6 +59,30 @@
       "name": "Русский",
       "nameEn": "Russian",
       "author": "opencode"
+    },
+    {
+      "code": "hi",
+      "name": "हिन्दी",
+      "nameEn": "Hindi",
+      "author": "Criperto"
+    },
+    {
+      "code": "ko",
+      "name": "한국어",
+      "nameEn": "Korean",
+      "author": "Antigravity"
+    },
+    {
+      "code": "vi",
+      "name": "Tiếng Việt",
+      "nameEn": "Vietnamese",
+      "author": "Antigravity"
+    },
+    {
+      "code": "th",
+      "name": "ภาษาไทย",
+      "nameEn": "Thai",
+      "author": "Antigravity"
     }
   ]
 }

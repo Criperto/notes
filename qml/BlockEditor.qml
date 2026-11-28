@@ -26,6 +26,7 @@ Flickable {
     property string markdown: ""
     signal markdownEdited(string md)
     signal contentModified()
+    signal editorInputActivated()
 
     property bool _isDestroyed: false
     property var collapsedHeadingBids: ({})
@@ -657,6 +658,9 @@ Flickable {
         if (contextMenu && contextMenu.visible && !contextMenu.isClosing) {
             contextMenu.close();
         }
+        if (activeBlockBid !== -1) {
+            root.editorInputActivated();
+        }
     }
     onSelectedBidsChanged: updateFormatState()
 
@@ -717,6 +721,7 @@ Flickable {
     function notifySingleInputSelection(bid, subIdx) {
         if (root._syncingSelection || root.isDraggingSelection || root.hasBlockSelection) return;
         root.focusedSelectionBid = (typeof bid === "number") ? bid : -1;
+        root.editorInputActivated();
         clearSelectionExcept(bid, subIdx);
     }
 
