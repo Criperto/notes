@@ -27,6 +27,11 @@
   </screenshots>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.4.4" date="2026-11-28">
+      <description>
+        <p>v0.4.4: 14-language i18n coverage, localized slash commands, empty new note auto-title and single selection focus</p>
+      </description>
+    </release>
     <release version="0.4.3" date="2026-11-27">
       <description>
         <p>v0.4.3: Table kbd alignment, floating lightbox controls, HTML card previews and settings keycaps</p>
